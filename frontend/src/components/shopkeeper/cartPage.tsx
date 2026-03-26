@@ -336,7 +336,8 @@ export function CartPage() {
   function handleGoogleSignIn() {
     // Save current cart URL so CartAuthReturn can redirect back here
     sessionStorage.setItem("cartReturnUrl", window.location.pathname);
-    window.location.href = `${apiURL}/auth/google-buyer`;
+    const origin = encodeURIComponent(window.location.origin);
+    window.location.href = `${apiURL}/auth/google-buyer?origin=${origin}`;
   }
 
   async function getShopkeeper() {

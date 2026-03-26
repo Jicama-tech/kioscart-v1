@@ -15,10 +15,18 @@ export class GoogleBuyerStrategy extends PassportStrategy(
         process.env.GOOGLE_BUYER_REDIRECT_URI ||
         `${process.env.BACKEND_URL || "http://localhost:3000"}/auth/google-buyer/redirect`,
       scope: ["email", "profile"],
+      passReqToCallback: true,
     });
   }
 
+  authenticate(req: any, options: any) {
+    // Pass the origin from query param as OAuth state parameter
+    const origin = req.query?.origin || "";
+    super.authenticate(req, { ...options, state: origin });
+  }
+
   async validate(
+    req: any,
     accessToken: string,
     refreshToken: string,
     profile: any,

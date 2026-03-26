@@ -25,6 +25,17 @@ import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 export class AuthController {
   private readonly frontendUrl: string;
 
+  private readonly allowedOrigins = new Set([
+    "https://kioscart.com",
+    "https://www.kioscart.com",
+    "https://thefoxsg.com",
+    "https://www.thefoxsg.com",
+    "https://xcionasia.com",
+    "https://www.xcionasia.com",
+    "http://localhost:8080",
+    "http://localhost:8081",
+  ]);
+
   constructor(
     private authService: AuthService,
     private readonly usersService: UsersService,
@@ -32,6 +43,19 @@ export class AuthController {
     private readonly rolesService: RoleService,
   ) {
     this.frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+  }
+
+  /**
+   * Extracts the redirect origin from OAuth state parameter.
+   * Falls back to FRONTEND_URL if origin is not in the allowed list.
+   */
+  private getRedirectOrigin(req: Request): string {
+    const state = (req.query as any).state || "";
+    const origin = decodeURIComponent(state);
+    if (origin && this.allowedOrigins.has(origin)) {
+      return origin;
+    }
+    return this.frontendUrl;
   }
 
   @Post("login")
@@ -175,7 +199,9 @@ export class AuthController {
   @Get("google-buyer/redirect")
   @UseGuards(AuthGuard("google-buyer"))
   async googleBuyerRedirect(@Req() req: Request, @Res() res: Response) {
-    const FRONTEND = this.frontendUrl;
+    // Determine which frontend to redirect to based on Referer or state
+    const FRONTEND = this.getRedirectOrigin(req);
+
     try {
       const userFromGoogle = req.user as any;
 
@@ -217,7 +243,6 @@ export class AuthController {
         `${FRONTEND}/cart-auth-return?userToken=${encodeURIComponent(token)}`,
       );
     } catch (error) {
-      const FRONTEND = this.frontendUrl;
       return res.redirect(`${FRONTEND}/cart-auth-return?error=auth_failed`);
     }
   }
