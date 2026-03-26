@@ -23,7 +23,7 @@ export function webpImageMiddleware(
   res: Response,
   next: NextFunction,
 ) {
-  if (req.method !== "GET") return next();
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
 
   const acceptHeader = req.headers.accept || "";
   if (!acceptHeader.includes("image/webp")) return next();

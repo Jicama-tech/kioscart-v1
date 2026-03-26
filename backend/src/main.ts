@@ -48,7 +48,7 @@ async function bootstrap() {
   // Serve static files with caching headers (fallback for non-image files and unsupported browsers)
   app.use(
     "/uploads",
-    express.static(path.join(__dirname, "..", "uploads"), {
+    express.static(path.resolve(process.cwd(), "uploads"), {
       maxAge: "7d",
       etag: true,
       lastModified: true,
