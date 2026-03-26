@@ -344,11 +344,13 @@ Thank you for shopping with us.
       // Close selection, open loading/preview
       setPrintSelectionOpen(false);
 
+      const token = sessionStorage.getItem("token");
       // 1. Fetch the specific type from backend
       const response = await fetch(
-        `${API_URL}/orders/${printingOrder._id}/receipt?type=${type}`,
+        `${API_URL}/orders/${printingOrder._id}/receipt?type=${type}&disposition=inline`,
         {
           method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         },
       );
 
@@ -358,7 +360,7 @@ Thank you for shopping with us.
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
-      // 3. Open the Receipt Preview Modal (Reuse your existing receiptViewOpen)
+      // 3. Open the Receipt Preview Modal
       setReceiptUrl(url);
       setReceiptViewOpen(true);
     } catch (error) {
@@ -974,12 +976,32 @@ Thank you for shopping with us.
     setSelectedOrder(null);
   }
 
-  function openReceiptView(orderId: string) {
-    setReceiptUrl(`${API_URL}/orders/${orderId}/receipt`);
-    setReceiptViewOpen(true);
+  async function openReceiptView(orderId: string) {
+    try {
+      const token = sessionStorage.getItem("token");
+      const response = await fetch(
+        `${API_URL}/orders/${orderId}/receipt?disposition=inline`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
+      if (!response.ok) throw new Error("Failed to fetch receipt");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      setReceiptUrl(url);
+      setReceiptViewOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to load receipt",
+        variant: "destructive",
+      });
+    }
   }
 
   function closeReceiptView() {
+    if (receiptUrl) window.URL.revokeObjectURL(receiptUrl);
     setReceiptViewOpen(false);
     setReceiptUrl(null);
   }
@@ -1847,7 +1869,20 @@ Thank you for shopping with us.
             )}
           </div>
 
-          <div className="flex justify-end mt-4">
+          <div className="flex justify-end gap-2 mt-4">
+            {receiptUrl && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = receiptUrl;
+                  a.download = "receipt.pdf";
+                  a.click();
+                }}
+              >
+                Download
+              </Button>
+            )}
             <Button onClick={closeReceiptView}>Close</Button>
           </div>
         </DialogContent>

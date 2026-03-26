@@ -85,14 +85,16 @@ export class OrdersController {
   async downloadReceipt(
     @Param("id") id: string,
     @Query("type") type: string,
+    @Query("disposition") disposition: string,
     @Res() res: Response,
   ) {
     try {
       const receipt = await this.ordersService.generateReceipt(id, type);
 
+      const mode = disposition === "inline" ? "inline" : "attachment";
       res.set({
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename=receipt-${id.slice(-8)}.pdf`,
+        "Content-Disposition": `${mode}; filename=receipt-${id.slice(-8)}.pdf`,
         "Content-Length": receipt.length,
       });
 
