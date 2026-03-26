@@ -617,7 +617,7 @@ export function CartPage() {
     const closedFrom = closedFromStr ? new Date(closedFromStr) : null;
     const closedTo = closedToStr ? new Date(closedToStr) : null;
 
-    for (let i = 2; i <= 14; i++) {
+    for (let i = 0; i <= 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
 
@@ -642,8 +642,17 @@ export function CartPage() {
 
   const getAvailablePickupTimes = () => {
     const times = [];
-    for (let hour = 9; hour <= 20; hour++) {
-      for (let min of [0, 30]) {
+    const now = new Date();
+    const isToday = pickupDate === now.toISOString().split("T")[0];
+    const currentHour = now.getHours();
+    const currentMin = now.getMinutes();
+
+    for (let hour = 0; hour <= 23; hour++) {
+      for (const min of [0, 30]) {
+        // Skip past times if pickup date is today
+        if (isToday && (hour < currentHour || (hour === currentHour && min <= currentMin))) {
+          continue;
+        }
         const timeStr = `${hour.toString().padStart(2, "0")}:${min
           .toString()
           .padStart(2, "0")}`;
