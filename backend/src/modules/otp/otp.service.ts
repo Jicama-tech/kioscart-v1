@@ -20,6 +20,7 @@ import makeWASocket, {
   WASocket,
 } from "baileys";
 import * as qrcode from "qrcode";
+import * as qrcodeTerminal from "qrcode-terminal";
 import { ShopkeepersService } from "../shopkeepers/shopkeepers.service";
 import { OrganizersService } from "../organizers/organizers.service";
 import * as fs from "fs";
@@ -73,16 +74,21 @@ export class OtpService implements OnModuleInit {
 
         if (qr) {
           try {
-            // Save QR as image file for easy scanning
+            // Print QR in terminal for direct scanning
+            qrcodeTerminal.generate(qr, { small: true }, (qrText: string) => {
+              console.log(
+                `\n========================================\n` +
+                `Scan this QR with WhatsApp > Linked Devices > Link a device\n` +
+                `QR expires in ~20 seconds\n` +
+                `========================================\n` +
+                qrText +
+                `\n========================================`,
+              );
+            });
+
+            // Also save as image file as backup
             const qrImagePath = require("path").join(process.cwd(), "whatsapp-qr.png");
             await qrcode.toFile(qrImagePath, qr, { width: 400, margin: 2 });
-            this.logger.log(
-              `\n========================================\n` +
-              `WhatsApp QR saved to: ${qrImagePath}\n` +
-              `Open this file and scan with WhatsApp > Linked Devices > Link a device\n` +
-              `QR expires in ~20 seconds\n` +
-              `========================================`,
-            );
           } catch (e) {
             this.logger.error(
               "Failed to render QR. Raw head: " + qr.slice(0, 40) + "...",
