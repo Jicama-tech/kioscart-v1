@@ -1,7 +1,7 @@
 {
-  "name": "eventsh-backend",
+  "name": "kioscart-backend",
   "version": "1.0.0",
-  "description": "Backend API for Eventsh.com using NestJS, MongoDB, JWT, Google & Instagram OAuth",
+  "description": "KiosCart Backend API — NestJS, MongoDB, JWT, Google OAuth, WhatsApp OTP",
   "author": "Vansh",
   "license": "MIT",
   "scripts": {
