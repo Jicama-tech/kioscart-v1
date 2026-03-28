@@ -7,6 +7,7 @@ interface KioskParkedCartsProps {
   carts: KioskCart[];
   getCartTotal: (cartId: string) => number;
   getCartItemCount: (cartId: string) => number;
+  formatPrice: (amount: number) => string;
   onResume: (cartId: string) => void;
   onDelete: (cartId: string) => void;
 }
@@ -25,6 +26,7 @@ export function KioskParkedCarts({
   carts,
   getCartTotal,
   getCartItemCount,
+  formatPrice,
   onResume,
   onDelete,
 }: KioskParkedCartsProps) {
@@ -77,7 +79,7 @@ export function KioskParkedCarts({
                   {count} item{count !== 1 ? "s" : ""}
                 </span>
                 <span className="font-semibold text-slate-700 ml-auto">
-                  ${total.toFixed(2)}
+                  {formatPrice(total)}
                 </span>
               </div>
 

@@ -9,6 +9,7 @@ interface KioskCartPanelProps {
   cart: KioskCart | null;
   total: number;
   itemCount: number;
+  formatPrice: (amount: number) => string;
   onUpdateQuantity: (
     productId: string,
     subcategoryIndex: number,
@@ -28,6 +29,7 @@ export function KioskCartPanel({
   cart,
   total,
   itemCount,
+  formatPrice,
   onUpdateQuantity,
   onRemoveItem,
   onPark,
@@ -144,12 +146,11 @@ export function KioskCartPanel({
 
                   {/* Price */}
                   <span className="text-xs font-semibold">
-                    $
-                    {(
+                    {formatPrice(
                       (item.isDiscounted && item.discountedPrice
                         ? item.discountedPrice
                         : item.price) * item.quantity
-                    ).toFixed(2)}
+                    )}
                   </span>
 
                   {/* Remove */}
@@ -179,7 +180,7 @@ export function KioskCartPanel({
         <div className="flex justify-between items-center">
           <span className="text-sm font-medium text-slate-600">Total</span>
           <span className="text-lg font-bold text-slate-900">
-            ${total.toFixed(2)}
+            {formatPrice(total)}
           </span>
         </div>
 

@@ -474,4 +474,68 @@ export class MailService {
       html,
     });
   }
+
+  async sendOrderConfirmationEmail(
+    name: string,
+    email: string,
+    orderId: string,
+    amount: string,
+    shopkeeperName: string,
+    orderType: string,
+    items: { productName: string; quantity: number; price: number }[],
+  ) {
+    const subject = `Order Received — ${orderId}`;
+
+    const itemRows = items
+      .map(
+        (item) =>
+          `<tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;">${item.productName}</td><td style="padding: 6px 0; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td><td style="padding: 6px 0; border-bottom: 1px solid #eee; text-align: right;">${item.price}</td></tr>`,
+      )
+      .join("");
+
+    const text = `Hello ${name},\n\nThank you for your order!\n\nOrder ID: ${orderId}\nAmount: ${amount}\nType: ${orderType}\nMerchant: ${shopkeeperName}\n\nWe'll notify you when the merchant updates your order.\n\nRegards,\nKiosCart Team`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #6366f1; margin: 0;">Order Received! 🎉</h1>
+            <p style="color: #666; margin: 10px 0;">Thank you for your order, ${name}.</p>
+          </div>
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #6366f1; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #333;">📋 Order Summary</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 8px 0; font-weight: bold;">Order ID:</td><td style="padding: 8px 0;">${orderId}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold;">Type:</td><td style="padding: 8px 0; text-transform: capitalize;">${orderType}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold;">Merchant:</td><td style="padding: 8px 0;">${shopkeeperName}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold;">Total:</td><td style="padding: 8px 0; font-weight: bold; color: #6366f1;">${amount}</td></tr>
+            </table>
+          </div>
+          ${
+            items.length > 0
+              ? `<div style="margin: 20px 0;">
+              <h3 style="color: #333;">📦 Items</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 2px solid #ddd;"><th style="text-align: left; padding: 8px 0;">Item</th><th style="text-align: center; padding: 8px 0;">Qty</th><th style="text-align: right; padding: 8px 0;">Price</th></tr>
+                ${itemRows}
+              </table>
+            </div>`
+              : ""
+          }
+          <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #166534;">⏳ Your order is pending confirmation from the merchant. We'll notify you once it's confirmed.</p>
+          </div>
+          <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p style="color: #666; font-size: 14px;">Thank you for using KiosCart!</p>
+            <p style="color: #888; font-size: 12px;">This is an automated message, please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>`;
+
+    await this.sendMail({ to: email, subject, html });
+  }
 }

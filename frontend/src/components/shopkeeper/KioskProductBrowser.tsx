@@ -9,10 +9,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus, Minus, Package } from "lucide-react";
+import { Search, Plus, Package, ChevronDown, ChevronUp } from "lucide-react";
 import { CartItem } from "@/hooks/cartContext";
 
 const apiURL = __API_URL__;
+
+interface Variant {
+  id: number;
+  title: string;
+  price: number;
+  measurement?: string;
+  description?: string;
+  isDiscounted?: boolean;
+  discountedPrice?: number;
+  compareAtPrice?: number;
+  sku: string;
+  barcode?: string;
+  inventory: number;
+  lowstockThreshold: number;
+  trackQuantity: boolean;
+  options?: Record<string, any>;
+}
+
+interface Subcategory {
+  id: number;
+  name: string;
+  description?: string;
+  basePrice: number;
+  variants: Variant[];
+}
 
 interface Product {
   _id: string;
@@ -22,19 +47,7 @@ interface Product {
   isDiscounted?: boolean;
   images?: string[];
   category?: string;
-  subcategories?: {
-    name: string;
-    variants: {
-      title: string;
-      price: number;
-      discountedPrice?: number;
-      isDiscounted?: boolean;
-      inventory: number;
-      trackQuantity: boolean;
-      measurement?: string;
-      sku?: string;
-    }[];
-  }[];
+  subcategories?: Subcategory[];
   inventory?: number;
   trackQuantity?: boolean;
   measurement?: string;
@@ -45,11 +58,13 @@ interface Product {
 interface KioskProductBrowserProps {
   onAddItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   activeCartId: string | null;
+  formatPrice: (amount: number) => string;
 }
 
 export function KioskProductBrowser({
   onAddItem,
   activeCartId,
+  formatPrice,
 }: KioskProductBrowserProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +83,10 @@ export function KioskProductBrowser({
       });
       if (res.ok) {
         const data = await res.json();
-        setProducts(Array.isArray(data) ? data : data.products || []);
+        const productList = Array.isArray(data)
+          ? data
+          : data.data || data.products || [];
+        setProducts(productList);
       }
     } catch (e) {
       console.error("Failed to fetch products:", e);
@@ -98,57 +116,6 @@ export function KioskProductBrowser({
     });
   }, [products, search, categoryFilter]);
 
-  function handleAddProduct(product: Product) {
-    // If product has subcategories with variants, add first variant
-    if (
-      product.subcategories &&
-      product.subcategories.length > 0 &&
-      product.subcategories[0].variants?.length > 0
-    ) {
-      const sub = product.subcategories[0];
-      const variant = sub.variants[0];
-      onAddItem({
-        productId: product._id,
-        productName: product.productName,
-        price: variant.isDiscounted
-          ? variant.discountedPrice || variant.price
-          : variant.price,
-        discountedPrice: variant.discountedPrice,
-        isDiscounted: variant.isDiscounted,
-        subcategoryIndex: 0,
-        subcategoryName: sub.name,
-        variantIndex: 0,
-        variantTitle: variant.title,
-        image: product.images?.[0],
-        inventory: variant.inventory || 0,
-        trackQuantity: variant.trackQuantity ?? false,
-        measurement: variant.measurement,
-        sku: variant.sku,
-        category: product.category,
-      });
-    } else {
-      onAddItem({
-        productId: product._id,
-        productName: product.productName,
-        price: product.isDiscounted
-          ? product.discountedPrice || product.price
-          : product.price,
-        discountedPrice: product.discountedPrice,
-        isDiscounted: product.isDiscounted,
-        subcategoryIndex: 0,
-        subcategoryName: "Default",
-        variantIndex: 0,
-        variantTitle: "Default",
-        image: product.images?.[0],
-        inventory: product.inventory || 0,
-        trackQuantity: product.trackQuantity ?? false,
-        measurement: product.measurement,
-        sku: product.sku,
-        category: product.category,
-      });
-    }
-  }
-
   function handleAddVariant(
     product: Product,
     subIdx: number,
@@ -159,9 +126,7 @@ export function KioskProductBrowser({
     onAddItem({
       productId: product._id,
       productName: product.productName,
-      price: variant.isDiscounted
-        ? variant.discountedPrice || variant.price
-        : variant.price,
+      price: variant.price,
       discountedPrice: variant.discountedPrice,
       isDiscounted: variant.isDiscounted,
       subcategoryIndex: subIdx,
@@ -177,9 +142,31 @@ export function KioskProductBrowser({
     });
   }
 
+  function handleAddSimpleProduct(product: Product) {
+    // Product with no subcategories/variants
+    onAddItem({
+      productId: product._id,
+      productName: product.productName,
+      price: product.price,
+      discountedPrice: product.discountedPrice,
+      isDiscounted: product.isDiscounted,
+      subcategoryIndex: 0,
+      subcategoryName: "Default",
+      variantIndex: 0,
+      variantTitle: "Default",
+      image: product.images?.[0],
+      inventory: product.inventory || 0,
+      trackQuantity: product.trackQuantity ?? false,
+      measurement: product.measurement,
+      sku: product.sku,
+      category: product.category,
+    });
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-slate-500">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2" />
         Loading products...
       </div>
     );
@@ -226,9 +213,10 @@ export function KioskProductBrowser({
               <ProductCard
                 key={product._id}
                 product={product}
-                onAdd={handleAddProduct}
+                onAddSimple={handleAddSimpleProduct}
                 onAddVariant={handleAddVariant}
                 disabled={!activeCartId}
+                formatPrice={formatPrice}
               />
             ))}
           </div>
@@ -240,25 +228,41 @@ export function KioskProductBrowser({
 
 function ProductCard({
   product,
-  onAdd,
+  onAddSimple,
   onAddVariant,
   disabled,
+  formatPrice,
 }: {
   product: Product;
-  onAdd: (p: Product) => void;
+  onAddSimple: (p: Product) => void;
   onAddVariant: (p: Product, subIdx: number, varIdx: number) => void;
   disabled: boolean;
+  formatPrice: (amount: number) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const hasVariants =
-    product.subcategories &&
-    product.subcategories.length > 0 &&
-    (product.subcategories.length > 1 ||
-      (product.subcategories[0]?.variants?.length || 0) > 1);
 
-  const displayPrice = product.isDiscounted
-    ? product.discountedPrice || product.price
-    : product.price;
+  const hasSubcategories =
+    product.subcategories && product.subcategories.length > 0;
+
+  // Check if product has meaningful variants (more than 1 variant total)
+  const totalVariants = hasSubcategories
+    ? product.subcategories!.reduce((sum, sub) => sum + (sub.variants?.length || 0), 0)
+    : 0;
+
+  const hasMultipleOptions = hasSubcategories && (
+    product.subcategories!.length > 1 || totalVariants > 1
+  );
+
+  // Get display price from first variant or product level
+  const getDisplayPrice = () => {
+    if (hasSubcategories && product.subcategories![0]?.variants?.[0]) {
+      const v = product.subcategories![0].variants[0];
+      return { price: v.price, discountedPrice: v.discountedPrice, isDiscounted: v.isDiscounted };
+    }
+    return { price: product.price, discountedPrice: product.discountedPrice, isDiscounted: product.isDiscounted };
+  };
+
+  const dp = getDisplayPrice();
 
   return (
     <div className="border rounded-lg p-2 bg-white hover:shadow-sm transition-shadow">
@@ -285,23 +289,28 @@ function ProductCard({
 
       <div className="flex items-center justify-between mt-1.5">
         <div>
-          {product.isDiscounted && product.discountedPrice ? (
+          {dp.isDiscounted && dp.discountedPrice ? (
             <div className="flex items-center gap-1">
               <span className="text-xs font-semibold text-green-600">
-                ${product.discountedPrice.toFixed(2)}
+                {formatPrice(dp.discountedPrice)}
               </span>
               <span className="text-[10px] text-slate-400 line-through">
-                ${product.price.toFixed(2)}
+                {formatPrice(dp.price)}
               </span>
             </div>
           ) : (
             <span className="text-xs font-semibold">
-              ${product.price.toFixed(2)}
+              {formatPrice(dp.price)}
+            </span>
+          )}
+          {hasMultipleOptions && (
+            <span className="text-[10px] text-slate-400 block">
+              {product.subcategories!.length} option{product.subcategories!.length > 1 ? "s" : ""} &middot; {totalVariants} variant{totalVariants > 1 ? "s" : ""}
             </span>
           )}
         </div>
 
-        {hasVariants ? (
+        {hasMultipleOptions ? (
           <Button
             size="sm"
             variant="outline"
@@ -309,14 +318,31 @@ function ProductCard({
             disabled={disabled}
             onClick={() => setExpanded(!expanded)}
           >
-            {expanded ? "Hide" : "Variants"}
+            {expanded ? (
+              <ChevronUp className="h-3 w-3 mr-0.5" />
+            ) : (
+              <ChevronDown className="h-3 w-3 mr-0.5" />
+            )}
+            {expanded ? "Hide" : "Select"}
           </Button>
-        ) : (
+        ) : hasSubcategories && totalVariants === 1 ? (
+          // Single variant — add directly
           <Button
             size="sm"
             className="h-7 text-xs px-2"
             disabled={disabled}
-            onClick={() => onAdd(product)}
+            onClick={() => onAddVariant(product, 0, 0)}
+          >
+            <Plus className="h-3 w-3 mr-0.5" />
+            Add
+          </Button>
+        ) : (
+          // No subcategories — simple product
+          <Button
+            size="sm"
+            className="h-7 text-xs px-2"
+            disabled={disabled}
+            onClick={() => onAddSimple(product)}
           >
             <Plus className="h-3 w-3 mr-0.5" />
             Add
@@ -324,38 +350,84 @@ function ProductCard({
         )}
       </div>
 
-      {/* Expanded Variants */}
-      {expanded && hasVariants && (
-        <div className="mt-2 space-y-1 border-t pt-1.5">
-          {product.subcategories!.map((sub, subIdx) =>
-            sub.variants.map((variant, varIdx) => (
-              <div
-                key={`${subIdx}-${varIdx}`}
-                className="flex items-center justify-between text-[11px]"
-              >
-                <div className="flex-1 min-w-0">
-                  <span className="text-slate-600 truncate block">
-                    {sub.name !== "Default" ? `${sub.name} - ` : ""}
-                    {variant.title}
-                  </span>
-                  <span className="font-medium">
-                    ${(variant.isDiscounted
-                      ? variant.discountedPrice || variant.price
-                      : variant.price
-                    ).toFixed(2)}
-                  </span>
-                </div>
-                <Button
-                  size="sm"
-                  className="h-6 text-[10px] px-1.5 ml-1"
-                  disabled={disabled}
-                  onClick={() => onAddVariant(product, subIdx, varIdx)}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-            )),
-          )}
+      {/* Expanded Subcategories & Variants */}
+      {expanded && hasSubcategories && (
+        <div className="mt-2 border-t pt-1.5 space-y-2">
+          {product.subcategories!.map((sub, subIdx) => (
+            <div key={subIdx}>
+              {/* Subcategory header — show if more than one subcategory */}
+              {product.subcategories!.length > 1 && (
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  {sub.name}
+                  {sub.description && (
+                    <span className="font-normal normal-case ml-1 text-slate-400">
+                      — {sub.description}
+                    </span>
+                  )}
+                </p>
+              )}
+
+              {/* Variants */}
+              {sub.variants.map((variant, varIdx) => {
+                const varPrice = variant.isDiscounted && variant.discountedPrice
+                  ? variant.discountedPrice
+                  : variant.price;
+                const outOfStock = variant.trackQuantity && variant.inventory <= 0;
+
+                return (
+                  <div
+                    key={`${subIdx}-${varIdx}`}
+                    className={`flex items-center justify-between py-1 px-1.5 rounded text-[11px] ${
+                      outOfStock ? "opacity-50" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="text-slate-700 block truncate">
+                        {variant.title}
+                        {variant.measurement && (
+                          <span className="text-slate-400 ml-1">
+                            ({variant.measurement})
+                          </span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {variant.isDiscounted && variant.discountedPrice ? (
+                          <>
+                            <span className="font-semibold text-green-600">
+                              {formatPrice(variant.discountedPrice)}
+                            </span>
+                            <span className="text-slate-400 line-through text-[10px]">
+                              {formatPrice(variant.price)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-medium">
+                            {formatPrice(variant.price)}
+                          </span>
+                        )}
+                        {variant.trackQuantity && (
+                          <Badge
+                            variant={outOfStock ? "destructive" : "secondary"}
+                            className="text-[8px] h-3.5 px-1"
+                          >
+                            {outOfStock ? "Out of stock" : `${variant.inventory} left`}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-6 text-[10px] px-1.5 ml-1"
+                      disabled={disabled || outOfStock}
+                      onClick={() => onAddVariant(product, subIdx, varIdx)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
       )}
     </div>

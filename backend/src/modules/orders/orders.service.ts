@@ -125,11 +125,93 @@ export class OrdersService {
 
       const savedOrder = await order.save();
 
+      // Send notifications (non-blocking — don't fail the order if notifications fail)
+      this.sendOrderCreationNotifications(savedOrder, user, dto).catch(
+        (err) =>
+          console.error("Order notification failed:", err.message),
+      );
+
       return savedOrder;
     } catch (error) {
       throw new InternalServerErrorException(
         "Failed to create order: " + error.message,
       );
+    }
+  }
+
+  private async sendOrderCreationNotifications(
+    order: any,
+    user: any,
+    dto: CreateOrderDto,
+  ) {
+    // Fetch shopkeeper details
+    const shopkeeper = await this.shopkeeperModel
+      .findById(dto.shopkeeperId)
+      .exec();
+
+    const shopkeeperName = shopkeeper?.shopName || "Merchant";
+    const shopkeeperCountry = shopkeeper?.country || "IN";
+    const formattedAmount = this.formatPriceByCountry(
+      order.totalAmount,
+      shopkeeperCountry,
+    );
+
+    // 1. Email to customer (if email available)
+    if (user?.email) {
+      try {
+        const items = (dto.items || []).map((item) => ({
+          productName: item.productName,
+          quantity: item.quantity,
+          price: item.price || 0,
+        }));
+        await this.mailService.sendOrderConfirmationEmail(
+          dto.fullName || user.name || "Customer",
+          user.email,
+          order.orderId,
+          formattedAmount,
+          shopkeeperName,
+          dto.orderType || "pickup",
+          items,
+        );
+      } catch (err) {
+        console.error("Order confirmation email failed:", err.message);
+      }
+    }
+
+    // 2. WhatsApp to customer (if WhatsApp available)
+    if (dto.whatsAppNumber && dto.whatsAppNumber !== "kiosk-order") {
+      try {
+        const customerName = dto.fullName || user?.name || "Customer";
+        const message =
+          `🛒 Order Received!\n\n` +
+          `Hi ${customerName},\n\n` +
+          `Your order has been placed successfully!\n\n` +
+          `📋 Order ID: ${order.orderId}\n` +
+          `💰 Amount: ${formattedAmount}\n` +
+          `📦 Items: ${dto.items?.length || 0}\n` +
+          `🏪 Merchant: ${shopkeeperName}\n\n` +
+          `⏳ Waiting for merchant confirmation.\n` +
+          `We'll notify you once your order is confirmed.\n\n` +
+          `Thank you! 🙏`;
+        await this.sendWhatsAppMessage(dto.whatsAppNumber, message);
+      } catch (err) {
+        console.error("Order confirmation WhatsApp failed:", err.message);
+      }
+    }
+
+    // 3. WhatsApp to shopkeeper (new order alert)
+    if (shopkeeper?.whatsappNumber) {
+      try {
+        await this.sendWhatsAppToShopkeeper(
+          shopkeeper.whatsappNumber,
+          shopkeeperName,
+          order.orderId,
+          order.totalAmount,
+          dto.items?.length || 0,
+        );
+      } catch (err) {
+        console.error("Shopkeeper WhatsApp alert failed:", err.message);
+      }
     }
   }
 

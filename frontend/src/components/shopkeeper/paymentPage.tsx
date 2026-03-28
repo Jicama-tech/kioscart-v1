@@ -616,19 +616,14 @@ Thank you!`,
 
       setPaymentSubmitted(true);
 
-      if (res.ok) {
-        // We generate the link immediately to ensure we have the data
+      if (res.ok && !state.isKioskOrder) {
+        // Skip WhatsApp redirect for kiosk orders
         const whatsappUrl = getWhatsappLink();
 
         if (whatsappUrl !== "#") {
-          // Start the 3-second timer
           setTimeout(() => {
-            // Option A: Redirect the current tab (Recommended for mobile/reliability)
             window.open(whatsappUrl, "_blank");
-
-            // Option B: Try to open in a new tab (Note: May be blocked by browser popup blockers)
-            // window.open(whatsappUrl, "_blank");
-          }, 3000); // 3000 milliseconds = 3 seconds
+          }, 3000);
         }
       }
       clearCart(state.shopkeeperId); // Use clearCart from context
