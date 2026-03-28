@@ -40,6 +40,7 @@ import {
   Menu,
   X,
   Download,
+  Monitor,
   TrendingUp,
   PieChartIcon,
   Crown,
@@ -68,6 +69,11 @@ const CartManagement = lazy(() =>
 const ShopkeeperSettings = lazy(() =>
   import('@/components/shopkeeper/ShopkeeperSettings').then((m) => ({
     default: m.ShopkeeperSettings,
+  })),
+);
+const KioskMode = lazy(() =>
+  import('@/components/shopkeeper/KioskMode').then((m) => ({
+    default: m.KioskMode,
   })),
 );
 import { StorefrontTemplate } from './StorefrontTemplate';
@@ -133,6 +139,7 @@ const COLORS = [
 // Static data moved outside component to prevent re-creation on every render
 const NAVIGATION_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: Store },
+  { id: 'kiosk', label: 'Kiosk Mode', icon: Monitor },
   { id: 'orders', label: 'Orders & Cart', icon: ShoppingCart },
   { id: 'crm', label: 'CRM', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
@@ -218,6 +225,18 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
   const { formatPrice, getSymbol } = useCurrency(
     shopkeeperInfo?.country || 'IN',
   );
+
+  // Derive shopkeeperId from JWT for kiosk mode
+  const shopkeeperId = useMemo(() => {
+    try {
+      const token = sessionStorage.getItem('token');
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        return decoded.sub as string;
+      }
+    } catch {}
+    return '';
+  }, []);
 
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
     null,
@@ -1592,6 +1611,12 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
                     </div>
                     <ProductManagement />
                   </div>
+                </Suspense>
+              </TabsContent>
+
+              <TabsContent value="kiosk" className="mt-0">
+                <Suspense fallback={<TabLoadingFallback />}>
+                  {shopkeeperId && <KioskMode shopkeeperId={shopkeeperId} />}
                 </Suspense>
               </TabsContent>
 
