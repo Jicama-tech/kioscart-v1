@@ -81,10 +81,14 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
   }
 
   function handleOrderPlaced() {
-    if (activeCartId) {
-      deleteCart(activeCartId);
-    }
+    const cartToDelete = activeCartId;
     setCheckoutOpen(false);
+    // Delete cart after dialog closes to avoid unmounting mid-callback
+    setTimeout(() => {
+      if (cartToDelete) {
+        deleteCart(cartToDelete);
+      }
+    }, 100);
   }
 
   const activeTotal = activeCartId ? getCartTotal(activeCartId) : 0;

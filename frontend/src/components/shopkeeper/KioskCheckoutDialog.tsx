@@ -359,7 +359,6 @@ export function KioskCheckoutDialog({
     setLastName("");
     setCustomerEmail("");
     onOrderPlaced();
-    onClose();
   }
 
   return (
