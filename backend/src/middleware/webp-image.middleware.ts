@@ -9,7 +9,7 @@ const SUPPORTED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif"]);
 const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
 const CACHE_DIR = path.join(UPLOADS_DIR, ".webp-cache");
 
-// Ensure cache directory exists
+// Ensure cache directory exists (sync at startup is fine)
 if (!fs.existsSync(CACHE_DIR)) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
 }
@@ -17,6 +17,15 @@ if (!fs.existsSync(CACHE_DIR)) {
 console.log("[webp-middleware] uploads dir:", UPLOADS_DIR);
 console.log("[webp-middleware] cache dir:", CACHE_DIR);
 console.log("[webp-middleware] sharp loaded:", typeof sharp === "function");
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function webpImageMiddleware(
   req: Request,
@@ -37,34 +46,33 @@ export function webpImageMiddleware(
   const cacheKey = relPath.replace(/\.[^.]+$/, ".webp");
   const cachedPath = path.join(CACHE_DIR, cacheKey);
 
-  // Serve cached webp if exists
-  if (fs.existsSync(cachedPath)) {
-    res.setHeader("Content-Type", "image/webp");
-    res.setHeader("Cache-Control", "public, max-age=604800, immutable");
-    res.setHeader("X-Image-Optimized", "webp-cached");
-    return res.sendFile(cachedPath);
-  }
+  (async () => {
+    // Serve cached webp if exists
+    if (await fileExists(cachedPath)) {
+      res.setHeader("Content-Type", "image/webp");
+      res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+      res.setHeader("X-Image-Optimized", "webp-cached");
+      return res.sendFile(cachedPath);
+    }
 
-  // Check if original file exists
-  if (!fs.existsSync(originalPath)) return next();
+    // Check if original file exists
+    if (!(await fileExists(originalPath))) return next();
 
-  // Convert to webp and cache
-  const cachedDir = path.dirname(cachedPath);
-  if (!fs.existsSync(cachedDir)) {
-    fs.mkdirSync(cachedDir, { recursive: true });
-  }
+    // Convert to webp and cache
+    const cachedDir = path.dirname(cachedPath);
+    if (!(await fileExists(cachedDir))) {
+      await fs.promises.mkdir(cachedDir, { recursive: true });
+    }
 
-  sharp(originalPath)
-    .webp({ quality: 80 })
-    .toFile(cachedPath)
-    .then(() => {
+    try {
+      await sharp(originalPath).webp({ quality: 80 }).toFile(cachedPath);
       res.setHeader("Content-Type", "image/webp");
       res.setHeader("Cache-Control", "public, max-age=604800, immutable");
       res.setHeader("X-Image-Optimized", "webp-converted");
       res.sendFile(cachedPath);
-    })
-    .catch((err: Error) => {
+    } catch (err: any) {
       console.error("[webp-middleware] conversion failed:", err.message);
       next();
-    });
+    }
+  })().catch(next);
 }

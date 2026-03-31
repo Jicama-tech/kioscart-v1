@@ -1488,6 +1488,7 @@ export class OrdersService {
       return await this.orderModel
         .find({ userId })
         .populate("shopkeeperId")
+        .lean()
         .exec();
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
@@ -1506,6 +1507,7 @@ export class OrdersService {
         .find({ shopkeeperId })
         .populate("userId")
         .sort({ createdAt: -1 })
+        .lean()
         .exec();
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
@@ -1521,6 +1523,7 @@ export class OrdersService {
         .find()
         .populate("userId")
         .populate("shopkeeperId")
+        .lean()
         .exec();
     } catch (error) {
       throw new InternalServerErrorException(
@@ -1620,7 +1623,7 @@ export class OrdersService {
 
   async deleteOrder(orderId: string) {
     try {
-      const order = await this.orderModel.findOne({ orderId: orderId });
+      const order = await this.orderModel.findOne({ orderId: orderId }).lean();
       if (!order) {
         throw new NotFoundException("Order Not Found");
       }
@@ -1643,19 +1646,16 @@ export class OrdersService {
       throw new NotFoundException("Order not found");
     }
 
-    const user = await this.userModel.findOne({ _id: order.userId });
+    const user = order.userId as any;
     if (!user) {
       throw new NotFoundException("User Not Found");
     }
-    const shopkeeper = await this.shopkeeperModel.findOne({
-      _id: order.shopkeeperId,
-    });
-
-    const countryCode = shopkeeper.country || "IN";
-
+    const shopkeeper = order.shopkeeperId as any;
     if (!shopkeeper) {
       throw new NotFoundException("Shopkeeper Not Found");
     }
+
+    const countryCode = shopkeeper.country || "IN";
 
     const printData = [];
 

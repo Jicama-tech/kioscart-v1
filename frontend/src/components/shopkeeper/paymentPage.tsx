@@ -633,6 +633,7 @@ Thank you!`,
         description:
           "Orders are processed and receipts will be issued after payment verification",
       });
+
     } catch (error: any) {
       toast({
         duration: 5000,

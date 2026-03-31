@@ -83,9 +83,13 @@ export function KioskProductBrowser({
       });
       if (res.ok) {
         const data = await res.json();
-        const productList = Array.isArray(data)
+        const rawList = Array.isArray(data)
           ? data
           : data.data || data.products || [];
+        const productList = rawList.map((p: any) => ({
+          ...p,
+          productName: p.productName || p.name || "",
+        }));
         setProducts(productList);
       }
     } catch (e) {

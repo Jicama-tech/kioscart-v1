@@ -20,6 +20,7 @@ const ALLOWED_DOMAINS = new Set([
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   "http://localhost:8080",
   "http://localhost:8081",
+  "http://localhost:8082",
 ]);
 
 async function bootstrap() {

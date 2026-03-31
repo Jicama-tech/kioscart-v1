@@ -1,6 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
-import { Timeline } from "primereact/timeline";
-import { Tag } from "primereact/tag";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -88,6 +87,7 @@ interface Order {
   userId: {
     _id: string;
     name: string;
+    firstName?: string;
     email: string;
     whatsAppNumber: string;
   };
@@ -172,10 +172,96 @@ export function CartManagement() {
   const navigate = useNavigate();
   const API_URL = __API_URL__;
 
-  useEffect(() => {
-    fetchOrders();
-    fetchShopkeeperInfo();
+  // Track known order IDs to detect new ones
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const isFirstLoadRef = useRef(true);
+
+  const speakNewOrder = useCallback((order: Order) => {
+    if (!("speechSynthesis" in window)) return;
+    const customerName =
+      order.userId?.name || order.userId?.firstName || "Customer";
+    const amount = order.totalAmount;
+    const productNames = order.items
+      ?.map((item) => {
+        const qty = item.quantity > 1 ? `${item.quantity} ${item.productName}` : item.productName;
+        return qty;
+      })
+      .join(", ") || "items";
+    const message = `New order received from ${customerName}. Products: ${productNames}. Total amount ${amount} rupees.`;
+
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = "en-IN";
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    }, 3000);
   }, []);
+
+  const checkForNewOrders = useCallback(async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      const decoded: any = jwtDecode(token);
+      const shopkeeperId = decoded.sub;
+
+      if (isFirstLoadRef.current) setLoading(true);
+
+      const res = await fetch(
+        `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}`,
+      );
+      if (!res.ok) return;
+      const data: Order[] = await res.json();
+
+      if (isFirstLoadRef.current) {
+        // First load — just record existing order IDs, no voice
+        knownOrderIdsRef.current = new Set(data.map((o) => o._id));
+        isFirstLoadRef.current = false;
+        setOrders(data);
+        setLoading(false);
+        return;
+      }
+
+      const newOrders = data.filter(
+        (o) => !knownOrderIdsRef.current.has(o._id),
+      );
+
+      if (newOrders.length > 0) {
+        // Update known IDs
+        knownOrderIdsRef.current = new Set(data.map((o) => o._id));
+        setOrders(data);
+
+        // Voice announce each new order
+        newOrders.forEach((order) => speakNewOrder(order));
+
+        toast({
+          duration: 6000,
+          title: `🔔 ${newOrders.length} New Order${newOrders.length > 1 ? "s" : ""}!`,
+          description: newOrders
+            .map(
+              (o) =>
+                `${o.userId?.name || "Customer"} — ${formatPrice(o.totalAmount)}`,
+            )
+            .join(", "),
+        });
+      } else {
+        setOrders(data);
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
+    }
+  }, [speakNewOrder, toast, formatPrice]);
+
+  // Initial load + polling every 15 seconds
+  useEffect(() => {
+    checkForNewOrders();
+    fetchShopkeeperInfo();
+
+    const interval = setInterval(checkForNewOrders, 15000);
+    return () => clearInterval(interval);
+  }, [checkForNewOrders]);
 
   async function fetchShopkeeperInfo() {
     try {
@@ -202,62 +288,7 @@ export function CartManagement() {
     }
   }
 
-  async function fetchOrders() {
-    try {
-      setLoading(true);
-      const token = sessionStorage.getItem("token");
-      if (!token) throw new Error("User not authenticated");
 
-      const decoded: any = jwtDecode(token);
-      const shopkeeperId = decoded.sub;
-
-      const res = await fetch(
-        `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}`,
-      );
-
-      if (!res.ok) throw new Error("Failed to fetch orders");
-      const data = await res.json();
-      setOrders(data);
-    } catch (error: any) {
-      console.error(error);
-      toast({
-        duration: 5000,
-        title: "Error",
-        description: "Failed to fetch orders",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const timelineEvents =
-    selectedOrder?.statusHistory
-      ?.sort(
-        (a, b) =>
-          new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime(),
-      )
-      .map((history) => ({
-        status: history.status,
-        note: history.note,
-        date: new Date(history.changedAt).toLocaleString(),
-        // changedBy: history.changedBy,
-      })) || [];
-
-  const getSeverity = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "processing":
-        return "info";
-      case "ready":
-        return "success";
-      case "cancelled":
-        return "danger";
-      case "delivered":
-        return "success";
-      default:
-        return "warning";
-    }
-  };
 
   const getLatestStatus = () => {
     if (!selectedOrder?.statusHistory?.length) return null;
@@ -1587,32 +1618,54 @@ Thank you for shopping with us.
               <div>
                 <h3 className="font-semibold mt-4 mb-2">Order Timeline</h3>
 
-                <div className="relative border-l pl-6 space-y-6">
+                <div className="relative border-l border-gray-300 pl-6 space-y-6">
                   {selectedOrder.statusHistory
                     .sort(
                       (a, b) =>
                         new Date(a.changedAt).getTime() -
                         new Date(b.changedAt).getTime(),
                     )
-                    .map((history, index) => (
-                      <div key={index} className="relative">
-                        <span className="absolute -left-3 top-1 w-3 h-3 bg-green-600 rounded-full"></span>
-
-                        <div className="bg-gray-50 p-3 rounded-md border">
-                          <p className="font-medium capitalize">
-                            {history.status}
-                          </p>
-
-                          <p className="text-sm text-gray-600">
-                            {new Date(history.changedAt).toLocaleString()}
-                          </p>
-
-                          {history.note && (
-                            <p className="text-sm mt-1">Note: {history.note}</p>
-                          )}
+                    .map((history, index) => {
+                      const statusLower = history.status.toLowerCase();
+                      const dotColor =
+                        statusLower === "cancelled"
+                          ? "bg-red-500"
+                          : statusLower === "ready" || statusLower === "delivered" || statusLower === "completed"
+                          ? "bg-green-500"
+                          : statusLower === "processing"
+                          ? "bg-blue-500"
+                          : "bg-yellow-500";
+                      const badgeVariant =
+                        statusLower === "cancelled"
+                          ? "destructive"
+                          : statusLower === "processing"
+                          ? "secondary"
+                          : statusLower === "ready" || statusLower === "delivered" || statusLower === "completed"
+                          ? "default"
+                          : "outline";
+                      return (
+                        <div key={index} className="relative">
+                          <span
+                            className={`absolute -left-[13px] top-1.5 w-3 h-3 rounded-full ring-2 ring-white ${dotColor}`}
+                          />
+                          <div className="bg-gray-50 p-3 rounded-md border">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant={badgeVariant} className="capitalize">
+                                {history.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              {new Date(history.changedAt).toLocaleString()}
+                            </p>
+                            {history.note && (
+                              <p className="text-sm mt-1 text-gray-600">
+                                Note: {history.note}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </div>
               <div>
