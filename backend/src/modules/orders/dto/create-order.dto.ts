@@ -138,4 +138,8 @@ export class CreateOrderDto {
   @IsOptional()
   @IsBoolean()
   paymentConfirmed?: boolean;
+
+  @IsOptional()
+  @IsString()
+  transactionId?: string;
 }

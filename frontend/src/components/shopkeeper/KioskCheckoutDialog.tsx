@@ -69,7 +69,9 @@ export function KioskCheckoutDialog({
   onOrderPlaced,
 }: KioskCheckoutDialogProps) {
   const { toast } = useToast();
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "qr" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "qr" | null>(
+    null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [instructions, setInstructions] = useState("");
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
@@ -80,6 +82,7 @@ export function KioskCheckoutDialog({
   const [dynamicUpiString, setDynamicUpiString] = useState("");
   const [dynamicPayNowUrl, setDynamicPayNowUrl] = useState("");
   const [qrOrderCreated, setQrOrderCreated] = useState(false);
+  const [qrOrderId, setQrOrderId] = useState("");
   const [shopkeeperCountry, setShopkeeperCountry] = useState("");
   const [shopkeeperPhone, setShopkeeperPhone] = useState("");
   const [upiId, setUpiId] = useState("");
@@ -110,7 +113,11 @@ export function KioskCheckoutDialog({
             let dial = "";
             if (root && suffixes.length === 1) dial = root + suffixes[0];
             else if (root) dial = root;
-            return { name: c.name?.common || "", code: c.cca2 || "", dialCode: dial };
+            return {
+              name: c.name?.common || "",
+              code: c.cca2 || "",
+              dialCode: dial,
+            };
           })
           .filter((c: Country) => c.dialCode)
           .sort((a: Country, b: Country) => a.name.localeCompare(b.name));
@@ -223,9 +230,10 @@ export function KioskCheckoutDialog({
     return cart.items.map((item) => ({
       productId: item.productId,
       productName: item.productName,
-      price: item.isDiscounted && item.discountedPrice
-        ? item.discountedPrice
-        : item.price,
+      price:
+        item.isDiscounted && item.discountedPrice
+          ? item.discountedPrice
+          : item.price,
       quantity: item.quantity,
       variantTitle: item.variantTitle,
       subcategoryName: item.subcategoryName,
@@ -244,7 +252,11 @@ export function KioskCheckoutDialog({
 
   async function handleCashPayment() {
     if (!firstName) {
-      toast({ title: "Required", description: "Please enter first name", variant: "destructive" });
+      toast({
+        title: "Required",
+        description: "Please enter first name",
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
@@ -267,7 +279,8 @@ export function KioskCheckoutDialog({
         pickupDate: date,
         pickupTime: time,
         paymentConfirmed: true,
-        whatsAppNumber: userWhatsApp || shopInfo.whatsappNumber || "kiosk-order",
+        whatsAppNumber:
+          userWhatsApp || shopInfo.whatsappNumber || "kiosk-order",
         fullName,
         firstName,
         lastName,
@@ -312,7 +325,10 @@ export function KioskCheckoutDialog({
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
-        if (!ctx) { resolve(""); return; }
+        if (!ctx) {
+          resolve("");
+          return;
+        }
         ctx.drawImage(img, 0, 0);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, canvas.width, canvas.height);
@@ -329,17 +345,17 @@ export function KioskCheckoutDialog({
   }
 
   // Generate dynamic UPI string
-  function generateDynamicUpi(extractedUpiId: string): string {
+  function generateDynamicUpi(extractedUpiId: string, orderId: string): string {
     if (!extractedUpiId || !finalTotal) return "";
     return `upi://pay?pa=${extractedUpiId}&pn=${encodeURIComponent(
-      shopInfo?.shopName || "Payment"
+      shopInfo?.shopName || "Payment",
     )}&am=${finalTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(
-      `Kiosk Order`
+      `Kiosk Order - ${orderId}`,
     )}`;
   }
 
   // Generate PayNow QR URL for Singapore
-  function generateDynamicPayNowUrl(): string {
+  function generateDynamicPayNowUrl(orderId: string): string {
     if (!shopkeeperPhone || !finalTotal) return "";
     const cleanedMobile = shopkeeperPhone.startsWith("+65")
       ? shopkeeperPhone.substring(3)
@@ -347,29 +363,39 @@ export function KioskCheckoutDialog({
     const now = new Date();
     const expiry = new Date(now.getTime() + 90 * 60 * 60 * 1000);
     const formatted = `${expiry.getFullYear()}/${String(expiry.getMonth() + 1).padStart(2, "0")}/${String(expiry.getDate()).padStart(2, "0")} ${String(expiry.getHours()).padStart(2, "0")}:${String(expiry.getMinutes()).padStart(2, "0")}`;
-    return `https://www.sgqrcode.com/paynow?mobile=${cleanedMobile}&uen=&editable=0&amount=${finalTotal.toFixed(2)}&expiry=${encodeURIComponent(formatted)}&ref_id=&company=`;
+    return `https://www.sgqrcode.com/paynow?mobile=${cleanedMobile}&uen=&editable=0&amount=${finalTotal.toFixed(2)}&expiry=${encodeURIComponent(formatted)}&ref_id=${encodeURIComponent(orderId)}&company=`;
   }
 
   async function handleQRPayment() {
     if (!firstName) {
-      toast({ title: "Required", description: "Please enter first name", variant: "destructive" });
+      toast({
+        title: "Required",
+        description: "Please enter first name",
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
     try {
       if (!shopInfo) throw new Error("Shop info not loaded");
 
+      // Generate orderId upfront so it can be embedded in the QR code
+      const orderId = `ORDER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setQrOrderId(orderId);
+
       // Generate QR data based on country
       if (shopkeeperCountry === "SG") {
-        const payNowUrl = generateDynamicPayNowUrl();
+        const payNowUrl = generateDynamicPayNowUrl(orderId);
         setDynamicPayNowUrl(payNowUrl);
       } else {
         // India — extract UPI from payment image
         if (shopInfo.paymentURL) {
-          const extracted = await extractUpiFromImage(apiURL + shopInfo.paymentURL);
+          const extracted = await extractUpiFromImage(
+            apiURL + shopInfo.paymentURL,
+          );
           if (extracted) {
             setUpiId(extracted);
-            setDynamicUpiString(generateDynamicUpi(extracted));
+            setDynamicUpiString(generateDynamicUpi(extracted, orderId));
           }
         }
       }
@@ -396,10 +422,9 @@ export function KioskCheckoutDialog({
       const decoded: any = jwtDecode(token);
 
       const { date, time } = getNow();
-      const orderId = `ORDER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const orderData = {
-        orderId,
+        orderId: qrOrderId,
         userId: decoded.sub,
         shopkeeperId,
         items: getOrderItems(),
@@ -408,7 +433,8 @@ export function KioskCheckoutDialog({
         pickupDate: date,
         pickupTime: time,
         paymentConfirmed: false,
-        whatsAppNumber: userWhatsApp || shopInfo?.whatsappNumber || "kiosk-order",
+        whatsAppNumber:
+          userWhatsApp || shopInfo?.whatsappNumber || "kiosk-order",
         fullName,
         firstName,
         lastName,
@@ -457,6 +483,7 @@ export function KioskCheckoutDialog({
     setCustomerEmail("");
     setShowQRPayment(false);
     setQrOrderCreated(false);
+    setQrOrderId("");
     setDynamicUpiString("");
     setDynamicPayNowUrl("");
     setUpiId("");
@@ -467,7 +494,12 @@ export function KioskCheckoutDialog({
   const hiddenCanvas = <canvas ref={canvasRef} style={{ display: "none" }} />;
 
   return (
-    <Dialog open={open} onOpenChange={(flag) => { if (!flag && !showQRPayment) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(flag) => {
+        if (!flag && !showQRPayment) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         {hiddenCanvas}
 
@@ -488,7 +520,9 @@ export function KioskCheckoutDialog({
             {qrOrderCreated ? (
               <div className="flex flex-col items-center py-8 gap-4">
                 <CheckCircle className="h-16 w-16 text-green-500" />
-                <p className="text-lg font-semibold text-green-700">Order Created Successfully</p>
+                <p className="text-lg font-semibold text-green-700">
+                  Order Created Successfully
+                </p>
                 <p className="text-sm text-slate-500 text-center">
                   Payment will be verified by the shopkeeper. Closing...
                 </p>
@@ -519,9 +553,13 @@ export function KioskCheckoutDialog({
                 </div>
 
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{formatPrice(finalTotal)}</p>
+                  <p className="text-2xl font-bold">
+                    {formatPrice(finalTotal)}
+                  </p>
                   <p className="text-sm text-slate-500 mt-1">
-                    {shopkeeperCountry === "SG" ? "Scan with PayNow" : "Scan with any UPI app"}
+                    {shopkeeperCountry === "SG"
+                      ? "Scan with PayNow"
+                      : "Scan with any UPI app"}
                   </p>
                 </div>
 
@@ -553,229 +591,249 @@ export function KioskCheckoutDialog({
             )}
           </>
         ) : (
-        <>
-        {/* === NORMAL CHECKOUT VIEW === */}
-        <DialogHeader>
-          <DialogTitle>Checkout — {cart.customerName}</DialogTitle>
-          <DialogDescription>
-            {cart.items.length} item{cart.items.length !== 1 ? "s" : ""}
-          </DialogDescription>
-        </DialogHeader>
+          <>
+            {/* === NORMAL CHECKOUT VIEW === */}
+            <DialogHeader>
+              <DialogTitle>Checkout — {cart.customerName}</DialogTitle>
+              <DialogDescription>
+                {cart.items.length} item{cart.items.length !== 1 ? "s" : ""}
+              </DialogDescription>
+            </DialogHeader>
 
-        {/* Order Summary */}
-        <div className="space-y-2 max-h-32 overflow-y-auto">
-          {cart.items.map((item) => (
-            <div
-              key={`${item.productId}-${item.subcategoryIndex}-${item.variantIndex}`}
-              className="flex justify-between text-sm"
-            >
-              <span className="text-slate-600 flex-1 min-w-0">
-                <span className="truncate block">
-                  {item.productName}
-                  {item.variantTitle !== "Default" ? ` (${item.variantTitle})` : ""}
-                  {item.subcategoryName !== "Default" ? ` — ${item.subcategoryName}` : ""}
-                </span>
-                <span className="text-xs text-slate-400">
-                  x{item.quantity}
-                  {item.measurement ? ` · ${item.measurement}` : ""}
-                </span>
-              </span>
-              <span className="font-medium ml-2 whitespace-nowrap">
-                {formatPrice(
-                  (item.isDiscounted && item.discountedPrice
-                    ? item.discountedPrice
-                    : item.price) * item.quantity,
-                )}
-              </span>
+            {/* Order Summary */}
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {cart.items.map((item) => (
+                <div
+                  key={`${item.productId}-${item.subcategoryIndex}-${item.variantIndex}`}
+                  className="flex justify-between text-sm"
+                >
+                  <span className="text-slate-600 flex-1 min-w-0">
+                    <span className="truncate block">
+                      {item.productName}
+                      {item.variantTitle !== "Default"
+                        ? ` (${item.variantTitle})`
+                        : ""}
+                      {item.subcategoryName !== "Default"
+                        ? ` — ${item.subcategoryName}`
+                        : ""}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      x{item.quantity}
+                      {item.measurement ? ` · ${item.measurement}` : ""}
+                    </span>
+                  </span>
+                  <span className="font-medium ml-2 whitespace-nowrap">
+                    {formatPrice(
+                      (item.isDiscounted && item.discountedPrice
+                        ? item.discountedPrice
+                        : item.price) * item.quantity,
+                    )}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <Separator />
+            <Separator />
 
-        {/* Price Breakdown */}
-        <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between text-slate-500">
-            <span>Subtotal</span>
-            <span>{formatPrice(subtotal)}</span>
-          </div>
-          {discount > 0 && (
-            <div className="flex justify-between text-green-600">
-              <span>Discount ({discountPercentage}%)</span>
-              <span>-{formatPrice(discount)}</span>
+            {/* Price Breakdown */}
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between text-slate-500">
+                <span>Subtotal</span>
+                <span>{formatPrice(subtotal)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount ({discountPercentage}%)</span>
+                  <span>-{formatPrice(discount)}</span>
+                </div>
+              )}
+              {tax > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>Tax ({taxPercentage}%)</span>
+                  <span>+{formatPrice(tax)}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between text-base font-bold">
+                <span>Total</span>
+                <span>{formatPrice(finalTotal)}</span>
+              </div>
             </div>
-          )}
-          {tax > 0 && (
-            <div className="flex justify-between text-slate-500">
-              <span>Tax ({taxPercentage}%)</span>
-              <span>+{formatPrice(tax)}</span>
+
+            <Separator />
+
+            {/* Customer Details — same as cartPage self/kiosk mode */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Customer Details
+              </Label>
+
+              {/* WhatsApp Number with Validate */}
+              <div>
+                <Label className="text-xs text-slate-500 flex items-center justify-between mb-1">
+                  <span>WhatsApp Number *</span>
+                  {whatsappVerified && (
+                    <Badge variant="default" className="text-[10px]">
+                      Verified
+                    </Badge>
+                  )}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Select value={countryCode} onValueChange={setCountryCode}>
+                    <SelectTrigger className="w-24 h-9 text-xs">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((c) => (
+                        <SelectItem key={c.code} value={c.dialCode}>
+                          {c.name} {c.dialCode}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="tel"
+                    placeholder="Enter number"
+                    maxLength={10}
+                    className="h-9"
+                    value={whatsapp}
+                    onChange={(e) => {
+                      setWhatsapp(e.target.value.replace(/\D/g, ""));
+                      setWhatsappVerified(false);
+                      setFirstName(
+                        cart.customerName.startsWith("Walk-in")
+                          ? ""
+                          : cart.customerName.split(" ")[0] || "",
+                      );
+                      setLastName(
+                        cart.customerName.startsWith("Walk-in")
+                          ? ""
+                          : cart.customerName.split(" ").slice(1).join(" ") ||
+                              "",
+                      );
+                      setCustomerEmail("");
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9 text-xs px-3"
+                    disabled={whatsappVerified || !whatsapp || validating}
+                    onClick={findUserByWhatsApp}
+                  >
+                    {validating ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : whatsappVerified ? (
+                      "Validated"
+                    ) : (
+                      "Validate"
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* First Name & Last Name */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-500">First Name *</Label>
+                  <Input
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="John"
+                    className="h-9 mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500">Last Name *</Label>
+                  <Input
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Doe"
+                    className="h-9 mt-1"
+                  />
+                </div>
+              </div>
+
+              {/* Customer Email */}
+              <div>
+                <Label className="text-xs text-slate-500">
+                  Customer Email{" "}
+                  <span className="text-slate-400">(optional)</span>
+                </Label>
+                <Input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="customer@email.com"
+                  className="h-9 mt-1"
+                />
+              </div>
             </div>
-          )}
-          <Separator />
-          <div className="flex justify-between text-base font-bold">
-            <span>Total</span>
-            <span>{formatPrice(finalTotal)}</span>
-          </div>
-        </div>
 
-        <Separator />
+            <Separator />
 
-        {/* Customer Details — same as cartPage self/kiosk mode */}
-        <div className="space-y-3">
-          <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Customer Details
-          </Label>
-
-          {/* WhatsApp Number with Validate */}
-          <div>
-            <Label className="text-xs text-slate-500 flex items-center justify-between mb-1">
-              <span>WhatsApp Number *</span>
-              {whatsappVerified && <Badge variant="default" className="text-[10px]">Verified</Badge>}
-            </Label>
-            <div className="flex items-center gap-2">
-              <Select value={countryCode} onValueChange={setCountryCode}>
-                <SelectTrigger className="w-24 h-9 text-xs">
-                  <SelectValue placeholder="Code" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countries.map((c) => (
-                    <SelectItem key={c.code} value={c.dialCode}>
-                      {c.name} {c.dialCode}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="tel"
-                placeholder="Enter number"
-                maxLength={10}
-                className="h-9"
-                value={whatsapp}
-                onChange={(e) => {
-                  setWhatsapp(e.target.value.replace(/\D/g, ""));
-                  setWhatsappVerified(false);
-                  setFirstName(cart.customerName.startsWith("Walk-in") ? "" : cart.customerName.split(" ")[0] || "");
-                  setLastName(cart.customerName.startsWith("Walk-in") ? "" : cart.customerName.split(" ").slice(1).join(" ") || "");
-                  setCustomerEmail("");
-                }}
+            {/* Instructions */}
+            <div>
+              <Label className="text-xs text-slate-500">
+                Order Notes (optional)
+              </Label>
+              <Textarea
+                placeholder="Any special instructions..."
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                className="mt-1 h-16 text-sm"
               />
+            </div>
+
+            <Separator />
+
+            {/* Payment Method */}
+            <div>
+              <Label className="text-xs text-slate-500 mb-2 block">
+                Payment Method
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant={paymentMethod === "cash" ? "default" : "outline"}
+                  className="h-16 flex-col gap-1.5"
+                  onClick={() => setPaymentMethod("cash")}
+                >
+                  <Banknote className="h-5 w-5" />
+                  <span className="text-xs">Cash</span>
+                </Button>
+                <Button
+                  variant={paymentMethod === "qr" ? "default" : "outline"}
+                  className="h-16 flex-col gap-1.5"
+                  onClick={() => setPaymentMethod("qr")}
+                >
+                  <QrCode className="h-5 w-5" />
+                  <span className="text-xs">QR Payment</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Confirm Button */}
+            {paymentMethod && (
               <Button
-                type="button"
-                variant="outline"
-                className="h-9 text-xs px-3"
-                disabled={whatsappVerified || !whatsapp || validating}
-                onClick={findUserByWhatsApp}
+                className="w-full h-10"
+                disabled={submitting || !shopInfo || !firstName || !whatsapp}
+                onClick={
+                  paymentMethod === "cash" ? handleCashPayment : handleQRPayment
+                }
               >
-                {validating ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : whatsappVerified ? (
-                  "Validated"
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : paymentMethod === "cash" ? (
+                  <CheckCircle className="h-4 w-4 mr-2" />
                 ) : (
-                  "Validate"
+                  <QrCode className="h-4 w-4 mr-2" />
                 )}
+                {paymentMethod === "cash"
+                  ? `Confirm Cash — ${formatPrice(finalTotal)}`
+                  : `Pay ${formatPrice(finalTotal)} via QR`}
               </Button>
-            </div>
-          </div>
-
-          {/* First Name & Last Name */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs text-slate-500">First Name *</Label>
-              <Input
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="John"
-                className="h-9 mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-xs text-slate-500">Last Name *</Label>
-              <Input
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Doe"
-                className="h-9 mt-1"
-              />
-            </div>
-          </div>
-
-          {/* Customer Email */}
-          <div>
-            <Label className="text-xs text-slate-500">
-              Customer Email <span className="text-slate-400">(optional)</span>
-            </Label>
-            <Input
-              type="email"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-              placeholder="customer@email.com"
-              className="h-9 mt-1"
-            />
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Instructions */}
-        <div>
-          <Label className="text-xs text-slate-500">
-            Order Notes (optional)
-          </Label>
-          <Textarea
-            placeholder="Any special instructions..."
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-            className="mt-1 h-16 text-sm"
-          />
-        </div>
-
-        <Separator />
-
-        {/* Payment Method */}
-        <div>
-          <Label className="text-xs text-slate-500 mb-2 block">
-            Payment Method
-          </Label>
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant={paymentMethod === "cash" ? "default" : "outline"}
-              className="h-16 flex-col gap-1.5"
-              onClick={() => setPaymentMethod("cash")}
-            >
-              <Banknote className="h-5 w-5" />
-              <span className="text-xs">Cash</span>
-            </Button>
-            <Button
-              variant={paymentMethod === "qr" ? "default" : "outline"}
-              className="h-16 flex-col gap-1.5"
-              onClick={() => setPaymentMethod("qr")}
-            >
-              <QrCode className="h-5 w-5" />
-              <span className="text-xs">QR Payment</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Confirm Button */}
-        {paymentMethod && (
-          <Button
-            className="w-full h-10"
-            disabled={submitting || !shopInfo || !firstName || !whatsapp}
-            onClick={paymentMethod === "cash" ? handleCashPayment : handleQRPayment}
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : paymentMethod === "cash" ? (
-              <CheckCircle className="h-4 w-4 mr-2" />
-            ) : (
-              <QrCode className="h-4 w-4 mr-2" />
             )}
-            {paymentMethod === "cash"
-              ? `Confirm Cash — ${formatPrice(finalTotal)}`
-              : `Pay ${formatPrice(finalTotal)} via QR`}
-          </Button>
-        )}
-        </>
+          </>
         )}
       </DialogContent>
     </Dialog>

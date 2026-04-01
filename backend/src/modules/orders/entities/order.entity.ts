@@ -101,6 +101,9 @@ export class Order extends Document {
 
   @Prop({ type: String, required: false })
   customerWhatsApp?: string;
+
+  @Prop({ type: String, required: false })
+  transactionId?: string;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

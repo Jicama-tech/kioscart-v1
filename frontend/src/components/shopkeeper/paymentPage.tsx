@@ -33,6 +33,8 @@ import QRCode from "react-qr-code";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import { Item } from "@radix-ui/react-select";
 import { Separator } from "../ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 // Type definition for UPI Apps
 interface UpiApp {
@@ -80,6 +82,7 @@ export default function PaymentPage() {
   const [mobileId, setMobileId] = useState("");
   const [showQR, setShowQR] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [transactionId, setTransactionId] = useState("");
   const [timeLeft, setTimeLeft] = useState(24 * 60 * 60); // 24 hours in seconds
 
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -601,6 +604,7 @@ Thank you!`,
         whatsAppNumber: state.userWhatsApp,
         fullName: state.fullName,
         couponCode: state.appliedCoupon?._id,
+        transactionId: transactionId || undefined,
       };
 
       const res = await fetch(`${apiUrl}/orders/create-order`, {
@@ -1322,7 +1326,22 @@ Thank you!`,
             </Card>
             {/* Payment Confirmation */}
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-6 space-y-4">
+                <div>
+                  <Label className="text-sm text-slate-600">
+                    Transaction ID <span className="text-slate-400">(optional)</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="Enter your payment transaction ID"
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Providing a transaction ID helps the shopkeeper verify your payment faster.
+                  </p>
+                </div>
                 {!paymentSubmitted ? (
                   <Button
                     onClick={handlePaymentCompletion}

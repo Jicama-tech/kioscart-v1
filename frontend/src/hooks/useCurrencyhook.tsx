@@ -5,11 +5,12 @@ interface CurrencyConfig {
   symbol: string;
   code: string;
   locale: string;
+  spokenName: string;
 }
 
 const CURRENCY_CONFIG: Record<string, CurrencyConfig> = {
-  IN: { symbol: "₹", code: "INR", locale: "en-IN" },
-  SG: { symbol: "S$", code: "SGD", locale: "en-SG" },
+  IN: { symbol: "₹", code: "INR", locale: "en-IN", spokenName: "rupees" },
+  SG: { symbol: "S$", code: "SGD", locale: "en-SG", spokenName: "Singapore dollars" },
 };
 
 export const useCurrency = (country: string) => {

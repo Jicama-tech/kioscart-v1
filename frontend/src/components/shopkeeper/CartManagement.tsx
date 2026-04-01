@@ -114,6 +114,7 @@ interface Order {
   customerName?: string;
   customerEmail?: string;
   customerWhatsApp?: string;
+  transactionId?: string;
 }
 
 interface ThermalPrintItem {
@@ -126,6 +127,57 @@ interface ThermalPrintItem {
   value?: string;
   height?: number;
   size?: number;
+}
+
+function ConfirmDeleteDialog({
+  open,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  open: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onCancel}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Order?</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete this order? This action cannot be
+            undone.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end space-x-2">
+          <Button variant="buttonOutline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? "Deleting..." : "Delete"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LoadingOverlay({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
+      <div className="relative z-10 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+        <p className="text-slate-600 font-medium">Loading...</p>
+      </div>
+    </div>
+  );
 }
 
 export function CartManagement() {
@@ -158,7 +210,7 @@ export function CartManagement() {
   const [customerNameFilter, setCustomerNameFilter] = useState("");
   const [amountSort, setAmountSort] = useState<"asc" | "desc" | "">("");
   const [country, setCountry] = useState<"IN" | "SG">("IN");
-  const { formatPrice, getSymbol } = useCurrency(country);
+  const { formatPrice, getSymbol, config } = useCurrency(country);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -181,10 +233,37 @@ export function CartManagement() {
   // Track recently deleted order IDs to prevent flicker on poll
   const recentlyDeletedRef = useRef<Set<string>>(new Set());
 
+  // Unlock audio on first user interaction (required for mobile)
+  const audioUnlockedRef = useRef(false);
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlockedRef.current) return;
+      // Play silent audio to unlock audio context on mobile
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      audioUnlockedRef.current = true;
+      // Also try to unlock speechSynthesis
+      if ("speechSynthesis" in window) {
+        const warmup = new SpeechSynthesisUtterance("");
+        warmup.volume = 0;
+        window.speechSynthesis.speak(warmup);
+      }
+    };
+    document.addEventListener("click", unlock, { once: true });
+    document.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("touchstart", unlock);
+    };
+  }, []);
+
   const speakNewOrder = useCallback((order: Order) => {
-    if (!("speechSynthesis" in window)) return;
     const customerName =
-      order.userId?.name || order.userId?.firstName || "Customer";
+      order.customerName || order.userId?.name || order.userId?.firstName || "Customer";
     const amount = order.totalAmount;
     const productNames = order.items
       ?.map((item) => {
@@ -192,20 +271,54 @@ export function CartManagement() {
         return qty;
       })
       .join(", ") || "items";
-    const message = `New order received from ${customerName}. Products: ${productNames}. Total amount ${amount} rupees.`;
+    const message = `New order received from ${customerName}. Products: ${productNames}. Total amount ${amount} ${config.spokenName}.`;
 
+    // Play notification sound first (works on mobile after any user tap)
+    try {
+      const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkZeWj4F0aWFkbHuIkpqXjX1vZGFnc4KQm5mPgHFkYWVyg5GcmI9/b2RiZ3OCkJuZj4BxZA==");
+      audio.volume = 1;
+      audio.play().catch(() => {});
+    } catch {}
+
+    // Then speak (works on desktop, may work on mobile after unlock)
     setTimeout(() => {
-      const utterance = new SpeechSynthesisUtterance(message);
-      utterance.lang = "en-IN";
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-    }, 3000);
-  }, []);
+      if (!("speechSynthesis" in window)) return;
+      try {
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = config.locale;
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+      } catch {}
+    }, 500);
+  }, [config]);
 
   const checkForNewOrders = useCallback(async () => {
+    // Skip polling while delete is in progress
+    if (recentlyDeletedRef.current.size > 0 && !isFirstLoadRef.current) {
+      // Still poll but don't update UI — just clean up deleted refs
+      try {
+        const token = sessionStorage.getItem("token");
+        if (!token) return;
+        const decoded: any = jwtDecode(token);
+        const shopkeeperId = decoded.sub;
+        const res = await fetch(
+          `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}`,
+        );
+        if (!res.ok) return;
+        const rawData: Order[] = await res.json();
+        // Clean up deleted IDs that are gone from server
+        recentlyDeletedRef.current.forEach((id) => {
+          if (!rawData.some((o) => o.orderId === id)) {
+            recentlyDeletedRef.current.delete(id);
+          }
+        });
+      } catch {}
+      return;
+    }
+
     try {
       const token = sessionStorage.getItem("token");
       if (!token) return;
@@ -218,18 +331,7 @@ export function CartManagement() {
         `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}`,
       );
       if (!res.ok) return;
-      const rawData: Order[] = await res.json();
-
-      // Filter out recently deleted orders to prevent flicker
-      const data = rawData.filter(
-        (o) => !recentlyDeletedRef.current.has(o.orderId),
-      );
-      // Clear deleted IDs that are no longer in server response (fully deleted)
-      recentlyDeletedRef.current.forEach((id) => {
-        if (!rawData.some((o) => o.orderId === id)) {
-          recentlyDeletedRef.current.delete(id);
-        }
-      });
+      const data: Order[] = await res.json();
 
       if (isFirstLoadRef.current) {
         // First load — just record existing order IDs, no voice
@@ -263,7 +365,12 @@ export function CartManagement() {
             .join(", "),
         });
       } else {
-        setOrders(data);
+        // Only update if order count or statuses changed to avoid flicker
+        setOrders((prev) => {
+          if (prev.length !== data.length) return data;
+          const changed = data.some((d, i) => d._id !== prev[i]?._id || d.status !== prev[i]?.status);
+          return changed ? data : prev;
+        });
       }
     } catch (error) {
       console.error("Polling error:", error);
@@ -1147,60 +1254,7 @@ Thank you for shopping with us.
       order.status === "processing",
   ).length;
 
-  function ConfirmDeleteDialog({
-    open,
-    onConfirm,
-    onCancel,
-    loading,
-  }: {
-    open: boolean;
-    onConfirm: () => void;
-    onCancel: () => void;
-    loading: boolean;
-  }) {
-    return (
-      <Dialog open={open} onOpenChange={onCancel}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Order?</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this order? This action cannot be
-              undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end space-x-2">
-            <Button variant="buttonOutline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={onConfirm}
-              disabled={loading}
-            >
-              {loading ? "Deleting..." : "Delete"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  function LoadingOverlay({ show }: { show: boolean }) {
-    if (!show) return null;
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        {/* Blurred backdrop */}
-        <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
-
-        {/* Loader */}
-        <div className="relative z-10 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
-          <p className="text-slate-600 font-medium">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // ConfirmDeleteDialog and LoadingOverlay moved outside component to prevent flicker
 
   if (orders.length === 0) return <div>No orders found.</div>;
 
@@ -1693,6 +1747,14 @@ Thank you for shopping with us.
                 <h3 className="font-semibold">Order Summary</h3>
                 <p>Total Amount: {formatPrice(selectedOrder.totalAmount)}</p>
                 <p>Order Type: {selectedOrder.orderType}</p>
+                {selectedOrder.transactionId && (
+                  <p>
+                    Transaction ID:{" "}
+                    <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm">
+                      {selectedOrder.transactionId}
+                    </span>
+                  </p>
+                )}
 
                 {selectedOrder.orderType === "delivery" &&
                   selectedOrder.deliveryAddress && (

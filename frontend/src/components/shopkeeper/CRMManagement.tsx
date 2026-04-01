@@ -161,6 +161,7 @@ interface Customer {
     deliveryAddress: string;
     pickupDate: string;
     pickupTime: string;
+    transactionId?: string;
   }>;
 }
 
@@ -335,6 +336,14 @@ function OrderDetailDialog({
             <p>
               <strong>Pickup Date:</strong> {formatDate(order.pickupDate)} at{" "}
               {order.pickupTime}
+            </p>
+          )}
+          {order.transactionId && (
+            <p>
+              <strong>Transaction ID:</strong>{" "}
+              <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm">
+                {order.transactionId}
+              </span>
             </p>
           )}
           <Separator />
