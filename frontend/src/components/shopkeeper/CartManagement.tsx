@@ -111,6 +111,9 @@ interface Order {
     note: string;
     changedAt: string;
   }[];
+  customerName?: string;
+  customerEmail?: string;
+  customerWhatsApp?: string;
 }
 
 interface ThermalPrintItem {
@@ -175,6 +178,8 @@ export function CartManagement() {
   // Track known order IDs to detect new ones
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef(true);
+  // Track recently deleted order IDs to prevent flicker on poll
+  const recentlyDeletedRef = useRef<Set<string>>(new Set());
 
   const speakNewOrder = useCallback((order: Order) => {
     if (!("speechSynthesis" in window)) return;
@@ -213,7 +218,18 @@ export function CartManagement() {
         `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}`,
       );
       if (!res.ok) return;
-      const data: Order[] = await res.json();
+      const rawData: Order[] = await res.json();
+
+      // Filter out recently deleted orders to prevent flicker
+      const data = rawData.filter(
+        (o) => !recentlyDeletedRef.current.has(o.orderId),
+      );
+      // Clear deleted IDs that are no longer in server response (fully deleted)
+      recentlyDeletedRef.current.forEach((id) => {
+        if (!rawData.some((o) => o.orderId === id)) {
+          recentlyDeletedRef.current.delete(id);
+        }
+      });
 
       if (isFirstLoadRef.current) {
         // First load — just record existing order IDs, no voice
@@ -982,7 +998,9 @@ Thank you for shopping with us.
 
       if (!res.ok) throw new Error("Failed to delete order");
 
-      setOrders(orders.filter((order) => order.orderId !== deletingOrderId));
+      // Track deleted ID so polling doesn't bring it back
+      recentlyDeletedRef.current.add(deletingOrderId);
+      setOrders((prev) => prev.filter((order) => order.orderId !== deletingOrderId));
       toast({ duration: 5000, title: "Order deleted successfully." });
       setDeleteDialogOpen(false);
     } catch (error) {
@@ -1562,13 +1580,16 @@ Thank you for shopping with us.
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Order {selectedOrder.orderId}</DialogTitle>
+              <DialogDescription>
+                Order details and timeline
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
                 <h3 className="font-semibold">Customer</h3>
-                <p>Name: {selectedOrder.userId.name}</p>
-                <p>Email: {selectedOrder.userId.email}</p>
-                <p>WhatsApp Number: {selectedOrder.userId.whatsAppNumber}</p>
+                <p>Name: {selectedOrder.customerName || selectedOrder.userId?.name || "N/A"}</p>
+                <p>Email: {selectedOrder.customerEmail || selectedOrder.userId?.email || "N/A"}</p>
+                <p>WhatsApp Number: {selectedOrder.customerWhatsApp || selectedOrder.userId?.whatsAppNumber || "N/A"}</p>
               </div>
 
               <div>

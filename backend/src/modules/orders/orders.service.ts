@@ -121,6 +121,11 @@ export class OrdersService {
         ...dto,
         userId: user._id.toString(),
         status: OrderStatus.Pending,
+        customerName: dto.fullName || dto.firstName
+          ? [dto.firstName, dto.lastName].filter(Boolean).join(" ") || dto.fullName
+          : user.name || undefined,
+        customerEmail: user.email || undefined,
+        customerWhatsApp: dto.whatsAppNumber !== "kiosk-order" ? dto.whatsAppNumber : undefined,
       });
 
       const savedOrder = await order.save();

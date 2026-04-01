@@ -92,6 +92,15 @@ export class Order extends Document {
 
   @Prop()
   couponCode?: string;
+
+  @Prop({ type: String, required: false })
+  customerName?: string;
+
+  @Prop({ type: String, required: false })
+  customerEmail?: string;
+
+  @Prop({ type: String, required: false })
+  customerWhatsApp?: string;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

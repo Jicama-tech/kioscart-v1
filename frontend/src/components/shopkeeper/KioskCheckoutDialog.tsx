@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,11 +24,13 @@ import {
   QrCode,
   Loader2,
   CheckCircle,
-  Search,
+  ArrowLeft,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { KioskCart } from "@/hooks/useKioskCarts";
 import { jwtDecode } from "jwt-decode";
+import QRCode from "react-qr-code";
+import jsQR from "jsqr";
 
 const apiURL = __API_URL__;
 
@@ -68,11 +69,21 @@ export function KioskCheckoutDialog({
   onOrderPlaced,
 }: KioskCheckoutDialogProps) {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "qr" | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [instructions, setInstructions] = useState("");
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
+
+  // Inline QR payment state
+  const [showQRPayment, setShowQRPayment] = useState(false);
+  const [qrPaymentData, setQrPaymentData] = useState<any>(null);
+  const [dynamicUpiString, setDynamicUpiString] = useState("");
+  const [dynamicPayNowUrl, setDynamicPayNowUrl] = useState("");
+  const [qrOrderCreated, setQrOrderCreated] = useState(false);
+  const [shopkeeperCountry, setShopkeeperCountry] = useState("");
+  const [shopkeeperPhone, setShopkeeperPhone] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Customer details — same as cartPage self/kiosk mode
   const [countryCode, setCountryCode] = useState("+65");
@@ -127,6 +138,8 @@ export function KioskCheckoutDialog({
             taxPercentage: data.taxPercentage || 0,
             discountPercentage: data.discountPercentage || 0,
           });
+          setShopkeeperCountry(data.country || "IN");
+          setShopkeeperPhone(data.phone || "");
         }
       } catch {}
     }
@@ -289,6 +302,54 @@ export function KioskCheckoutDialog({
     }
   }
 
+  // Extract UPI ID from payment QR image
+  async function extractUpiFromImage(imageUrl: string): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = canvasRef.current || document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(""); return; }
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+        if (code?.data?.includes("upi://pay")) {
+          const match = code.data.match(/pa=([^&]+)/);
+          resolve(match?.[1] || "");
+        } else {
+          resolve("");
+        }
+      };
+      img.onerror = () => resolve("");
+      img.src = imageUrl;
+    });
+  }
+
+  // Generate dynamic UPI string
+  function generateDynamicUpi(extractedUpiId: string): string {
+    if (!extractedUpiId || !finalTotal) return "";
+    return `upi://pay?pa=${extractedUpiId}&pn=${encodeURIComponent(
+      shopInfo?.shopName || "Payment"
+    )}&am=${finalTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(
+      `Kiosk Order`
+    )}`;
+  }
+
+  // Generate PayNow QR URL for Singapore
+  function generateDynamicPayNowUrl(): string {
+    if (!shopkeeperPhone || !finalTotal) return "";
+    const cleanedMobile = shopkeeperPhone.startsWith("+65")
+      ? shopkeeperPhone.substring(3)
+      : shopkeeperPhone;
+    const now = new Date();
+    const expiry = new Date(now.getTime() + 90 * 60 * 60 * 1000);
+    const formatted = `${expiry.getFullYear()}/${String(expiry.getMonth() + 1).padStart(2, "0")}/${String(expiry.getDate()).padStart(2, "0")} ${String(expiry.getHours()).padStart(2, "0")}:${String(expiry.getMinutes()).padStart(2, "0")}`;
+    return `https://www.sgqrcode.com/paynow?mobile=${cleanedMobile}&uen=&editable=0&amount=${finalTotal.toFixed(2)}&expiry=${encodeURIComponent(formatted)}&ref_id=&company=`;
+  }
+
   async function handleQRPayment() {
     if (!firstName) {
       toast({ title: "Required", description: "Please enter first name", variant: "destructive" });
@@ -296,53 +357,89 @@ export function KioskCheckoutDialog({
     }
     setSubmitting(true);
     try {
-      const token = sessionStorage.getItem("token");
-      if (!token) throw new Error("Not authenticated");
-      const decoded: any = jwtDecode(token);
       if (!shopInfo) throw new Error("Shop info not loaded");
 
-      const { date, time } = getNow();
-      const orderId = `ORDER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const paymentImageUrl = shopInfo.paymentURL
-        ? apiURL + shopInfo.paymentURL
-        : "";
+      // Generate QR data based on country
+      if (shopkeeperCountry === "SG") {
+        const payNowUrl = generateDynamicPayNowUrl();
+        setDynamicPayNowUrl(payNowUrl);
+      } else {
+        // India — extract UPI from payment image
+        if (shopInfo.paymentURL) {
+          const extracted = await extractUpiFromImage(apiURL + shopInfo.paymentURL);
+          if (extracted) {
+            setUpiId(extracted);
+            setDynamicUpiString(generateDynamicUpi(extracted));
+          }
+        }
+      }
 
-      navigate("/payment", {
-        state: {
-          paymentImageUrl,
-          whatsAppNumber: shopInfo.whatsappNumber,
-          merchantName: shopInfo.shopName,
-          hasDocVerification: shopInfo.hasDocVerification,
-          orderId,
-          shopkeeperId,
-          fullName,
-          userWhatsApp: userWhatsApp || shopInfo.whatsappNumber,
-          instructions,
-          userId: decoded.sub,
-          orderType: "pickup",
-          deliveryAddress: null,
-          pickupDate: date,
-          pickupTime: time,
-          cartItems: cart.items,
-          subtotal,
-          deliveryFee: 0,
-          taxPercentage,
-          discountPercentage,
-          tax,
-          total: finalTotal,
-          discount,
-          couponDiscount: 0,
-          appliedCoupon: null,
-          itemCount: cart.items.reduce((s, i) => s + i.quantity, 0),
-          isKioskOrder: true,
-        },
-      });
-
-      resetAndClose();
+      // Show inline QR payment view
+      setShowQRPayment(true);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to initiate payment",
+        description: error.message || "Failed to generate QR",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Create order after customer confirms QR payment
+  async function handleQRPaymentConfirm() {
+    setSubmitting(true);
+    try {
+      const token = sessionStorage.getItem("token");
+      if (!token) throw new Error("Not authenticated");
+      const decoded: any = jwtDecode(token);
+
+      const { date, time } = getNow();
+      const orderId = `ORDER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      const orderData = {
+        orderId,
+        userId: decoded.sub,
+        shopkeeperId,
+        items: getOrderItems(),
+        totalAmount: finalTotal,
+        orderType: "pickup",
+        pickupDate: date,
+        pickupTime: time,
+        paymentConfirmed: false,
+        whatsAppNumber: userWhatsApp || shopInfo?.whatsappNumber || "kiosk-order",
+        fullName,
+        firstName,
+        lastName,
+        instructions: instructions || undefined,
+      };
+
+      const res = await fetch(`${apiURL}/orders/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to create order");
+      }
+
+      setQrOrderCreated(true);
+      toast({
+        title: "Order Placed",
+        description: `Order for ${fullName} created. Payment pending verification.`,
+      });
+
+      // Auto-close after a brief delay
+      setTimeout(() => {
+        resetAndClose();
+      }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create order",
         variant: "destructive",
       });
     } finally {
@@ -358,12 +455,106 @@ export function KioskCheckoutDialog({
     setFirstName("");
     setLastName("");
     setCustomerEmail("");
+    setShowQRPayment(false);
+    setQrOrderCreated(false);
+    setDynamicUpiString("");
+    setDynamicPayNowUrl("");
+    setUpiId("");
     onOrderPlaced();
   }
 
+  // Hidden canvas for QR extraction
+  const hiddenCanvas = <canvas ref={canvasRef} style={{ display: "none" }} />;
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(flag) => { if (!flag && !showQRPayment) onClose(); }}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        {hiddenCanvas}
+
+        {/* === INLINE QR PAYMENT VIEW === */}
+        {showQRPayment ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>
+                {qrOrderCreated ? "Order Placed!" : "Scan & Pay"}
+              </DialogTitle>
+              <DialogDescription>
+                {qrOrderCreated
+                  ? `Payment pending verification for ${fullName}`
+                  : `${fullName} — ${formatPrice(finalTotal)}`}
+              </DialogDescription>
+            </DialogHeader>
+
+            {qrOrderCreated ? (
+              <div className="flex flex-col items-center py-8 gap-4">
+                <CheckCircle className="h-16 w-16 text-green-500" />
+                <p className="text-lg font-semibold text-green-700">Order Created Successfully</p>
+                <p className="text-sm text-slate-500 text-center">
+                  Payment will be verified by the shopkeeper. Closing...
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                {/* QR Code Display */}
+                <div className="bg-white p-4 rounded-lg border-2 border-slate-200">
+                  {shopkeeperCountry === "SG" && dynamicPayNowUrl ? (
+                    <img
+                      src={dynamicPayNowUrl}
+                      alt="PayNow QR"
+                      className="w-64 h-64 object-contain"
+                    />
+                  ) : dynamicUpiString ? (
+                    <QRCode value={dynamicUpiString} size={256} />
+                  ) : shopInfo?.paymentURL ? (
+                    <img
+                      src={apiURL + shopInfo.paymentURL}
+                      alt="Payment QR"
+                      className="w-64 h-64 object-contain"
+                    />
+                  ) : (
+                    <div className="w-64 h-64 flex items-center justify-center text-slate-400">
+                      No payment QR configured
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{formatPrice(finalTotal)}</p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {shopkeeperCountry === "SG" ? "Scan with PayNow" : "Scan with any UPI app"}
+                  </p>
+                </div>
+
+                <Separator className="w-full" />
+
+                <div className="flex gap-3 w-full">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-10"
+                    onClick={() => setShowQRPayment(false)}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button
+                    className="flex-1 h-10"
+                    disabled={submitting}
+                    onClick={handleQRPaymentConfirm}
+                  >
+                    {submitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Payment Done
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+        <>
+        {/* === NORMAL CHECKOUT VIEW === */}
         <DialogHeader>
           <DialogTitle>Checkout — {cart.customerName}</DialogTitle>
           <DialogDescription>
@@ -583,6 +774,8 @@ export function KioskCheckoutDialog({
               ? `Confirm Cash — ${formatPrice(finalTotal)}`
               : `Pay ${formatPrice(finalTotal)} via QR`}
           </Button>
+        )}
+        </>
         )}
       </DialogContent>
     </Dialog>
