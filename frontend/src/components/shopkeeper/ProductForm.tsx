@@ -35,6 +35,17 @@ import { FaDollarSign, FaRupeeSign } from "react-icons/fa";
 import { BlurWrapper } from "../ui/BlurWrapper";
 
 // Interfaces
+interface ProductOption {
+  id: number;
+  title: string;
+  price: number;
+  isDiscounted?: boolean;
+  discountedPrice?: number;
+  inventory: number;
+  trackQuantity: boolean;
+  lowstockThreshold: number;
+}
+
 interface ProductVariant {
   id: number;
   title: string;
@@ -55,6 +66,12 @@ interface ProductSubcategory {
   name: string;
   description?: string;
   basePrice?: number;
+  additionalPrice?: number;
+  isDiscounted?: boolean;
+  discountedAdditionalPrice?: number;
+  inventory?: number;
+  trackQuantity?: boolean;
+  lowstockThreshold?: number;
   variants: ProductVariant[];
 }
 
@@ -72,6 +89,10 @@ interface Product {
   category: string;
   tags: string[];
   images: (string | File)[];
+  // Product options (Size/Quantity/Pack)
+  hasOptions?: boolean;
+  optionsLabel?: string;
+  productOptions?: ProductOption[];
   // Product-level inventory (when no subcategories)
   inventory?: number;
   trackQuantity?: boolean;
@@ -109,6 +130,10 @@ export function ProductForm({ product, onSave, onClose }: any) {
     isDiscounted: false,
     tags: [],
     images: [],
+    // Product options defaults
+    hasOptions: false,
+    optionsLabel: "",
+    productOptions: [],
     // Product-level inventory defaults
     inventory: 0,
     trackQuantity: true,
@@ -264,6 +289,44 @@ export function ProductForm({ product, onSave, onClose }: any) {
       e.preventDefault();
       handleAddTag();
     }
+  };
+
+  // Product option handlers
+  const handleAddOption = () => {
+    setFormData((prev) => ({
+      ...prev,
+      productOptions: [
+        ...(prev.productOptions || []),
+        {
+          id: Date.now(),
+          title: "",
+          price: 0,
+          inventory: 0,
+          trackQuantity: true,
+          lowstockThreshold: 10,
+        },
+      ],
+    }));
+  };
+
+  const handleRemoveOption = (index: number) => {
+    setFormData((prev) => {
+      const newOptions = [...(prev.productOptions || [])];
+      newOptions.splice(index, 1);
+      return { ...prev, productOptions: newOptions };
+    });
+  };
+
+  const handleOptionChange = (
+    index: number,
+    field: keyof ProductOption,
+    value: any,
+  ) => {
+    setFormData((prev) => {
+      const newOptions = [...(prev.productOptions || [])];
+      newOptions[index] = { ...newOptions[index], [field]: value };
+      return { ...prev, productOptions: newOptions };
+    });
   };
 
   // Subcategory handlers
@@ -437,10 +500,14 @@ export function ProductForm({ product, onSave, onClose }: any) {
       const productData = {
         ...formData,
         images: existingImageUrls,
-        // Include product-level inventory only if no subcategories
-        inventory: hasSubcategories ? undefined : formData.inventory,
-        trackQuantity: hasSubcategories ? undefined : formData.trackQuantity,
-        lowstockThreshold: hasSubcategories
+        // Product options
+        hasOptions: formData.hasOptions || false,
+        optionsLabel: formData.hasOptions ? formData.optionsLabel : undefined,
+        productOptions: formData.hasOptions ? formData.productOptions : [],
+        // Include product-level inventory only if no subcategories and no options
+        inventory: hasSubcategories || formData.hasOptions ? undefined : formData.inventory,
+        trackQuantity: hasSubcategories || formData.hasOptions ? undefined : formData.trackQuantity,
+        lowstockThreshold: hasSubcategories || formData.hasOptions
           ? undefined
           : formData.lowstockThreshold,
         subcategories: formData.subcategories || [],
@@ -873,6 +940,155 @@ export function ProductForm({ product, onSave, onClose }: any) {
                 </Card>
               )}
 
+              {/* Product Options Section (Size/Quantity/Pack) */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Product Options (Size / Quantity / Pack)</CardTitle>
+                    <Switch
+                      checked={formData.hasOptions || false}
+                      onCheckedChange={(checked) => {
+                        handleInputChange("hasOptions", checked);
+                        if (!checked) {
+                          handleInputChange("productOptions", []);
+                          handleInputChange("optionsLabel", "");
+                        }
+                      }}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </CardHeader>
+                {formData.hasOptions && (
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Options Label</Label>
+                      <Input
+                        placeholder="e.g. Size, Quantity, Pack"
+                        value={formData.optionsLabel || ""}
+                        onChange={(e) => handleInputChange("optionsLabel", e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    <div className="mb-3 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> Each option has its own price which becomes the base price when selected.
+                      </p>
+                    </div>
+
+                    {(formData.productOptions || []).map((option, oi) => (
+                      <Card key={option.id} className="p-4 border rounded">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm font-medium">
+                            {formData.optionsLabel || "Option"} {oi + 1} - {option.title || "(No title)"}
+                          </span>
+                          <Button
+                            variant="buttonOutline"
+                            size="sm"
+                            onClick={() => handleRemoveOption(oi)}
+                            disabled={isSubmitting}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Title *</Label>
+                            <Input
+                              placeholder="e.g. Small, 250g, Pack of 3"
+                              value={option.title}
+                              onChange={(e) => handleOptionChange(oi, "title", e.target.value)}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Price *</Label>
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="0"
+                              value={option.price ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                                  handleOptionChange(oi, "price", v === "" ? 0 : parseFloat(v));
+                                }
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Inventory</Label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              value={option.inventory ?? 0}
+                              onChange={(e) => handleOptionChange(oi, "inventory", parseInt(e.target.value) || 0)}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Low Stock Threshold</Label>
+                            <Input
+                              type="number"
+                              placeholder="10"
+                              value={option.lowstockThreshold ?? 10}
+                              onChange={(e) => handleOptionChange(oi, "lowstockThreshold", parseInt(e.target.value) || 10)}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 col-span-2">
+                            <Switch
+                              checked={option.trackQuantity}
+                              onCheckedChange={(v) => handleOptionChange(oi, "trackQuantity", v)}
+                              disabled={isSubmitting}
+                            />
+                            <Label className="text-xs">Track Quantity</Label>
+                          </div>
+                          <div className="flex items-center gap-2 col-span-2">
+                            <Switch
+                              checked={option.isDiscounted || false}
+                              onCheckedChange={(v) => handleOptionChange(oi, "isDiscounted", v)}
+                              disabled={isSubmitting}
+                            />
+                            <Label className="text-xs">Discounted</Label>
+                          </div>
+                          {option.isDiscounted && (
+                            <div className="space-y-1 col-span-2">
+                              <Label className="text-xs">Discounted Price</Label>
+                              <Input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0"
+                                value={option.discountedPrice ?? ""}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                                    handleOptionChange(oi, "discountedPrice", v === "" ? 0 : parseFloat(v));
+                                  }
+                                }}
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
+
+                    <Button
+                      type="button"
+                      variant="buttonOutline"
+                      onClick={handleAddOption}
+                      disabled={isSubmitting}
+                      className="w-full"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add {formData.optionsLabel || "Option"}
+                    </Button>
+                  </CardContent>
+                )}
+              </Card>
+
               {/* Subcategories & Variants Section */}
               <div>
                 <div className="flex justify-between items-center mb-4">
@@ -1002,6 +1218,87 @@ export function ProductForm({ product, onSave, onClose }: any) {
                             rows={2}
                             disabled={isSubmitting}
                           />
+
+                          {/* Subcategory Pricing & Inventory (shown when no variants) */}
+                          {subcat.variants.length === 0 && (
+                            <div className="mt-3 p-3 border rounded-lg bg-muted/30 space-y-3">
+                              <p className="text-xs text-muted-foreground font-medium">
+                                Subcategory Pricing & Inventory (no variants)
+                              </p>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Additional Price</Label>
+                                  <Input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="0"
+                                    value={subcat.additionalPrice ?? ""}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                                        handleSubcategoryChange(si, "additionalPrice" as any, v === "" ? 0 : parseFloat(v));
+                                      }
+                                    }}
+                                    disabled={isSubmitting}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Inventory</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="0"
+                                    value={subcat.inventory ?? 0}
+                                    onChange={(e) => handleSubcategoryChange(si, "inventory" as any, parseInt(e.target.value) || 0)}
+                                    disabled={isSubmitting}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Low Stock Threshold</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="10"
+                                    value={subcat.lowstockThreshold ?? 10}
+                                    onChange={(e) => handleSubcategoryChange(si, "lowstockThreshold" as any, parseInt(e.target.value) || 10)}
+                                    disabled={isSubmitting}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={subcat.trackQuantity ?? true}
+                                    onCheckedChange={(v) => handleSubcategoryChange(si, "trackQuantity" as any, v)}
+                                    disabled={isSubmitting}
+                                  />
+                                  <Label className="text-xs">Track Qty</Label>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={subcat.isDiscounted || false}
+                                  onCheckedChange={(v) => handleSubcategoryChange(si, "isDiscounted" as any, v)}
+                                  disabled={isSubmitting}
+                                />
+                                <Label className="text-xs">Discounted</Label>
+                              </div>
+                              {subcat.isDiscounted && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Discounted Additional Price</Label>
+                                  <Input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="0"
+                                    value={subcat.discountedAdditionalPrice ?? ""}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                                        handleSubcategoryChange(si, "discountedAdditionalPrice" as any, v === "" ? 0 : parseFloat(v));
+                                      }
+                                    }}
+                                    disabled={isSubmitting}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Variants Section */}
                           <div className="mt-3">

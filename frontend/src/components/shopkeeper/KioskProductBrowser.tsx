@@ -31,11 +31,28 @@ interface Variant {
   options?: Record<string, any>;
 }
 
+interface ProductOptionItem {
+  id: number;
+  title: string;
+  price: number;
+  isDiscounted?: boolean;
+  discountedPrice?: number;
+  inventory: number;
+  trackQuantity: boolean;
+  lowstockThreshold?: number;
+}
+
 interface Subcategory {
   id: number;
   name: string;
   description?: string;
   basePrice: number;
+  additionalPrice?: number;
+  isDiscounted?: boolean;
+  discountedAdditionalPrice?: number;
+  inventory?: number;
+  trackQuantity?: boolean;
+  lowstockThreshold?: number;
   variants: Variant[];
 }
 
@@ -47,6 +64,9 @@ interface Product {
   isDiscounted?: boolean;
   images?: string[];
   category?: string;
+  hasOptions?: boolean;
+  optionsLabel?: string;
+  productOptions?: ProductOptionItem[];
   subcategories?: Subcategory[];
   inventory?: number;
   trackQuantity?: boolean;
@@ -124,15 +144,22 @@ export function KioskProductBrowser({
     product: Product,
     subIdx: number,
     varIdx: number,
+    selectedOption?: ProductOptionItem,
   ) {
     const sub = product.subcategories![subIdx];
     const variant = sub.variants[varIdx];
+    // Base price = option price (if selected) or product price
+    const basePrice = selectedOption
+      ? (selectedOption.isDiscounted && selectedOption.discountedPrice ? selectedOption.discountedPrice : selectedOption.price)
+      : product.price;
+    // Additional price from variant
+    const variantAdd = variant.isDiscounted && variant.discountedPrice ? variant.discountedPrice : variant.price;
+    const totalPrice = basePrice + variantAdd;
+
     onAddItem({
       productId: product._id,
       productName: product.productName,
-      price: variant.price,
-      discountedPrice: variant.discountedPrice,
-      isDiscounted: variant.isDiscounted,
+      price: totalPrice,
       subcategoryIndex: subIdx,
       subcategoryName: sub.name,
       variantIndex: varIdx,
@@ -143,11 +170,68 @@ export function KioskProductBrowser({
       measurement: variant.measurement,
       sku: variant.sku,
       category: product.category,
+      optionTitle: selectedOption?.title,
+      optionPrice: selectedOption?.price,
+    });
+  }
+
+  function handleAddSubcategory(
+    product: Product,
+    subIdx: number,
+    selectedOption?: ProductOptionItem,
+  ) {
+    const sub = product.subcategories![subIdx];
+    // Base price = option price (if selected) or product price
+    const basePrice = selectedOption
+      ? (selectedOption.isDiscounted && selectedOption.discountedPrice ? selectedOption.discountedPrice : selectedOption.price)
+      : product.price;
+    // Additional price from subcategory
+    const subAdd = sub.isDiscounted && sub.discountedAdditionalPrice != null
+      ? sub.discountedAdditionalPrice
+      : (sub.additionalPrice || 0);
+    const totalPrice = basePrice + subAdd;
+
+    onAddItem({
+      productId: product._id,
+      productName: product.productName,
+      price: totalPrice,
+      subcategoryIndex: subIdx,
+      subcategoryName: sub.name,
+      variantIndex: -1,
+      variantTitle: "Default",
+      image: product.images?.[0],
+      inventory: sub.inventory || 0,
+      trackQuantity: sub.trackQuantity ?? false,
+      category: product.category,
+      optionTitle: selectedOption?.title,
+      optionPrice: selectedOption?.price,
+    });
+  }
+
+  function handleAddWithOption(product: Product, option: ProductOptionItem) {
+    // Product with option only (no subcategories)
+    const price = option.isDiscounted && option.discountedPrice ? option.discountedPrice : option.price;
+    onAddItem({
+      productId: product._id,
+      productName: product.productName,
+      price,
+      subcategoryIndex: 0,
+      subcategoryName: "Default",
+      variantIndex: 0,
+      variantTitle: "Default",
+      image: product.images?.[0],
+      inventory: option.inventory || 0,
+      trackQuantity: option.trackQuantity ?? false,
+      measurement: product.measurement,
+      sku: product.sku,
+      category: product.category,
+      optionTitle: option.title,
+      optionPrice: option.price,
     });
   }
 
   function handleAddSimpleProduct(product: Product) {
-    // Product with no subcategories/variants
+    // Product with no subcategories/variants/options
     onAddItem({
       productId: product._id,
       productName: product.productName,
@@ -219,6 +303,8 @@ export function KioskProductBrowser({
                 product={product}
                 onAddSimple={handleAddSimpleProduct}
                 onAddVariant={handleAddVariant}
+                onAddSubcategory={handleAddSubcategory}
+                onAddWithOption={handleAddWithOption}
                 disabled={!activeCartId}
                 formatPrice={formatPrice}
               />
@@ -234,39 +320,45 @@ function ProductCard({
   product,
   onAddSimple,
   onAddVariant,
+  onAddSubcategory,
+  onAddWithOption,
   disabled,
   formatPrice,
 }: {
   product: Product;
   onAddSimple: (p: Product) => void;
-  onAddVariant: (p: Product, subIdx: number, varIdx: number) => void;
+  onAddVariant: (p: Product, subIdx: number, varIdx: number, option?: ProductOptionItem) => void;
+  onAddSubcategory: (p: Product, subIdx: number, option?: ProductOptionItem) => void;
+  onAddWithOption: (p: Product, option: ProductOptionItem) => void;
   disabled: boolean;
   formatPrice: (amount: number) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [selectedOptionIdx, setSelectedOptionIdx] = useState<number | null>(null);
 
   const hasSubcategories =
     product.subcategories && product.subcategories.length > 0;
+  const hasOptions = product.hasOptions && product.productOptions && product.productOptions.length > 0;
 
   // Check if product has meaningful variants (more than 1 variant total)
   const totalVariants = hasSubcategories
     ? product.subcategories!.reduce((sum, sub) => sum + (sub.variants?.length || 0), 0)
     : 0;
 
-  const hasMultipleOptions = hasSubcategories && (
+  const needsExpansion = hasOptions || (hasSubcategories && (
     product.subcategories!.length > 1 || totalVariants > 1
-  );
+  ));
 
-  // Get display price from first variant or product level
-  const getDisplayPrice = () => {
-    if (hasSubcategories && product.subcategories![0]?.variants?.[0]) {
-      const v = product.subcategories![0].variants[0];
-      return { price: v.price, discountedPrice: v.discountedPrice, isDiscounted: v.isDiscounted };
-    }
-    return { price: product.price, discountedPrice: product.discountedPrice, isDiscounted: product.isDiscounted };
+  const selectedOption = hasOptions && selectedOptionIdx != null
+    ? product.productOptions![selectedOptionIdx]
+    : undefined;
+
+  // Get display price — show product base price
+  const dp = {
+    price: product.price,
+    discountedPrice: product.discountedPrice,
+    isDiscounted: product.isDiscounted,
   };
-
-  const dp = getDisplayPrice();
 
   return (
     <div className="border rounded-lg p-2 bg-white hover:shadow-sm transition-shadow">
@@ -307,20 +399,20 @@ function ProductCard({
               {formatPrice(dp.price)}
             </span>
           )}
-          {hasMultipleOptions && (
+          {hasOptions && (
             <span className="text-[10px] text-slate-400 block">
-              {product.subcategories!.length} option{product.subcategories!.length > 1 ? "s" : ""} &middot; {totalVariants} variant{totalVariants > 1 ? "s" : ""}
+              {product.productOptions!.length} {product.optionsLabel || "option"}{product.productOptions!.length > 1 ? "s" : ""}
             </span>
           )}
         </div>
 
-        {hasMultipleOptions ? (
+        {needsExpansion ? (
           <Button
             size="sm"
             variant="outline"
             className="h-7 text-xs px-2"
             disabled={disabled}
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => { setExpanded(!expanded); setSelectedOptionIdx(null); }}
           >
             {expanded ? (
               <ChevronUp className="h-3 w-3 mr-0.5" />
@@ -330,7 +422,6 @@ function ProductCard({
             {expanded ? "Hide" : "Select"}
           </Button>
         ) : hasSubcategories && totalVariants === 1 ? (
-          // Single variant — add directly
           <Button
             size="sm"
             className="h-7 text-xs px-2"
@@ -341,7 +432,6 @@ function ProductCard({
             Add
           </Button>
         ) : (
-          // No subcategories — simple product
           <Button
             size="sm"
             className="h-7 text-xs px-2"
@@ -354,84 +444,134 @@ function ProductCard({
         )}
       </div>
 
-      {/* Expanded Subcategories & Variants */}
-      {expanded && hasSubcategories && (
+      {/* Expanded Options, Subcategories & Variants */}
+      {expanded && (
         <div className="mt-2 border-t pt-1.5 space-y-2">
-          {product.subcategories!.map((sub, subIdx) => (
-            <div key={subIdx}>
-              {/* Subcategory header — show if more than one subcategory */}
-              {product.subcategories!.length > 1 && (
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                  {sub.name}
-                  {sub.description && (
-                    <span className="font-normal normal-case ml-1 text-slate-400">
-                      — {sub.description}
-                    </span>
-                  )}
-                </p>
-              )}
-
-              {/* Variants */}
-              {sub.variants.map((variant, varIdx) => {
-                const varPrice = variant.isDiscounted && variant.discountedPrice
-                  ? variant.discountedPrice
-                  : variant.price;
-                const outOfStock = variant.trackQuantity && variant.inventory <= 0;
-
-                return (
-                  <div
-                    key={`${subIdx}-${varIdx}`}
-                    className={`flex items-center justify-between py-1 px-1.5 rounded text-[11px] ${
-                      outOfStock ? "opacity-50" : "hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <span className="text-slate-700 block truncate">
-                        {variant.title}
-                        {variant.measurement && (
-                          <span className="text-slate-400 ml-1">
-                            ({variant.measurement})
-                          </span>
-                        )}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {variant.isDiscounted && variant.discountedPrice ? (
-                          <>
-                            <span className="font-semibold text-green-600">
-                              {formatPrice(variant.discountedPrice)}
-                            </span>
-                            <span className="text-slate-400 line-through text-[10px]">
-                              {formatPrice(variant.price)}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="font-medium">
-                            {formatPrice(variant.price)}
-                          </span>
-                        )}
-                        {variant.trackQuantity && (
-                          <Badge
-                            variant={outOfStock ? "destructive" : "secondary"}
-                            className="text-[8px] h-3.5 px-1"
-                          >
-                            {outOfStock ? "Out of stock" : `${variant.inventory} left`}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="h-6 text-[10px] px-1.5 ml-1"
-                      disabled={disabled || outOfStock}
-                      onClick={() => onAddVariant(product, subIdx, varIdx)}
+          {/* Step 1: Option selection (Size/Qty/Pack) */}
+          {hasOptions && (
+            <div>
+              <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wide mb-1">
+                {product.optionsLabel || "Select Option"}
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {product.productOptions!.map((opt, optIdx) => {
+                  const optOutOfStock = opt.trackQuantity && opt.inventory <= 0;
+                  const isSelected = selectedOptionIdx === optIdx;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={disabled || optOutOfStock}
+                      onClick={() => {
+                        setSelectedOptionIdx(isSelected ? null : optIdx);
+                        // If no subcategories, add directly
+                        if (!hasSubcategories && !isSelected) {
+                          onAddWithOption(product, opt);
+                          setExpanded(false);
+                          setSelectedOptionIdx(null);
+                        }
+                      }}
+                      className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+                        optOutOfStock
+                          ? "opacity-40 cursor-not-allowed"
+                          : isSelected
+                            ? "bg-purple-100 border-purple-400 text-purple-700"
+                            : "hover:bg-slate-50 border-slate-200"
+                      }`}
                     >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                );
-              })}
+                      {opt.title} — {formatPrice(opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          ))}
+          )}
+
+          {/* Step 2: Subcategories & Variants (show if no options required, or option is selected) */}
+          {hasSubcategories && (!hasOptions || selectedOption) && (
+            <div>
+              {product.subcategories!.map((sub, subIdx) => (
+                <div key={subIdx}>
+                  {product.subcategories!.length > 1 && (
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                      {sub.name}
+                    </p>
+                  )}
+
+                  {/* If subcategory has no variants, show subcategory as selectable */}
+                  {sub.variants.length === 0 ? (
+                    <div className="flex items-center justify-between py-1 px-1.5 rounded text-[11px] hover:bg-slate-50">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-slate-700">{sub.name}</span>
+                        <span className="text-[10px] text-slate-400 ml-1">
+                          +{formatPrice(sub.isDiscounted && sub.discountedAdditionalPrice != null ? sub.discountedAdditionalPrice : (sub.additionalPrice || 0))}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="h-6 text-[10px] px-1.5 ml-1"
+                        disabled={disabled || (sub.trackQuantity && (sub.inventory || 0) <= 0)}
+                        onClick={() => {
+                          onAddSubcategory(product, subIdx, selectedOption);
+                          setExpanded(false);
+                          setSelectedOptionIdx(null);
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    /* Variants */
+                    sub.variants.map((variant, varIdx) => {
+                      const outOfStock = variant.trackQuantity && variant.inventory <= 0;
+                      return (
+                        <div
+                          key={`${subIdx}-${varIdx}`}
+                          className={`flex items-center justify-between py-1 px-1.5 rounded text-[11px] ${
+                            outOfStock ? "opacity-50" : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <span className="text-slate-700 block truncate">
+                              {variant.title}
+                              {variant.measurement && (
+                                <span className="text-slate-400 ml-1">({variant.measurement})</span>
+                              )}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">
+                                +{formatPrice(variant.isDiscounted && variant.discountedPrice ? variant.discountedPrice : variant.price)}
+                              </span>
+                              {variant.trackQuantity && (
+                                <Badge
+                                  variant={outOfStock ? "destructive" : "secondary"}
+                                  className="text-[8px] h-3.5 px-1"
+                                >
+                                  {outOfStock ? "Out of stock" : `${variant.inventory} left`}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="h-6 text-[10px] px-1.5 ml-1"
+                            disabled={disabled || outOfStock}
+                            onClick={() => {
+                              onAddVariant(product, subIdx, varIdx, selectedOption);
+                              setExpanded(false);
+                              setSelectedOptionIdx(null);
+                            }}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

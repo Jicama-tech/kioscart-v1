@@ -239,6 +239,8 @@ export function KioskCheckoutDialog({
       subcategoryName: item.subcategoryName,
       image: item.image,
       trackQuantity: item.trackQuantity,
+      optionTitle: item.optionTitle,
+      optionPrice: item.optionPrice,
     }));
   }
 

@@ -3,6 +3,32 @@ import { Document } from "mongoose";
 
 export type ProductDocument = Product & Document;
 
+class ProductOption {
+  @Prop({ required: true })
+  id: number;
+
+  @Prop({ required: true })
+  title: string;
+
+  @Prop({ required: true })
+  price: number;
+
+  @Prop()
+  isDiscounted?: boolean;
+
+  @Prop()
+  discountedPrice?: number;
+
+  @Prop({ default: 0 })
+  inventory: number;
+
+  @Prop({ default: true })
+  trackQuantity: boolean;
+
+  @Prop({ default: 10 })
+  lowstockThreshold: number;
+}
+
 class Variant {
   @Prop({ required: true })
   id: number;
@@ -60,6 +86,24 @@ class Subcategory {
   @Prop({ default: 0 })
   basePrice: number;
 
+  @Prop()
+  additionalPrice?: number;
+
+  @Prop()
+  isDiscounted?: boolean;
+
+  @Prop()
+  discountedAdditionalPrice?: number;
+
+  @Prop({ default: 0 })
+  inventory?: number;
+
+  @Prop({ default: true })
+  trackQuantity?: boolean;
+
+  @Prop({ default: 10 })
+  lowstockThreshold?: number;
+
   @Prop({ type: [Variant], default: [] })
   variants: Variant[];
 }
@@ -105,6 +149,16 @@ export class Product {
 
   @Prop({ type: [String], default: [] })
   tags: string[];
+
+  // Product options (Size/Quantity/Pack)
+  @Prop({ default: false })
+  hasOptions?: boolean;
+
+  @Prop()
+  optionsLabel?: string;
+
+  @Prop({ type: [ProductOption], default: [] })
+  productOptions: ProductOption[];
 
   @Prop({ type: [Subcategory], default: [] })
   subcategories: Subcategory[];

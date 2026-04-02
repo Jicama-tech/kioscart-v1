@@ -58,6 +58,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import { jwtDecode } from "jwt-decode";
 
+interface ProductOptionItem {
+  id: number;
+  title: string;
+  price: number;
+  isDiscounted?: boolean;
+  discountedPrice?: number;
+  inventory: number;
+  trackQuantity: boolean;
+  lowstockThreshold?: number;
+}
+
 interface Product {
   _id: string;
   name: string;
@@ -71,6 +82,9 @@ interface Product {
   status: "active" | "draft" | "archived";
   images: string[];
   tags: string[];
+  hasOptions?: boolean;
+  optionsLabel?: string;
+  productOptions?: ProductOptionItem[];
   subcategories: ProductSubcategory[];
   inventory: number;
   lowstockThreshold: number;
@@ -85,6 +99,12 @@ interface ProductSubcategory {
   id: number;
   name: string;
   description?: string;
+  additionalPrice?: number;
+  isDiscounted?: boolean;
+  discountedAdditionalPrice?: number;
+  inventory?: number;
+  trackQuantity?: boolean;
+  lowstockThreshold?: number;
   variants: ProductVariant[];
 }
 
@@ -418,6 +438,7 @@ export function ProductManagement() {
     filteredProducts.forEach((product) => {
       const hasSubcategories =
         product.subcategories && product.subcategories.length > 0;
+      const hasOptions = product.hasOptions && product.productOptions?.length > 0;
       const productExpanded = expandedProducts.has(product._id);
 
       // Main product row
@@ -434,7 +455,7 @@ export function ProductManagement() {
             />
           </TableCell>
           <TableCell className="w-12">
-            {hasSubcategories ? (
+            {hasSubcategories || hasOptions ? (
               <button
                 onClick={() => toggleProductExpansion(product._id)}
                 className="p-1 hover:bg-gray-200 rounded"
@@ -565,6 +586,62 @@ export function ProductManagement() {
           </TableCell>
         </TableRow>,
       );
+
+      // Option rows (Size/Quantity/Pack)
+      if (hasOptions && productExpanded) {
+        rows.push(
+          <TableRow key={`options-header-${product._id}`} className="bg-purple-50/50">
+            <TableCell />
+            <TableCell />
+            <TableCell colSpan={2} className="pl-8">
+              <span className="text-sm font-semibold text-purple-700">
+                {product.optionsLabel || "Options"}
+              </span>
+            </TableCell>
+            <TableCell />
+            <TableCell />
+            <TableCell />
+            <TableCell />
+          </TableRow>,
+        );
+        product.productOptions?.forEach((option: any) => {
+          rows.push(
+            <TableRow key={`option-${product._id}-${option.id}`} className="bg-purple-50/30">
+              <TableCell />
+              <TableCell />
+              <TableCell className="pl-12">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-400" />
+                  <span className="text-sm">{option.title}</span>
+                </div>
+              </TableCell>
+              <TableCell />
+              <TableCell>
+                <span className="text-sm font-semibold text-green-600">
+                  {formatPrice(option.price)}
+                </span>
+                {option.isDiscounted && option.discountedPrice != null && (
+                  <span className="ml-2 text-xs text-purple-600">
+                    Sale: {formatPrice(option.discountedPrice)}
+                  </span>
+                )}
+              </TableCell>
+              <TableCell>
+                {option.trackQuantity && (
+                  <div className="flex items-center gap-1 text-sm">
+                    <span>Stock: {option.inventory}</span>
+                    {option.inventory <= (option.lowstockThreshold || 10) && (
+                      <Badge variant="destructive" className="text-xs">Low</Badge>
+                    )}
+                  </div>
+                )}
+              </TableCell>
+              <TableCell />
+              <TableCell />
+            </TableRow>,
+          );
+        });
+      }
 
       // Subcategory and variant rows
       if (hasSubcategories && productExpanded) {

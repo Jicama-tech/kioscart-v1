@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { CartItem } from "./cartContext";
 
+function kioskCartItemKey(item: {
+  productId: string;
+  subcategoryIndex?: number;
+  variantIndex?: number;
+  optionTitle?: string;
+}): string {
+  return `${item.productId}::${item.optionTitle || ""}::${item.subcategoryIndex ?? 0}::${item.variantIndex ?? 0}`;
+}
+
+function matchKioskItem(
+  a: { productId: string; subcategoryIndex?: number; variantIndex?: number; optionTitle?: string },
+  b: { productId: string; subcategoryIndex?: number; variantIndex?: number; optionTitle?: string },
+): boolean {
+  return kioskCartItemKey(a) === kioskCartItemKey(b);
+}
+
 export interface KioskCart {
   id: string;
   customerName: string;
@@ -116,11 +132,8 @@ export function useKioskCarts(shopkeeperId: string) {
           ...prev,
           carts: prev.carts.map((c) => {
             if (c.id !== prev.activeCartId) return c;
-            const existIdx = c.items.findIndex(
-              (i) =>
-                i.productId === item.productId &&
-                i.subcategoryIndex === item.subcategoryIndex &&
-                i.variantIndex === item.variantIndex,
+            const existIdx = c.items.findIndex((i) =>
+              matchKioskItem(i, item),
             );
             let newItems: CartItem[];
             if (existIdx >= 0) {
@@ -141,7 +154,13 @@ export function useKioskCarts(shopkeeperId: string) {
   );
 
   const removeItem = useCallback(
-    (productId: string, subcategoryIndex: number, variantIndex: number) => {
+    (
+      productId: string,
+      subcategoryIndex: number,
+      variantIndex: number,
+      optionTitle?: string,
+    ) => {
+      const id = { productId, subcategoryIndex, variantIndex, optionTitle };
       setState((prev) => {
         if (!prev.activeCartId) return prev;
         return {
@@ -150,14 +169,7 @@ export function useKioskCarts(shopkeeperId: string) {
             if (c.id !== prev.activeCartId) return c;
             return {
               ...c,
-              items: c.items.filter(
-                (i) =>
-                  !(
-                    i.productId === productId &&
-                    i.subcategoryIndex === subcategoryIndex &&
-                    i.variantIndex === variantIndex
-                  ),
-              ),
+              items: c.items.filter((i) => !matchKioskItem(i, id)),
               updatedAt: Date.now(),
             };
           }),
@@ -173,11 +185,13 @@ export function useKioskCarts(shopkeeperId: string) {
       subcategoryIndex: number,
       variantIndex: number,
       quantity: number,
+      optionTitle?: string,
     ) => {
       if (quantity <= 0) {
-        removeItem(productId, subcategoryIndex, variantIndex);
+        removeItem(productId, subcategoryIndex, variantIndex, optionTitle);
         return;
       }
+      const id = { productId, subcategoryIndex, variantIndex, optionTitle };
       setState((prev) => {
         if (!prev.activeCartId) return prev;
         return {
@@ -187,11 +201,7 @@ export function useKioskCarts(shopkeeperId: string) {
             return {
               ...c,
               items: c.items.map((i) =>
-                i.productId === productId &&
-                i.subcategoryIndex === subcategoryIndex &&
-                i.variantIndex === variantIndex
-                  ? { ...i, quantity }
-                  : i,
+                matchKioskItem(i, id) ? { ...i, quantity } : i,
               ),
               updatedAt: Date.now(),
             };

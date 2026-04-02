@@ -624,20 +624,21 @@ export function ProductDetailsDialog({
 
   // Check if product is in cart
   const inCart = product
-    ? isInCart(
-        product.shopkeeperId?._id || product.shopkeeperId,
-        product._id,
-        hasSubcategories ? selectedSubcategory : -1,
-        hasSubcategories ? selectedVariant : -1,
-      )
+    ? isInCart(product.shopkeeperId?._id || product.shopkeeperId, {
+        productId: product._id,
+        subcategoryIndex: hasSubcategories ? selectedSubcategory : -1,
+        variantIndex: hasSubcategories ? selectedVariant : -1,
+      })
     : false;
 
   const cartQuantity = product
     ? getCartItemQuantity(
         product.shopkeeperId?._id || product.shopkeeperId,
-        product._id,
-        hasSubcategories ? selectedSubcategory : -1,
-        hasSubcategories ? selectedVariant : -1,
+        {
+          productId: product._id,
+          subcategoryIndex: hasSubcategories ? selectedSubcategory : -1,
+          variantIndex: hasSubcategories ? selectedVariant : -1,
+        },
       )
     : 0;
 

@@ -951,12 +951,12 @@ export function CartPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() =>
-                              removeFromCart(
-                                shopkeeperId,
-                                item.productId,
-                                item.subcategoryIndex,
-                                item.variantIndex,
-                              )
+                              removeFromCart(shopkeeperId, {
+                                productId: item.productId,
+                                subcategoryIndex: item.subcategoryIndex,
+                                variantIndex: item.variantIndex,
+                                optionTitle: item.optionTitle,
+                              })
                             }
                             className="text-red-500 hover:text-red-700 h-8 w-8"
                           >

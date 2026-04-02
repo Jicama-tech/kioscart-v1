@@ -26,6 +26,31 @@ export interface CartItem {
   shopkeeperName?: string;
   sku?: string;
   category?: string;
+  optionTitle?: string;
+  optionPrice?: number;
+}
+
+function cartItemKey(item: {
+  productId: string;
+  subcategoryIndex?: number;
+  variantIndex?: number;
+  optionTitle?: string;
+}): string {
+  return `${item.productId}::${item.optionTitle || ""}::${item.subcategoryIndex ?? 0}::${item.variantIndex ?? 0}`;
+}
+
+function matchCartItem(
+  a: { productId: string; subcategoryIndex?: number; variantIndex?: number; optionTitle?: string },
+  b: { productId: string; subcategoryIndex?: number; variantIndex?: number; optionTitle?: string },
+): boolean {
+  return cartItemKey(a) === cartItemKey(b);
+}
+
+interface CartItemIdentifier {
+  productId: string;
+  subcategoryIndex: number;
+  variantIndex: number;
+  optionTitle?: string;
 }
 
 interface CartContextType {
@@ -37,31 +62,17 @@ interface CartContextType {
     item: Omit<CartItem, "quantity">,
     quantity?: number,
   ) => void;
-  removeFromCart: (
-    shopkeeperId: string,
-    productId: string,
-    subcategoryIndex: number,
-    variantIndex: number,
-  ) => void;
+  removeFromCart: (shopkeeperId: string, id: CartItemIdentifier) => void;
   updateQuantity: (
     shopkeeperId: string,
-    productId: string,
-    subcategoryIndex: number,
-    variantIndex: number,
-    inventory: number,
+    id: CartItemIdentifier,
+    quantity: number,
   ) => void;
   clearCart: (shopkeeperId: string) => void;
-  isInCart: (
-    shopkeeperId: string,
-    productId: string,
-    subcategoryIndex: number,
-    variantIndex: number,
-  ) => boolean;
+  isInCart: (shopkeeperId: string, id: CartItemIdentifier) => boolean;
   getCartItemQuantity: (
     shopkeeperId: string,
-    productId: string,
-    subcategoryIndex: number,
-    variantIndex: number,
+    id: CartItemIdentifier,
   ) => number;
 }
 
@@ -120,16 +131,16 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setCartItems((prev) => {
       const shopCart = prev[shopkeeperId] || [];
 
-      const existingIndex = shopCart.findIndex(
-        (item) =>
-          item.productId === newItem.productId &&
-          item.subcategoryIndex === newItem.subcategoryIndex &&
-          item.variantIndex === newItem.variantIndex,
+      const existingIndex = shopCart.findIndex((item) =>
+        matchCartItem(item, newItem),
       );
 
       if (existingIndex >= 0) {
         const updatedShopCart = [...shopCart];
-        updatedShopCart[existingIndex].quantity += quantity;
+        updatedShopCart[existingIndex] = {
+          ...updatedShopCart[existingIndex],
+          quantity: updatedShopCart[existingIndex].quantity + quantity,
+        };
 
         toast({
           duration: 5000,
@@ -158,20 +169,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     });
   };
 
-  const removeFromCart = (
-    shopkeeperId: string,
-    productId: string,
-    subcategoryIndex: number,
-    variantIndex: number,
-  ) => {
+  const removeFromCart = (shopkeeperId: string, id: CartItemIdentifier) => {
     setCartItems((prev) => {
       const shopCart = prev[shopkeeperId] || [];
-      const itemToRemove = shopCart.find(
-        (item) =>
-          item.productId === productId &&
-          item.subcategoryIndex === subcategoryIndex &&
-          item.variantIndex === variantIndex,
-      );
+      const itemToRemove = shopCart.find((item) => matchCartItem(item, id));
 
       if (itemToRemove) {
         toast({
@@ -182,12 +183,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       }
 
       const updatedShopCart = shopCart.filter(
-        (item) =>
-          !(
-            item.productId === productId &&
-            item.subcategoryIndex === subcategoryIndex &&
-            item.variantIndex === variantIndex
-          ),
+        (item) => !matchCartItem(item, id),
       );
       return { ...prev, [shopkeeperId]: updatedShopCart };
     });
@@ -195,24 +191,18 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   const updateQuantity = (
     shopkeeperId: string,
-    productId: string,
-    subcategoryIndex: number,
-    variantIndex: number,
+    id: CartItemIdentifier,
     quantity: number,
   ) => {
     if (quantity <= 0) {
-      removeFromCart(shopkeeperId, productId, subcategoryIndex, variantIndex);
+      removeFromCart(shopkeeperId, id);
       return;
     }
 
     setCartItems((prev) => {
       const shopCart = prev[shopkeeperId] || [];
       const updatedShopCart = shopCart.map((item) => {
-        if (
-          item.productId === productId &&
-          item.subcategoryIndex === subcategoryIndex &&
-          item.variantIndex === variantIndex
-        ) {
+        if (matchCartItem(item, id)) {
           return { ...item, quantity };
         }
         return item;
@@ -241,35 +231,18 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     });
   };
 
-  const isInCart = (
-    shopkeeperId: string,
-    productId: string,
-    subcategoryIndex: number,
-    variantIndex: number,
-  ): boolean => {
+  const isInCart = (shopkeeperId: string, id: CartItemIdentifier): boolean => {
     const shopCart = cartItems[shopkeeperId] || [];
-    return shopCart.some(
-      (item) =>
-        item.productId === productId &&
-        item.subcategoryIndex === subcategoryIndex &&
-        item.variantIndex === variantIndex,
-    );
+    return shopCart.some((item) => matchCartItem(item, id));
   };
 
   const getCartItemQuantity = (
     shopkeeperId: string,
-    productId: string,
-    subcategoryIndex: number,
-    variantIndex: number,
+    id: CartItemIdentifier,
   ): number => {
     const shopCart = cartItems[shopkeeperId] || [];
-    const item = shopCart.find(
-      (item) =>
-        item.productId === productId &&
-        item.subcategoryIndex === subcategoryIndex &&
-        item.variantIndex === variantIndex,
-    );
-    return item ? item.quantity : 0;
+    const found = shopCart.find((item) => matchCartItem(item, id));
+    return found ? found.quantity : 0;
   };
 
   const cartCount = (shopkeeperId: string) => {

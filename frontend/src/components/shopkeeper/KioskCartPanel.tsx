@@ -15,11 +15,13 @@ interface KioskCartPanelProps {
     subcategoryIndex: number,
     variantIndex: number,
     quantity: number,
+    optionTitle?: string,
   ) => void;
   onRemoveItem: (
     productId: string,
     subcategoryIndex: number,
     variantIndex: number,
+    optionTitle?: string,
   ) => void;
   onPark: () => void;
   onCheckout: () => void;
@@ -92,17 +94,14 @@ export function KioskCartPanel({
                 <p className="text-xs font-medium text-slate-800 truncate">
                   {item.productName}
                 </p>
-                {(item.subcategoryName !== "Default" ||
+                {(item.optionTitle || item.subcategoryName !== "Default" ||
                   item.variantTitle !== "Default") && (
                   <p className="text-[10px] text-slate-400 truncate">
-                    {item.subcategoryName !== "Default"
-                      ? item.subcategoryName
-                      : ""}
-                    {item.subcategoryName !== "Default" &&
-                    item.variantTitle !== "Default"
-                      ? " - "
-                      : ""}
-                    {item.variantTitle !== "Default" ? item.variantTitle : ""}
+                    {[
+                      item.optionTitle,
+                      item.subcategoryName !== "Default" ? item.subcategoryName : "",
+                      item.variantTitle !== "Default" ? item.variantTitle : "",
+                    ].filter(Boolean).join(" · ")}
                   </p>
                 )}
 
@@ -119,6 +118,7 @@ export function KioskCartPanel({
                           item.subcategoryIndex,
                           item.variantIndex,
                           item.quantity - 1,
+                          item.optionTitle,
                         )
                       }
                     >
@@ -137,6 +137,7 @@ export function KioskCartPanel({
                           item.subcategoryIndex,
                           item.variantIndex,
                           item.quantity + 1,
+                          item.optionTitle,
                         )
                       }
                     >
@@ -163,6 +164,7 @@ export function KioskCartPanel({
                         item.productId,
                         item.subcategoryIndex,
                         item.variantIndex,
+                        item.optionTitle,
                       )
                     }
                   >

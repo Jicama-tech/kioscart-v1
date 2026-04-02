@@ -59,7 +59,6 @@ import {
   FaWhatsapp,
 } from "react-icons/fa";
 import { useCurrency } from "@/hooks/useCurrencyhook";
-import { Textarea } from "../ui/textarea";
 
 // Interfaces
 interface ProductItem {
@@ -195,12 +194,6 @@ export function CartManagement() {
   const [shopkeeperInfo, setShopkeeperInfo] = useState<any>(null);
   const [printSelectionOpen, setPrintSelectionOpen] = useState(false); // New state
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
-  const [statusNoteDialogOpen, setStatusNoteDialogOpen] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    orderId: string;
-    newStatus: string;
-  } | null>(null);
-  const [statusNote, setStatusNote] = useState("");
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("");
@@ -434,8 +427,6 @@ export function CartManagement() {
     const customerName = selectedOrder.userId?.name || "Customer";
     const orderId = selectedOrder.orderId;
     const status = latest.status?.toUpperCase();
-    const note = latest.note || "No additional note provided.";
-
     const phone = selectedOrder.userId?.whatsAppNumber?.replace(/\D/g, "");
 
     if (!phone) {
@@ -449,7 +440,6 @@ Hello ${customerName},
 Your Order (${orderId}) status has been updated.
 
 Current Status: ${status}
-Note: ${note}
 
 Thank you for shopping with us.
   `;
@@ -527,11 +517,9 @@ Thank you for shopping with us.
     }
   };
 
-  // ✅ Called when user picks a new status — opens note dialog first
+  // ✅ Called when user picks a new status — directly updates
   function promptStatusChange(orderId: string, newStatus: string) {
-    setPendingStatusChange({ orderId, newStatus });
-    setStatusNote("");
-    setStatusNoteDialogOpen(true);
+    handleStatusChange(orderId, newStatus, "");
   }
 
   // ✅ Called after user confirms in the dialog
@@ -1732,11 +1720,6 @@ Thank you for shopping with us.
                             <p className="text-sm text-gray-500">
                               {new Date(history.changedAt).toLocaleString()}
                             </p>
-                            {history.note && (
-                              <p className="text-sm mt-1 text-gray-600">
-                                Note: {history.note}
-                              </p>
-                            )}
                           </div>
                         </div>
                       );
@@ -2068,64 +2051,6 @@ Thank you for shopping with us.
         </DialogContent>
       </Dialog>
 
-      {/* Status Change Notes Dialog */}
-      <Dialog
-        open={statusNoteDialogOpen}
-        onOpenChange={setStatusNoteDialogOpen}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Update Order Status</DialogTitle>
-            <DialogDescription>
-              Changing status to{" "}
-              <span className="font-semibold capitalize">
-                {pendingStatusChange?.newStatus}
-              </span>
-              . Add an optional note for this status change.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2 mt-2">
-            <Label htmlFor="statusNote">Note (Optional)</Label>
-            <Textarea
-              id="statusNote"
-              placeholder="e.g. Order dispatched via courier, expected delivery in 2 days..."
-              value={statusNote}
-              onChange={(e) => setStatusNote(e.target.value)}
-              rows={4}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 mt-4">
-            <Button
-              variant="buttonOutline"
-              onClick={() => {
-                setStatusNoteDialogOpen(false);
-                setPendingStatusChange(null);
-                setStatusNote("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (pendingStatusChange) {
-                  handleStatusChange(
-                    pendingStatusChange.orderId,
-                    pendingStatusChange.newStatus,
-                    statusNote,
-                  );
-                }
-                setStatusNoteDialogOpen(false);
-                setPendingStatusChange(null);
-                setStatusNote("");
-              }}
-            >
-              Confirm
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <ConfirmDeleteDialog
         open={deleteDialogOpen}

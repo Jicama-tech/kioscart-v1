@@ -9,11 +9,45 @@ import {
   MaxLength,
   ValidateNested,
   IsMongoId,
-  IsNotEmpty,
   Min,
   ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
+
+export class UpdateProductOptionDto {
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isDiscounted?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  discountedPrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  inventory?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  trackQuantity?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  lowstockThreshold?: number;
+}
 
 export class UpdateProductVariantDto {
   @IsOptional()
@@ -86,6 +120,31 @@ export class UpdateProductSubcategoryDto {
   @IsOptional()
   @IsNumber()
   basePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  additionalPrice?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isDiscounted?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  discountedAdditionalPrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  inventory?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  trackQuantity?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  lowstockThreshold?: number;
 
   @IsOptional()
   @IsArray()
@@ -171,6 +230,21 @@ export class UpdateProductDto {
   @IsString({ each: true })
   @ArrayMaxSize(3, { message: "Maximum 3 images are allowed per product" })
   images?: string[];
+
+  // Product options (Size/Quantity/Pack)
+  @IsOptional()
+  @IsBoolean()
+  hasOptions?: boolean;
+
+  @IsOptional()
+  @IsString()
+  optionsLabel?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateProductOptionDto)
+  productOptions?: UpdateProductOptionDto[];
 
   // Product-level inventory (when no subcategories exist)
   @IsOptional()

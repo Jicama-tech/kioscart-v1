@@ -67,6 +67,14 @@ class OrderItemDto {
 
   @IsBoolean()
   trackQuantity: boolean;
+
+  @IsOptional()
+  @IsString()
+  optionTitle?: string;
+
+  @IsOptional()
+  @IsNumber()
+  optionPrice?: number;
 }
 
 export class CreateOrderDto {

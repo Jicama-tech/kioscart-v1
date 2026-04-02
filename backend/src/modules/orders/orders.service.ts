@@ -1300,7 +1300,7 @@ export class OrdersService {
     }
   }
 
-  // Update product inventory
+  // Update product inventory — handles 3 levels independently: options, subcategory/variant, product
   private async updateProductInventory(
     items: any[],
     action: "deduct" | "restore",
@@ -1334,8 +1334,38 @@ export class OrdersService {
       const quantityChange =
         action === "deduct" ? -item.quantity : item.quantity;
 
-      // Check if this is a product with subcategories and variants
+      // Level 1: Deduct option inventory (if product has options and item selected one)
+      if (item.optionTitle && product.productOptions?.length > 0) {
+        const optionIndex = product.productOptions.findIndex(
+          (opt: any) => opt.title === item.optionTitle,
+        );
+        if (optionIndex !== -1) {
+          const option = product.productOptions[optionIndex];
+          if (option.trackQuantity) {
+            if (action === "deduct" && option.inventory < item.quantity) {
+              throw new InternalServerErrorException(
+                `Insufficient stock for ${item.productName} (${item.optionTitle}). Available: ${option.inventory}, Requested: ${item.quantity}`,
+              );
+            }
+            option.inventory += quantityChange;
+            bulkOps.push({
+              updateOne: {
+                filter: { _id: product._id },
+                update: {
+                  $inc: {
+                    [`productOptions.${optionIndex}.inventory`]:
+                      quantityChange,
+                  },
+                },
+              },
+            });
+          }
+        }
+      }
+
+      // Level 2: Deduct subcategory or variant inventory
       if (item.subcategoryName && item.variantTitle) {
+        // Has variant — deduct variant inventory
         const subcategory = product.subcategories?.find(
           (sub: any) => sub.name === item.subcategoryName,
         );
@@ -1367,7 +1397,6 @@ export class OrdersService {
           (v: any) => v.title === item.variantTitle,
         );
 
-        // Update in-memory value so subsequent items referencing the same variant see the updated inventory
         variant.inventory += quantityChange;
 
         bulkOps.push({
@@ -1381,9 +1410,43 @@ export class OrdersService {
             },
           },
         });
+      } else if (item.subcategoryName && !item.variantTitle) {
+        // Subcategory without variant — deduct subcategory inventory
+        const subcategoryIndex = product.subcategories?.findIndex(
+          (sub: any) => sub.name === item.subcategoryName,
+        );
+        if (subcategoryIndex === -1 || subcategoryIndex == null) {
+          throw new NotFoundException(
+            `Subcategory '${item.subcategoryName}' not found`,
+          );
+        }
+        const subcategory = product.subcategories[subcategoryIndex];
+
+        if (subcategory.trackQuantity) {
+          if (
+            action === "deduct" &&
+            (subcategory.inventory || 0) < item.quantity
+          ) {
+            throw new InternalServerErrorException(
+              `Insufficient stock for ${item.productName} (${item.subcategoryName}). Available: ${subcategory.inventory || 0}, Requested: ${item.quantity}`,
+            );
+          }
+          subcategory.inventory = (subcategory.inventory || 0) + quantityChange;
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: product._id },
+              update: {
+                $inc: {
+                  [`subcategories.${subcategoryIndex}.inventory`]:
+                    quantityChange,
+                },
+              },
+            },
+          });
+        }
       }
-      // Handle products without subcategories (simple products)
-      else {
+      // Level 3: Simple product (no options, no subcategories)
+      else if (!item.subcategoryName && !item.optionTitle) {
         if (product.trackQuantity) {
           if (action === "deduct" && product.inventory < item.quantity) {
             throw new InternalServerErrorException(
@@ -1391,7 +1454,6 @@ export class OrdersService {
             );
           }
 
-          // Update in-memory value so subsequent items referencing the same product see the updated inventory
           product.inventory += quantityChange;
 
           bulkOps.push({

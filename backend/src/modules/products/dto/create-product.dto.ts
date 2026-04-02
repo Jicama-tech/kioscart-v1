@@ -15,6 +15,40 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 
+// --- Product Option DTO (Size/Quantity/Pack level) ---
+export class ProductOptionDto {
+  @IsNumber()
+  @IsNotEmpty()
+  id: number;
+
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  price: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isDiscounted?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  discountedPrice?: number;
+
+  @IsNumber()
+  @Min(0)
+  inventory: number;
+
+  @IsBoolean()
+  trackQuantity: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  lowstockThreshold?: number;
+}
+
 // --- Variant DTO (all inventory and pricing at variant level) ---
 export class ProductVariantDto {
   @IsNumber()
@@ -90,6 +124,31 @@ export class ProductSubcategoryDto {
   @IsOptional()
   @IsNumber()
   basePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  additionalPrice?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isDiscounted?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  discountedAdditionalPrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  inventory?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  trackQuantity?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  lowstockThreshold?: number;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -176,6 +235,21 @@ export class CreateProductDto {
   @IsString({ each: true })
   @ArrayMaxSize(3, { message: "Maximum 3 images are allowed per product" })
   images?: string[];
+
+  // Product options (Size/Quantity/Pack)
+  @IsOptional()
+  @IsBoolean()
+  hasOptions?: boolean;
+
+  @IsOptional()
+  @IsString()
+  optionsLabel?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductOptionDto)
+  productOptions?: ProductOptionDto[];
 
   // Product-level inventory (when no subcategories exist)
   @IsOptional()
