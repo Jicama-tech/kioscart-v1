@@ -496,10 +496,19 @@ export function ProductForm({ product, onSave, onClose }: any) {
         return;
       }
 
+      // When options are enabled, use the first option's price as the product base price
+      const firstOption = formData.hasOptions && formData.productOptions?.length > 0
+        ? formData.productOptions[0]
+        : null;
+
       // Build productData matching your schema
       const productData = {
         ...formData,
         images: existingImageUrls,
+        // Set product-level price from first option when options are enabled
+        price: firstOption ? firstOption.price : formData.price,
+        isDiscounted: firstOption ? (firstOption.isDiscounted || false) : formData.isDiscounted,
+        discountedPrice: firstOption ? (firstOption.discountedPrice ?? undefined) : formData.discountedPrice,
         // Product options
         hasOptions: formData.hasOptions || false,
         optionsLabel: formData.hasOptions ? formData.optionsLabel : undefined,
@@ -741,8 +750,8 @@ export function ProductForm({ product, onSave, onClose }: any) {
                 </Select>
               </div>
 
-              {/* Product-level inventory (only shown when no subcategories) */}
-              {!hasSubcategories && (
+              {/* Product-level inventory (only shown when no subcategories and no options) */}
+              {!hasSubcategories && !formData.hasOptions && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Price & Inventory Management</CardTitle>

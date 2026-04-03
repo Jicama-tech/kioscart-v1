@@ -35,7 +35,7 @@ export class ShopkeeperStoresService {
     // Step 2: Fetch shopkeeper and products IN PARALLEL
     const [shopkeeper, products] = await Promise.all([
       this.shopkeeperModel.findById(shopkeeperId).lean().exec(),
-      this.productModel.find({ shopkeeperId }).lean().exec(),
+      this.productModel.find({ shopkeeperId, status: { $ne: 'draft' } }).lean().exec(),
     ]);
 
     return {

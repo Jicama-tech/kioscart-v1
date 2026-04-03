@@ -108,6 +108,7 @@ interface APICustomer {
       image: string;
       subcategoryName: string;
       variantTitle: string;
+      optionTitle?: string;
       quantity: number;
     }>;
     status: string;
@@ -154,6 +155,7 @@ interface Customer {
       image: string;
       subcategoryName: string;
       variantTitle: string;
+      optionTitle?: string;
       quantity: number;
     }>;
     status: string;
@@ -2920,15 +2922,13 @@ export function CRMManagement() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {customer.source === "created" && (
-                              <Button
-                                variant="buttonOutline"
-                                size="sm"
-                                onClick={() => showEditCustomer(customer)}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <Button
+                              variant="buttonOutline"
+                              size="sm"
+                              onClick={() => showEditCustomer(customer)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>

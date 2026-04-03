@@ -73,6 +73,7 @@ interface Product {
   measurement?: string;
   sku?: string;
   isActive?: boolean;
+  status?: "active" | "draft" | "archived";
 }
 
 interface KioskProductBrowserProps {
@@ -110,6 +111,7 @@ export function KioskProductBrowser({
           ...p,
           productName: p.productName || p.name || "",
         }));
+        console.log("Kiosk products loaded:", productList.length, productList.map((p: any) => ({ name: p.productName, status: p.status })));
         setProducts(productList);
       }
     } catch (e) {
@@ -129,7 +131,7 @@ export function KioskProductBrowser({
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
-      if (p.isActive === false) return false;
+      if (p.status && p.status !== "active") return false;
       const matchSearch =
         !search ||
         p.productName.toLowerCase().includes(search.toLowerCase()) ||

@@ -69,6 +69,7 @@ interface ProductItem {
   image?: string;
   measurement?: string;
   variantTitle?: string;
+  optionTitle?: string;
   subcategoryName?: string;
 }
 
@@ -203,7 +204,7 @@ export function CartManagement() {
   const [customerNameFilter, setCustomerNameFilter] = useState("");
   const [amountSort, setAmountSort] = useState<"asc" | "desc" | "">("");
   const [country, setCountry] = useState<"IN" | "SG">("IN");
-  const { formatPrice, getSymbol, config } = useCurrency(country);
+  const { formatPrice, getSymbol } = useCurrency(country);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -225,68 +226,6 @@ export function CartManagement() {
   const isFirstLoadRef = useRef(true);
   // Track recently deleted order IDs to prevent flicker on poll
   const recentlyDeletedRef = useRef<Set<string>>(new Set());
-
-  // Unlock audio on first user interaction (required for mobile)
-  const audioUnlockedRef = useRef(false);
-  useEffect(() => {
-    const unlock = () => {
-      if (audioUnlockedRef.current) return;
-      // Play silent audio to unlock audio context on mobile
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const buffer = ctx.createBuffer(1, 1, 22050);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(ctx.destination);
-      source.start(0);
-      audioUnlockedRef.current = true;
-      // Also try to unlock speechSynthesis
-      if ("speechSynthesis" in window) {
-        const warmup = new SpeechSynthesisUtterance("");
-        warmup.volume = 0;
-        window.speechSynthesis.speak(warmup);
-      }
-    };
-    document.addEventListener("click", unlock, { once: true });
-    document.addEventListener("touchstart", unlock, { once: true });
-    return () => {
-      document.removeEventListener("click", unlock);
-      document.removeEventListener("touchstart", unlock);
-    };
-  }, []);
-
-  const speakNewOrder = useCallback((order: Order) => {
-    const customerName =
-      order.customerName || order.userId?.name || order.userId?.firstName || "Customer";
-    const amount = order.totalAmount;
-    const productNames = order.items
-      ?.map((item) => {
-        const qty = item.quantity > 1 ? `${item.quantity} ${item.productName}` : item.productName;
-        return qty;
-      })
-      .join(", ") || "items";
-    const message = `New order received from ${customerName}. Products: ${productNames}. Total amount ${amount} ${config.spokenName}.`;
-
-    // Play notification sound first (works on mobile after any user tap)
-    try {
-      const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkZeWj4F0aWFkbHuIkpqXjX1vZGFnc4KQm5mPgHFkYWVyg5GcmI9/b2RiZ3OCkJuZj4BxZA==");
-      audio.volume = 1;
-      audio.play().catch(() => {});
-    } catch {}
-
-    // Then speak (works on desktop, may work on mobile after unlock)
-    setTimeout(() => {
-      if (!("speechSynthesis" in window)) return;
-      try {
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = config.locale;
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
-      } catch {}
-    }, 500);
-  }, [config]);
 
   const checkForNewOrders = useCallback(async () => {
     // Skip polling while delete is in progress
@@ -344,9 +283,6 @@ export function CartManagement() {
         knownOrderIdsRef.current = new Set(data.map((o) => o._id));
         setOrders(data);
 
-        // Voice announce each new order
-        newOrders.forEach((order) => speakNewOrder(order));
-
         toast({
           duration: 6000,
           title: `🔔 ${newOrders.length} New Order${newOrders.length > 1 ? "s" : ""}!`,
@@ -368,7 +304,7 @@ export function CartManagement() {
     } catch (error) {
       console.error("Polling error:", error);
     }
-  }, [speakNewOrder, toast, formatPrice]);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial load + polling every 15 seconds
   useEffect(() => {
@@ -377,7 +313,7 @@ export function CartManagement() {
 
     const interval = setInterval(checkForNewOrders, 15000);
     return () => clearInterval(interval);
-  }, [checkForNewOrders]);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchShopkeeperInfo() {
     try {

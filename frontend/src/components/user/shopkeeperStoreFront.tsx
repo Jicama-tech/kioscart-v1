@@ -335,6 +335,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
     // 1. FILTER first
     const searchLower = debouncedSearch?.trim().toLowerCase() || "";
     const filtered = products.filter((product) => {
+      // Hide draft/archived products
+      if (product.status && product.status !== "active") return false;
+
       const searchMatch =
         !searchLower ||
         product.name.toLowerCase().includes(searchLower);

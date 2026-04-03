@@ -386,15 +386,11 @@ export class UsersService {
     shopkeeperId: string,
   ) {
     try {
-      // 1. Check if user exists and belongs to this shopkeeper
-      const existingUser = await this.userModel.findOne({
-        _id: userId,
-        provider: "Shopkeeper",
-        providerId: shopkeeperId,
-      });
+      // 1. Check if user exists
+      const existingUser = await this.userModel.findById(userId);
 
       if (!existingUser) {
-        throw new BadRequestException("User not found or access denied");
+        throw new BadRequestException("User not found");
       }
 
       // 2. Check for duplicate WhatsApp / Email (excluding current user)

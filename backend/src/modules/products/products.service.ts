@@ -59,7 +59,7 @@ export class ProductsService {
 
   async findAll(): Promise<Product[]> {
     try {
-      return await this.productModel.find().lean().exec();
+      return await this.productModel.find({ status: { $ne: 'draft' } }).lean().exec();
     } catch (error) {
       throw new HttpException(
         `Failed to retrieve products: ${error.message}`,
