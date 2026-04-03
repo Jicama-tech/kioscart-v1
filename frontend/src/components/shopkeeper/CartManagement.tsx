@@ -811,7 +811,17 @@ Thank you for shopping with us.
         format: 0,
       });
 
-      if (item.subcategoryName) {
+      if (item.optionTitle && item.optionTitle !== "Default") {
+        printData.push({
+          type: 0,
+          content: `Option: ${item.optionTitle}`,
+          bold: 0,
+          align: 0,
+          format: 4,
+        });
+      }
+
+      if (item.subcategoryName && item.subcategoryName !== "Default") {
         printData.push({
           type: 0,
           content: `Category: ${item.subcategoryName}`,
@@ -821,7 +831,7 @@ Thank you for shopping with us.
         });
       }
 
-      if (item.variantTitle) {
+      if (item.variantTitle && item.variantTitle !== "Default") {
         printData.push({
           type: 0,
           content: `Variant: ${item.variantTitle}`,
@@ -1656,12 +1666,17 @@ Thank you for shopping with us.
                       )}
                       <div className="flex-1">
                         <p className="font-medium">{item.productName}</p>
-                        {item.subcategoryName && (
+                        {item.optionTitle && item.optionTitle !== "Default" && (
+                          <p className="text-sm text-purple-600">
+                            {item.optionTitle}
+                          </p>
+                        )}
+                        {item.subcategoryName && item.subcategoryName !== "Default" && (
                           <p className="text-sm text-gray-600">
                             {item.subcategoryName}
                           </p>
                         )}
-                        {item.variantTitle && (
+                        {item.variantTitle && item.variantTitle !== "Default" && (
                           <p className="text-sm text-gray-500">
                             Variant: {item.variantTitle}
                           </p>
@@ -1882,10 +1897,9 @@ Thank you for shopping with us.
                   {printOrder.items.map((item, index) => (
                     <div key={index} className="mb-1">
                       <div className="font-semibold">{item.productName}</div>
-                      {item.subcategoryName && (
+                      {[item.optionTitle, item.subcategoryName, item.variantTitle].some((v) => v && v !== "Default") && (
                         <div className="text-xs text-gray-600">
-                          ({item.subcategoryName}
-                          {item.variantTitle ? `, ${item.variantTitle}` : ""})
+                          ({[item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(", ")})
                         </div>
                       )}
                       <div>

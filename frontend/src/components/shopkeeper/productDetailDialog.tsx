@@ -66,6 +66,7 @@ export function ProductDetailsDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -86,6 +87,7 @@ export function ProductDetailsDialog({
       setProduct(null);
       setError(null);
       setCurrentImageIndex(0);
+      setSelectedOption(null);
       setSelectedSubcategory(0);
       setSelectedVariant(0);
       setQuantity(1);
@@ -137,6 +139,10 @@ export function ProductDetailsDialog({
         throw new Error("Product not found");
       }
       setProduct(productData);
+      // Auto-select first option if product has options
+      if (productData.hasOptions && productData.productOptions?.length > 0) {
+        setSelectedOption(0);
+      }
       fetchShopkeeperDetails(productData.shopkeeperId);
     } catch (err: any) {
       setError(err.message || "Failed to load product details");
@@ -165,66 +171,93 @@ export function ProductDetailsDialog({
     }
   };
 
-  // Get price based on product structure (with or without variants)
+  // Get price based on product structure
+  // If hasOptions: additive model (option price + variant/subcategory additional)
+  // If no options: variant/subcategory price is the absolute price (backward compat)
   const getPrice = () => {
     if (!product) return null;
 
-    const hasSubcategories =
+    const _hasOptions = product.hasOptions && product.productOptions?.length > 0;
+    const _currentOption = _hasOptions && selectedOption != null ? product.productOptions[selectedOption] : null;
+
+    // Base price from option (additive model) or 0 (old model uses variant price directly)
+    const optionBase = _currentOption
+      ? Number(_currentOption.isDiscounted && _currentOption.discountedPrice ? _currentOption.discountedPrice : _currentOption.price) || 0
+      : 0;
+
+    const _hasSubcategories =
       product.subcategories &&
       Array.isArray(product.subcategories) &&
       product.subcategories.length > 0;
 
-    // ---------------- VARIANT BASED ----------------
-    if (hasSubcategories) {
+    if (_hasSubcategories) {
       const subcategories = product.subcategories || [];
-      const currentSubcategory = subcategories[selectedSubcategory];
+      const _currentSubcategory = subcategories[selectedSubcategory];
 
       // Selected Variant
       if (
-        currentSubcategory?.variants?.length > 0 &&
-        currentSubcategory.variants[selectedVariant]
+        _currentSubcategory?.variants?.length > 0 &&
+        _currentSubcategory.variants[selectedVariant]
       ) {
-        const variant = currentSubcategory.variants[selectedVariant];
+        const variant = _currentSubcategory.variants[selectedVariant];
+        const variantEffective = Number(variant.isDiscounted && variant.discountedPrice
+          ? variant.discountedPrice
+          : variant.price) || 0;
 
         return {
-          originalPrice: variant.price,
-          effectivePrice:
-            variant.isDiscounted && variant.discountedPrice
-              ? variant.discountedPrice
-              : variant.price,
-          isDiscounted: Boolean(
-            variant.isDiscounted && variant.discountedPrice,
-          ),
+          originalPrice: optionBase + (Number(variant.price) || 0),
+          effectivePrice: optionBase + variantEffective,
+          isDiscounted: Boolean(variant.isDiscounted && variant.discountedPrice) || Boolean(_currentOption?.isDiscounted),
           hasVariants: true,
         };
       }
 
-      // Min price across variants
+      // Subcategory without variants — uses additionalPrice (additive) on top of option/product base
+      if (_currentSubcategory && _currentSubcategory.variants?.length === 0) {
+        const base = _hasOptions ? optionBase : (Number(product.price) || 0);
+        const subAdd = Number(_currentSubcategory.isDiscounted && _currentSubcategory.discountedAdditionalPrice != null
+          ? _currentSubcategory.discountedAdditionalPrice
+          : (_currentSubcategory.additionalPrice || 0)) || 0;
+
+        return {
+          originalPrice: base + (Number(_currentSubcategory.additionalPrice) || 0),
+          effectivePrice: base + subAdd,
+          isDiscounted: Boolean(_currentSubcategory.isDiscounted) || Boolean(_currentOption?.isDiscounted),
+          hasVariants: true,
+        };
+      }
+
+      // Min price across all variants/subcategories (for display before selection)
       let minOriginal: number | null = null;
       let minEffective: number | null = null;
       let discounted = false;
 
       subcategories.forEach((subcat: any) => {
-        subcat.variants?.forEach((variant: any) => {
-          const inStock =
-            variant.trackQuantity === false || variant.inventory > 0;
+        if (subcat.variants && subcat.variants.length > 0) {
+          subcat.variants.forEach((variant: any) => {
+            const inStock = !variant.trackQuantity || variant.inventory > 0;
+            if (!inStock) return;
 
-          if (!inStock) return;
+            const ve = Number(variant.isDiscounted && variant.discountedPrice
+              ? variant.discountedPrice : variant.price) || 0;
+            const total = optionBase + ve;
 
-          const effective =
-            variant.isDiscounted && variant.discountedPrice
-              ? variant.discountedPrice
-              : variant.price;
-
-          if (minEffective === null || effective < minEffective) {
-            minEffective = effective;
-            minOriginal = variant.price;
+            if (minEffective === null || total < minEffective) {
+              minEffective = total;
+              minOriginal = optionBase + (Number(variant.price) || 0);
+            }
+            if (variant.isDiscounted) discounted = true;
+          });
+        } else {
+          const base = _hasOptions ? optionBase : (Number(product.price) || 0);
+          const subAdd = Number(subcat.isDiscounted && subcat.discountedAdditionalPrice != null
+            ? subcat.discountedAdditionalPrice : (subcat.additionalPrice || 0)) || 0;
+          const total = base + subAdd;
+          if (minEffective === null || total < minEffective) {
+            minEffective = total;
+            minOriginal = base + (Number(subcat.additionalPrice) || 0);
           }
-
-          if (variant.isDiscounted) {
-            discounted = true;
-          }
-        });
+        }
       });
 
       return {
@@ -235,13 +268,19 @@ export function ProductDetailsDialog({
       };
     }
 
-    // ---------------- SIMPLE PRODUCT ----------------
+    // SIMPLE PRODUCT (or product with options only)
+    if (_currentOption) {
+      return {
+        originalPrice: _currentOption.price,
+        effectivePrice: _currentOption.isDiscounted && _currentOption.discountedPrice ? _currentOption.discountedPrice : _currentOption.price,
+        isDiscounted: Boolean(_currentOption.isDiscounted),
+        hasVariants: false,
+      };
+    }
+
     return {
       originalPrice: product.price,
-      effectivePrice:
-        product.isDiscounted && product.discountedPrice
-          ? product.discountedPrice
-          : product.price,
+      effectivePrice: product.isDiscounted && product.discountedPrice ? product.discountedPrice : product.price,
       isDiscounted: Boolean(product.isDiscounted && product.discountedPrice),
       hasVariants: false,
     };
@@ -307,7 +346,7 @@ export function ProductDetailsDialog({
 
   // Get stock based on product structure
   const getStock = () => {
-    if (!product) return 0;
+    if (!product) return 999;
 
     const hasSubcategories =
       product.subcategories &&
@@ -317,28 +356,26 @@ export function ProductDetailsDialog({
     if (hasSubcategories) {
       const subcategories = product.subcategories || [];
       const currentSubcategory = subcategories[selectedSubcategory];
+      if (!currentSubcategory) return 999;
 
       if (
-        currentSubcategory &&
         currentSubcategory.variants &&
         currentSubcategory.variants.length > 0
       ) {
-        const variants = currentSubcategory.variants || [];
-        const currentVariant = variants[selectedVariant];
-
-        if (currentVariant && currentVariant.trackQuantity) {
-          return currentVariant.inventory;
-        }
-
-        // If variant doesn't track quantity, return a large number to indicate "in stock"
-        return currentVariant ? 999 : 0;
+        // Subcategory with variants — use selected variant
+        const currentVariant = currentSubcategory.variants[selectedVariant];
+        if (!currentVariant || !currentVariant.trackQuantity) return 999;
+        return currentVariant.inventory ?? 0;
       }
 
-      return 0;
-    } else {
-      // Simple product without variants - use product-level inventory
-      return product.trackQuantity ? product.inventory || 0 : 999;
+      // Subcategory without variants — use subcategory inventory
+      if (!currentSubcategory.trackQuantity) return 999;
+      return currentSubcategory.inventory ?? 0;
     }
+
+    // Simple product — use product-level inventory
+    if (!product.trackQuantity) return 999;
+    return product.inventory ?? 0;
   };
 
   // Check if product is tracking inventory
@@ -353,23 +390,22 @@ export function ProductDetailsDialog({
     if (hasSubcategories) {
       const subcategories = product.subcategories || [];
       const currentSubcategory = subcategories[selectedSubcategory];
+      if (!currentSubcategory) return false;
 
       if (
-        currentSubcategory &&
         currentSubcategory.variants &&
         currentSubcategory.variants.length > 0
       ) {
-        const variants = currentSubcategory.variants || [];
-        const currentVariant = variants[selectedVariant];
-
-        return currentVariant ? currentVariant.trackQuantity : false;
+        const currentVariant = currentSubcategory.variants[selectedVariant];
+        return currentVariant?.trackQuantity ?? false;
       }
 
-      return false;
-    } else {
-      // Simple product without variants
-      return product.trackQuantity || false;
+      // Subcategory without variants
+      return currentSubcategory.trackQuantity ?? false;
     }
+
+    // Simple product
+    return product.trackQuantity ?? false;
   };
 
   // Get price range for products with variants
@@ -507,11 +543,17 @@ export function ProductDetailsDialog({
 
       let cartItem;
 
+      const _hasOptions = product.hasOptions && product.productOptions?.length > 0;
+      const _currentOption = _hasOptions && selectedOption != null ? product.productOptions[selectedOption] : null;
+      const optionBase = _currentOption
+        ? (Number(_currentOption.isDiscounted && _currentOption.discountedPrice ? _currentOption.discountedPrice : _currentOption.price) || 0)
+        : 0;
+
       if (hasSubcategories) {
         const subcategories = product.subcategories || [];
-        const currentSubcategory = subcategories[selectedSubcategory];
-        const variants = currentSubcategory?.variants || [];
-        const currentVariant = variants[selectedVariant];
+        const _currentSubcategory = subcategories[selectedSubcategory];
+        const _variants = _currentSubcategory?.variants || [];
+        const currentVariant = _variants[selectedVariant];
 
         if (currentVariant?.trackQuantity) {
           if (cartQuantity + 1 > quantity) {
@@ -524,34 +566,44 @@ export function ProductDetailsDialog({
           }
         }
 
+        let totalPrice: number;
+        if (currentVariant) {
+          const variantEffective = Number(currentVariant.isDiscounted && currentVariant.discountedPrice
+            ? currentVariant.discountedPrice : currentVariant.price) || 0;
+          totalPrice = optionBase + variantEffective;
+        } else if (_currentSubcategory && _variants.length === 0) {
+          const base = _hasOptions ? optionBase : (Number(product.price) || 0);
+          const subAdd = Number(_currentSubcategory.isDiscounted && _currentSubcategory.discountedAdditionalPrice != null
+            ? _currentSubcategory.discountedAdditionalPrice : (_currentSubcategory.additionalPrice || 0)) || 0;
+          totalPrice = base + subAdd;
+        } else {
+          totalPrice = optionBase || (Number(product.price) || 0);
+        }
+
         cartItem = {
           productId: product._id,
           productName: product.name,
-          trackQuantity: currentVariant?.trackQuantity,
-          ...(currentVariant?.trackQuantity && {
-            inventory: currentVariant.inventory,
-          }),
-          price: currentVariant ? currentVariant.price : getPrice() || 0,
-          isDiscounted: currentVariant?.isDiscounted || false,
-          discountedPrice: currentVariant?.isDiscounted
-            ? currentVariant.discountedPrice
-            : 0,
+          trackQuantity: currentVariant?.trackQuantity ?? false,
+          inventory: currentVariant?.inventory ?? 0,
+          price: totalPrice,
           subcategoryIndex: selectedSubcategory,
-          variantIndex: selectedVariant,
+          variantIndex: currentVariant ? selectedVariant : -1,
           image: product.images?.[0],
           shopkeeperName: shopkeeper?.shopName || "Shop",
           shopClosedFromDate: shopkeeper?.shopClosedFromDate,
           shopClosedToDate: shopkeeper?.shopClosedToDate,
           category: product.category,
           sku: currentVariant?.sku || product.sku,
-          subcategoryName: currentSubcategory?.name,
-          variantTitle: currentVariant?.title,
+          subcategoryName: _currentSubcategory?.name,
+          variantTitle: currentVariant?.title || "Default",
           measurement: currentVariant?.measurement,
           productImages: product.images || [],
           description: product.description,
+          optionTitle: _currentOption?.title,
+          optionPrice: _currentOption?.price,
         };
       } else {
-        // Simple product without variants
+        // Simple product or product with options only
         if (product?.trackQuantity) {
           if (cartQuantity + 1 > quantity) {
             toast({
@@ -565,13 +617,13 @@ export function ProductDetailsDialog({
         cartItem = {
           productId: product._id,
           productName: product.name,
-          trackQuantity: product?.trackQuantity,
-          ...(product?.trackQuantity && { inventory: product.inventory }),
-          price: product.price || 0,
-          isDiscounted: product.isDiscounted || false,
-          discountedPrice: product.isDiscounted ? product.discountedPrice : 0,
-          subcategoryIndex: -1, // Indicate no subcategory
-          variantIndex: -1, // Indicate no variant
+          trackQuantity: _currentOption ? (_currentOption.trackQuantity ?? false) : (product?.trackQuantity ?? false),
+          inventory: _currentOption ? (_currentOption.inventory ?? 0) : (product?.inventory ?? 0),
+          price: _currentOption
+            ? (_currentOption.isDiscounted && _currentOption.discountedPrice ? _currentOption.discountedPrice : _currentOption.price)
+            : (product.isDiscounted && product.discountedPrice ? product.discountedPrice : product.price),
+          subcategoryIndex: -1,
+          variantIndex: -1,
           image: product.images?.[0],
           measurement: product.measurement,
           shopkeeperName: product.shopkeeperId?.shopName || "Shop",
@@ -583,6 +635,8 @@ export function ProductDetailsDialog({
           variantTitle: null,
           productImages: product.images || [],
           description: product.description,
+          optionTitle: _currentOption?.title,
+          optionPrice: _currentOption?.price,
         };
       }
 
@@ -613,6 +667,8 @@ export function ProductDetailsDialog({
   const images = product?.images || [];
   const subcategories = product?.subcategories || [];
   const hasSubcategories = subcategories.length > 0;
+  const hasOptions = product?.hasOptions && product?.productOptions?.length > 0;
+  const currentOption = hasOptions && selectedOption != null ? product.productOptions[selectedOption] : null;
   const currentSubcategory = subcategories[selectedSubcategory];
   const variants = currentSubcategory?.variants || [];
 
@@ -623,11 +679,16 @@ export function ProductDetailsDialog({
       : null;
 
   // Check if product is in cart
+  const hasCurrentVariant = variants.length > 0 && variants[selectedVariant];
+  const cartSubcategoryIndex = hasSubcategories ? selectedSubcategory : -1;
+  const cartVariantIndex = hasCurrentVariant ? selectedVariant : -1;
+
   const inCart = product
     ? isInCart(product.shopkeeperId?._id || product.shopkeeperId, {
         productId: product._id,
-        subcategoryIndex: hasSubcategories ? selectedSubcategory : -1,
-        variantIndex: hasSubcategories ? selectedVariant : -1,
+        subcategoryIndex: cartSubcategoryIndex,
+        variantIndex: cartVariantIndex,
+        optionTitle: currentOption?.title,
       })
     : false;
 
@@ -636,8 +697,9 @@ export function ProductDetailsDialog({
         product.shopkeeperId?._id || product.shopkeeperId,
         {
           productId: product._id,
-          subcategoryIndex: hasSubcategories ? selectedSubcategory : -1,
-          variantIndex: hasSubcategories ? selectedVariant : -1,
+          subcategoryIndex: cartSubcategoryIndex,
+          variantIndex: cartVariantIndex,
+          optionTitle: currentOption?.title,
         },
       )
     : 0;
@@ -838,92 +900,44 @@ export function ProductDetailsDialog({
                     )}
 
                     <div className="pt-2">
-                      {/* Price display based on product structure */}
+                      {/* Price display — always uses priceData from getPrice() */}
                       <div className="flex items-center gap-2">
-                        {hasSubcategories ? (
-                          <>
-                            {/* For products with variants */}
-                            {variants.length > 0 ? (
-                              <>
-                                {priceData && (
-                                  <div className="flex items-center gap-2">
-                                    {/* Crossed price (Original) */}
-                                    {priceData.isDiscounted &&
-                                      priceData.originalPrice && (
-                                        <span className="text-sm line-through text-gray-400">
-                                          {formatPrice(priceData.originalPrice)}
-                                        </span>
-                                      )}
-
-                                    {/* Main price (Effective) */}
-                                    <span
-                                      className="text-2xl font-bold"
-                                      style={{ color: primaryColor }}
-                                    >
-                                      {formatPrice(priceData.effectivePrice)}
-                                      <span className="text-sm text-gray-500 font-normal ml-1">
-                                        / {displayMeasurement}
-                                      </span>
-                                    </span>
-
-                                    {/* Variant discount info */}
-                                    {priceData.isDiscounted && (
-                                      <span className="text-xs font-medium text-green-600">
-                                        SAVE{" "}
-                                        {(
-                                          100 -
-                                          (priceData.effectivePrice /
-                                            priceData.originalPrice) *
-                                            100
-                                        ).toFixed(0)}
-                                        %
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {/* No variant selected yet */}
-                                <span
-                                  className="text-2xl font-bold"
-                                  style={{ color: primaryColor }}
-                                >
-                                  {getPriceRange() ||
-                                    `${formatPrice(product.price)}`}
-                                </span>
-                                <Badge variant="buttonOutline" className="ml-2">
-                                  <Info className="w-3 h-3 mr-1" />
-                                  Select options
-                                </Badge>
-                              </>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            {/* For SIMPLE products (No variants) */}
-                            <div className="flex items-center gap-2">
-                              {product.isDiscounted && (
-                                <span className="text-lg text-gray-400 line-through">
-                                  {formatPrice(product.price)}
-                                </span>
-                              )}
-
-                              <span
-                                className="text-2xl font-bold"
-                                style={{ color: primaryColor }}
-                              >
-                                {formatPrice(
-                                  product.isDiscounted
-                                    ? product.discountedPrice
-                                    : product.price,
-                                )}
-                                <span className="text-sm text-gray-500 font-normal ml-1">
-                                  / {displayMeasurement}
-                                </span>
+                        {priceData && priceData.effectivePrice != null ? (
+                          <div className="flex items-center gap-2">
+                            {priceData.isDiscounted && priceData.originalPrice && (
+                              <span className="text-sm line-through text-gray-400">
+                                {formatPrice(priceData.originalPrice)}
                               </span>
-                            </div>
-                          </>
+                            )}
+                            <span
+                              className="text-2xl font-bold"
+                              style={{ color: primaryColor }}
+                            >
+                              {formatPrice(priceData.effectivePrice)}
+                              <span className="text-sm text-gray-500 font-normal ml-1">
+                                / {displayMeasurement}
+                              </span>
+                            </span>
+                            {priceData.isDiscounted && priceData.originalPrice && priceData.originalPrice > 0 && (
+                              <span className="text-xs font-medium text-green-600">
+                                SAVE{" "}
+                                {(
+                                  100 -
+                                  (priceData.effectivePrice /
+                                    priceData.originalPrice) *
+                                    100
+                                ).toFixed(0)}
+                                %
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span
+                            className="text-2xl font-bold"
+                            style={{ color: primaryColor }}
+                          >
+                            {formatPrice(product.price)}
+                          </span>
                         )}
                       </div>
 
@@ -941,54 +955,125 @@ export function ProductDetailsDialog({
                     )}
                   </div>
 
+                  {/* Product Options (Size/Quantity/Pack) */}
+                  {hasOptions && (
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-sm md:text-base">
+                        {product.optionsLabel || "Select Option"}
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {product.productOptions.map((opt: any, idx: number) => {
+                          const optOutOfStock = opt.trackQuantity && opt.inventory <= 0;
+                          const optPrice = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
+                          return (
+                            <Button
+                              key={opt.id}
+                              variant={selectedOption === idx ? "default" : "outline"}
+                              onClick={() => setSelectedOption(idx)}
+                              className="h-auto p-3 flex flex-col items-start text-left"
+                              style={getSelectableButtonStyle(selectedOption === idx)}
+                              disabled={optOutOfStock}
+                            >
+                              <span
+                                className="font-medium text-xs md:text-sm"
+                                style={{ color: selectedOption === idx ? "#fff" : "#222" }}
+                              >
+                                {opt.title}
+                              </span>
+                              <span
+                                className="text-sm"
+                                style={{ color: selectedOption === idx ? "#ddd" : "#666" }}
+                              >
+                                {formatPrice(optPrice)}
+                                {opt.isDiscounted && opt.discountedPrice && (
+                                  <span className="ml-1 line-through text-xs opacity-60">
+                                    {formatPrice(opt.price)}
+                                  </span>
+                                )}
+                              </span>
+                              {optOutOfStock && (
+                                <span className="text-[10px] text-red-500">Out of stock</span>
+                              )}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Subcategory Options */}
-                  {subcategories.length > 0 && (
+                  {subcategories.length > 0 && (!hasOptions || selectedOption != null) && (
                     <div className="space-y-3">
                       <h3 className="font-semibold text-sm md:text-base">
                         Available Options
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {subcategories.map((subcat: any, idx: number) => (
-                          <Button
-                            key={idx}
-                            variant={
-                              selectedSubcategory === idx
-                                ? "default"
-                                : "outline"
-                            }
-                            onClick={() => {
-                              setSelectedSubcategory(idx);
-                              setSelectedVariant(0);
-                            }}
-                            className="h-auto p-3 flex flex-col items-start text-left"
-                            style={getSelectableButtonStyle(
-                              selectedSubcategory === idx,
-                            )}
-                          >
-                            <span
-                              className="font-medium text-xs md:text-sm"
-                              style={{
-                                color:
-                                  selectedSubcategory === idx ? "#fff" : "#222",
+                        {subcategories.map((subcat: any, idx: number) => {
+                          const hasVariantsInSub = subcat.variants && subcat.variants.length > 0;
+                          const subPrice = !hasVariantsInSub && (subcat.additionalPrice || subcat.additionalPrice === 0)
+                            ? (subcat.isDiscounted && subcat.discountedAdditionalPrice != null
+                              ? subcat.discountedAdditionalPrice
+                              : subcat.additionalPrice)
+                            : null;
+                          const subOriginalPrice = !hasVariantsInSub && subcat.isDiscounted && subcat.discountedAdditionalPrice != null
+                            ? subcat.additionalPrice
+                            : null;
+
+                          return (
+                            <Button
+                              key={idx}
+                              variant={
+                                selectedSubcategory === idx
+                                  ? "default"
+                                  : "outline"
+                              }
+                              onClick={() => {
+                                setSelectedSubcategory(idx);
+                                setSelectedVariant(0);
                               }}
+                              className="h-auto p-3 flex flex-col items-start text-left"
+                              style={getSelectableButtonStyle(
+                                selectedSubcategory === idx,
+                              )}
                             >
-                              {subcat.name}
-                            </span>
-                            {subcat.description && (
                               <span
+                                className="font-medium text-xs md:text-sm"
                                 style={{
                                   color:
-                                    selectedSubcategory === idx
-                                      ? "#fff"
-                                      : "#222",
+                                    selectedSubcategory === idx ? "#fff" : "#222",
                                 }}
-                                className="text-xs text-black mt-1 whitespace-normal break-words"
                               >
-                                {subcat.description}
+                                {subcat.name}
                               </span>
-                            )}
-                          </Button>
-                        ))}
+                              {subPrice != null && (
+                                <span
+                                  className="text-sm mt-0.5"
+                                  style={{ color: selectedSubcategory === idx ? "#ddd" : "#666" }}
+                                >
+                                  {subPrice > 0 ? `+${formatPrice(subPrice)}` : formatPrice(0)}
+                                  {subOriginalPrice != null && (
+                                    <span className="ml-1 line-through text-xs opacity-60">
+                                      +{formatPrice(subOriginalPrice)}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                              {subcat.description && (
+                                <span
+                                  style={{
+                                    color:
+                                      selectedSubcategory === idx
+                                        ? "#fff"
+                                        : "#222",
+                                  }}
+                                  className="text-xs text-black mt-1 whitespace-normal break-words"
+                                >
+                                  {subcat.description}
+                                </span>
+                              )}
+                            </Button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

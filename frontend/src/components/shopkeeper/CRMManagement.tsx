@@ -368,7 +368,7 @@ function OrderDetailDialog({
               <div className="flex-1">
                 <p className="font-semibold">{item.productName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {item.subcategoryName} - {item.variantTitle}
+                  {[item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(" · ")}
                 </p>
                 <p className="text-sm">
                   Price: {formatPrice(item.price)} x {item.quantity}
@@ -523,7 +523,7 @@ export function CustomerDetailModal({
                         {order.items.map((item, idx) => (
                           <div key={idx} className="flex justify-between">
                             <span>
-                              {item.productName} x{item.quantity}
+                              {item.productName}{item.optionTitle && item.optionTitle !== "Default" ? ` · ${item.optionTitle}` : ""} x{item.quantity}
                             </span>
                             <span>
                               {formatPrice(item.price * item.quantity)}

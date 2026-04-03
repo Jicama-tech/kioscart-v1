@@ -431,8 +431,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
     let minPrice: number | null = null;
     product.subcategories?.forEach((subcat: any) => {
       subcat.variants?.forEach((variant: any) => {
+        const inStock = !variant.trackQuantity || variant.inventory > 0;
         if (
-          variant.inventory > 0 &&
+          inStock &&
           (minPrice === null || variant.price < minPrice)
         ) {
           minPrice = variant.price;
@@ -477,47 +478,67 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
     hasVariants: boolean;
     inStock: boolean;
   } {
-    // Check if product has subcategories with variants
+    const _hasOptions = product.hasOptions && product.productOptions?.length > 0;
     const hasSubcategories =
       product.subcategories && product.subcategories.length > 0;
 
+    // Get min option price as base (if options exist)
+    let minOptionPrice: number | null = null;
+    if (_hasOptions) {
+      for (const opt of product.productOptions) {
+        const optInStock = !opt.trackQuantity || opt.inventory > 0;
+        if (!optInStock) continue;
+        const effective = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
+        if (minOptionPrice === null || effective < minOptionPrice) {
+          minOptionPrice = effective;
+        }
+      }
+    }
+    const optionBase = _hasOptions ? (minOptionPrice ?? 0) : 0;
+
     if (hasSubcategories) {
-      // Product has subcategories - get lowest variant price
       let minPrice: number | null = null;
       let hasStock = false;
 
       product.subcategories.forEach((subcat: any) => {
         if (subcat.variants && subcat.variants.length > 0) {
           subcat.variants.forEach((variant: any) => {
-            // Check if variant is in stock (if tracking quantity)
-            const variantInStock =
-              !variant.trackQuantity || variant.inventory > 0;
-
-            if (variantInStock) {
-              hasStock = true;
-              if (minPrice === null || variant.price < minPrice) {
-                minPrice = variant.price;
-              }
-            }
+            const variantInStock = !variant.trackQuantity || variant.inventory > 0;
+            if (!variantInStock) return;
+            hasStock = true;
+            const variantEffective = variant.isDiscounted && variant.discountedPrice
+              ? variant.discountedPrice : variant.price;
+            const total = optionBase + variantEffective;
+            if (minPrice === null || total < minPrice) minPrice = total;
           });
+        } else {
+          const subInStock = !subcat.trackQuantity || (subcat.inventory ?? 0) > 0;
+          if (!subInStock) return;
+          hasStock = true;
+          const subBase = _hasOptions ? optionBase : product.price;
+          const subAdd = subcat.isDiscounted && subcat.discountedAdditionalPrice != null
+            ? subcat.discountedAdditionalPrice : (subcat.additionalPrice || 0);
+          const total = subBase + subAdd;
+          if (minPrice === null || total < minPrice) minPrice = total;
         }
       });
 
-      return { price: minPrice, hasVariants: true, inStock: hasStock };
+      return { price: minPrice, hasVariants: true, hasOptions: _hasOptions, inStock: hasStock };
     } else {
-      // Product has no subcategories - use product-level pricing and inventory
-      const productInStock =
-        !product.trackQuantity || (product.inventory && product.inventory > 0);
+      const productInStock = _hasOptions
+        ? minOptionPrice !== null
+        : (!product.trackQuantity || (product.inventory ?? 0) > 0);
       return {
-        price: product.price,
+        price: _hasOptions ? optionBase : product.price,
         hasVariants: false,
+        hasOptions: _hasOptions,
         inStock: productInStock,
       };
     }
   }
 
   function getDisplayPrice(product: any): string {
-    const { price, hasVariants, inStock } = getProductPrice(product);
+    const { price, hasVariants, hasOptions, inStock } = getProductPrice(product);
 
     if (!inStock) {
       return "Out of stock";
@@ -527,7 +548,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       return "Price unavailable";
     }
 
-    return hasVariants
+    return (hasVariants || hasOptions)
       ? `${formatPrice(price)} onwards`
       : `${formatPrice(price)}`;
   }

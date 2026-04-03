@@ -492,7 +492,7 @@ export default function PaymentPage() {
     const itemsList = state.cartItems
       ?.map(
         (item) =>
-          `• ${item.productName} (Qty: ${item.quantity}) - ${formatPrice(
+          `• ${item.productName}${[item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(" · ") ? ` (${[item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(" · ")})` : ""} x${item.quantity} - ${formatPrice(
             item.price * item.quantity,
           )}`,
       )
@@ -551,7 +551,7 @@ export default function PaymentPage() {
     const itemsList = state.cartItems
       ?.map(
         (item) =>
-          `• ${item.productName} (Qty: ${item.quantity}) - ${formatPrice(
+          `• ${item.productName}${[item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(" · ") ? ` (${[item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(" · ")})` : ""} x${item.quantity} - ${formatPrice(
             item.price * item.quantity,
           )}`,
       )
@@ -804,7 +804,12 @@ Thank you!`,
                       )}
                       <div className="flex-1">
                         <h4 className="font-semibold">{item.productName}</h4>
-                        <div className="flex gap-2 mt-1">
+                        <div className="flex gap-2 mt-1 flex-wrap">
+                          {item.optionTitle && (
+                            <Badge variant="buttonOutline" className="text-xs bg-purple-50">
+                              {item.optionTitle}
+                            </Badge>
+                          )}
                           {item.subcategoryName && (
                             <Badge variant="buttonOutline" className="text-xs">
                               {item.subcategoryName}

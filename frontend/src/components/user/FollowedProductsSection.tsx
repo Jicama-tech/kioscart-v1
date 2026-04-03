@@ -99,7 +99,7 @@ export function FollowedProductsSection({
           isFollowing: false,
           rating: p.rating || 4.5,
           reviews: p.reviews || Math.floor(Math.random() * 1000) + 100,
-          inStock: (firstVar?.inventory ?? 1) > 0,
+          inStock: firstVar ? (!firstVar.trackQuantity || firstVar.inventory > 0) : (!p.trackQuantity || (p.inventory ?? 0) > 0),
           images: p.images?.length ? p.images : [],
           originalPrice:
             firstVar && Math.random() > 0.7 ? firstVar.price * 1.2 : undefined,

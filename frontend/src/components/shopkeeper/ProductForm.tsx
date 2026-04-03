@@ -136,7 +136,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
     productOptions: [],
     // Product-level inventory defaults
     inventory: 0,
-    trackQuantity: true,
+    trackQuantity: false,
     lowstockThreshold: 10,
     subcategories: [],
     measurement: "",
@@ -302,7 +302,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
           title: "",
           price: 0,
           inventory: 0,
-          trackQuantity: true,
+          trackQuantity: false,
           lowstockThreshold: 10,
         },
       ],
@@ -381,7 +381,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
         sku: `${prev.sku || "SKU"}-VAR-${
           newSubs[subIndex].variants.length + 1
         }`,
-        trackQuantity: true,
+        trackQuantity: false,
         lowstockThreshold: 10,
         inventory: 0,
         options: {},
@@ -505,11 +505,11 @@ export function ProductForm({ product, onSave, onClose }: any) {
         optionsLabel: formData.hasOptions ? formData.optionsLabel : undefined,
         productOptions: formData.hasOptions ? formData.productOptions : [],
         // Include product-level inventory only if no subcategories and no options
-        inventory: hasSubcategories || formData.hasOptions ? undefined : formData.inventory,
-        trackQuantity: hasSubcategories || formData.hasOptions ? undefined : formData.trackQuantity,
+        inventory: hasSubcategories || formData.hasOptions ? undefined : (formData.inventory ?? 0),
+        trackQuantity: formData.trackQuantity ?? false,
         lowstockThreshold: hasSubcategories || formData.hasOptions
           ? undefined
-          : formData.lowstockThreshold,
+          : (formData.lowstockThreshold ?? 10),
         subcategories: formData.subcategories || [],
         weight: formData.weight || undefined,
       };
@@ -859,7 +859,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       <Label htmlFor="trackQuantity">Track quantity</Label>
                       <Switch
                         id="trackQuantity"
-                        checked={formData.trackQuantity}
+                        checked={formData.trackQuantity ?? false}
                         onCheckedChange={(checked) =>
                           handleInputChange("trackQuantity", checked)
                         }
@@ -1264,7 +1264,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Switch
-                                    checked={subcat.trackQuantity ?? true}
+                                    checked={subcat.trackQuantity ?? false}
                                     onCheckedChange={(v) => handleSubcategoryChange(si, "trackQuantity" as any, v)}
                                     disabled={isSubmitting}
                                   />

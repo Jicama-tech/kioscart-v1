@@ -500,11 +500,29 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
     originalPrice: number | null;
     effectivePrice: number | null;
     hasVariants: boolean;
+    hasOptions: boolean;
     inStock: boolean;
     isDiscounted: boolean;
   } {
+    const _hasOptions = product.hasOptions && product.productOptions?.length > 0;
     const hasSubcategories =
       product.subcategories && product.subcategories.length > 0;
+
+    // Get min option price as base (if options exist)
+    let minOptionPrice: number | null = null;
+    if (_hasOptions) {
+      for (const opt of product.productOptions) {
+        const optInStock = !opt.trackQuantity || opt.inventory > 0;
+        if (!optInStock) continue;
+        const effective = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
+        if (minOptionPrice === null || effective < minOptionPrice) {
+          minOptionPrice = effective;
+        }
+      }
+    }
+
+    // Option base for additive pricing, or 0 (variant price is absolute for old products)
+    const optionBase = _hasOptions ? (minOptionPrice ?? 0) : 0;
 
     if (hasSubcategories) {
       let minOriginalPrice: number | null = null;
@@ -513,49 +531,63 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       let hasDiscount = false;
 
       product.subcategories.forEach((subcat: any) => {
-        subcat.variants?.forEach((variant: any) => {
-          const variantInStock =
-            !variant.trackQuantity || variant.inventory > 0;
+        if (subcat.variants && subcat.variants.length > 0) {
+          subcat.variants.forEach((variant: any) => {
+            const variantInStock =
+              !variant.trackQuantity || variant.inventory > 0;
+            if (!variantInStock) return;
 
-          if (!variantInStock) return;
+            hasStock = true;
+            const variantEffective = variant.isDiscounted && variant.discountedPrice
+              ? variant.discountedPrice : variant.price;
+            const total = optionBase + variantEffective;
 
+            if (minEffectivePrice === null || total < minEffectivePrice) {
+              minEffectivePrice = total;
+              minOriginalPrice = optionBase + variant.price;
+            }
+            if (variant.isDiscounted) hasDiscount = true;
+          });
+        } else {
+          // Subcategory without variants
+          const subInStock = !subcat.trackQuantity || (subcat.inventory ?? 0) > 0;
+          if (!subInStock) return;
           hasStock = true;
-
-          const original = variant.price;
-          const effective =
-            variant.isDiscounted && variant.discountedPrice
-              ? variant.discountedPrice
-              : variant.price;
-
-          if (minEffectivePrice === null || effective < minEffectivePrice) {
-            minEffectivePrice = effective;
-            minOriginalPrice = original;
+          const subAdd = subcat.isDiscounted && subcat.discountedAdditionalPrice != null
+            ? subcat.discountedAdditionalPrice : (subcat.additionalPrice || 0);
+          const subBase = _hasOptions ? optionBase : product.price;
+          const total = subBase + subAdd;
+          if (minEffectivePrice === null || total < minEffectivePrice) {
+            minEffectivePrice = total;
+            minOriginalPrice = subBase + (subcat.additionalPrice || 0);
           }
-
-          if (variant.isDiscounted) {
-            hasDiscount = true;
-          }
-        });
+        }
       });
 
       return {
         originalPrice: minOriginalPrice,
         effectivePrice: minEffectivePrice,
         hasVariants: true,
+        hasOptions: _hasOptions,
         inStock: hasStock,
         isDiscounted: hasDiscount,
       };
     }
 
-    // 👉 Product-level pricing
-    const productInStock = !product.trackQuantity || product.inventory > 0;
+    // Product-level pricing (or product with options only)
+    const productInStock = _hasOptions
+      ? minOptionPrice !== null
+      : (!product.trackQuantity || product.inventory > 0);
 
-    const isDiscounted = product.isDiscounted && product.discountedPrice;
+    const isDiscounted = _hasOptions
+      ? product.productOptions.some((o: any) => o.isDiscounted)
+      : (product.isDiscounted && product.discountedPrice);
 
     return {
-      originalPrice: product.price,
-      effectivePrice: isDiscounted ? product.discountedPrice : product.price,
+      originalPrice: _hasOptions ? null : product.price,
+      effectivePrice: _hasOptions ? optionBase : (product.isDiscounted && product.discountedPrice ? product.discountedPrice : product.price),
       hasVariants: false,
+      hasOptions: _hasOptions,
       inStock: productInStock,
       isDiscounted: Boolean(isDiscounted),
     };
@@ -567,6 +599,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       originalPrice,
       effectivePrice,
       hasVariants,
+      hasOptions,
       inStock,
       isDiscounted,
     } = getProductPrice(product);
@@ -579,24 +612,24 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       return <span>Price unavailable</span>;
     }
 
-    // 1. Determine the correct measurement string first
+    // Determine the correct measurement string
     const displayMeasurement =
       product.subcategories?.[0]?.variants?.[0]?.measurement ||
       product.measurement ||
-      "Unit"; // Fallback if both are missing
+      "Unit";
 
-    // 2. Use it in your JSX
+    const showOnwards = hasOptions || hasVariants;
+
     return (
       <>
-        {isDiscounted && !hasVariants && originalPrice && (
+        {isDiscounted && !hasVariants && !hasOptions && originalPrice && (
           <span className="text-sm text-gray-400 line-through">
             {formatPrice(originalPrice)} / {displayMeasurement}
           </span>
         )}
 
-        {/* Effective price */}
         <span className="text-lg font-bold text-green-600">
-          {formatPrice(effectivePrice)} / {displayMeasurement}
+          {formatPrice(effectivePrice)}{showOnwards ? " onwards" : ` / ${displayMeasurement}`}
         </span>
       </>
     );

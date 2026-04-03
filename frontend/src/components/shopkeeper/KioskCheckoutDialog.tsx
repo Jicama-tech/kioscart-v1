@@ -612,11 +612,12 @@ export function KioskCheckoutDialog({
                   <span className="text-slate-600 flex-1 min-w-0">
                     <span className="truncate block">
                       {item.productName}
-                      {item.variantTitle !== "Default"
-                        ? ` (${item.variantTitle})`
+                      {item.optionTitle ? ` · ${item.optionTitle}` : ""}
+                      {item.subcategoryName && item.subcategoryName !== "Default"
+                        ? ` · ${item.subcategoryName}`
                         : ""}
-                      {item.subcategoryName !== "Default"
-                        ? ` — ${item.subcategoryName}`
+                      {item.variantTitle && item.variantTitle !== "Default"
+                        ? ` · ${item.variantTitle}`
                         : ""}
                     </span>
                     <span className="text-xs text-slate-400">

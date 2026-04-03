@@ -165,7 +165,7 @@ export class OrdersService {
     if (user?.email) {
       try {
         const items = (dto.items || []).map((item) => ({
-          productName: item.productName,
+          productName: [item.productName, item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(" · "),
           quantity: item.quantity,
           price: item.price || 0,
         }));
@@ -362,7 +362,7 @@ export class OrdersService {
           contentHeight += 13; // "Items:" heading
           order.items.forEach((item: any) => {
             contentHeight += 12 + 2; // product name
-            if (item.subcategoryName) contentHeight += 11 + 2; // variant
+            if (item.optionTitle || item.subcategoryName || item.variantTitle) contentHeight += 11 + 2; // option/variant details
             contentHeight += 11 + 6; // price line + spacing
           });
           contentHeight += 15; // separator
@@ -498,12 +498,10 @@ export class OrdersService {
             doc.font("Helvetica-Bold").fontSize(10);
             doc.text(item.productName);
 
-            if (item.subcategoryName) {
+            const detailParts = [item.optionTitle, item.subcategoryName, item.variantTitle].filter((v: string) => v && v !== "Default");
+            if (detailParts.length > 0) {
               doc.font("Helvetica").fontSize(9);
-              const variantLabel = item.variantTitle
-                ? `, ${item.variantTitle}`
-                : "";
-              doc.text(`(${item.subcategoryName}${variantLabel})`);
+              doc.text(`(${detailParts.join(", ")})`);
             }
 
             doc.font("Helvetica").fontSize(9);
@@ -972,11 +970,9 @@ export class OrdersService {
             // 2. Adjust yPos based on name height
             yPos += nameHeight + 2;
 
-            if (item.subcategoryName) {
-              const variantLabel = item.variantTitle
-                ? `, ${item.variantTitle}`
-                : "";
-              const variantText = `(${item.subcategoryName}${variantLabel})`;
+            const detailParts2 = [item.optionTitle, item.subcategoryName, item.variantTitle].filter((v: string) => v && v !== "Default");
+            if (detailParts2.length > 0) {
+              const variantText = `(${detailParts2.join(", ")})`;
               const variantHeight = doc.heightOfString(variantText, {
                 width: 220,
               });

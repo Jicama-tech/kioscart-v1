@@ -148,13 +148,12 @@ export function KioskProductBrowser({
   ) {
     const sub = product.subcategories![subIdx];
     const variant = sub.variants[varIdx];
-    // Base price = option price (if selected) or product price
-    const basePrice = selectedOption
-      ? (selectedOption.isDiscounted && selectedOption.discountedPrice ? selectedOption.discountedPrice : selectedOption.price)
-      : product.price;
-    // Additional price from variant
-    const variantAdd = variant.isDiscounted && variant.discountedPrice ? variant.discountedPrice : variant.price;
-    const totalPrice = basePrice + variantAdd;
+    // Option base (additive) or 0 (variant price is absolute for old products)
+    const optionBase = selectedOption
+      ? (Number(selectedOption.isDiscounted && selectedOption.discountedPrice ? selectedOption.discountedPrice : selectedOption.price) || 0)
+      : 0;
+    const variantEffective = Number(variant.isDiscounted && variant.discountedPrice ? variant.discountedPrice : variant.price) || 0;
+    const totalPrice = optionBase + variantEffective;
 
     onAddItem({
       productId: product._id,
@@ -181,15 +180,14 @@ export function KioskProductBrowser({
     selectedOption?: ProductOptionItem,
   ) {
     const sub = product.subcategories![subIdx];
-    // Base price = option price (if selected) or product price
-    const basePrice = selectedOption
-      ? (selectedOption.isDiscounted && selectedOption.discountedPrice ? selectedOption.discountedPrice : selectedOption.price)
-      : product.price;
-    // Additional price from subcategory
-    const subAdd = sub.isDiscounted && sub.discountedAdditionalPrice != null
+    // Base price = option price (if selected) or product price (for subcategory-only)
+    const base = selectedOption
+      ? (Number(selectedOption.isDiscounted && selectedOption.discountedPrice ? selectedOption.discountedPrice : selectedOption.price) || 0)
+      : (Number(product.price) || 0);
+    const subAdd = Number(sub.isDiscounted && sub.discountedAdditionalPrice != null
       ? sub.discountedAdditionalPrice
-      : (sub.additionalPrice || 0);
-    const totalPrice = basePrice + subAdd;
+      : (sub.additionalPrice || 0)) || 0;
+    const totalPrice = base + subAdd;
 
     onAddItem({
       productId: product._id,
@@ -334,7 +332,9 @@ function ProductCard({
   formatPrice: (amount: number) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [selectedOptionIdx, setSelectedOptionIdx] = useState<number | null>(null);
+  const [selectedOptionIdx, setSelectedOptionIdx] = useState<number | null>(
+    product.hasOptions && product.productOptions && product.productOptions.length > 0 ? 0 : null
+  );
 
   const hasSubcategories =
     product.subcategories && product.subcategories.length > 0;
@@ -353,12 +353,35 @@ function ProductCard({
     ? product.productOptions![selectedOptionIdx]
     : undefined;
 
-  // Get display price — show product base price
-  const dp = {
-    price: product.price,
-    discountedPrice: product.discountedPrice,
-    isDiscounted: product.isDiscounted,
-  };
+  // Get display price — show selected option price or product base price
+  const dp = (() => {
+    if (hasOptions && selectedOptionIdx != null) {
+      const opt = product.productOptions![selectedOptionIdx];
+      return {
+        price: opt.price,
+        discountedPrice: opt.discountedPrice,
+        isDiscounted: opt.isDiscounted,
+      };
+    }
+    if (hasOptions) {
+      // No option selected yet — show min option price
+      const minOpt = product.productOptions!.reduce((min: any, opt: any) => {
+        const eff = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
+        const minEff = min.isDiscounted && min.discountedPrice ? min.discountedPrice : min.price;
+        return eff < minEff ? opt : min;
+      }, product.productOptions![0]);
+      return {
+        price: minOpt.price,
+        discountedPrice: minOpt.discountedPrice,
+        isDiscounted: minOpt.isDiscounted,
+      };
+    }
+    return {
+      price: product.price,
+      discountedPrice: product.discountedPrice,
+      isDiscounted: product.isDiscounted,
+    };
+  })();
 
   return (
     <div className="border rounded-lg p-2 bg-white hover:shadow-sm transition-shadow">
@@ -412,7 +435,7 @@ function ProductCard({
             variant="outline"
             className="h-7 text-xs px-2"
             disabled={disabled}
-            onClick={() => { setExpanded(!expanded); setSelectedOptionIdx(null); }}
+            onClick={() => { setExpanded(!expanded); if (!expanded && hasOptions) setSelectedOptionIdx(0); }}
           >
             {expanded ? (
               <ChevronUp className="h-3 w-3 mr-0.5" />
@@ -463,12 +486,12 @@ function ProductCard({
                       type="button"
                       disabled={disabled || optOutOfStock}
                       onClick={() => {
-                        setSelectedOptionIdx(isSelected ? null : optIdx);
+                        setSelectedOptionIdx(optIdx);
                         // If no subcategories, add directly
-                        if (!hasSubcategories && !isSelected) {
+                        if (!hasSubcategories) {
                           onAddWithOption(product, opt);
                           setExpanded(false);
-                          setSelectedOptionIdx(null);
+                          setSelectedOptionIdx(0);
                         }
                       }}
                       className={`text-[10px] px-2 py-1 rounded border transition-colors ${

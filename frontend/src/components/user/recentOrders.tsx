@@ -242,12 +242,17 @@ export function RecentOrders() {
                               {item.productName}
                             </p>
                             <div className="flex flex-wrap gap-3 text-black/70 text-sm">
-                              {item.subcategoryName && (
+                              {item.optionTitle && item.optionTitle !== "Default" && (
+                                <span className="border border-purple-300 bg-purple-50 rounded-full px-3 py-1">
+                                  {item.optionTitle}
+                                </span>
+                              )}
+                              {item.subcategoryName && item.subcategoryName !== "Default" && (
                                 <span className="border border-black/20 rounded-full px-3 py-1">
                                   {item.subcategoryName}
                                 </span>
                               )}
-                              {item.variantTitle && (
+                              {item.variantTitle && item.variantTitle !== "Default" && (
                                 <span className="border border-black/20 rounded-full px-3 py-1">
                                   {item.variantTitle}
                                 </span>

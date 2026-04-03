@@ -22,7 +22,7 @@ class ProductOption {
   @Prop({ default: 0 })
   inventory: number;
 
-  @Prop({ default: true })
+  @Prop({ default: false })
   trackQuantity: boolean;
 
   @Prop({ default: 10 })
@@ -66,7 +66,7 @@ class Variant {
   @Prop({ default: 10 })
   lowstockThreshold: number;
 
-  @Prop({ default: true })
+  @Prop({ default: false })
   trackQuantity: boolean;
 
   @Prop({ type: Object, default: {} })
@@ -98,7 +98,7 @@ class Subcategory {
   @Prop({ default: 0 })
   inventory?: number;
 
-  @Prop({ default: true })
+  @Prop({ default: false })
   trackQuantity?: boolean;
 
   @Prop({ default: 10 })
@@ -180,7 +180,7 @@ export class Product {
   @Prop({ default: 10 })
   lowstockThreshold?: number;
 
-  @Prop({ default: true })
+  @Prop({ default: false })
   trackQuantity?: boolean;
 
   @Prop({ required: true })
