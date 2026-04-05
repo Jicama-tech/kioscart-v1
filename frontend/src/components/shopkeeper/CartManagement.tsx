@@ -227,29 +227,41 @@ export function CartManagement() {
   // Track recently deleted order IDs to prevent flicker on poll
   const recentlyDeletedRef = useRef<Set<string>>(new Set());
 
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  const fetchOrders = useCallback(async (page: number, limit: number) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      const decoded: any = jwtDecode(token);
+      const shopkeeperId = decoded.sub;
+
+      const res = await fetch(
+        `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}?page=${page}&limit=${limit}`,
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+
+      setOrders(data.orders || []);
+      setTotalOrders(data.total || 0);
+      setTotalPages(data.totalPages || 0);
+
+      // Track known IDs for new order detection
+      const ids = (data.orders || []).map((o: Order) => o._id);
+      if (isFirstLoadRef.current) {
+        knownOrderIdsRef.current = new Set(ids);
+        isFirstLoadRef.current = false;
+      }
+    } catch (error) {
+      console.error("Fetch orders error:", error);
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
   const checkForNewOrders = useCallback(async () => {
     // Skip polling while delete is in progress
-    if (recentlyDeletedRef.current.size > 0 && !isFirstLoadRef.current) {
-      // Still poll but don't update UI — just clean up deleted refs
-      try {
-        const token = sessionStorage.getItem("token");
-        if (!token) return;
-        const decoded: any = jwtDecode(token);
-        const shopkeeperId = decoded.sub;
-        const res = await fetch(
-          `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}`,
-        );
-        if (!res.ok) return;
-        const rawData: Order[] = await res.json();
-        // Clean up deleted IDs that are gone from server
-        recentlyDeletedRef.current.forEach((id) => {
-          if (!rawData.some((o) => o.orderId === id)) {
-            recentlyDeletedRef.current.delete(id);
-          }
-        });
-      } catch {}
-      return;
-    }
+    if (recentlyDeletedRef.current.size > 0) return;
+    if (isFirstLoadRef.current) return;
 
     try {
       const token = sessionStorage.getItem("token");
@@ -257,31 +269,22 @@ export function CartManagement() {
       const decoded: any = jwtDecode(token);
       const shopkeeperId = decoded.sub;
 
-      if (isFirstLoadRef.current) setLoading(true);
-
+      // Only fetch the latest 5 orders to check for new ones
       const res = await fetch(
-        `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}`,
+        `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}?page=1&limit=5`,
       );
       if (!res.ok) return;
-      const data: Order[] = await res.json();
+      const data = await res.json();
+      const latestOrders: Order[] = data.orders || [];
 
-      if (isFirstLoadRef.current) {
-        // First load — just record existing order IDs, no voice
-        knownOrderIdsRef.current = new Set(data.map((o) => o._id));
-        isFirstLoadRef.current = false;
-        setOrders(data);
-        setLoading(false);
-        return;
-      }
-
-      const newOrders = data.filter(
+      const newOrders = latestOrders.filter(
         (o) => !knownOrderIdsRef.current.has(o._id),
       );
 
       if (newOrders.length > 0) {
-        // Update known IDs
-        knownOrderIdsRef.current = new Set(data.map((o) => o._id));
-        setOrders(data);
+        // Update known IDs and refresh current page
+        newOrders.forEach((o) => knownOrderIdsRef.current.add(o._id));
+        await fetchOrders(currentPage, rowsPerPage);
 
         toast({
           duration: 6000,
@@ -293,27 +296,34 @@ export function CartManagement() {
             )
             .join(", "),
         });
-      } else {
-        // Only update if order count or statuses changed to avoid flicker
-        setOrders((prev) => {
-          if (prev.length !== data.length) return data;
-          const changed = data.some((d, i) => d._id !== prev[i]?._id || d.status !== prev[i]?.status);
-          return changed ? data : prev;
-        });
+      } else if (data.total !== totalOrders) {
+        // Order count changed (status update, deletion), refresh current page
+        await fetchOrders(currentPage, rowsPerPage);
       }
     } catch (error) {
       console.error("Polling error:", error);
     }
+  }, [currentPage, rowsPerPage, totalOrders, fetchOrders]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Initial load
+  useEffect(() => {
+    setLoading(true);
+    fetchOrders(currentPage, rowsPerPage).finally(() => setLoading(false));
+    fetchShopkeeperInfo();
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initial load + polling every 15 seconds
+  // Refetch when page or rowsPerPage changes
   useEffect(() => {
-    checkForNewOrders();
-    fetchShopkeeperInfo();
+    if (!isFirstLoadRef.current) {
+      fetchOrders(currentPage, rowsPerPage);
+    }
+  }, [currentPage, rowsPerPage]);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Poll for new orders every 15 seconds
+  useEffect(() => {
     const interval = setInterval(checkForNewOrders, 15000);
     return () => clearInterval(interval);
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [checkForNewOrders]);
 
   async function fetchShopkeeperInfo() {
     try {
@@ -1039,11 +1049,10 @@ Thank you for shopping with us.
 
       if (!res.ok) throw new Error("Failed to delete order");
 
-      // Track deleted ID so polling doesn't bring it back
-      recentlyDeletedRef.current.add(deletingOrderId);
-      setOrders((prev) => prev.filter((order) => order.orderId !== deletingOrderId));
       toast({ duration: 5000, title: "Order deleted successfully." });
       setDeleteDialogOpen(false);
+      // Refetch current page from backend
+      await fetchOrders(currentPage, rowsPerPage);
     } catch (error) {
       toast({
         duration: 5000,
@@ -1164,14 +1173,8 @@ Thank you for shopping with us.
     amountSort,
   ]);
 
-  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage);
-
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage,
-  );
-
-  const totalOrders = orders.length;
+  // Pagination is handled by the backend, use filteredOrders directly
+  const paginatedOrders = filteredOrders;
   const totalRevenue = orders.reduce((acc, o) => acc + o.totalAmount, 0);
   const averageOrderValue = totalOrders ? totalRevenue / totalOrders : 0;
   const todaysOrders = orders.filter((order) => {

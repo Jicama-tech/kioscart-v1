@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { GmailPaymentSection } from "./GmailPaymentSection";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -3456,6 +3457,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               "Save All Payment Methods"
             )}
           </Button> */}
+
+          {/* Gmail Payment Email Tracking */}
+          <GmailPaymentSection />
         </TabsContent>
 
         <TabsContent value="shipping">

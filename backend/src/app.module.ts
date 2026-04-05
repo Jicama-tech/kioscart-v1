@@ -23,6 +23,7 @@ import { ShopkeeperAnalyticsModule } from "./modules/shopkeepers/shopkeeper-anal
 import { OrganizerStoresModule } from "./modules/organizer-stores/organizer-stores.module";
 import { CouponModule } from "./modules/coupon/coupon.module";
 import { OperatorsModule } from "./modules/operators/operators.module";
+import { PaymentEmailsModule } from "./modules/payment-emails/payment-emails.module";
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { OperatorsModule } from "./modules/operators/operators.module";
     OrganizerStoresModule,
     CouponModule,
     OperatorsModule,
+    PaymentEmailsModule,
   ],
 })
 export class AppModule {}

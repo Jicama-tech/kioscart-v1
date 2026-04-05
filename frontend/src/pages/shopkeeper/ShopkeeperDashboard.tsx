@@ -3,6 +3,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   lazy,
   Suspense,
 } from 'react';
@@ -237,6 +238,98 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
     } catch {}
     return '';
   }, []);
+
+  // Payment email notification polling
+  const knownPaymentIdsRef = useRef<Set<string>>(new Set());
+  const paymentPollInitRef = useRef(false);
+  useEffect(() => {
+    const token = sessionStorage.getItem('token');
+    if (!token) return;
+
+    async function pollPaymentEmails() {
+      try {
+        const res = await fetch(`${apiUrl}/payment-emails/emails`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const emails = data.emails || [];
+
+        if (!paymentPollInitRef.current) {
+          // First load — just record existing IDs
+          knownPaymentIdsRef.current = new Set(emails.map((e: any) => e._id));
+          paymentPollInitRef.current = true;
+          return;
+        }
+
+        // Check for new payment emails
+        const newPayments = emails.filter(
+          (e: any) => !knownPaymentIdsRef.current.has(e._id)
+        );
+
+        if (newPayments.length > 0) {
+          knownPaymentIdsRef.current = new Set(emails.map((e: any) => e._id));
+          newPayments.forEach((payment: any) => {
+            toast({
+              duration: 10000,
+              title: `💰 Payment Received: ${payment.currency} ${payment.amount}`,
+              description: `${payment.senderName || payment.from || 'Unknown sender'}${payment.bankOrProvider ? ` via ${payment.bankOrProvider}` : ''}${payment.matchedOrderId ? ` — Matched to Order #${payment.matchedOrderId}` : ''}`,
+            });
+          });
+        }
+      } catch {}
+    }
+
+    pollPaymentEmails();
+    const interval = setInterval(pollPaymentEmails, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // New order notification polling (works across all tabs)
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const orderPollInitRef = useRef(false);
+  useEffect(() => {
+    const token = sessionStorage.getItem('token');
+    if (!token) return;
+
+    async function pollNewOrders() {
+      try {
+        const decoded: any = jwtDecode(token);
+        const sid = decoded.sub;
+        const res = await fetch(
+          `${apiUrl}/orders/get-orders/shopkeeper/${sid}?page=1&limit=5`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const orders = data.orders || [];
+
+        if (!orderPollInitRef.current) {
+          knownOrderIdsRef.current = new Set(orders.map((o: any) => o._id));
+          orderPollInitRef.current = true;
+          return;
+        }
+
+        const newOrders = orders.filter(
+          (o: any) => !knownOrderIdsRef.current.has(o._id)
+        );
+
+        if (newOrders.length > 0) {
+          newOrders.forEach((o: any) => knownOrderIdsRef.current.add(o._id));
+          toast({
+            duration: 8000,
+            title: `🔔 ${newOrders.length} New Order${newOrders.length > 1 ? 's' : ''}!`,
+            description: newOrders
+              .map((o: any) => `${o.userId?.name || 'Customer'} — ${formatPrice(o.totalAmount)}`)
+              .join(', '),
+          });
+        }
+      } catch {}
+    }
+
+    pollNewOrders();
+    const interval = setInterval(pollNewOrders, 15000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
     null,

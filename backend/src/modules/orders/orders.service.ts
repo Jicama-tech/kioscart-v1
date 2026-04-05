@@ -1561,17 +1561,29 @@ export class OrdersService {
     }
   }
 
-  async getOrdersByShopkeeperId(shopkeeperId: string): Promise<Order[]> {
+  async getOrdersByShopkeeperId(shopkeeperId: string, page?: number, limit?: number) {
     try {
       if (!Types.ObjectId.isValid(shopkeeperId)) {
         throw new NotFoundException("Invalid shopkeeperId");
       }
-      return await this.orderModel
+
+      const query = this.orderModel
         .find({ shopkeeperId })
         .populate("userId")
-        .sort({ createdAt: -1 })
-        .lean()
-        .exec();
+        .sort({ createdAt: -1 });
+
+      // If pagination params provided, return paginated response
+      if (page && limit) {
+        const skip = (page - 1) * limit;
+        const [orders, total] = await Promise.all([
+          query.skip(skip).limit(limit).lean().exec(),
+          this.orderModel.countDocuments({ shopkeeperId }),
+        ]);
+        return { orders, total, page, limit, totalPages: Math.ceil(total / limit) };
+      }
+
+      // No pagination — return all (backward compatible)
+      return await query.lean().exec();
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(

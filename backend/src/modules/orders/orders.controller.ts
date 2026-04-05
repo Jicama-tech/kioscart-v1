@@ -41,9 +41,15 @@ export class OrdersController {
   }
 
   @Get("get-orders/shopkeeper/:shopkeeperId")
-  async getByField(@Param("shopkeeperId") shopkeeperId: string) {
+  async getByField(
+    @Param("shopkeeperId") shopkeeperId: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
     try {
-      return await this.ordersService.getOrdersByShopkeeperId(shopkeeperId);
+      const pageNum = page ? parseInt(page, 10) : undefined;
+      const limitNum = limit ? parseInt(limit, 10) : undefined;
+      return await this.ordersService.getOrdersByShopkeeperId(shopkeeperId, pageNum, limitNum);
     } catch (err) {
       throw new BadRequestException(err.message);
     }
