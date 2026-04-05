@@ -186,12 +186,7 @@ export class GmailService {
             receivedAt: dateHeader ? new Date(dateHeader) : new Date(),
           });
 
-          // Mark as read to avoid re-processing
-          await gmail.users.messages.modify({
-            userId: "me",
-            id: msg.id,
-            requestBody: { removeLabelIds: ["UNREAD"] },
-          });
+          // No need to mark as read — dedup via gmailMessageId handles it
         } catch (msgErr) {
           this.logger.warn(`Failed to fetch message ${msg.id}: ${msgErr.message}`);
         }
