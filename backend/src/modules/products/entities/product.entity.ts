@@ -163,6 +163,10 @@ export class Product {
   @Prop({ type: [Subcategory], default: [] })
   subcategories: Subcategory[];
 
+  // Product-level variants (independent of subcategories)
+  @Prop({ type: [Variant], default: [] })
+  variants: Variant[];
+
   @Prop()
   weight?: number;
 

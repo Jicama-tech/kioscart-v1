@@ -268,6 +268,12 @@ export class UpdateProductDto {
   subcategories?: UpdateProductSubcategoryDto[];
 
   @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateProductVariantDto)
+  variants?: UpdateProductVariantDto[];
+
+  @IsOptional()
   @IsEnum(["active", "draft", "archived"])
   status?: "active" | "draft" | "archived";
 

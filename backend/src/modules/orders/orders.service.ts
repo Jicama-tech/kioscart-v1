@@ -1441,7 +1441,35 @@ export class OrdersService {
           });
         }
       }
-      // Level 3: Simple product (no options, no subcategories)
+      // Level 3: Product-level variants (no subcategory, but has variantTitle)
+      else if (!item.subcategoryName && item.variantTitle && product.variants && product.variants.length > 0) {
+        const variantIndex = product.variants.findIndex(
+          (v: any) => v.title === item.variantTitle,
+        );
+        if (variantIndex !== -1) {
+          const variant = product.variants[variantIndex];
+          if (variant.trackQuantity) {
+            if (action === "deduct" && variant.inventory < item.quantity) {
+              throw new InternalServerErrorException(
+                `Insufficient stock for ${item.productName} (${item.variantTitle}). Available: ${variant.inventory}, Requested: ${item.quantity}`,
+              );
+            }
+
+            variant.inventory += quantityChange;
+            bulkOps.push({
+              updateOne: {
+                filter: { _id: product._id },
+                update: {
+                  $inc: {
+                    [`variants.${variantIndex}.inventory`]: quantityChange,
+                  },
+                },
+              },
+            });
+          }
+        }
+      }
+      // Level 4: Simple product (no options, no subcategories, no variants)
       else if (!item.subcategoryName && !item.optionTitle) {
         if (product.trackQuantity) {
           if (action === "deduct" && product.inventory < item.quantity) {

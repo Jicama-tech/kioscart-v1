@@ -268,6 +268,28 @@ export function ProductDetailsDialog({
       };
     }
 
+    // PRODUCT-LEVEL VARIANTS (independent of subcategories)
+    const _hasVariants =
+      product.variants &&
+      Array.isArray(product.variants) &&
+      product.variants.length > 0;
+
+    if (_hasVariants) {
+      const variant = product.variants[selectedVariant];
+      if (variant) {
+        const variantEffective = Number(variant.isDiscounted && variant.discountedPrice
+          ? variant.discountedPrice
+          : variant.price) || 0;
+
+        return {
+          originalPrice: optionBase + (Number(variant.price) || 0),
+          effectivePrice: optionBase + variantEffective,
+          isDiscounted: Boolean(variant.isDiscounted && variant.discountedPrice) || Boolean(_currentOption?.isDiscounted),
+          hasVariants: true,
+        };
+      }
+    }
+
     // SIMPLE PRODUCT (or product with options only)
     if (_currentOption) {
       return {
@@ -373,6 +395,18 @@ export function ProductDetailsDialog({
       return currentSubcategory.inventory ?? 0;
     }
 
+    // Product-level variants
+    const hasProductVariants =
+      product.variants &&
+      Array.isArray(product.variants) &&
+      product.variants.length > 0;
+
+    if (hasProductVariants) {
+      const currentVariant = product.variants[selectedVariant];
+      if (!currentVariant || !currentVariant.trackQuantity) return 999;
+      return currentVariant.inventory ?? 0;
+    }
+
     // Simple product — use product-level inventory
     if (!product.trackQuantity) return 999;
     return product.inventory ?? 0;
@@ -402,6 +436,17 @@ export function ProductDetailsDialog({
 
       // Subcategory without variants
       return currentSubcategory.trackQuantity ?? false;
+    }
+
+    // Product-level variants
+    const hasProductVariants =
+      product.variants &&
+      Array.isArray(product.variants) &&
+      product.variants.length > 0;
+
+    if (hasProductVariants) {
+      const currentVariant = product.variants[selectedVariant];
+      return currentVariant?.trackQuantity ?? false;
     }
 
     // Simple product
@@ -602,6 +647,51 @@ export function ProductDetailsDialog({
           optionTitle: _currentOption?.title,
           optionPrice: _currentOption?.price,
         };
+      } else if (
+        product.variants &&
+        Array.isArray(product.variants) &&
+        product.variants.length > 0
+      ) {
+        // Product-level variants
+        const currentVariant = product.variants[selectedVariant];
+
+        if (currentVariant?.trackQuantity) {
+          if (cartQuantity + 1 > quantity) {
+            toast({
+              duration: 5000,
+              title: "Quantity Exhaust",
+              description: "Product Stock Quantity Exhaust",
+            });
+            return;
+          }
+        }
+
+        const variantEffective = Number(currentVariant?.isDiscounted && currentVariant?.discountedPrice
+          ? currentVariant.discountedPrice : currentVariant?.price) || 0;
+        const totalPrice = optionBase + variantEffective;
+
+        cartItem = {
+          productId: product._id,
+          productName: product.name,
+          trackQuantity: currentVariant?.trackQuantity ?? false,
+          inventory: currentVariant?.inventory ?? 0,
+          price: totalPrice,
+          subcategoryIndex: -1,
+          variantIndex: selectedVariant,
+          image: product.images?.[0],
+          shopkeeperName: shopkeeper?.shopName || "Shop",
+          shopClosedFromDate: shopkeeper?.shopClosedFromDate,
+          shopClosedToDate: shopkeeper?.shopClosedToDate,
+          category: product.category,
+          sku: currentVariant?.sku || product.sku,
+          subcategoryName: null,
+          variantTitle: currentVariant?.title || "Default",
+          measurement: currentVariant?.measurement,
+          productImages: product.images || [],
+          description: product.description,
+          optionTitle: _currentOption?.title,
+          optionPrice: _currentOption?.price,
+        };
       } else {
         // Simple product or product with options only
         if (product?.trackQuantity) {
@@ -671,17 +761,21 @@ export function ProductDetailsDialog({
   const currentOption = hasOptions && selectedOption != null ? product.productOptions[selectedOption] : null;
   const currentSubcategory = subcategories[selectedSubcategory];
   const variants = currentSubcategory?.variants || [];
+  const productVariants = product?.variants || [];
+  const hasProductVariants = productVariants.length > 0;
 
   // Get current variant for description display
   const currentVariantDescription =
-    hasSubcategories && variants.length > 0 && variants[selectedVariant]
-      ? variants[selectedVariant].description
-      : null;
+    hasProductVariants && productVariants[selectedVariant]
+      ? productVariants[selectedVariant].description
+      : hasSubcategories && variants.length > 0 && variants[selectedVariant]
+        ? variants[selectedVariant].description
+        : null;
 
   // Check if product is in cart
   const hasCurrentVariant = variants.length > 0 && variants[selectedVariant];
   const cartSubcategoryIndex = hasSubcategories ? selectedSubcategory : -1;
-  const cartVariantIndex = hasCurrentVariant ? selectedVariant : -1;
+  const cartVariantIndex = (hasCurrentVariant || hasProductVariants) ? selectedVariant : -1;
 
   const inCart = product
     ? isInCart(product.shopkeeperId?._id || product.shopkeeperId, {
@@ -1129,6 +1223,65 @@ export function ProductDetailsDialog({
                       </div>
 
                       {/* --- ADDED VARIANT DESCRIPTION HERE --- */}
+                      {currentVariantDescription && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-100">
+                          <p className="text-sm text-gray-600">
+                            {currentVariantDescription}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Product-Level Variant Options */}
+                  {hasProductVariants && !hasSubcategories && (!hasOptions || selectedOption != null) && (
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-sm md:text-base">
+                        Variants
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {productVariants.map((variant: any, idx: number) => (
+                          <Button
+                            key={idx}
+                            variant={
+                              selectedVariant === idx ? "default" : "outline"
+                            }
+                            onClick={() => setSelectedVariant(idx)}
+                            className="h-auto p-3 flex flex-col items-start text-left"
+                            style={getSelectableButtonStyle(
+                              selectedVariant === idx,
+                            )}
+                            disabled={
+                              variant.trackQuantity && variant.inventory <= 0
+                            }
+                          >
+                            <span
+                              className="font-medium text-xs md:text-sm"
+                              style={{
+                                color:
+                                  selectedVariant === idx ? "#fff" : "#222",
+                              }}
+                            >
+                              {variant.title}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {variant.isDiscounted && (
+                                <span className="text-sm text-gray-400 line-through">
+                                  {formatPrice(variant.price)}
+                                </span>
+                              )}
+                              <span className="text-lg text-white-600">
+                                {formatPrice(
+                                  variant.isDiscounted
+                                    ? variant.discountedPrice
+                                    : variant.price,
+                                )}
+                              </span>
+                            </div>
+                          </Button>
+                        ))}
+                      </div>
+
                       {currentVariantDescription && (
                         <div className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-100">
                           <p className="text-sm text-gray-600">

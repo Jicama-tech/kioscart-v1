@@ -577,6 +577,38 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       };
     }
 
+    // Product-level variants
+    const hasProductVariants = product.variants && Array.isArray(product.variants) && product.variants.length > 0;
+    if (hasProductVariants) {
+      let minOriginalPrice: number | null = null;
+      let minEffectivePrice: number | null = null;
+      let hasStock = false;
+      let hasDiscount = false;
+
+      product.variants.forEach((variant: any) => {
+        const variantInStock = !variant.trackQuantity || variant.inventory > 0;
+        if (!variantInStock) return;
+        hasStock = true;
+        const variantEffective = variant.isDiscounted && variant.discountedPrice
+          ? variant.discountedPrice : variant.price;
+        const total = optionBase + variantEffective;
+        if (minEffectivePrice === null || total < minEffectivePrice) {
+          minEffectivePrice = total;
+          minOriginalPrice = optionBase + variant.price;
+        }
+        if (variant.isDiscounted) hasDiscount = true;
+      });
+
+      return {
+        originalPrice: minOriginalPrice,
+        effectivePrice: minEffectivePrice,
+        hasVariants: true,
+        hasOptions: _hasOptions,
+        inStock: hasStock,
+        isDiscounted: hasDiscount,
+      };
+    }
+
     // Product-level pricing (or product with options only)
     const productInStock = _hasOptions
       ? minOptionPrice !== null

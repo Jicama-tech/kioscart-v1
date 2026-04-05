@@ -68,6 +68,7 @@ interface Product {
   optionsLabel?: string;
   productOptions?: ProductOptionItem[];
   subcategories?: Subcategory[];
+  variants?: Variant[];
   inventory?: number;
   trackQuantity?: boolean;
   measurement?: string;
@@ -163,6 +164,37 @@ export function KioskProductBrowser({
       price: totalPrice,
       subcategoryIndex: subIdx,
       subcategoryName: sub.name,
+      variantIndex: varIdx,
+      variantTitle: variant.title,
+      image: product.images?.[0],
+      inventory: variant.inventory || 0,
+      trackQuantity: variant.trackQuantity ?? false,
+      measurement: variant.measurement,
+      sku: variant.sku,
+      category: product.category,
+      optionTitle: selectedOption?.title,
+      optionPrice: selectedOption?.price,
+    });
+  }
+
+  function handleAddProductVariant(
+    product: Product,
+    varIdx: number,
+    selectedOption?: ProductOptionItem,
+  ) {
+    const variant = product.variants![varIdx];
+    const optionBase = selectedOption
+      ? (Number(selectedOption.isDiscounted && selectedOption.discountedPrice ? selectedOption.discountedPrice : selectedOption.price) || 0)
+      : 0;
+    const variantEffective = Number(variant.isDiscounted && variant.discountedPrice ? variant.discountedPrice : variant.price) || 0;
+    const totalPrice = optionBase + variantEffective;
+
+    onAddItem({
+      productId: product._id,
+      productName: product.productName,
+      price: totalPrice,
+      subcategoryIndex: -1,
+      subcategoryName: undefined,
       variantIndex: varIdx,
       variantTitle: variant.title,
       image: product.images?.[0],
@@ -303,6 +335,7 @@ export function KioskProductBrowser({
                 product={product}
                 onAddSimple={handleAddSimpleProduct}
                 onAddVariant={handleAddVariant}
+                onAddProductVariant={handleAddProductVariant}
                 onAddSubcategory={handleAddSubcategory}
                 onAddWithOption={handleAddWithOption}
                 disabled={!activeCartId}
@@ -320,6 +353,7 @@ function ProductCard({
   product,
   onAddSimple,
   onAddVariant,
+  onAddProductVariant,
   onAddSubcategory,
   onAddWithOption,
   disabled,
@@ -328,6 +362,7 @@ function ProductCard({
   product: Product;
   onAddSimple: (p: Product) => void;
   onAddVariant: (p: Product, subIdx: number, varIdx: number, option?: ProductOptionItem) => void;
+  onAddProductVariant: (p: Product, varIdx: number, option?: ProductOptionItem) => void;
   onAddSubcategory: (p: Product, subIdx: number, option?: ProductOptionItem) => void;
   onAddWithOption: (p: Product, option: ProductOptionItem) => void;
   disabled: boolean;
@@ -340,6 +375,8 @@ function ProductCard({
 
   const hasSubcategories =
     product.subcategories && product.subcategories.length > 0;
+  const hasProductVariants =
+    product.variants && product.variants.length > 0;
   const hasOptions = product.hasOptions && product.productOptions && product.productOptions.length > 0;
 
   // Check if product has meaningful variants (more than 1 variant total)
@@ -347,7 +384,7 @@ function ProductCard({
     ? product.subcategories!.reduce((sum, sub) => sum + (sub.variants?.length || 0), 0)
     : 0;
 
-  const needsExpansion = hasOptions || (hasSubcategories && (
+  const needsExpansion = hasOptions || hasProductVariants || (hasSubcategories && (
     product.subcategories!.length > 1 || totalVariants > 1
   ));
 
@@ -446,6 +483,16 @@ function ProductCard({
             )}
             {expanded ? "Hide" : "Select"}
           </Button>
+        ) : hasProductVariants && product.variants!.length === 1 ? (
+          <Button
+            size="sm"
+            className="h-7 text-xs px-2"
+            disabled={disabled}
+            onClick={() => onAddProductVariant(product, 0)}
+          >
+            <Plus className="h-3 w-3 mr-0.5" />
+            Add
+          </Button>
         ) : hasSubcategories && totalVariants === 1 ? (
           <Button
             size="sm"
@@ -489,8 +536,8 @@ function ProductCard({
                       disabled={disabled || optOutOfStock}
                       onClick={() => {
                         setSelectedOptionIdx(optIdx);
-                        // If no subcategories, add directly
-                        if (!hasSubcategories) {
+                        // If no subcategories and no product-level variants, add directly
+                        if (!hasSubcategories && !hasProductVariants) {
                           onAddWithOption(product, opt);
                           setExpanded(false);
                           setSelectedOptionIdx(0);
@@ -512,7 +559,58 @@ function ProductCard({
             </div>
           )}
 
-          {/* Step 2: Subcategories & Variants (show if no options required, or option is selected) */}
+          {/* Step 2a: Product-Level Variants (show if no options required, or option is selected) */}
+          {hasProductVariants && !hasSubcategories && (!hasOptions || selectedOption) && (
+            <div>
+              {product.variants!.map((variant, varIdx) => {
+                const outOfStock = variant.trackQuantity && variant.inventory <= 0;
+                return (
+                  <div
+                    key={varIdx}
+                    className={`flex items-center justify-between py-1 px-1.5 rounded text-[11px] ${
+                      outOfStock ? "opacity-50" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="text-slate-700 block truncate">
+                        {variant.title}
+                        {variant.measurement && (
+                          <span className="text-slate-400 ml-1">({variant.measurement})</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium">
+                          {formatPrice(variant.isDiscounted && variant.discountedPrice ? variant.discountedPrice : variant.price)}
+                        </span>
+                        {variant.trackQuantity && (
+                          <Badge
+                            variant={outOfStock ? "destructive" : "secondary"}
+                            className="text-[8px] h-3.5 px-1"
+                          >
+                            {outOfStock ? "Out of stock" : `${variant.inventory} left`}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-6 text-[10px] px-1.5 ml-1"
+                      disabled={disabled || outOfStock}
+                      onClick={() => {
+                        onAddProductVariant(product, varIdx, selectedOption);
+                        setExpanded(false);
+                        setSelectedOptionIdx(null);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Step 2b: Subcategories & Variants (show if no options required, or option is selected) */}
           {hasSubcategories && (!hasOptions || selectedOption) && (
             <div>
               {product.subcategories!.map((sub, subIdx) => (

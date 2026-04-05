@@ -272,6 +272,12 @@ export class CreateProductDto {
   @Type(() => ProductSubcategoryDto)
   subcategories?: ProductSubcategoryDto[];
 
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariantDto)
+  variants?: ProductVariantDto[];
+
   @IsEnum(["active", "draft", "archived"])
   status: "active" | "draft" | "archived";
 

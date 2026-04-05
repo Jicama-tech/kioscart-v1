@@ -86,6 +86,7 @@ interface Product {
   optionsLabel?: string;
   productOptions?: ProductOptionItem[];
   subcategories: ProductSubcategory[];
+  variants?: ProductVariant[];
   inventory: number;
   lowstockThreshold: number;
   trackQuantity: boolean;
@@ -112,6 +113,7 @@ interface ProductVariant {
   id: number;
   title: string;
   price: number;
+  measurement?: string;
   isDiscounted?: boolean;
   discountedPrice?: number;
   sku: string;
@@ -286,6 +288,12 @@ export function ProductManagement() {
   // Calculate statistics
   const { lowStockCount, totalStock } = useMemo(() => {
     const lowStockCount = products.filter((product) => {
+      // Check product-level variants
+      if (product.variants && product.variants.length > 0) {
+        return product.variants.some(
+          (variant) => variant.inventory <= (variant.lowstockThreshold || 10),
+        );
+      }
       // Check if product has subcategories and variants
       if (product.subcategories && product.subcategories.length > 0) {
         return product.subcategories.some((subcat) =>
@@ -301,6 +309,13 @@ export function ProductManagement() {
     const totalStock = products.reduce((total, product) => {
       // Add main product stock (if exists)
       total += product.inventory || 0;
+
+      // Add product-level variant stock
+      if (product.variants && product.variants.length > 0) {
+        product.variants.forEach((variant) => {
+          total += variant.inventory || 0;
+        });
+      }
 
       // Add all variant stock from subcategories
       if (product.subcategories && product.subcategories.length > 0) {
@@ -438,6 +453,8 @@ export function ProductManagement() {
     filteredProducts.forEach((product) => {
       const hasSubcategories =
         product.subcategories && product.subcategories.length > 0;
+      const hasVariants =
+        product.variants && product.variants.length > 0;
       const hasOptions = product.hasOptions && product.productOptions?.length > 0;
       const productExpanded = expandedProducts.has(product._id);
 
@@ -455,7 +472,7 @@ export function ProductManagement() {
             />
           </TableCell>
           <TableCell className="w-12">
-            {hasSubcategories || hasOptions ? (
+            {hasSubcategories || hasVariants || hasOptions ? (
               <button
                 onClick={() => toggleProductExpansion(product._id)}
                 className="p-1 hover:bg-gray-200 rounded"
@@ -503,7 +520,7 @@ export function ProductManagement() {
           <TableCell>
             <div className="space-y-1">
               <div className="text-sm font-medium">{product.category}</div>
-              {!hasSubcategories && (
+              {!hasSubcategories && !hasVariants && (
                 <div className="flex items-center gap-2">
                   {product.isDiscounted ? (
                     <>
@@ -524,6 +541,24 @@ export function ProductManagement() {
                   )}
                 </div>
               )}
+              {hasVariants && (
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const prices = product.variants!.map((v) =>
+                      v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price
+                    );
+                    const minPrice = Math.min(...prices);
+                    const maxPrice = Math.max(...prices);
+                    return (
+                      <span className="text-lg font-bold text-green-600">
+                        {minPrice === maxPrice
+                          ? formatPrice(minPrice)
+                          : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`}
+                      </span>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </TableCell>
           <TableCell>
@@ -539,7 +574,7 @@ export function ProductManagement() {
               >
                 {product.status}
               </Badge>
-              {!hasSubcategories && product.trackQuantity && (
+              {!hasSubcategories && !hasVariants && product.trackQuantity && (
                 <div className="flex items-center space-x-1 text-sm">
                   <span>Stock: {product.inventory}</span>
                   {product.trackQuantity &&
@@ -631,6 +666,63 @@ export function ProductManagement() {
                   <div className="flex items-center gap-1 text-sm">
                     <span>Stock: {option.inventory}</span>
                     {option.inventory <= (option.lowstockThreshold || 10) && (
+                      <Badge variant="destructive" className="text-xs">Low</Badge>
+                    )}
+                  </div>
+                )}
+              </TableCell>
+              <TableCell />
+              <TableCell />
+            </TableRow>,
+          );
+        });
+      }
+
+      // Product-level variant rows
+      if (hasVariants && productExpanded) {
+        product.variants!.forEach((variant) => {
+          const isLowStock = variant.inventory <= (variant.lowstockThreshold || 10);
+          rows.push(
+            <TableRow
+              key={`${product._id}-var-${variant.id}`}
+              className="bg-purple-50/50"
+            >
+              <TableCell />
+              <TableCell />
+              <TableCell>
+                <div className="ml-8">
+                  <div className="font-medium text-purple-800">{variant.title}</div>
+                  {variant.measurement && (
+                    <div className="text-xs text-purple-500">{variant.measurement}</div>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell className="text-sm text-gray-600">
+                {variant.sku || "—"}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  {variant.isDiscounted ? (
+                    <>
+                      <span className="text-sm text-gray-400 line-through">
+                        {formatPrice(variant.price)}
+                      </span>
+                      <span className="text-lg font-bold text-green-600">
+                        {formatPrice(variant.discountedPrice)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-lg font-bold text-green-600">
+                      {formatPrice(variant.price)}
+                    </span>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>
+                {variant.trackQuantity && (
+                  <div className="flex items-center gap-1 text-sm">
+                    <span>Stock: {variant.inventory}</span>
+                    {isLowStock && (
                       <Badge variant="destructive" className="text-xs">Low</Badge>
                     )}
                   </div>

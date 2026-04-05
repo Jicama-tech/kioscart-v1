@@ -98,6 +98,7 @@ interface Product {
   trackQuantity?: boolean;
   lowstockThreshold?: number;
   subcategories?: ProductSubcategory[];
+  variants?: ProductVariant[];
   status: "active" | "draft" | "archived";
   weight?: number;
   dimensions?: {
@@ -139,6 +140,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
     trackQuantity: false,
     lowstockThreshold: 10,
     subcategories: [],
+    variants: [],
     measurement: "",
     status: "active",
     weight: undefined,
@@ -436,6 +438,43 @@ export function ProductForm({ product, onSave, onClose }: any) {
     });
   };
 
+  // Product-level variant handlers (independent of subcategories)
+  const handleAddProductVariant = () => {
+    setFormData((prev) => {
+      const newVariant: ProductVariant = {
+        id: Date.now(),
+        title: "",
+        price: prev.price || 0,
+        sku: `${prev.sku || "SKU"}-VAR-${(prev.variants?.length || 0) + 1}`,
+        trackQuantity: false,
+        lowstockThreshold: 10,
+        inventory: 0,
+        options: {},
+      };
+      return { ...prev, variants: [...(prev.variants || []), newVariant] };
+    });
+  };
+
+  const handleRemoveProductVariant = (varIndex: number) => {
+    setFormData((prev) => {
+      const newVariants = [...(prev.variants || [])];
+      newVariants.splice(varIndex, 1);
+      return { ...prev, variants: newVariants };
+    });
+  };
+
+  const handleProductVariantChange = (
+    varIndex: number,
+    field: keyof ProductVariant,
+    value: any,
+  ) => {
+    setFormData((prev) => {
+      const newVariants = [...(prev.variants || [])];
+      newVariants[varIndex] = { ...newVariants[varIndex], [field]: value };
+      return { ...prev, variants: newVariants };
+    });
+  };
+
   // SKU generator for product SKU
   const generateSKU = () => {
     const prefix = formData.category
@@ -455,9 +494,11 @@ export function ProductForm({ product, onSave, onClose }: any) {
     }));
   };
 
-  // Check if subcategories exist
+  // Check if subcategories or product-level variants exist
   const hasSubcategories =
     formData.subcategories && formData.subcategories.length > 0;
+  const hasVariants =
+    formData.variants && formData.variants.length > 0;
 
   // Validation
   const isValid = formData.name && formData.category && formData.sku;
@@ -513,13 +554,14 @@ export function ProductForm({ product, onSave, onClose }: any) {
         hasOptions: formData.hasOptions || false,
         optionsLabel: formData.hasOptions ? formData.optionsLabel : undefined,
         productOptions: formData.hasOptions ? formData.productOptions : [],
-        // Include product-level inventory only if no subcategories and no options
-        inventory: hasSubcategories || formData.hasOptions ? undefined : (formData.inventory ?? 0),
+        // Include product-level inventory only if no subcategories, no variants, and no options
+        inventory: hasSubcategories || hasVariants || formData.hasOptions ? undefined : (formData.inventory ?? 0),
         trackQuantity: formData.trackQuantity ?? false,
-        lowstockThreshold: hasSubcategories || formData.hasOptions
+        lowstockThreshold: hasSubcategories || hasVariants || formData.hasOptions
           ? undefined
           : (formData.lowstockThreshold ?? 10),
         subcategories: formData.subcategories || [],
+        variants: formData.variants || [],
         weight: formData.weight || undefined,
       };
 
@@ -750,8 +792,8 @@ export function ProductForm({ product, onSave, onClose }: any) {
                 </Select>
               </div>
 
-              {/* Product-level inventory (only shown when no subcategories and no options) */}
-              {!hasSubcategories && !formData.hasOptions && (
+              {/* Product-level inventory (only shown when no subcategories, no variants, and no options) */}
+              {!hasSubcategories && !hasVariants && !formData.hasOptions && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Price & Inventory Management</CardTitle>
@@ -1094,6 +1136,150 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       <Plus className="mr-2 h-4 w-4" />
                       Add {formData.optionsLabel || "Option"}
                     </Button>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Product-Level Variants Section (Independent) */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Variants</CardTitle>
+                    <Button
+                      type="button"
+                      variant="buttonOutline"
+                      size="sm"
+                      onClick={handleAddProductVariant}
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Variant
+                    </Button>
+                  </div>
+                </CardHeader>
+                {hasVariants && (
+                  <CardContent className="space-y-4">
+                    <div className="mb-3 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> Each variant has its own price, inventory, and SKU.
+                      </p>
+                    </div>
+
+                    {(formData.variants || []).map((variant, vi) => (
+                      <Card key={variant.id} className="p-4 border rounded">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm font-medium">
+                            Variant {vi + 1} - {variant.title || "(No title)"}
+                          </span>
+                          <Button
+                            variant="buttonOutline"
+                            size="sm"
+                            onClick={() => handleRemoveProductVariant(vi)}
+                            disabled={isSubmitting}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Title *</Label>
+                            <Input
+                              placeholder="e.g. Red, Large, 500ml"
+                              value={variant.title}
+                              onChange={(e) => handleProductVariantChange(vi, "title", e.target.value)}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">SKU</Label>
+                            <Input
+                              value={variant.sku || ""}
+                              onChange={(e) => handleProductVariantChange(vi, "sku", e.target.value)}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Price *</Label>
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="0"
+                              value={variant.price ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                                  handleProductVariantChange(vi, "price", v === "" ? 0 : parseFloat(v));
+                                }
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Unit</Label>
+                            <Input
+                              placeholder="e.g. kg, pc, ml"
+                              value={variant.measurement || ""}
+                              onChange={(e) => handleProductVariantChange(vi, "measurement", e.target.value)}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Inventory</Label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              value={variant.inventory ?? 0}
+                              onChange={(e) => handleProductVariantChange(vi, "inventory", parseInt(e.target.value) || 0)}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Low Stock Threshold</Label>
+                            <Input
+                              type="number"
+                              placeholder="10"
+                              value={variant.lowstockThreshold ?? 10}
+                              onChange={(e) => handleProductVariantChange(vi, "lowstockThreshold", parseInt(e.target.value) || 10)}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 col-span-2">
+                            <Switch
+                              checked={variant.trackQuantity}
+                              onCheckedChange={(v) => handleProductVariantChange(vi, "trackQuantity", v)}
+                              disabled={isSubmitting}
+                            />
+                            <Label className="text-xs">Track Quantity</Label>
+                          </div>
+                          <div className="flex items-center gap-2 col-span-2">
+                            <Switch
+                              checked={variant.isDiscounted || false}
+                              onCheckedChange={(v) => handleProductVariantChange(vi, "isDiscounted", v)}
+                              disabled={isSubmitting}
+                            />
+                            <Label className="text-xs">Discounted</Label>
+                          </div>
+                          {variant.isDiscounted && (
+                            <div className="space-y-1 col-span-2">
+                              <Label className="text-xs">Discounted Price</Label>
+                              <Input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0"
+                                value={variant.discountedPrice ?? ""}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                                    handleProductVariantChange(vi, "discountedPrice", v === "" ? 0 : parseFloat(v));
+                                  }
+                                }}
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
                   </CardContent>
                 )}
               </Card>

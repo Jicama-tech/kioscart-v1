@@ -58,6 +58,7 @@ export interface Product {
   optionsLabel?: string;
   productOptions?: ProductOption[];
   subcategories?: ProductSubcategory[];
+  variants?: ProductVariant[];
   weight?: number;
   dimensions?: {
     length: number;
