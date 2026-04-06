@@ -189,6 +189,21 @@ export class PaymentEmailsService {
     id: string,
     status: "confirmed" | "ignored",
   ): Promise<PaymentEmail> {
-    return this.paymentEmailModel.findByIdAndUpdate(id, { status }, { new: true });
+    const updated = await this.paymentEmailModel.findByIdAndUpdate(id, { status }, { new: true });
+
+    // If confirmed and matched to an order, update order status to processing
+    if (status === "confirmed" && updated?.matchedOrderId) {
+      try {
+        await this.orderModel.findOneAndUpdate(
+          { orderId: updated.matchedOrderId, status: "pending" },
+          { status: "processing" },
+        );
+        this.logger.log(`Order #${updated.matchedOrderId} updated to processing after payment confirmation`);
+      } catch (err) {
+        this.logger.warn(`Failed to update order status: ${err.message}`);
+      }
+    }
+
+    return updated;
   }
 }
