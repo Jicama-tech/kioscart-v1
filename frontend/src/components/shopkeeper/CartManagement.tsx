@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +51,12 @@ import {
   ShoppingBag,
   Share2Icon,
   PlaneIcon,
+  CreditCard,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Clock,
+  Ban,
 } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import {
@@ -154,11 +161,7 @@ function ConfirmDeleteDialog({
           <Button variant="buttonOutline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={loading}
-          >
+          <Button variant="destructive" onClick={onConfirm} disabled={loading}>
             {loading ? "Deleting..." : "Delete"}
           </Button>
         </div>
@@ -195,6 +198,71 @@ export function CartManagement() {
   const [shopkeeperInfo, setShopkeeperInfo] = useState<any>(null);
   const [printSelectionOpen, setPrintSelectionOpen] = useState(false); // New state
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
+
+  // Payment emails state
+  const [paymentEmails, setPaymentEmails] = useState<any[]>([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("orders");
+
+  const fetchPaymentEmails = useCallback(async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      setPaymentLoading(true);
+      const res = await fetch(`${API_URL}/payment-emails/emails`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPaymentEmails(data.emails || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch payment emails:", err);
+    } finally {
+      setPaymentLoading(false);
+    }
+  }, []);
+
+  const handlePaymentAction = async (
+    id: string,
+    status: "confirmed" | "ignored",
+  ) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch(
+        `${API_URL}/payment-emails/emails/${id}?status=${status}`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (res.ok) {
+        setPaymentEmails((prev) =>
+          prev.map((e) => (e._id === id ? { ...e, status } : e)),
+        );
+        if (status === "confirmed") {
+          toast({
+            duration: 5000,
+            title: "Payment confirmed",
+            description: "Matched order has been updated to processing.",
+          });
+          // Refresh orders to reflect status change
+          fetchOrders(currentPage, rowsPerPage);
+        } else {
+          toast({ duration: 3000, title: "Payment ignored" });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update payment:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "payments") {
+      fetchPaymentEmails();
+    }
+  }, [activeTab]);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("");
@@ -256,7 +324,7 @@ export function CartManagement() {
     } catch (error) {
       console.error("Fetch orders error:", error);
     }
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkForNewOrders = useCallback(async () => {
     // Skip polling while delete is in progress
@@ -303,21 +371,21 @@ export function CartManagement() {
     } catch (error) {
       console.error("Polling error:", error);
     }
-  }, [currentPage, rowsPerPage, totalOrders, fetchOrders]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentPage, rowsPerPage, totalOrders, fetchOrders]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial load
   useEffect(() => {
     setLoading(true);
     fetchOrders(currentPage, rowsPerPage).finally(() => setLoading(false));
     fetchShopkeeperInfo();
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refetch when page or rowsPerPage changes
   useEffect(() => {
     if (!isFirstLoadRef.current) {
       fetchOrders(currentPage, rowsPerPage);
     }
-  }, [currentPage, rowsPerPage]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentPage, rowsPerPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll for new orders every 15 seconds
   useEffect(() => {
@@ -349,8 +417,6 @@ export function CartManagement() {
       console.error("Error fetching shopkeeper info:", error);
     }
   }
-
-
 
   const getLatestStatus = () => {
     if (!selectedOrder?.statusHistory?.length) return null;
@@ -1193,829 +1259,1222 @@ Thank you for shopping with us.
 
   // ConfirmDeleteDialog and LoadingOverlay moved outside component to prevent flicker
 
-  if (orders.length === 0) return <div>No orders found.</div>;
+  if (orders.length === 0 && activeTab === "orders")
+    return (
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="orders" className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            Orders
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            Payments
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="orders">
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">No orders found</p>
+              <p className="text-sm mt-1">
+                Orders will appear here when customers place them.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="payments">
+          <PaymentsTabContent
+            paymentEmails={paymentEmails}
+            paymentLoading={paymentLoading}
+            onAction={handlePaymentAction}
+            onRefresh={fetchPaymentEmails}
+            formatPrice={formatPrice}
+          />
+        </TabsContent>
+      </Tabs>
+    );
 
   return (
     <>
-      {/* Top stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        {/* 🛒 Total Orders */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="orders" className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            Orders
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            Payments
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="orders">
+          {/* Top stats */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            {/* 🛒 Total Orders */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Overall Orders
+                </CardTitle>
+                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalOrders}</div>
+              </CardContent>
+            </Card>
+
+            {/* 💰 Total Revenue */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Overall Revenue
+                </CardTitle>
+                {shopkeeperInfo?.country === "IN" ? (
+                  <FaRupeeSign className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <FaDollarSign className="h-4 w-4 text-muted-foreground" />
+                )}
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {" "}
+                  {formatPrice(totalRevenue)}
+                </div>
+                {/* <p className="text-xs text-muted-foreground">Till Today</p> */}
+              </CardContent>
+            </Card>
+
+            {/* 📈 Average Order Value */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Today's Orders
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {todaysOrders}
+                </div>
+                {/* <p className="text-xs text-muted-foreground">Orders placed today</p> */}
+              </CardContent>
+            </Card>
+
+            {/* 📅 New: Today's Orders */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Pending Orders
+                </CardTitle>
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {pendingOrders}
+                </div>
+                {/* <p className="text-xs text-muted-foreground">Waiting For Action</p> */}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters Section */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Filters</CardTitle>
+              <CardDescription>Filter and sort your orders</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      {STATUS_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Order Type</Label>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="pickup">Pickup</SelectItem>
+                      <SelectItem value="delivery">Delivery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>From Date</Label>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>To Date</Label>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Customer Name</Label>
+                  <Input
+                    placeholder="Search by name"
+                    value={customerNameFilter}
+                    onChange={(e) => setCustomerNameFilter(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Total Amount</Label>
+                  <Select
+                    value={amountSort}
+                    onValueChange={(v) => setAmountSort(v as any)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">None</SelectItem>
+                      <SelectItem value="asc">Lowest First</SelectItem>
+                      <SelectItem value="desc">Highest First</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button
+                onClick={clearFilters}
+                variant="buttonOutline"
+                className="mt-4"
+              >
+                Clear All Filters
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Orders Table */}
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                {/* Left: Title */}
+                <div>
+                  <CardTitle>Order Management</CardTitle>
+                  <CardDescription>
+                    Track and manage customer orders
+                  </CardDescription>
+                </div>
+
+                {/* Right: Rows per page */}
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    Rows per page:
+                  </span>
+
+                  <Select
+                    value={String(rowsPerPage)}
+                    onValueChange={(value) => {
+                      setRowsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[5, 10, 25, 50, 100].map((size) => (
+                        <SelectItem key={size} value={String(size)}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Contact Details</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Total Amount</TableHead>
+                    <TableHead>Order Type</TableHead>
+                    <TableHead>Order Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedOrders.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center">
+                        No orders match the selected filters.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedOrders.map((order) => (
+                      <TableRow key={order._id}>
+                        <TableCell className="font-mono">
+                          {order.orderId}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {order.userId.name}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1 text-sm">
+                              <Mail className="h-3 w-3" />
+                              <a
+                                href={`mailto:${order.userId.email}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {order.userId.email}
+                              </a>
+                            </div>
+                            {order.userId.whatsAppNumber && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <FaWhatsapp className="h-3 w-3 text-green-500" />
+                                <a
+                                  href={`https://wa.me/${order.userId.whatsAppNumber}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-green-600 hover:underline"
+                                >
+                                  {order.userId.whatsAppNumber}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Package className="h-3 w-3" />
+                            {order.items.length}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {/* ${order.totalAmount.toFixed(2)} */}
+                          {formatPrice(order.totalAmount)}
+                        </TableCell>
+                        <TableCell>
+                          <span className="capitalize">{order.orderType}</span>
+                        </TableCell>
+                        <TableCell>{formatDate(order.createdAt)}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={order.status}
+                            onValueChange={(val) =>
+                              promptStatusChange(order._id, val)
+                            }
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="buttonOutline"
+                              size="sm"
+                              onClick={() => {
+                                const url = generateWhatsAppMessage(order);
+                                window.open(url, "_blank");
+                              }}
+                              className="flex items-center gap-1"
+                            >
+                              <FaRegPaperPlane className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="buttonOutline"
+                              size="sm"
+                              onClick={() => openOrderDetails(order)}
+                              className="flex items-center gap-1"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="buttonOutline"
+                              size="sm"
+                              onClick={() => handlePrintRequest(order)}
+                              className="flex items-center gap-1"
+                            >
+                              <Printer className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="buttonOutline"
+                              size="sm"
+                              onClick={() => promptDeleteOrder(order.orderId)}
+                              className="flex items-center gap-1"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              <div className="flex items-center justify-center mt-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="buttonOutline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                  >
+                    Previous
+                  </Button>
+
+                  <span className="text-sm">
+                    Page <strong>{currentPage}</strong> of{" "}
+                    <strong>{totalPages}</strong>
+                  </span>
+
+                  <Button
+                    variant="buttonOutline"
+                    size="sm"
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Existing modals... */}
+          {selectedOrder && (
+            <Dialog
+              open={viewOpen}
+              onOpenChange={(flag) => {
+                if (!flag) closeModal();
+              }}
+            >
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Order {selectedOrder.orderId}</DialogTitle>
+                  <DialogDescription>
+                    Order details and timeline
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold">Customer</h3>
+                    <p>
+                      Name:{" "}
+                      {selectedOrder.customerName ||
+                        selectedOrder.userId?.name ||
+                        "N/A"}
+                    </p>
+                    <p>
+                      Email:{" "}
+                      {selectedOrder.customerEmail ||
+                        selectedOrder.userId?.email ||
+                        "N/A"}
+                    </p>
+                    <p>
+                      WhatsApp Number:{" "}
+                      {selectedOrder.customerWhatsApp ||
+                        selectedOrder.userId?.whatsAppNumber ||
+                        "N/A"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold">Items Purchased</h3>
+                    <div className="space-y-2">
+                      {selectedOrder.items.map((item, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 p-2 border rounded"
+                        >
+                          {item.image ? (
+                            <img
+                              loading="lazy"
+                              src={API_URL + item.image}
+                              alt={item.productName}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                              <Package className="h-6 w-6" />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium">{item.productName}</p>
+                            {item.optionTitle &&
+                              item.optionTitle !== "Default" && (
+                                <p className="text-sm text-purple-600">
+                                  {item.optionTitle}
+                                </p>
+                              )}
+                            {item.subcategoryName &&
+                              item.subcategoryName !== "Default" && (
+                                <p className="text-sm text-gray-600">
+                                  {item.subcategoryName}
+                                </p>
+                              )}
+                            {item.variantTitle &&
+                              item.variantTitle !== "Default" && (
+                                <p className="text-sm text-gray-500">
+                                  Variant: {item.variantTitle}
+                                </p>
+                              )}
+                          </div>
+                          <div className="text-right">
+                            <p>Qty: {item.quantity}</p>
+                            <p>
+                              Price: {formatPrice(item.price)} /{" "}
+                              {item.measurement}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold mt-4 mb-2">Order Timeline</h3>
+
+                    <div className="relative border-l border-gray-300 pl-6 space-y-6">
+                      {selectedOrder.statusHistory
+                        .sort(
+                          (a, b) =>
+                            new Date(a.changedAt).getTime() -
+                            new Date(b.changedAt).getTime(),
+                        )
+                        .map((history, index) => {
+                          const statusLower = history.status.toLowerCase();
+                          const dotColor =
+                            statusLower === "cancelled"
+                              ? "bg-red-500"
+                              : statusLower === "ready" ||
+                                  statusLower === "delivered" ||
+                                  statusLower === "completed"
+                                ? "bg-green-500"
+                                : statusLower === "processing"
+                                  ? "bg-blue-500"
+                                  : "bg-yellow-500";
+                          const badgeVariant =
+                            statusLower === "cancelled"
+                              ? "destructive"
+                              : statusLower === "processing"
+                                ? "secondary"
+                                : statusLower === "ready" ||
+                                    statusLower === "delivered" ||
+                                    statusLower === "completed"
+                                  ? "default"
+                                  : "outline";
+                          return (
+                            <div key={index} className="relative">
+                              <span
+                                className={`absolute -left-[13px] top-1.5 w-3 h-3 rounded-full ring-2 ring-white ${dotColor}`}
+                              />
+                              <div className="bg-gray-50 p-3 rounded-md border">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge
+                                    variant={badgeVariant}
+                                    className="capitalize"
+                                  >
+                                    {history.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                  {new Date(history.changedAt).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Order Summary</h3>
+                    <p>
+                      Total Amount: {formatPrice(selectedOrder.totalAmount)}
+                    </p>
+                    <p>Order Type: {selectedOrder.orderType}</p>
+                    {selectedOrder.transactionId && (
+                      <p>
+                        Transaction ID:{" "}
+                        <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm">
+                          {selectedOrder.transactionId}
+                        </span>
+                      </p>
+                    )}
+
+                    {selectedOrder.orderType === "delivery" &&
+                      selectedOrder.deliveryAddress && (
+                        <>
+                          <h4 className="font-semibold mt-2">
+                            Delivery Address
+                          </h4>
+                          <p>{selectedOrder.deliveryAddress.street}</p>
+                          <p>
+                            {selectedOrder.deliveryAddress.city},{" "}
+                            {selectedOrder.deliveryAddress.state}
+                          </p>
+                          {selectedOrder.instructions && (
+                            <p>
+                              Special Instructions: {selectedOrder.instructions}
+                            </p>
+                          )}
+                        </>
+                      )}
+
+                    {selectedOrder.orderType === "pickup" && (
+                      <>
+                        <h4 className="font-semibold mt-2">Pickup Details</h4>
+                        <p>
+                          Date:{" "}
+                          {new Date(
+                            selectedOrder.pickupDate!,
+                          ).toLocaleDateString()}
+                        </p>
+                        <p>Time: {selectedOrder.pickupTime}</p>
+                        {selectedOrder.instructions && (
+                          <p>
+                            Special Instructions: {selectedOrder.instructions}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button onClick={closeModal}>Close</Button>
+                  <Button
+                    variant="whatsApp"
+                    onClick={sendLatestStatusToWhatsApp}
+                  >
+                    <FaWhatsapp /> Send Status on WhatsApp
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* Print Preview Dialog */}
+          <Dialog open={printPreviewOpen} onOpenChange={setPrintPreviewOpen}>
+            <DialogContent className="max-w-md w-[90vw] sm:w-full max-h-[85vh] overflow-y-auto p-4">
+              <DialogHeader className="sticky top-0 bg-white z-10 pb-2 border-b">
+                <DialogTitle className="text-base sm:text-lg font-semibold">
+                  Print Receipt
+                </DialogTitle>
+                <DialogDescription className="text-sm text-gray-500">
+                  Preview of thermal printer receipt
+                </DialogDescription>
+              </DialogHeader>
+
+              {printOrder && (
+                <div className="space-y-4 mt-2">
+                  {/* 🧾 Thermal Receipt Style */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 font-mono text-[13px] sm:text-sm shadow-sm">
+                    {/* Shop Info */}
+                    <div className="text-center mb-2">
+                      <div className="font-bold text-lg">
+                        {shopkeeperInfo?.shopName || "Shop Name"}
+                      </div>
+                      {shopkeeperInfo?.phone && (
+                        <div>Phone: {shopkeeperInfo.phone}</div>
+                      )}
+                      {shopkeeperInfo?.businessEmail && (
+                        <div>Email: {shopkeeperInfo.businessEmail}</div>
+                      )}
+                      {shopkeeperInfo?.GSTNumber && (
+                        <div>GSTIN: {shopkeeperInfo.GSTNumber}</div>
+                      )}
+                      <div className="my-2 border-t border-dashed border-gray-300"></div>
+                    </div>
+
+                    {/* Order Info */}
+                    <div className="space-y-1">
+                      <div className="font-bold">
+                        Order #:{" "}
+                        <span className="font-normal">
+                          {printOrder.orderId?.slice(-6)?.toUpperCase() ||
+                            "N/A"}
+                        </span>
+                      </div>
+                      <div>
+                        Date:{" "}
+                        {new Date(printOrder.createdAt).toLocaleDateString()}
+                      </div>
+                      <div>
+                        Time:{" "}
+                        {new Date(printOrder.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+
+                    {/* Customer Info */}
+                    <div className="space-y-1">
+                      <div className="font-bold">Customer:</div>
+                      <div>Name: {printOrder.userId.name}</div>
+                      {printOrder.userId.whatsAppNumber && (
+                        <div>Phone: {printOrder.userId.whatsAppNumber}</div>
+                      )}
+                      {printOrder.userId.email && (
+                        <div>Email: {printOrder.userId.email}</div>
+                      )}
+                      {printOrder.orderType === "pickup" && (
+                        <>
+                          <div>Order Type: {printOrder?.orderType}</div>
+                          <div>
+                            PickUp Address:{" "}
+                            {printOrder?.pickupDate
+                              ? new Date(
+                                  printOrder.pickupDate,
+                                ).toLocaleDateString("en-IN", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                              : ""}{" "}
+                            {printOrder?.pickupTime}
+                          </div>
+                        </>
+                      )}
+                      {printOrder.orderType === "delivery" && (
+                        <>
+                          <div>Order Type: {printOrder.orderType}</div>
+                          <div>Delivery Address: {deliveryAddressLine}</div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+
+                    {/* Items */}
+                    <div>
+                      <div className="font-bold mb-1">Items:</div>
+                      {printOrder.items.map((item, index) => (
+                        <div key={index} className="mb-1">
+                          <div className="font-semibold">
+                            {item.productName}
+                          </div>
+                          {[
+                            item.optionTitle,
+                            item.subcategoryName,
+                            item.variantTitle,
+                          ].some((v) => v && v !== "Default") && (
+                            <div className="text-xs text-gray-600">
+                              (
+                              {[
+                                item.optionTitle,
+                                item.subcategoryName,
+                                item.variantTitle,
+                              ]
+                                .filter((v) => v && v !== "Default")
+                                .join(", ")}
+                              )
+                            </div>
+                          )}
+                          <div>
+                            {item.quantity} × {formatPrice(item.price)} ={" "}
+                            {formatPrice(item.quantity * item.price)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+
+                    {/* Totals */}
+                    <div className="text-right space-y-1">
+                      {shopkeeperInfo?.taxPercentage && (
+                        <div>
+                          Tax: {getSymbol()}{" "}
+                          {formatPrice(
+                            (shopkeeperInfo.taxPercentage *
+                              printOrder.totalAmount) /
+                              (100 + shopkeeperInfo.taxPercentage),
+                          )}
+                        </div>
+                      )}
+                      <div className="font-bold">
+                        Total: {formatPrice(printOrder.totalAmount)}
+                      </div>
+                    </div>
+
+                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+
+                    {/* Payment Info */}
+                    <div className="space-y-1">
+                      <div>Payment: Online</div>
+                      <div>Status: {printOrder.status?.toUpperCase()}</div>
+                    </div>
+
+                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+
+                    {/* Footer */}
+                    <div className="text-center mt-3 text-[13px]">
+                      <div className="font-semibold">
+                        Thank you for your order!
+                      </div>
+                      <div>Visit us again!</div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600">
+                    <p>This will be sent to your Bluetooth thermal printer.</p>
+                    <p>Ensure your printer is connected and ready.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ✅ Buttons fixed at bottom */}
+              <div className="flex justify-end gap-2 mt-4 sticky bottom-0 bg-white pt-3 border-t">
+                <Button
+                  variant="buttonOutline"
+                  onClick={() => setPrintPreviewOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () =>
+                    await handleShareOrDownload(printOrder._id)
+                  }
+                  className="flex items-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print
+                </Button>
+                <Button
+                  onClick={async () => await downloadReceipt(printOrder._id)}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* 🧾 Receipt View Dialog */}
+          <Dialog open={receiptViewOpen} onOpenChange={closeReceiptView}>
+            <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-4">
+              <DialogHeader className="sticky top-0 bg-white z-10 pb-2 border-b">
+                <DialogTitle className="text-base sm:text-lg">
+                  Receipt View
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="h-[70vh] sm:h-[80vh]">
+                {receiptUrl ? (
+                  <iframe
+                    src={receiptUrl}
+                    className="w-full h-full border-0 rounded-md"
+                    title="Receipt"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    Loading...
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                {receiptUrl && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = receiptUrl;
+                      a.download = "receipt.pdf";
+                      a.click();
+                    }}
+                  >
+                    Download
+                  </Button>
+                )}
+                <Button onClick={closeReceiptView}>Close</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Print Format Selection Dialog */}
+          <Dialog
+            open={printSelectionOpen}
+            onOpenChange={setPrintSelectionOpen}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Select Print Format</DialogTitle>
+                <DialogDescription>
+                  Choose the receipt format you want to generate for Order #
+                  {printingOrder?.orderId}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid grid-cols-2 gap-4 py-4">
+                {/* Option 1: Thermal 58mm */}
+                <Button
+                  variant="outline"
+                  className="h-24 flex flex-col gap-2 hover:bg-slate-50 border-2 hover:border-blue-500"
+                  onClick={() => fetchAndPreviewReceipt("58MM")}
+                >
+                  <Receipt className="h-8 w-8 text-slate-600" />
+                  <span className="font-semibold">Thermal (58mm)</span>
+                </Button>
+
+                {/* Option 2: Standard A4 */}
+                <Button
+                  variant="outline"
+                  className="h-24 flex flex-col gap-2 hover:bg-slate-50 border-2 hover:border-blue-500"
+                  onClick={() => fetchAndPreviewReceipt("A4")}
+                >
+                  <Printer className="h-8 w-8 text-slate-600" />
+                  <span className="font-semibold">Standard (A4)</span>
+                </Button>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  variant="ghost"
+                  onClick={() => setPrintSelectionOpen(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <ConfirmDeleteDialog
+            open={deleteDialogOpen}
+            onCancel={() => {
+              setDeleteDialogOpen(false);
+              setDeletingOrderId(null);
+            }}
+            onConfirm={handleDeleteOrder}
+            loading={deleting}
+          />
+
+          <LoadingOverlay show={loading} />
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <PaymentsTabContent
+            paymentEmails={paymentEmails}
+            paymentLoading={paymentLoading}
+            onAction={handlePaymentAction}
+            onRefresh={fetchPaymentEmails}
+            formatPrice={formatPrice}
+          />
+        </TabsContent>
+      </Tabs>
+    </>
+  );
+}
+
+// Payments Tab Component
+function PaymentsTabContent({
+  paymentEmails,
+  paymentLoading,
+  onAction,
+  onRefresh,
+  formatPrice,
+}: {
+  paymentEmails: any[];
+  paymentLoading: boolean;
+  onAction: (id: string, status: "confirmed" | "ignored") => void;
+  onRefresh: () => void;
+  formatPrice: (amount: number) => string;
+}) {
+  const confirmed = paymentEmails.filter((e) => e.status === "confirmed");
+  const pending = paymentEmails.filter(
+    (e) => e.status !== "confirmed" && e.status !== "ignored",
+  );
+  const ignored = paymentEmails.filter((e) => e.status === "ignored");
+  const totalAmount = confirmed.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Overall Orders
+              Pending Review
             </CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalOrders}</div>
+            <div className="text-2xl font-bold text-orange-600">
+              {pending.length}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Awaiting confirmation
+            </p>
           </CardContent>
         </Card>
-
-        {/* 💰 Total Revenue */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Overall Revenue
-            </CardTitle>
-            {shopkeeperInfo?.country === "IN" ? (
-              <FaRupeeSign className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <FaDollarSign className="h-4 w-4 text-muted-foreground" />
-            )}
+            <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {" "}
-              {formatPrice(totalRevenue)}
+            <div className="text-2xl font-bold text-green-600">
+              {confirmed.length}
             </div>
-            {/* <p className="text-xs text-muted-foreground">Till Today</p> */}
+            <p className="text-xs text-muted-foreground mt-1">
+              Payments verified
+            </p>
           </CardContent>
         </Card>
-
-        {/* 📈 Average Order Value */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Today's Orders
+              Total Confirmed
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {todaysOrders}
+            <div className="text-2xl font-bold text-green-600">
+              {totalAmount > 0
+                ? formatPrice(totalAmount)
+                : "—"}
             </div>
-            {/* <p className="text-xs text-muted-foreground">Orders placed today</p> */}
+            <p className="text-xs text-muted-foreground mt-1">
+              Revenue confirmed via email
+            </p>
           </CardContent>
         </Card>
-
-        {/* 📅 New: Today's Orders */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Orders
-            </CardTitle>
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Ignored</CardTitle>
+            <Ban className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {pendingOrders}
+            <div className="text-2xl font-bold text-gray-400">
+              {ignored.length}
             </div>
-            {/* <p className="text-xs text-muted-foreground">Waiting For Action</p> */}
+            <p className="text-xs text-muted-foreground mt-1">
+              Dismissed payments
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter and sort your orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Order Type</Label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="pickup">Pickup</SelectItem>
-                  <SelectItem value="delivery">Delivery</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>From Date</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>To Date</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Customer Name</Label>
-              <Input
-                placeholder="Search by name"
-                value={customerNameFilter}
-                onChange={(e) => setCustomerNameFilter(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Total Amount</Label>
-              <Select
-                value={amountSort}
-                onValueChange={(v) => setAmountSort(v as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">None</SelectItem>
-                  <SelectItem value="asc">Lowest First</SelectItem>
-                  <SelectItem value="desc">Highest First</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Button
-            onClick={clearFilters}
-            variant="buttonOutline"
-            className="mt-4"
-          >
-            Clear All Filters
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Orders Table */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {/* Left: Title */}
-            <div>
-              <CardTitle>Order Management</CardTitle>
-              <CardDescription>
-                Track and manage customer orders
-              </CardDescription>
-            </div>
-
-            {/* Right: Rows per page */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">
-                Rows per page:
-              </span>
-
-              <Select
-                value={String(rowsPerPage)}
-                onValueChange={(value) => {
-                  setRowsPerPage(Number(value));
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[5, 10, 25, 50, 100].map((size) => (
-                    <SelectItem key={size} value={String(size)}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact Details</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Total Amount</TableHead>
-                <TableHead>Order Type</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedOrders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center">
-                    No orders match the selected filters.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedOrders.map((order) => (
-                  <TableRow key={order._id}>
-                    <TableCell className="font-mono">{order.orderId}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {order.userId.name}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-sm">
-                          <Mail className="h-3 w-3" />
-                          <a
-                            href={`mailto:${order.userId.email}`}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {order.userId.email}
-                          </a>
-                        </div>
-                        {order.userId.whatsAppNumber && (
-                          <div className="flex items-center gap-1 text-sm">
-                            <FaWhatsapp className="h-3 w-3 text-green-500" />
-                            <a
-                              href={`https://wa.me/${order.userId.whatsAppNumber}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-green-600 hover:underline"
-                            >
-                              {order.userId.whatsAppNumber}
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Package className="h-3 w-3" />
-                        {order.items.length}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {/* ${order.totalAmount.toFixed(2)} */}
-                      {formatPrice(order.totalAmount)}
-                    </TableCell>
-                    <TableCell>
-                      <span className="capitalize">{order.orderType}</span>
-                    </TableCell>
-                    <TableCell>{formatDate(order.createdAt)}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={order.status}
-                        onValueChange={(val) =>
-                          promptStatusChange(order._id, val)
-                        }
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="buttonOutline"
-                          size="sm"
-                          onClick={() => {
-                            const url = generateWhatsAppMessage(order);
-                            window.open(url, "_blank");
-                          }}
-                          className="flex items-center gap-1"
-                        >
-                          <FaRegPaperPlane className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="buttonOutline"
-                          size="sm"
-                          onClick={() => openOrderDetails(order)}
-                          className="flex items-center gap-1"
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="buttonOutline"
-                          size="sm"
-                          onClick={() => handlePrintRequest(order)}
-                          className="flex items-center gap-1"
-                        >
-                          <Printer className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="buttonOutline"
-                          size="sm"
-                          onClick={() => promptDeleteOrder(order.orderId)}
-                          className="flex items-center gap-1"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-
-          <div className="flex items-center justify-center mt-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="buttonOutline"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-
-              <span className="text-sm">
-                Page <strong>{currentPage}</strong> of{" "}
-                <strong>{totalPages}</strong>
-              </span>
-
-              <Button
-                variant="buttonOutline"
-                size="sm"
-                disabled={currentPage === totalPages || totalPages === 0}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Existing modals... */}
-      {selectedOrder && (
-        <Dialog
-          open={viewOpen}
-          onOpenChange={(flag) => {
-            if (!flag) closeModal();
-          }}
+      {/* Header with Refresh */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Payment Transactions</h3>
+          <p className="text-sm text-muted-foreground">
+            Payments detected from your connected Gmail
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={paymentLoading}
+          className="flex items-center gap-2"
         >
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Order {selectedOrder.orderId}</DialogTitle>
-              <DialogDescription>
-                Order details and timeline
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold">Customer</h3>
-                <p>Name: {selectedOrder.customerName || selectedOrder.userId?.name || "N/A"}</p>
-                <p>Email: {selectedOrder.customerEmail || selectedOrder.userId?.email || "N/A"}</p>
-                <p>WhatsApp Number: {selectedOrder.customerWhatsApp || selectedOrder.userId?.whatsAppNumber || "N/A"}</p>
-              </div>
+          <RefreshCw
+            className={`h-4 w-4 ${paymentLoading ? "animate-spin" : ""}`}
+          />
+          {paymentLoading ? "Refreshing..." : "Refresh"}
+        </Button>
+      </div>
 
-              <div>
-                <h3 className="font-semibold">Items Purchased</h3>
-                <div className="space-y-2">
-                  {selectedOrder.items.map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 p-2 border rounded"
-                    >
-                      {item.image ? (
-                        <img
-                          loading="lazy"
-                          src={API_URL + item.image}
-                          alt={item.productName}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                          <Package className="h-6 w-6" />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <p className="font-medium">{item.productName}</p>
-                        {item.optionTitle && item.optionTitle !== "Default" && (
-                          <p className="text-sm text-purple-600">
-                            {item.optionTitle}
-                          </p>
-                        )}
-                        {item.subcategoryName && item.subcategoryName !== "Default" && (
-                          <p className="text-sm text-gray-600">
-                            {item.subcategoryName}
-                          </p>
-                        )}
-                        {item.variantTitle && item.variantTitle !== "Default" && (
-                          <p className="text-sm text-gray-500">
-                            Variant: {item.variantTitle}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p>Qty: {item.quantity}</p>
-                        <p>
-                          Price: {formatPrice(item.price)} / {item.measurement}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold mt-4 mb-2">Order Timeline</h3>
-
-                <div className="relative border-l border-gray-300 pl-6 space-y-6">
-                  {selectedOrder.statusHistory
-                    .sort(
-                      (a, b) =>
-                        new Date(a.changedAt).getTime() -
-                        new Date(b.changedAt).getTime(),
-                    )
-                    .map((history, index) => {
-                      const statusLower = history.status.toLowerCase();
-                      const dotColor =
-                        statusLower === "cancelled"
-                          ? "bg-red-500"
-                          : statusLower === "ready" || statusLower === "delivered" || statusLower === "completed"
-                          ? "bg-green-500"
-                          : statusLower === "processing"
-                          ? "bg-blue-500"
-                          : "bg-yellow-500";
-                      const badgeVariant =
-                        statusLower === "cancelled"
-                          ? "destructive"
-                          : statusLower === "processing"
-                          ? "secondary"
-                          : statusLower === "ready" || statusLower === "delivered" || statusLower === "completed"
-                          ? "default"
-                          : "outline";
-                      return (
-                        <div key={index} className="relative">
-                          <span
-                            className={`absolute -left-[13px] top-1.5 w-3 h-3 rounded-full ring-2 ring-white ${dotColor}`}
-                          />
-                          <div className="bg-gray-50 p-3 rounded-md border">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant={badgeVariant} className="capitalize">
-                                {history.status}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-gray-500">
-                              {new Date(history.changedAt).toLocaleString()}
+      {/* Payment Emails Table */}
+      {paymentEmails.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p className="text-lg font-medium text-muted-foreground">
+              No payments detected yet
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Connect your Gmail in Settings → Payments to start tracking
+              payment emails.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-semibold">Amount</TableHead>
+                    <TableHead className="font-semibold">From</TableHead>
+                    <TableHead className="font-semibold">Provider</TableHead>
+                    <TableHead className="font-semibold">Reference</TableHead>
+                    <TableHead className="font-semibold">
+                      Matched Order
+                    </TableHead>
+                    <TableHead className="font-semibold">Received</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold text-right">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paymentEmails.map((email) => (
+                    <TableRow key={email._id} className="hover:bg-muted/30">
+                      <TableCell>
+                        <span className="font-bold text-green-600 text-base">
+                          {formatPrice(email.amount)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <span className="text-sm font-medium">
+                            {email.senderName || "Unknown"}
+                          </span>
+                          {email.from && email.senderName && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                              {email.from}
                             </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {email.bankOrProvider ? (
+                          <Badge
+                            variant="secondary"
+                            className="text-xs font-medium"
+                          >
+                            {email.bankOrProvider}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            —
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs font-mono text-muted-foreground">
+                          {email.referenceId || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {email.matchedOrderId ? (
+                          <Badge variant="default" className="text-xs">
+                            Order #{email.matchedOrderId}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-muted-foreground"
+                          >
+                            No match
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs text-muted-foreground">
+                          <p>
+                            {new Date(email.receivedAt).toLocaleDateString()}
+                          </p>
+                          <p>
+                            {new Date(email.receivedAt).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            email.status === "confirmed"
+                              ? "default"
+                              : email.status === "ignored"
+                                ? "secondary"
+                                : email.status === "matched"
+                                  ? "outline"
+                                  : "destructive"
+                          }
+                          className={`text-xs capitalize ${
+                            email.status === "confirmed"
+                              ? "bg-green-100 text-green-700 border-green-200"
+                              : ""
+                          }`}
+                        >
+                          {email.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {email.status !== "confirmed" &&
+                        email.status !== "ignored" ? (
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => onAction(email._id, "confirmed")}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Confirm
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs"
+                              onClick={() => onAction(email._id, "ignored")}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Ignore
+                            </Button>
                           </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-              <div>
-                <h3 className="font-semibold">Order Summary</h3>
-                <p>Total Amount: {formatPrice(selectedOrder.totalAmount)}</p>
-                <p>Order Type: {selectedOrder.orderType}</p>
-                {selectedOrder.transactionId && (
-                  <p>
-                    Transaction ID:{" "}
-                    <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm">
-                      {selectedOrder.transactionId}
-                    </span>
-                  </p>
-                )}
-
-                {selectedOrder.orderType === "delivery" &&
-                  selectedOrder.deliveryAddress && (
-                    <>
-                      <h4 className="font-semibold mt-2">Delivery Address</h4>
-                      <p>{selectedOrder.deliveryAddress.street}</p>
-                      <p>
-                        {selectedOrder.deliveryAddress.city},{" "}
-                        {selectedOrder.deliveryAddress.state}
-                      </p>
-                      {selectedOrder.instructions && (
-                        <p>
-                          Special Instructions: {selectedOrder.instructions}
-                        </p>
-                      )}
-                    </>
-                  )}
-
-                {selectedOrder.orderType === "pickup" && (
-                  <>
-                    <h4 className="font-semibold mt-2">Pickup Details</h4>
-                    <p>
-                      Date:{" "}
-                      {new Date(selectedOrder.pickupDate!).toLocaleDateString()}
-                    </p>
-                    <p>Time: {selectedOrder.pickupTime}</p>
-                    {selectedOrder.instructions && (
-                      <p>Special Instructions: {selectedOrder.instructions}</p>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button onClick={closeModal}>Close</Button>
-              <Button variant="whatsApp" onClick={sendLatestStatusToWhatsApp}>
-                <FaWhatsapp /> Send Status on WhatsApp
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Print Preview Dialog */}
-      <Dialog open={printPreviewOpen} onOpenChange={setPrintPreviewOpen}>
-        <DialogContent className="max-w-md w-[90vw] sm:w-full max-h-[85vh] overflow-y-auto p-4">
-          <DialogHeader className="sticky top-0 bg-white z-10 pb-2 border-b">
-            <DialogTitle className="text-base sm:text-lg font-semibold">
-              Print Receipt
-            </DialogTitle>
-            <DialogDescription className="text-sm text-gray-500">
-              Preview of thermal printer receipt
-            </DialogDescription>
-          </DialogHeader>
-
-          {printOrder && (
-            <div className="space-y-4 mt-2">
-              {/* 🧾 Thermal Receipt Style */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4 font-mono text-[13px] sm:text-sm shadow-sm">
-                {/* Shop Info */}
-                <div className="text-center mb-2">
-                  <div className="font-bold text-lg">
-                    {shopkeeperInfo?.shopName || "Shop Name"}
-                  </div>
-                  {shopkeeperInfo?.phone && (
-                    <div>Phone: {shopkeeperInfo.phone}</div>
-                  )}
-                  {shopkeeperInfo?.businessEmail && (
-                    <div>Email: {shopkeeperInfo.businessEmail}</div>
-                  )}
-                  {shopkeeperInfo?.GSTNumber && (
-                    <div>GSTIN: {shopkeeperInfo.GSTNumber}</div>
-                  )}
-                  <div className="my-2 border-t border-dashed border-gray-300"></div>
-                </div>
-
-                {/* Order Info */}
-                <div className="space-y-1">
-                  <div className="font-bold">
-                    Order #:{" "}
-                    <span className="font-normal">
-                      {printOrder.orderId?.slice(-6)?.toUpperCase() || "N/A"}
-                    </span>
-                  </div>
-                  <div>
-                    Date: {new Date(printOrder.createdAt).toLocaleDateString()}
-                  </div>
-                  <div>
-                    Time:{" "}
-                    {new Date(printOrder.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                </div>
-
-                <div className="my-2 border-t border-dashed border-gray-300"></div>
-
-                {/* Customer Info */}
-                <div className="space-y-1">
-                  <div className="font-bold">Customer:</div>
-                  <div>Name: {printOrder.userId.name}</div>
-                  {printOrder.userId.whatsAppNumber && (
-                    <div>Phone: {printOrder.userId.whatsAppNumber}</div>
-                  )}
-                  {printOrder.userId.email && (
-                    <div>Email: {printOrder.userId.email}</div>
-                  )}
-                  {printOrder.orderType === "pickup" && (
-                    <>
-                      <div>Order Type: {printOrder?.orderType}</div>
-                      <div>
-                        PickUp Address:{" "}
-                        {printOrder?.pickupDate
-                          ? new Date(printOrder.pickupDate).toLocaleDateString(
-                              "en-IN",
-                              {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              },
-                            )
-                          : ""}{" "}
-                        {printOrder?.pickupTime}
-                      </div>
-                    </>
-                  )}
-                  {printOrder.orderType === "delivery" && (
-                    <>
-                      <div>Order Type: {printOrder.orderType}</div>
-                      <div>Delivery Address: {deliveryAddressLine}</div>
-                    </>
-                  )}
-                </div>
-
-                <div className="my-2 border-t border-dashed border-gray-300"></div>
-
-                {/* Items */}
-                <div>
-                  <div className="font-bold mb-1">Items:</div>
-                  {printOrder.items.map((item, index) => (
-                    <div key={index} className="mb-1">
-                      <div className="font-semibold">{item.productName}</div>
-                      {[item.optionTitle, item.subcategoryName, item.variantTitle].some((v) => v && v !== "Default") && (
-                        <div className="text-xs text-gray-600">
-                          ({[item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(", ")})
-                        </div>
-                      )}
-                      <div>
-                        {item.quantity} × {formatPrice(item.price)} ={" "}
-                        {formatPrice(item.quantity * item.price)}
-                      </div>
-                    </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            {email.status === "confirmed"
+                              ? "Verified"
+                              : "Dismissed"}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </div>
-
-                <div className="my-2 border-t border-dashed border-gray-300"></div>
-
-                {/* Totals */}
-                <div className="text-right space-y-1">
-                  {shopkeeperInfo?.taxPercentage && (
-                    <div>
-                      Tax: {getSymbol()}{" "}
-                      {formatPrice(
-                        (shopkeeperInfo.taxPercentage *
-                          printOrder.totalAmount) /
-                          (100 + shopkeeperInfo.taxPercentage),
-                      )}
-                    </div>
-                  )}
-                  <div className="font-bold">
-                    Total: {formatPrice(printOrder.totalAmount)}
-                  </div>
-                </div>
-
-                <div className="my-2 border-t border-dashed border-gray-300"></div>
-
-                {/* Payment Info */}
-                <div className="space-y-1">
-                  <div>Payment: Online</div>
-                  <div>Status: {printOrder.status?.toUpperCase()}</div>
-                </div>
-
-                <div className="my-2 border-t border-dashed border-gray-300"></div>
-
-                {/* Footer */}
-                <div className="text-center mt-3 text-[13px]">
-                  <div className="font-semibold">Thank you for your order!</div>
-                  <div>Visit us again!</div>
-                </div>
-              </div>
-
-              <div className="text-sm text-gray-600">
-                <p>This will be sent to your Bluetooth thermal printer.</p>
-                <p>Ensure your printer is connected and ready.</p>
-              </div>
+                </TableBody>
+              </Table>
             </div>
-          )}
-
-          {/* ✅ Buttons fixed at bottom */}
-          <div className="flex justify-end gap-2 mt-4 sticky bottom-0 bg-white pt-3 border-t">
-            <Button
-              variant="buttonOutline"
-              onClick={() => setPrintPreviewOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={async () => await handleShareOrDownload(printOrder._id)}
-              className="flex items-center gap-2"
-            >
-              <Printer className="h-4 w-4" />
-              Print
-            </Button>
-            <Button
-              onClick={async () => await downloadReceipt(printOrder._id)}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Download
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* 🧾 Receipt View Dialog */}
-      <Dialog open={receiptViewOpen} onOpenChange={closeReceiptView}>
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-4">
-          <DialogHeader className="sticky top-0 bg-white z-10 pb-2 border-b">
-            <DialogTitle className="text-base sm:text-lg">
-              Receipt View
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="h-[70vh] sm:h-[80vh]">
-            {receiptUrl ? (
-              <iframe
-                src={receiptUrl}
-                className="w-full h-full border-0 rounded-md"
-                title="Receipt"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                Loading...
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 mt-4">
-            {receiptUrl && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const a = document.createElement("a");
-                  a.href = receiptUrl;
-                  a.download = "receipt.pdf";
-                  a.click();
-                }}
-              >
-                Download
-              </Button>
-            )}
-            <Button onClick={closeReceiptView}>Close</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Print Format Selection Dialog */}
-      <Dialog open={printSelectionOpen} onOpenChange={setPrintSelectionOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Select Print Format</DialogTitle>
-            <DialogDescription>
-              Choose the receipt format you want to generate for Order #
-              {printingOrder?.orderId}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-2 gap-4 py-4">
-            {/* Option 1: Thermal 58mm */}
-            <Button
-              variant="outline"
-              className="h-24 flex flex-col gap-2 hover:bg-slate-50 border-2 hover:border-blue-500"
-              onClick={() => fetchAndPreviewReceipt("58MM")}
-            >
-              <Receipt className="h-8 w-8 text-slate-600" />
-              <span className="font-semibold">Thermal (58mm)</span>
-            </Button>
-
-            {/* Option 2: Standard A4 */}
-            <Button
-              variant="outline"
-              className="h-24 flex flex-col gap-2 hover:bg-slate-50 border-2 hover:border-blue-500"
-              onClick={() => fetchAndPreviewReceipt("A4")}
-            >
-              <Printer className="h-8 w-8 text-slate-600" />
-              <span className="font-semibold">Standard (A4)</span>
-            </Button>
-          </div>
-
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              onClick={() => setPrintSelectionOpen(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-
-      <ConfirmDeleteDialog
-        open={deleteDialogOpen}
-        onCancel={() => {
-          setDeleteDialogOpen(false);
-          setDeletingOrderId(null);
-        }}
-        onConfirm={handleDeleteOrder}
-        loading={deleting}
-      />
-
-      <LoadingOverlay show={loading} />
-    </>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

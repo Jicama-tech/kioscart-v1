@@ -141,7 +141,7 @@ const COLORS = [
 const NAVIGATION_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: Store },
   { id: 'kiosk', label: 'Kiosk Mode', icon: Monitor },
-  { id: 'orders', label: 'Orders & Cart', icon: ShoppingCart },
+  { id: 'orders', label: 'Orders & Payments', icon: ShoppingCart },
   { id: 'crm', label: 'CRM', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'storefront', label: 'Storefront', icon: Globe, isAction: true },
@@ -1717,7 +1717,7 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
                 <Suspense fallback={<TabLoadingFallback />}>
                   <div className="space-y-4">
                     <h2 className="text-2xl sm:text-3xl font-bold">
-                      Orders & Cart
+                      Orders & Payments
                     </h2>
                     <CartManagement />
                   </div>
