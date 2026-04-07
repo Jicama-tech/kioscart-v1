@@ -66,6 +66,8 @@ import {
   Trash,
   Edit3,
   UserPlus2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -174,16 +176,29 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   const [editingOperatorIndex, setEditingOperatorIndex] = useState<
     number | null
   >(null);
+  const ALL_TABS = ["dashboard", "orders", "products", "crm", "kiosk", "storefront", "settings"];
+  const TAB_LABELS: Record<string, string> = {
+    dashboard: "Dashboard",
+    orders: "Orders & Payments",
+    products: "Products",
+    crm: "CRM / Customers",
+    kiosk: "Kiosk Mode",
+    storefront: "Storefront",
+    settings: "Settings",
+  };
+
   const [operatorForm, setOperatorForm] = useState<{
     name: string;
     operatorCountryCode: string;
     operatorEmail: string;
     operatorLocalNumber: string;
+    accessTabs: string[];
   }>({
     name: "",
     operatorCountryCode: "+91",
     operatorEmail: "",
     operatorLocalNumber: "",
+    accessTabs: [...ALL_TABS],
   });
   const [isSavingOperators, setIsSavingOperators] = useState(false);
 
@@ -1086,6 +1101,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           name: operatorForm.name,
           whatsAppNumber: fullWhatsApp,
           email: operatorForm.operatorEmail,
+          accessTabs: operatorForm.accessTabs,
         }),
       });
 
@@ -1105,6 +1121,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         operatorCountryCode: "+91",
         operatorEmail: "",
         operatorLocalNumber: "",
+        accessTabs: [...ALL_TABS],
       });
       setEditingOperatorIndex(null);
     } catch (err: any) {
@@ -1127,7 +1144,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       const decoded = jwtDecode<{ sub: string }>(token);
       const shopkeeperId = decoded.sub;
 
-      const res = await fetch(`${apiURL}/operators/${operatorId}`, {
+      const res = await fetch(`${apiURL}/operators/delete-operator/${operatorId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -2400,6 +2417,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       operatorCountryCode: countryCode,
                       operatorEmail: "",
                       operatorLocalNumber: "",
+                      accessTabs: [...ALL_TABS],
                     });
                     setEditingOperatorIndex(null);
                     setOperatorDialogOpen(true);
@@ -2448,6 +2466,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                 operatorCountryCode: splitCode,
                                 operatorEmail: op.email,
                                 operatorLocalNumber: splitLocal,
+                                accessTabs: op.accessTabs || [...ALL_TABS],
                               });
                               setEditingOperatorIndex(index);
                               setOperatorDialogOpen(true);
@@ -2478,7 +2497,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             open={operatorDialogOpen}
             onOpenChange={setOperatorDialogOpen}
           >
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingOperatorIndex !== null
@@ -2573,6 +2592,49 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   />
                 </div>
               </div>
+              {/* Tab Access Permissions - Collapsible */}
+              <div className="mt-2">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  onClick={() => {
+                    const el = document.getElementById("access-tabs-panel");
+                    if (el) el.classList.toggle("hidden");
+                    const icon = document.getElementById("access-tabs-chevron");
+                    if (icon) icon.classList.toggle("rotate-180");
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <div className="text-left">
+                      <p className="text-sm font-semibold">Tab Access Permissions</p>
+                      <p className="text-xs text-muted-foreground">
+                        {operatorForm.accessTabs.length} of {ALL_TABS.length} tabs enabled
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown id="access-tabs-chevron" className="h-4 w-4 text-muted-foreground transition-transform" />
+                </button>
+                <div id="access-tabs-panel" className="hidden mt-2 space-y-1 border rounded-lg p-3 bg-muted/30">
+                  {ALL_TABS.map((tab) => (
+                    <div key={tab} className="flex items-center justify-between py-1.5 px-1">
+                      <Label className="text-sm cursor-pointer">{TAB_LABELS[tab]}</Label>
+                      <Switch
+                        checked={operatorForm.accessTabs.includes(tab)}
+                        onCheckedChange={(checked) => {
+                          setOperatorForm((prev) => ({
+                            ...prev,
+                            accessTabs: checked
+                              ? [...prev.accessTabs, tab]
+                              : prev.accessTabs.filter((t) => t !== tab),
+                          }));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <Button
                 className="w-full mt-4"
                 onClick={handleSubmitOperator}

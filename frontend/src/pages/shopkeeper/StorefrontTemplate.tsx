@@ -412,7 +412,6 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
   const handleSaveCustomization = (newSettings: any) => {
     setSettings(newSettings);
-    setShowCustomizer(false);
   };
 
   const filteredProducts =

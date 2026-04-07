@@ -20,6 +20,9 @@ export class Operator {
 
   @Prop()
   organizerId?: string;
+
+  @Prop({ type: [String], default: ["dashboard", "orders", "products", "crm", "kiosk", "storefront", "settings"] })
+  accessTabs: string[];
 }
 
 export const OperatorSchema = SchemaFactory.createForClass(Operator);

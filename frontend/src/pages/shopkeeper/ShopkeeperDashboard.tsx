@@ -137,6 +137,24 @@ const COLORS = [
   '#F97316', // Orange
 ];
 
+// No Access overlay for restricted operator tabs
+function NoAccessOverlay() {
+  return (
+    <div className="relative min-h-[60vh] flex items-center justify-center">
+      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 rounded-xl" />
+      <div className="relative z-20 text-center p-8">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+          <AlertCircle className="h-8 w-8 text-red-500" />
+        </div>
+        <h3 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h3>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          You don't have permission to access this section. Contact the store owner to update your access.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // Static data moved outside component to prevent re-creation on every render
 const NAVIGATION_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: Store },
@@ -213,6 +231,13 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Check if current user has access to a tab
+  const hasTabAccess = (tabId: string) => {
+    if (!isOperator) return true; // Shopkeepers have full access
+    if (!accessTabs) return true; // No restrictions set
+    return accessTabs.includes(tabId);
+  };
   const [showStorefront, setShowStorefront] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -227,16 +252,20 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
     shopkeeperInfo?.country || 'IN',
   );
 
-  // Derive shopkeeperId from JWT for kiosk mode
-  const shopkeeperId = useMemo(() => {
+  // Derive shopkeeperId, operatorId, accessTabs from JWT
+  const { shopkeeperId, isOperator, accessTabs } = useMemo(() => {
     try {
       const token = sessionStorage.getItem('token');
       if (token) {
         const decoded: any = jwtDecode(token);
-        return decoded.sub as string;
+        return {
+          shopkeeperId: decoded.sub as string,
+          isOperator: !!decoded.operatorId,
+          accessTabs: decoded.accessTabs as string[] | undefined,
+        };
       }
     } catch {}
-    return '';
+    return { shopkeeperId: '', isOperator: false, accessTabs: undefined };
   }, []);
 
   // Payment email notification polling
@@ -833,6 +862,7 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
               className="w-full"
             >
               <TabsContent value="dashboard" className="mt-0">
+                {hasTabAccess('dashboard') ? (
                 <div className="space-y-4 sm:space-y-6">
                   <h2 className="text-2xl sm:text-3xl font-bold">Dashboard</h2>
 
@@ -1692,66 +1722,73 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
                     </CardContent>
                   </Card>
                 </div>
+                ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="products" className="mt-0">
-                <Suspense fallback={<TabLoadingFallback />}>
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <h2 className="text-2xl sm:text-3xl font-bold">
-                        Products
-                      </h2>
+                {hasTabAccess('products') ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <h2 className="text-2xl sm:text-3xl font-bold">Products</h2>
+                      </div>
+                      <ProductManagement />
                     </div>
-                    <ProductManagement />
-                  </div>
-                </Suspense>
+                  </Suspense>
+                ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="kiosk" className="mt-0">
-                <Suspense fallback={<TabLoadingFallback />}>
-                  {shopkeeperId && <KioskMode shopkeeperId={shopkeeperId} />}
-                </Suspense>
+                {hasTabAccess('kiosk') ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    {shopkeeperId && <KioskMode shopkeeperId={shopkeeperId} />}
+                  </Suspense>
+                ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="orders" className="mt-0">
-                <Suspense fallback={<TabLoadingFallback />}>
-                  <div className="space-y-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold">
-                      Orders & Payments
-                    </h2>
-                    <CartManagement />
-                  </div>
-                </Suspense>
+                {hasTabAccess('orders') ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <div className="space-y-4">
+                      <h2 className="text-2xl sm:text-3xl font-bold">Orders & Payments</h2>
+                      <CartManagement />
+                    </div>
+                  </Suspense>
+                ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="crm" className="mt-0">
-                <Suspense fallback={<TabLoadingFallback />}>
-                  <div className="space-y-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold">
-                      Management Dashboard
-                    </h2>
-                    <CRMManagement />
-                  </div>
-                </Suspense>
+                {hasTabAccess('crm') ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <div className="space-y-4">
+                      <h2 className="text-2xl sm:text-3xl font-bold">Management Dashboard</h2>
+                      <CRMManagement />
+                    </div>
+                  </Suspense>
+                ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="storefront" className="mt-0 outline-none">
-                <Suspense fallback={<TabLoadingFallback />}>
-                  <div className="space-y-4">
-                    <StorefrontCustomizer
-                      onBack={() => setActiveTab('storefront')}
-                      onSave={() => setShowPreview(true)}
-                    />
-                  </div>
-                </Suspense>
+                {hasTabAccess('storefront') ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <div className="space-y-4">
+                      <StorefrontCustomizer
+                        onBack={() => setActiveTab('storefront')}
+                        onSave={() => setShowPreview(true)}
+                      />
+                    </div>
+                  </Suspense>
+                ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="settings" className="mt-0">
-                <Suspense fallback={<TabLoadingFallback />}>
-                  <div className="space-y-4">
-                    <ShopkeeperSettings onSave={handleSaveSettings} />
-                  </div>
-                </Suspense>
+                {hasTabAccess('settings') ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <div className="space-y-4">
+                      <ShopkeeperSettings onSave={handleSaveSettings} />
+                    </div>
+                  </Suspense>
+                ) : <NoAccessOverlay />}
               </TabsContent>
             </Tabs>
           </div>
