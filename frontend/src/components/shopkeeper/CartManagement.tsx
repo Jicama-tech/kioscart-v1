@@ -1290,6 +1290,24 @@ Thank you for shopping with us.
             onAction={handlePaymentAction}
             onRefresh={fetchPaymentEmails}
             formatPrice={formatPrice}
+            orders={orders}
+            onViewOrder={(order) => { setSelectedOrder(order); setViewOpen(true); }}
+            onFetchAndViewOrder={async (matchedOrderId) => {
+              try {
+                const token = sessionStorage.getItem("token");
+                if (!token) return;
+                const decoded: any = jwtDecode(token);
+                const sid = decoded.sub;
+                const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  const allOrders = Array.isArray(data) ? data : (data.orders || []);
+                  const found = allOrders.find((o: any) => o.orderId === matchedOrderId);
+                  if (found) { setSelectedOrder(found); setViewOpen(true); }
+                }
+              } catch {}
+            }}
+            onStatusChange={promptStatusChange}
           />
         </TabsContent>
       </Tabs>
@@ -2201,9 +2219,90 @@ Thank you for shopping with us.
             onAction={handlePaymentAction}
             onRefresh={fetchPaymentEmails}
             formatPrice={formatPrice}
+            orders={orders}
+            onViewOrder={(order) => { setSelectedOrder(order); setViewOpen(true); }}
+            onFetchAndViewOrder={async (matchedOrderId) => {
+              try {
+                const token = sessionStorage.getItem("token");
+                if (!token) return;
+                const decoded: any = jwtDecode(token);
+                const sid = decoded.sub;
+                const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  const allOrders = Array.isArray(data) ? data : (data.orders || []);
+                  const found = allOrders.find((o: any) => o.orderId === matchedOrderId);
+                  if (found) { setSelectedOrder(found); setViewOpen(true); }
+                }
+              } catch {}
+            }}
+            onStatusChange={promptStatusChange}
           />
         </TabsContent>
       </Tabs>
+
+      {/* Order Detail Dialog — rendered outside Tabs so it works from Payments tab too */}
+      {selectedOrder && activeTab === "payments" && (
+        <Dialog open={viewOpen} onOpenChange={(flag) => { if (!flag) closeModal(); }}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Order {selectedOrder.orderId}</DialogTitle>
+              <DialogDescription>Order details and timeline</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold">Customer</h3>
+                <p>Name: {selectedOrder.customerName || selectedOrder.userId?.name || "N/A"}</p>
+                <p>Email: {selectedOrder.customerEmail || selectedOrder.userId?.email || "N/A"}</p>
+                <p>WhatsApp: {selectedOrder.customerWhatsApp || selectedOrder.userId?.whatsAppNumber || "N/A"}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold">Items Purchased</h3>
+                <div className="space-y-2">
+                  {selectedOrder.items.map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2 border rounded">
+                      {item.image ? (
+                        <img loading="lazy" src={API_URL + item.image} alt={item.productName} className="w-12 h-12 object-cover rounded" />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                          <Package className="h-6 w-6" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium">{item.productName}</p>
+                        {item.optionTitle && item.optionTitle !== "Default" && (
+                          <p className="text-sm text-purple-600">{item.optionTitle}</p>
+                        )}
+                        {item.subcategoryName && item.subcategoryName !== "Default" && (
+                          <p className="text-sm text-gray-600">{item.subcategoryName}</p>
+                        )}
+                        {item.variantTitle && item.variantTitle !== "Default" && (
+                          <p className="text-sm text-gray-500">Variant: {item.variantTitle}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p>Qty: {item.quantity}</p>
+                        <p>Price: {formatPrice(item.price)} / {item.measurement}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold">Order Summary</h3>
+                <p>Total Amount: {formatPrice(selectedOrder.totalAmount)}</p>
+                <p>Order Type: {selectedOrder.orderType}</p>
+                {selectedOrder.transactionId && (
+                  <p>Transaction ID: <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm">{selectedOrder.transactionId}</span></p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button onClick={closeModal}>Close</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
@@ -2215,13 +2314,30 @@ function PaymentsTabContent({
   onAction,
   onRefresh,
   formatPrice,
+  orders,
+  onViewOrder,
+  onFetchAndViewOrder,
+  onStatusChange,
 }: {
   paymentEmails: any[];
   paymentLoading: boolean;
   onAction: (id: string, status: "confirmed" | "ignored") => void;
   onRefresh: () => void;
   formatPrice: (amount: number) => string;
+  orders: any[];
+  onViewOrder: (order: any) => void;
+  onFetchAndViewOrder: (orderId: string) => void;
+  onStatusChange: (orderId: string, status: string) => void;
 }) {
+  const STATUS_OPTIONS = [
+    { label: "Pending", value: "pending" },
+    { label: "Processing", value: "processing" },
+    { label: "Ready", value: "ready" },
+    { label: "Shipped", value: "shipped" },
+    { label: "Cancelled", value: "cancelled" },
+    { label: "Completed", value: "completed" },
+  ];
+
   const confirmed = paymentEmails.filter((e) => e.status === "confirmed");
   const pending = paymentEmails.filter(
     (e) => e.status !== "confirmed" && e.status !== "ignored",
@@ -2229,24 +2345,20 @@ function PaymentsTabContent({
   const ignored = paymentEmails.filter((e) => e.status === "ignored");
   const totalAmount = confirmed.reduce((sum, e) => sum + (e.amount || 0), 0);
 
+  const findOrder = (orderId: string) => orders.find((o) => o.orderId === orderId);
+
   return (
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Review
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
             <Clock className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              {pending.length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Awaiting confirmation
-            </p>
+            <div className="text-2xl font-bold text-orange-600">{pending.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting confirmation</p>
           </CardContent>
         </Card>
         <Card>
@@ -2255,30 +2367,20 @@ function PaymentsTabContent({
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {confirmed.length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Payments verified
-            </p>
+            <div className="text-2xl font-bold text-green-600">{confirmed.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Payments verified</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Confirmed
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Confirmed</CardTitle>
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {totalAmount > 0
-                ? formatPrice(totalAmount)
-                : "—"}
+              {totalAmount > 0 ? formatPrice(totalAmount) : "—"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Revenue confirmed via email
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Revenue confirmed via email</p>
           </CardContent>
         </Card>
         <Card>
@@ -2287,12 +2389,8 @@ function PaymentsTabContent({
             <Ban className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-400">
-              {ignored.length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Dismissed payments
-            </p>
+            <div className="text-2xl font-bold text-gray-400">{ignored.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Dismissed payments</p>
           </CardContent>
         </Card>
       </div>
@@ -2301,20 +2399,10 @@ function PaymentsTabContent({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Payment Transactions</h3>
-          <p className="text-sm text-muted-foreground">
-            Payments detected from your connected Gmail
-          </p>
+          <p className="text-sm text-muted-foreground">Payments detected from your connected Gmail</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRefresh}
-          disabled={paymentLoading}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${paymentLoading ? "animate-spin" : ""}`}
-          />
+        <Button variant="outline" size="sm" onClick={onRefresh} disabled={paymentLoading} className="flex items-center gap-2">
+          <RefreshCw className={`h-4 w-4 ${paymentLoading ? "animate-spin" : ""}`} />
           {paymentLoading ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
@@ -2324,13 +2412,8 @@ function PaymentsTabContent({
         <Card>
           <CardContent className="py-16 text-center">
             <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium text-muted-foreground">
-              No payments detected yet
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Connect your Gmail in Settings → Payments to start tracking
-              payment emails.
-            </p>
+            <p className="text-lg font-medium text-muted-foreground">No payments detected yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Connect your Gmail in Settings → Payments to start tracking payment emails.</p>
           </CardContent>
         </Card>
       ) : (
@@ -2340,135 +2423,115 @@ function PaymentsTabContent({
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="font-semibold">Amount</TableHead>
-                    <TableHead className="font-semibold">From</TableHead>
-                    <TableHead className="font-semibold">Provider</TableHead>
-                    <TableHead className="font-semibold">Reference</TableHead>
-                    <TableHead className="font-semibold">
-                      Matched Order
-                    </TableHead>
-                    <TableHead className="font-semibold">Received</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold text-right">
-                      Actions
-                    </TableHead>
+                    <TableHead className="font-semibold text-center">Amount</TableHead>
+                    <TableHead className="font-semibold text-center">Provider</TableHead>
+                    <TableHead className="font-semibold text-center">Reference</TableHead>
+                    <TableHead className="font-semibold text-center">Matched Order</TableHead>
+                    <TableHead className="font-semibold text-center">Order Status</TableHead>
+                    <TableHead className="font-semibold text-center">Received</TableHead>
+                    <TableHead className="font-semibold text-center">Payment Status</TableHead>
+                    <TableHead className="font-semibold text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paymentEmails.map((email) => (
-                    <TableRow key={email._id} className="hover:bg-muted/30">
-                      <TableCell>
-                        <span className="font-bold text-green-600 text-base">
-                          {formatPrice(email.amount)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <span className="text-sm font-medium">
-                            {email.senderName || "Unknown"}
+                  {paymentEmails.map((email) => {
+                    const matchedOrder = email.matchedOrderId ? findOrder(email.matchedOrderId) : null;
+                    return (
+                      <TableRow key={email._id} className="hover:bg-muted/30">
+                        <TableCell>
+                          <span className="font-bold text-green-600 text-base">
+                            {formatPrice(email.amount)}
                           </span>
-                          {email.from && email.senderName && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[150px]">
-                              {email.from}
-                            </p>
+                        </TableCell>
+                        <TableCell>
+                          {email.bankOrProvider ? (
+                            <Badge variant="secondary" className="text-xs font-medium">{email.bankOrProvider}</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {email.bankOrProvider ? (
-                          <Badge
-                            variant="secondary"
-                            className="text-xs font-medium"
-                          >
-                            {email.bankOrProvider}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs font-mono text-muted-foreground">
-                          {email.referenceId || "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {email.matchedOrderId ? (
-                          <Badge variant="default" className="text-xs">
-                            Order #{email.matchedOrderId}
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-xs text-muted-foreground"
-                          >
-                            No match
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-xs text-muted-foreground">
-                          <p>
-                            {new Date(email.receivedAt).toLocaleDateString()}
-                          </p>
-                          <p>
-                            {new Date(email.receivedAt).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            email.status === "confirmed"
-                              ? "default"
-                              : email.status === "ignored"
-                                ? "secondary"
-                                : email.status === "matched"
-                                  ? "outline"
-                                  : "destructive"
-                          }
-                          className={`text-xs capitalize ${
-                            email.status === "confirmed"
-                              ? "bg-green-100 text-green-700 border-green-200"
-                              : ""
-                          }`}
-                        >
-                          {email.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {email.status !== "confirmed" &&
-                        email.status !== "ignored" ? (
-                          <div className="flex gap-2 justify-end">
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-mono text-muted-foreground">{email.referenceId || "—"}</span>
+                        </TableCell>
+                        <TableCell>
+                          {email.matchedOrderId ? (
                             <Button
+                              variant="link"
                               size="sm"
-                              className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => onAction(email._id, "confirmed")}
+                              className="h-auto p-0 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                              onClick={() => {
+                                if (matchedOrder) {
+                                  onViewOrder(matchedOrder);
+                                } else {
+                                  onFetchAndViewOrder(email.matchedOrderId);
+                                }
+                              }}
                             >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Confirm
+                              <Eye className="h-3 w-3 mr-1" />
+                              Order #{email.matchedOrderId}
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 text-xs"
-                              onClick={() => onAction(email._id, "ignored")}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Ignore
-                            </Button>
+                          ) : (
+                            <Badge variant="outline" className="text-xs text-muted-foreground">No match</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {matchedOrder ? (
+                            <Select value={matchedOrder.status} onValueChange={(val) => onStatusChange(matchedOrder._id, val)}>
+                              <SelectTrigger className="w-32 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {STATUS_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs text-muted-foreground">
+                            <p>{new Date(email.receivedAt).toLocaleDateString()}</p>
+                            <p>{new Date(email.receivedAt).toLocaleTimeString()}</p>
                           </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            {email.status === "confirmed"
-                              ? "Verified"
-                              : "Dismissed"}
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              email.status === "confirmed" ? "default"
+                                : email.status === "ignored" ? "secondary"
+                                : email.status === "matched" ? "outline"
+                                : "destructive"
+                            }
+                            className={`text-xs capitalize ${email.status === "confirmed" ? "bg-green-100 text-green-700 border-green-200" : ""}`}
+                          >
+                            {email.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Select
+                            value={email.status}
+                            onValueChange={(val) => {
+                              if (val === "confirmed" || val === "ignored") {
+                                onAction(email._id, val);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-32 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="matched">Matched</SelectItem>
+                              <SelectItem value="unmatched">Unmatched</SelectItem>
+                              <SelectItem value="confirmed">Confirmed</SelectItem>
+                              <SelectItem value="ignored">Ignored</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

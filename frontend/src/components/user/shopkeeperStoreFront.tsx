@@ -280,6 +280,23 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
         if (!bundle.store) throw new Error("Store not found");
 
+        // Check if preview mode — override settings with unsaved preview settings
+        const isPreview = new URLSearchParams(window.location.search).get("preview") === "true";
+        const previewSettings = isPreview ? sessionStorage.getItem("storefrontPreviewSettings") : null;
+
+        if (isPreview && previewSettings) {
+          try {
+            const parsed = JSON.parse(previewSettings);
+            bundle.store.settings = {
+              ...bundle.store.settings,
+              general: { ...bundle.store.settings.general, ...parsed.general },
+              design: { ...bundle.store.settings.design, ...parsed.design },
+              features: { ...bundle.store.settings.features, ...parsed.features },
+              seo: { ...bundle.store.settings.seo, ...parsed.seo },
+            };
+          } catch {}
+        }
+
         // Set all data from single response
         setSettings(bundle.store);
 

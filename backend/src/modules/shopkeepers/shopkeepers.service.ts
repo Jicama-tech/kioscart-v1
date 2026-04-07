@@ -939,6 +939,7 @@ export class ShopkeepersService {
           operatorId: op._id.toString(),
           country: parentShop.country,
           roles: ["shopkeeper"],
+          accessTabs: op.accessTabs || ["dashboard", "orders", "products", "crm", "kiosk", "storefront", "settings"],
         };
       }
 

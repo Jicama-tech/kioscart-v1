@@ -56,7 +56,9 @@ export class OperatorsService {
       const newOperator = new this.operatorModel({
         name: createOperatorDto.name,
         whatsAppNumber: createOperatorDto.whatsAppNumber,
+        email: createOperatorDto.email,
         shopkeeperId: shopkeeperId,
+        accessTabs: createOperatorDto.accessTabs,
       });
 
       const savedOperator = await newOperator.save();

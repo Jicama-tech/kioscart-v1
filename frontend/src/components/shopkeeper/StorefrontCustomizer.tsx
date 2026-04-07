@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,6 +36,11 @@ import {
   Share2,
   Share,
   CropIcon,
+  Search,
+  ShoppingCart,
+  Instagram,
+  Facebook,
+  Twitter,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { jwtDecode } from "jwt-decode";
@@ -60,6 +65,7 @@ export function StorefrontCustomizer({
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
   const heroBannerFileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("general");
+  const [viewMode, setViewMode] = useState<"settings" | "preview">("settings");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExistingStore, setIsExistingStore] = useState(false);
@@ -486,9 +492,6 @@ export function StorefrontCustomizer({
           setBannerFile(null);
         }
 
-        onSave?.(result.data);
-      } else {
-        onSave?.(settings);
       }
 
       toast({
@@ -498,10 +501,6 @@ export function StorefrontCustomizer({
           ? "Settings and banner image updated successfully!"
           : "Settings updated successfully.",
       });
-
-      setTimeout(() => {
-        onBack();
-      }, 1000);
     } catch (error: any) {
       toast({
         duration: 5000,
@@ -658,11 +657,6 @@ export function StorefrontCustomizer({
   return (
     <div>
       {/* Header */}
-      {/* 1. sticky: Enables sticky positioning
-  2. top-[64px]: This should match the height of your Dashboard Navbar (usually 16 or 64px)
-  3. z-30: Keeps it above page content but below modals/dropdowns
-  4. bg-white/80 backdrop-blur-md: Gives a modern "glass" effect as content scrolls under it
-*/}
       <div className="sticky top-0 z-30 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="flex items-center justify-between max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-4">
@@ -676,7 +670,33 @@ export function StorefrontCustomizer({
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
+            {/* Settings / Preview Toggle */}
+            <div className="flex bg-muted rounded-lg p-1">
+              <button
+                onClick={() => setViewMode("settings")}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "settings"
+                    ? "bg-white shadow-sm text-slate-900"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Layout className="h-4 w-4 inline mr-1.5" />
+                Settings
+              </button>
+              <button
+                onClick={() => setViewMode("preview")}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "preview"
+                    ? "bg-white shadow-sm text-slate-900"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Eye className="h-4 w-4 inline mr-1.5" />
+                Preview
+              </button>
+            </div>
+
             <Button
               onClick={handleSave}
               disabled={loading}
@@ -689,6 +709,13 @@ export function StorefrontCustomizer({
         </div>
       </div>
 
+      {/* Preview Mode */}
+      {viewMode === "preview" && (
+        <StorefrontPreview settings={settings} slug={slug} apiUrl={apiUrl} />
+      )}
+
+      {/* Settings Mode */}
+      {viewMode === "settings" && (
       <div className="max-w-7xl mx-auto mt-6 mb-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
@@ -2021,6 +2048,7 @@ export function StorefrontCustomizer({
           </TabsContent>
         </Tabs>
       </div>
+      )}
 
       {cropImage && (
         <ImageCropModal
@@ -2033,6 +2061,54 @@ export function StorefrontCustomizer({
           }}
           onCropComplete={handleCropComplete}
         />
+      )}
+    </div>
+  );
+}
+
+// Live Preview Component
+function StorefrontPreview({ settings, slug, apiUrl }: { settings: any; slug: string; apiUrl: string }) {
+  const [iframeKey, setIframeKey] = useState(0);
+  const storeUrl = slug ? `${window.location.origin}/${slug}?preview=true` : "";
+
+  // Save current unsaved settings to sessionStorage so the iframe can read them
+  useEffect(() => {
+    sessionStorage.setItem("storefrontPreviewSettings", JSON.stringify(settings));
+    setIframeKey((k) => k + 1);
+  }, [settings]);
+
+  return (
+    <div className="max-w-7xl mx-auto mt-6 mb-4 px-4">
+      {/* Browser-like URL bar */}
+      <div className="flex items-center gap-2 mb-4 bg-muted rounded-xl px-4 py-3 border">
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-red-400" />
+          <div className="w-3 h-3 rounded-full bg-yellow-400" />
+          <div className="w-3 h-3 rounded-full bg-green-400" />
+        </div>
+        <div className="flex-1 bg-white rounded-lg px-4 py-1.5 text-sm text-muted-foreground font-mono ml-3 border">
+          {storeUrl?.replace("?preview=true", "") || "https://kioscart.com/your-store"}
+        </div>
+      </div>
+
+      {/* Iframe Preview */}
+      {storeUrl ? (
+        <div className="border rounded-xl overflow-hidden shadow-lg bg-white" style={{ height: "75vh" }}>
+          <iframe
+            key={iframeKey}
+            src={storeUrl}
+            className="w-full h-full border-0"
+            title="Storefront Preview"
+          />
+        </div>
+      ) : (
+        <div className="border rounded-xl overflow-hidden shadow-lg bg-white flex items-center justify-center" style={{ height: "75vh" }}>
+          <div className="text-center text-muted-foreground">
+            <Layout className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p className="text-lg font-medium">No store configured yet</p>
+            <p className="text-sm mt-1">Save your store settings first to see the preview.</p>
+          </div>
+        </div>
       )}
     </div>
   );

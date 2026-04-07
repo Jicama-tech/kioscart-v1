@@ -14,7 +14,9 @@ export interface User {
   sub: string;
   email: string;
   name: string;
-  roles: string[]; // Ensure this matches your backend JWT payload
+  roles: string[];
+  operatorId?: string;
+  accessTabs?: string[];
 }
 
 interface AuthContextType {
