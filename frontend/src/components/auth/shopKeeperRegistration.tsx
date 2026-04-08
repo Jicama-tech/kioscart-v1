@@ -86,6 +86,27 @@ export function ShopKeeperRegister() {
     ? COUNTRIES.find((c) => c.code === selectedCountry)
     : null;
 
+  // Agent referral
+  const [agents, setAgents] = useState<{ name: string; referralCode: string }[]>([]);
+  const [selectedAgentCode, setSelectedAgentCode] = useState<string>("");
+  const [referralLocked, setReferralLocked] = useState(false);
+
+  useEffect(() => {
+    // Read referral code from URL — lock it so user can't change
+    const params = new URLSearchParams(location.search);
+    const refCode = params.get("ref");
+    if (refCode) {
+      setSelectedAgentCode(refCode);
+      setReferralLocked(true);
+    }
+
+    // Fetch active agents for dropdown
+    fetch(`${apiURL}/agents/active`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setAgents(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
   // GST/UEN verification states
   const [gstDetails, setGstDetails] = useState(null);
   const [gstValid, setGstValid] = useState<boolean | null>(null);
@@ -590,7 +611,6 @@ export function ShopKeeperRegister() {
           shopName: profile.shopName,
           email: profile.email,
           businessEmail: profile.businessEmail,
-          password: profile.password,
           phone: profile.phone,
           address: profile.address,
           description: profile.description,
@@ -598,10 +618,9 @@ export function ShopKeeperRegister() {
           whatsappNumber: `+${profile.whatsappNumber}`,
           businessCategory: profile.businessCategory,
           country: profile.country,
-          GSTNumber: profile.GSTNumber,
-          UENNumber: profile.UENNumber,
-          isGSTVerified: profile.isGSTVerified,
-          isUENVerified: profile.isUENVerified,
+          GSTNumber: profile.GSTNumber || undefined,
+          UENNumber: profile.UENNumber || undefined,
+          ...(selectedAgentCode && selectedAgentCode !== "none" ? { agentReferralCode: selectedAgentCode } : {}),
         }),
       });
 
@@ -1027,6 +1046,40 @@ export function ShopKeeperRegister() {
                 disabled={shouldDisableFollowingFields}
               />
             </div> */}
+
+            {/* Agent Referral (Optional) */}
+            {(agents.length > 0 || referralLocked) && (
+              <div className="grid gap-2">
+                <Label htmlFor="agentReferral">
+                  Referred by {referralLocked ? "" : "(Optional)"}
+                </Label>
+                {referralLocked ? (
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md border">
+                    <span className="text-sm font-medium">
+                      {agents.find((a) => a.referralCode === selectedAgentCode)?.name || selectedAgentCode}
+                    </span>
+                    <Badge variant="secondary" className="text-xs">Referral Link</Badge>
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedAgentCode}
+                    onValueChange={setSelectedAgentCode}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select agent (if referred)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No referral</SelectItem>
+                      {agents.map((agent) => (
+                        <SelectItem key={agent.referralCode} value={agent.referralCode}>
+                          {agent.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
 
             <p className="align-center text-xl">
               Post Review! You will be Notified via Email...

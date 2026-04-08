@@ -622,12 +622,27 @@ export class ShopkeepersService {
     const normalizedEmail = this.normalizeEmail(dto.email);
     const existing = await this.shopModel.findOne({ email: normalizedEmail });
     if (existing) throw new ConflictException("Email already registered");
+    // Handle agent referral
+    let provider = "self";
+    let providerId = null;
+    if (dto.agentReferralCode) {
+      const agent = await this.shopModel.db
+        .collection("agents")
+        .findOne({ referralCode: dto.agentReferralCode, isActive: true });
+      if (agent) {
+        provider = "Agent";
+        providerId = agent._id.toString();
+      }
+    }
+
     const created = await new this.shopModel({
       ...dto,
       email: normalizedEmail,
       approved: false,
       rejected: false,
       status: "pending",
+      provider,
+      providerId,
     }).save();
 
     await this.mailService.sendApprovalRequestToAdmin({

@@ -10,6 +10,10 @@ import { OrganizerSchema } from "../organizers/schemas/organizer.schema";
 import { ShopkeeperSchema } from "../shopkeepers/schemas/shopkeeper.schema";
 import { EventSchema } from "../events/schemas/event.schema";
 import { UserSchema } from "../users/schemas/user.schema";
+import { ProductSchema } from "../products/entities/product.entity";
+import { OrderSchema } from "../orders/entities/order.entity";
+import { OperatorSchema } from "../operators/entities/operator.entity";
+import { AgentSchema } from "../agents/schemas/agent.schema";
 import { MailModule } from "../roles/mail.module";
 import { MailService } from "../roles/mail.service";
 
@@ -21,6 +25,10 @@ import { MailService } from "../roles/mail.service";
       { name: "Shopkeeper", schema: ShopkeeperSchema },
       { name: "Event", schema: EventSchema },
       { name: "User", schema: UserSchema },
+      { name: "Product", schema: ProductSchema },
+      { name: "Order", schema: OrderSchema },
+      { name: "Operator", schema: OperatorSchema },
+      { name: "Agent", schema: AgentSchema },
     ]),
     MailModule,
     JwtModule.register({

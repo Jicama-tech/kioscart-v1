@@ -24,6 +24,7 @@ import { OrganizerStoresModule } from "./modules/organizer-stores/organizer-stor
 import { CouponModule } from "./modules/coupon/coupon.module";
 import { OperatorsModule } from "./modules/operators/operators.module";
 import { PaymentEmailsModule } from "./modules/payment-emails/payment-emails.module";
+import { AgentsModule } from "./modules/agents/agents.module";
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { PaymentEmailsModule } from "./modules/payment-emails/payment-emails.mod
     CouponModule,
     OperatorsModule,
     PaymentEmailsModule,
+    AgentsModule,
   ],
 })
 export class AppModule {}
