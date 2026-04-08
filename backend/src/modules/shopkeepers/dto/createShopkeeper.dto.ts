@@ -61,4 +61,8 @@ export class CreateShopkeeperDto {
   @IsBoolean()
   @IsNotEmpty()
   hasDocVerification: boolean;
+
+  @IsString()
+  @IsOptional()
+  agentReferralCode?: string;
 }

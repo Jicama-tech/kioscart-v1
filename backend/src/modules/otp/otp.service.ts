@@ -23,6 +23,8 @@ import * as qrcode from "qrcode";
 import * as qrcodeTerminal from "qrcode-terminal";
 import { ShopkeepersService } from "../shopkeepers/shopkeepers.service";
 import { OrganizersService } from "../organizers/organizers.service";
+import { AgentsService } from "../agents/agents.service";
+import { JwtService } from "@nestjs/jwt";
 import * as fs from "fs";
 
 @Injectable()
@@ -45,6 +47,8 @@ export class OtpService implements OnModuleInit {
     private mailService: MailService,
     private readonly shopkeeperService: ShopkeepersService,
     private readonly organizerService: OrganizersService,
+    private readonly agentsService: AgentsService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async onModuleInit() {
@@ -421,6 +425,26 @@ export class OtpService implements OnModuleInit {
           organizations: result.organizations,
         };
       }
+    }
+    // --- AGENT LOGIN ---
+    else if (role === "agent") {
+      const agent = await this.agentsService.findByWhatsAppNumber(whatsappNumber);
+      if (!agent) throw new NotFoundException("Agent not found");
+
+      const token = this.jwtService.sign(
+        {
+          name: agent.name,
+          email: agent.email,
+          sub: agent._id.toString(),
+          roles: ["agent"],
+          referralCode: agent.referralCode,
+        },
+        {
+          secret: process.env.JWT_ACCESS_SECRET,
+          expiresIn: "24h",
+        },
+      );
+      result = { token };
     }
 
     // 4. Success: Delete OTP only after a token is successfully generated

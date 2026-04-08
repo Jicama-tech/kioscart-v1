@@ -28,6 +28,10 @@ export class AdminService {
     @InjectModel(Shopkeeper.name) private shopkeeperModel: Model<Shopkeeper>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Event.name) private eventModel: Model<Event>,
+    @InjectModel("Product") private productModel: Model<any>,
+    @InjectModel("Order") private orderModel: Model<any>,
+    @InjectModel("Operator") private operatorModel: Model<any>,
+    @InjectModel("Agent") private agentModel: Model<any>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService
   ) {}
@@ -91,8 +95,33 @@ export class AdminService {
 
     applicant.approved = true;
     applicant.rejected = false;
-    applicant.statusUpdatedAt = new Date(); // <-- log time
+    applicant.statusUpdatedAt = new Date();
     await applicant.save();
+
+    // If shopkeeper is referred by an agent, add the agent as an operator of this store
+    if (role === "Shopkeeper" && applicant.provider === "Agent" && applicant.providerId) {
+      try {
+        const agent: any = await this.agentModel.findById(applicant.providerId).lean();
+        if (agent) {
+          // Check if agent is already an operator for this shop
+          const existingOp = await this.operatorModel.findOne({
+            whatsAppNumber: agent.whatsAppNumber,
+            shopkeeperId: applicant._id.toString(),
+          });
+          if (!existingOp) {
+            await new this.operatorModel({
+              name: agent.name,
+              whatsAppNumber: agent.whatsAppNumber,
+              email: agent.email || "",
+              shopkeeperId: applicant._id.toString(),
+              accessTabs: ["dashboard", "orders", "products", "crm", "kiosk"],
+            }).save();
+          }
+        }
+      } catch (err) {
+        console.error("Failed to add agent as operator:", err);
+      }
+    }
 
     await this.mailService.sendStatusUpdate({
       name: applicant.name,
@@ -251,6 +280,27 @@ export class AdminService {
         (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
       );
 
+      // Enrich pending shopkeepers with agent referral info
+      const agentIds = [...new Set(
+        shopkeepers
+          .filter((s: any) => s.provider === "Agent" && s.providerId)
+          .map((s: any) => s.providerId),
+      )];
+      const agents = agentIds.length > 0
+        ? await this.agentModel.find({ _id: { $in: agentIds } }).select("name referralCode").lean()
+        : [];
+      const agentMap = new Map(agents.map((a: any) => [a._id.toString(), { name: a.name, referralCode: a.referralCode }]));
+
+      const enrichedShopkeepers = shopkeepers.map((s: any) => {
+        const plain = s.toObject ? s.toObject() : s;
+        return {
+          ...plain,
+          referredBy: plain.provider === "Agent" && plain.providerId
+            ? agentMap.get(plain.providerId) || null
+            : null,
+        };
+      });
+
       return {
         message: "Admin dashboard data fetched successfully",
         stats: {
@@ -263,7 +313,7 @@ export class AdminService {
         },
         pendingApprovals: {
           organizers,
-          shopkeepers,
+          shopkeepers: enrichedShopkeepers,
         },
         recentActivity,
       };
@@ -326,5 +376,144 @@ export class AdminService {
 
   remove(id: number) {
     return `This action removes a #${id} admin`;
+  }
+
+  async getShopkeepersOverview() {
+    const shopkeepers = await this.shopkeeperModel.find().sort({ createdAt: -1 }).lean();
+
+    const shopkeeperIds = shopkeepers.map((s: any) => s._id.toString());
+
+    // Get product counts per shopkeeper
+    const productCounts = await this.productModel.aggregate([
+      { $match: { shopkeeperId: { $in: shopkeeperIds } } },
+      { $group: { _id: "$shopkeeperId", count: { $sum: 1 } } },
+    ]);
+    const productMap = new Map(productCounts.map((p: any) => [p._id, p.count]));
+
+    // Get order stats per shopkeeper
+    const orderStats = await this.orderModel.aggregate([
+      { $match: { shopkeeperId: { $in: shopkeeperIds } } },
+      {
+        $group: {
+          _id: "$shopkeeperId",
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: "$totalAmount" },
+          completedOrders: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+    const orderMap = new Map(
+      orderStats.map((o: any) => [o._id, { orders: o.totalOrders, revenue: o.totalRevenue, completed: o.completedOrders }]),
+    );
+
+    // Get operators per shopkeeper
+    const operators = await this.operatorModel.find({ shopkeeperId: { $in: shopkeeperIds } }).lean();
+    const operatorMap = new Map<string, any[]>();
+    operators.forEach((op: any) => {
+      const key = op.shopkeeperId?.toString();
+      if (!operatorMap.has(key)) operatorMap.set(key, []);
+      operatorMap.get(key)!.push({ name: op.name, email: op.email, whatsAppNumber: op.whatsAppNumber });
+    });
+
+    // Get agent names for referred shopkeepers
+    const agentIds = [...new Set(shopkeepers.filter((s: any) => s.provider === "Agent" && s.providerId).map((s: any) => s.providerId))];
+    const agents = agentIds.length > 0
+      ? await this.agentModel.find({ _id: { $in: agentIds } }).select("name referralCode").lean()
+      : [];
+    const agentMap = new Map(agents.map((a: any) => [a._id.toString(), { name: a.name, referralCode: a.referralCode }]));
+
+    const result = shopkeepers.map((s: any) => {
+      const sid = s._id.toString();
+      const stats = orderMap.get(sid) || { orders: 0, revenue: 0, completed: 0 };
+      return {
+        _id: s._id,
+        name: s.name,
+        shopName: s.shopName,
+        email: s.email,
+        businessEmail: s.businessEmail,
+        phone: s.phone,
+        whatsappNumber: s.whatsappNumber,
+        address: s.address,
+        country: s.country,
+        businessCategory: s.businessCategory,
+        approved: s.approved,
+        rejected: s.rejected,
+        hasDocVerification: s.hasDocVerification,
+        GSTNumber: s.GSTNumber,
+        UENNumber: s.UENNumber,
+        createdAt: s.createdAt,
+        productsCount: productMap.get(sid) || 0,
+        totalOrders: stats.orders,
+        totalRevenue: stats.revenue,
+        completedOrders: stats.completed,
+        operators: operatorMap.get(sid) || [],
+        referredBy: s.provider === "Agent" && s.providerId
+          ? agentMap.get(s.providerId) || null
+          : null,
+        provider: s.provider,
+      };
+    });
+
+    return { shopkeepers: result, total: result.length };
+  }
+
+  async getUsersOverview() {
+    const users = await this.userModel.find().sort({ createdAt: -1 }).lean();
+
+    const userIds = users.map((u: any) => u._id.toString());
+
+    // Get order stats per user
+    const orderStats = await this.orderModel.aggregate([
+      { $match: { userId: { $in: userIds } } },
+      {
+        $group: {
+          _id: { $toString: "$userId" },
+          totalOrders: { $sum: 1 },
+          totalSpent: { $sum: "$totalAmount" },
+          lastOrderDate: { $max: "$createdAt" },
+          shopkeepers: { $addToSet: "$shopkeeperId" },
+        },
+      },
+    ]);
+    const orderMap = new Map(
+      orderStats.map((o: any) => [o._id, {
+        orders: o.totalOrders,
+        spent: o.totalSpent,
+        lastOrder: o.lastOrderDate,
+        uniqueShops: o.shopkeepers?.length || 0,
+      }]),
+    );
+
+    const result = users.map((u: any) => {
+      const uid = u._id.toString();
+      const stats = orderMap.get(uid) || { orders: 0, spent: 0, lastOrder: null, uniqueShops: 0 };
+      return {
+        _id: u._id,
+        name: u.name || `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Unknown",
+        email: u.email || "",
+        whatsAppNumber: u.whatsAppNumber || "",
+        provider: u.provider || "direct",
+        roles: u.roles || ["user"],
+        createdAt: u.createdAt,
+        totalOrders: stats.orders,
+        totalSpent: stats.spent,
+        lastOrderDate: stats.lastOrder,
+        uniqueShops: stats.uniqueShops,
+      };
+    });
+
+    const totalSpent = result.reduce((sum, u) => sum + u.totalSpent, 0);
+    const totalOrders = result.reduce((sum, u) => sum + u.totalOrders, 0);
+    const activeUsers = result.filter((u) => u.totalOrders > 0).length;
+
+    return {
+      users: result,
+      total: result.length,
+      activeUsers,
+      totalOrders,
+      totalSpent,
+    };
   }
 }

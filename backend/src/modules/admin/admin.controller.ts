@@ -83,6 +83,18 @@ export class AdminController {
     return this.adminService.findAll();
   }
 
+  @Get("shopkeepers-overview")
+  @UseGuards(JwtAuthGuard)
+  async getShopkeepersOverview() {
+    return this.adminService.getShopkeepersOverview();
+  }
+
+  @Get("users-overview")
+  @UseGuards(JwtAuthGuard)
+  async getUsersOverview() {
+    return this.adminService.getUsersOverview();
+  }
+
   @Get(":id")
   findOne(@Param("id") id: string) {
     return this.adminService.findOne(+id);

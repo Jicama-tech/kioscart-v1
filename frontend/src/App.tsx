@@ -22,6 +22,10 @@ import { AdminLogs } from './components/auth/loginAdmin';
 import { ShopkeeperLogin } from './components/auth/shopKeeperLogin';
 import { CartAuthReturn } from './components/auth/CartAuthReturn';
 import { ShopKeeperRegister } from './components/auth/shopKeeperRegistration';
+import { AgentLogin } from './components/auth/AgentLogin';
+import { AgentDashboard } from './pages/agent/AgentDashboard';
+const AgentsPage = lazy(() => import('./pages/admin/AgentsPage'));
+const ShopkeepersPage = lazy(() => import('./pages/admin/ShopkeepersPage'));
 
 // Lazy load all heavy page components for code splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -280,6 +284,7 @@ function AppContent() {
           <Route path="/terms" element={<TermsAndConditionsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/admin-login" element={<AdminLogs />} />
+          <Route path="/agent-login" element={<AgentLogin />} />
           <Route
             path="/:shopName"
             element={<StorefrontTemplate onBack={() => navigate(-1)} />}
@@ -295,38 +300,22 @@ function AppContent() {
           switch (user.roles[0]) {
             case 'admin':
               return (
-                <AdminLayout onLogout={logout}>
-                  <Routes>
-                    <Route
-                      path="/"
-                      element={<Navigate to="/admin-dashboard" replace />}
-                    />
-                    <Route
-                      path="/admin-dashboard"
-                      element={<AdminDashboard />}
-                    />
-                    <Route
-                      path="/admin-dashboard/users"
-                      element={<UsersPage />}
-                    />
-                    <Route
-                      path="/admin-dashboard/pricing"
-                      element={<PricingPage />}
-                    />
-                    <Route
-                      path="/admin-dashboard/analytics"
-                      element={<div className="p-6">Analytics Dashboard</div>}
-                    />
-                    <Route
-                      path="/admin-dashboard/settings"
-                      element={<SettingsPage />}
-                    />
-                    <Route
-                      path="*"
-                      element={<Navigate to="/admin-dashboard" replace />}
-                    />
-                  </Routes>
-                </AdminLayout>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/admin-dashboard" replace />} />
+                  <Route path="/admin-dashboard" element={<AdminDashboard onLogout={logout} />} />
+                  <Route path="/estore-register" element={<ShopKeeperRegister />} />
+                  <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
+                </Routes>
+              );
+
+            case 'agent':
+              return (
+                <Routes>
+                  <Route path="/" element={<Navigate to="/agent-dashboard" replace />} />
+                  <Route path="/agent-dashboard" element={<AgentDashboard onLogout={logout} />} />
+                  <Route path="/estore-register" element={<ShopKeeperRegister />} />
+                  <Route path="*" element={<Navigate to="/agent-dashboard" replace />} />
+                </Routes>
               );
 
             case 'shopkeeper':

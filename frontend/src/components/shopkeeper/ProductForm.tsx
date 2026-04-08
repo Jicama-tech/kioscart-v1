@@ -547,9 +547,9 @@ export function ProductForm({ product, onSave, onClose }: any) {
         ...formData,
         images: existingImageUrls,
         // Set product-level price from first option when options are enabled
-        price: firstOption ? firstOption.price : formData.price,
+        price: firstOption ? (Number(firstOption.price) || 0) : (Number(formData.price) || 0),
         isDiscounted: firstOption ? (firstOption.isDiscounted || false) : formData.isDiscounted,
-        discountedPrice: firstOption ? (firstOption.discountedPrice ?? undefined) : formData.discountedPrice,
+        discountedPrice: firstOption ? (Number(firstOption.discountedPrice) || 0) : (Number(formData.discountedPrice) || 0),
         // Product options
         hasOptions: formData.hasOptions || false,
         optionsLabel: formData.hasOptions ? formData.optionsLabel : undefined,
@@ -815,15 +815,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                           </label>
                           <Input
                             id="price"
-                            type="text"
-                            inputMode="decimal"
+                            type="number"
+                            step="0.01"
+                            min="0"
                             placeholder="Enter price"
                             value={formData.price ?? ""}
                             onChange={(e) => {
-                              const value = e.target.value;
-                              if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                                handleInputChange("price", value);
-                              }
+                              handleInputChange("price", e.target.value === "" ? "" : parseFloat(e.target.value));
                             }}
                             onWheel={(e) => e.currentTarget.blur()}
                             disabled={isSubmitting}
@@ -884,18 +882,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                               </label>
                               <Input
                                 id="discountedPrice"
-                                type="text"
-                                inputMode="decimal"
+                                type="number"
+                                step="0.01"
+                                min="0"
                                 placeholder="Discounted price"
                                 value={formData.discountedPrice ?? ""}
                                 onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (
-                                    value === "" ||
-                                    /^\d*\.?\d*$/.test(value)
-                                  ) {
-                                    handleInputChange("discountedPrice", value);
-                                  }
+                                  handleInputChange("discountedPrice", e.target.value === "" ? "" : parseFloat(e.target.value));
                                 }}
                                 onWheel={(e) => e.currentTarget.blur()}
                                 disabled={isSubmitting}
@@ -1055,15 +1048,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                           <div className="space-y-1">
                             <Label className="text-xs">Price *</Label>
                             <Input
-                              type="text"
-                              inputMode="decimal"
+                              type="number"
+                              step="0.01"
+                              min="0"
                               placeholder="0"
                               value={option.price ?? ""}
                               onChange={(e) => {
-                                const v = e.target.value;
-                                if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                                  handleOptionChange(oi, "price", v === "" ? 0 : parseFloat(v));
-                                }
+                                handleOptionChange(oi, "price", e.target.value === "" ? "" : parseFloat(e.target.value));
                               }}
                               disabled={isSubmitting}
                             />
@@ -1108,15 +1099,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                             <div className="space-y-1 col-span-2">
                               <Label className="text-xs">Discounted Price</Label>
                               <Input
-                                type="text"
-                                inputMode="decimal"
+                                type="number"
+                                step="0.01"
+                                min="0"
                                 placeholder="0"
                                 value={option.discountedPrice ?? ""}
                                 onChange={(e) => {
-                                  const v = e.target.value;
-                                  if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                                    handleOptionChange(oi, "discountedPrice", v === "" ? 0 : parseFloat(v));
-                                  }
+                                  handleOptionChange(oi, "discountedPrice", e.target.value === "" ? "" : parseFloat(e.target.value));
                                 }}
                                 disabled={isSubmitting}
                               />
@@ -1201,15 +1190,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                           <div className="space-y-1">
                             <Label className="text-xs">Price *</Label>
                             <Input
-                              type="text"
-                              inputMode="decimal"
+                              type="number"
+                              step="0.01"
+                              min="0"
                               placeholder="0"
                               value={variant.price ?? ""}
                               onChange={(e) => {
-                                const v = e.target.value;
-                                if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                                  handleProductVariantChange(vi, "price", v === "" ? 0 : parseFloat(v));
-                                }
+                                handleProductVariantChange(vi, "price", e.target.value === "" ? "" : parseFloat(e.target.value));
                               }}
                               disabled={isSubmitting}
                             />
@@ -1263,15 +1250,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                             <div className="space-y-1 col-span-2">
                               <Label className="text-xs">Discounted Price</Label>
                               <Input
-                                type="text"
-                                inputMode="decimal"
+                                type="number"
+                                step="0.01"
+                                min="0"
                                 placeholder="0"
                                 value={variant.discountedPrice ?? ""}
                                 onChange={(e) => {
-                                  const v = e.target.value;
-                                  if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                                    handleProductVariantChange(vi, "discountedPrice", v === "" ? 0 : parseFloat(v));
-                                  }
+                                  handleProductVariantChange(vi, "discountedPrice", e.target.value === "" ? "" : parseFloat(e.target.value));
                                 }}
                                 disabled={isSubmitting}
                               />
@@ -1424,15 +1409,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                 <div className="space-y-1">
                                   <Label className="text-xs">Additional Price</Label>
                                   <Input
-                                    type="text"
-                                    inputMode="decimal"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
                                     placeholder="0"
                                     value={subcat.additionalPrice ?? ""}
                                     onChange={(e) => {
-                                      const v = e.target.value;
-                                      if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                                        handleSubcategoryChange(si, "additionalPrice" as any, v === "" ? 0 : parseFloat(v));
-                                      }
+                                      handleSubcategoryChange(si, "additionalPrice" as any, e.target.value === "" ? "" : parseFloat(e.target.value));
                                     }}
                                     disabled={isSubmitting}
                                   />
@@ -1478,15 +1461,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                 <div className="space-y-1">
                                   <Label className="text-xs">Discounted Additional Price</Label>
                                   <Input
-                                    type="text"
-                                    inputMode="decimal"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
                                     placeholder="0"
                                     value={subcat.discountedAdditionalPrice ?? ""}
                                     onChange={(e) => {
-                                      const v = e.target.value;
-                                      if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                                        handleSubcategoryChange(si, "discountedAdditionalPrice" as any, v === "" ? 0 : parseFloat(v));
-                                      }
+                                      handleSubcategoryChange(si, "discountedAdditionalPrice" as any, e.target.value === "" ? "" : parseFloat(e.target.value));
                                     }}
                                     disabled={isSubmitting}
                                   />
@@ -1641,23 +1622,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                             </Label>
                                             <Input
                                               id={`variant-price-${vi}`}
-                                              type="text"
-                                              inputMode="decimal"
+                                              type="number"
+                                              step="0.01"
+                                              min="0"
                                               placeholder="Price"
                                               value={variant.price ?? ""}
                                               onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (
-                                                  value === "" ||
-                                                  /^\d*\.?\d*$/.test(value)
-                                                ) {
-                                                  handleVariantChange(
-                                                    si,
-                                                    vi,
-                                                    "price",
-                                                    value,
-                                                  );
-                                                }
+                                                handleVariantChange(si, vi, "price", e.target.value === "" ? "" : parseFloat(e.target.value));
                                               }}
                                               onWheel={(e) =>
                                                 e.currentTarget.blur()
@@ -1719,27 +1690,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                                 </Label>
                                                 <Input
                                                   id={`variant-discountedPrice-${vi}`}
-                                                  type="text"
-                                                  inputMode="decimal"
+                                                  type="number"
+                                                  step="0.01"
+                                                  min="0"
                                                   placeholder="Discounted price"
-                                                  value={
-                                                    variant.discountedPrice ??
-                                                    ""
-                                                  }
+                                                  value={variant.discountedPrice ?? ""}
                                                   onChange={(e) => {
-                                                    const value =
-                                                      e.target.value;
-                                                    if (
-                                                      value === "" ||
-                                                      /^\d*\.?\d*$/.test(value)
-                                                    ) {
-                                                      handleVariantChange(
-                                                        si,
-                                                        vi,
-                                                        "discountedPrice",
-                                                        value,
-                                                      );
-                                                    }
+                                                    handleVariantChange(si, vi, "discountedPrice", e.target.value === "" ? "" : parseFloat(e.target.value));
                                                   }}
                                                   onWheel={(e) =>
                                                     e.currentTarget.blur()

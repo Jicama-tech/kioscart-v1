@@ -67,13 +67,14 @@ class DesignSettingsDto {
 }
 
 class FeaturesSettingsDto {
-  @IsBoolean() showSearch: boolean;
-  @IsBoolean() showFilters: boolean;
-  @IsBoolean() showReviews: boolean;
-  @IsBoolean() showWishlist: boolean;
-  @IsBoolean() showSocialMedia: boolean;
-  @IsBoolean() enableChat: boolean;
-  @IsBoolean() showNewsletter: boolean;
+  @IsOptional() @IsBoolean() showSearch?: boolean;
+  @IsOptional() @IsBoolean() showFilters?: boolean;
+  @IsOptional() @IsBoolean() showReviews?: boolean;
+  @IsOptional() @IsBoolean() showWishlist?: boolean;
+  @IsOptional() @IsBoolean() showQuickView?: boolean;
+  @IsOptional() @IsBoolean() showSocialMedia?: boolean;
+  @IsOptional() @IsBoolean() enableChat?: boolean;
+  @IsOptional() @IsBoolean() showNewsletter?: boolean;
 }
 
 class SeoSettingsDto {
