@@ -47,6 +47,41 @@ import { jwtDecode } from "jwt-decode";
 import { useEffect } from "react";
 import ImageCropModal from "../ui/imageCropModal";
 
+function DebouncedColorInput({ value, onChange, className }: { value: string; onChange: (val: string) => void; className?: string }) {
+  const [local, setLocal] = useState(value);
+  const timer = useRef<any>(null);
+  useEffect(() => { setLocal(value); }, [value]);
+  return (
+    <input
+      type="color"
+      value={local}
+      onChange={(e) => {
+        setLocal(e.target.value);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => onChange(e.target.value), 150);
+      }}
+      className={className || "w-9 h-9 rounded cursor-pointer border"}
+    />
+  );
+}
+
+function DebouncedInput({ value, onChange, ...props }: any) {
+  const [local, setLocal] = useState(value || "");
+  const timer = useRef<any>(null);
+  useEffect(() => { setLocal(value || ""); }, [value]);
+  return (
+    <Input
+      {...props}
+      value={local}
+      onChange={(e: any) => {
+        setLocal(e.target.value);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => onChange(e), 300);
+      }}
+    />
+  );
+}
+
 interface StorefrontCustomizerProps {
   onBack: () => void;
   onSave: (settings: any) => void;
@@ -1289,14 +1324,13 @@ export function StorefrontCustomizer({
                       <div className="space-y-3">
                         <div className="flex items-center space-x-2">
                           <Label className="w-20">Primary</Label>
-                          <input
-                            type="color"
+                          <DebouncedColorInput
                             value={settings.design.primaryColor}
-                            onChange={(e) =>
+                            onChange={(val) =>
                               handleInputChange(
                                 "design",
                                 "primaryColor",
-                                e.target.value,
+                                val,
                               )
                             }
                             className="w-20 h-8 p-1 rounded border"
@@ -1316,14 +1350,13 @@ export function StorefrontCustomizer({
                         </div>
                         <div className="flex items-center space-x-2">
                           <Label className="w-20">Secondary</Label>
-                          <input
-                            type="color"
+                          <DebouncedColorInput
                             value={settings.design.secondaryColor}
-                            onChange={(e) =>
+                            onChange={(val) =>
                               handleInputChange(
                                 "design",
                                 "secondaryColor",
-                                e.target.value,
+                                val,
                               )
                             }
                             className="w-20 h-8 p-1 rounded border"
@@ -1413,21 +1446,21 @@ export function StorefrontCustomizer({
                   <div className="p-3 space-y-3 bg-background">
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Announcement Text</Label>
-                      <Input value={L.advertiseText ?? ""} onChange={(e) => handleLayoutChange("advertiseText", e.target.value)} placeholder="e.g. Flat 10% Off" className="text-xs" />
+                      <DebouncedInput value={L.advertiseText ?? ""} onChange={(e: any) => handleLayoutChange("advertiseText", e.target.value)} placeholder="e.g. Flat 10% Off" className="text-xs" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-[11px] text-muted-foreground mb-1 block">Background Color</Label>
                         <div className="flex gap-2">
                           <Input value={L.adBarBgcolor ?? "#000000"} onChange={(e) => handleLayoutChange("adBarBgcolor", e.target.value)} placeholder="#000000" className="text-xs flex-1" />
-                          <input type="color" value={L.adBarBgcolor ?? "#000000"} onChange={(e) => handleLayoutChange("adBarBgcolor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                          <DebouncedColorInput value={L.adBarBgcolor ?? "#000000"} onChange={(val) => handleLayoutChange("adBarBgcolor", val)} />
                         </div>
                       </div>
                       <div>
                         <Label className="text-[11px] text-muted-foreground mb-1 block">Text Color</Label>
                         <div className="flex gap-2">
                           <Input value={L.adBarTextColor ?? "#ffffff"} onChange={(e) => handleLayoutChange("adBarTextColor", e.target.value)} placeholder="#ffffff" className="text-xs flex-1" />
-                          <input type="color" value={L.adBarTextColor ?? "#ffffff"} onChange={(e) => handleLayoutChange("adBarTextColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                          <DebouncedColorInput value={L.adBarTextColor ?? "#ffffff"} onChange={(val) => handleLayoutChange("adBarTextColor", val)} />
                         </div>
                       </div>
                     </div>
@@ -1640,15 +1673,15 @@ export function StorefrontCustomizer({
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
                       <div className="flex gap-2">
-                        <Input value={L.featuredProductTitle || ""} onChange={(e) => handleLayoutChange("featuredProductTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <input type="color" value={L.featuredProductTitleColor || "#000000"} onChange={(e) => handleLayoutChange("featuredProductTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.featuredProductTitle || ""} onChange={(e: any) => handleLayoutChange("featuredProductTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.featuredProductTitleColor || "#000000"} onChange={(val) => handleLayoutChange("featuredProductTitleColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
                       <div className="flex gap-2">
-                        <Input value={L.featuredProductDescription || ""} onChange={(e) => handleLayoutChange("featuredProductDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <input type="color" value={L.featuredProductDescColor || "#000000"} onChange={(e) => handleLayoutChange("featuredProductDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.featuredProductDescription || ""} onChange={(e: any) => handleLayoutChange("featuredProductDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.featuredProductDescColor || "#000000"} onChange={(val) => handleLayoutChange("featuredProductDescColor", val)} />
                       </div>
                     </div>
                   </div>
@@ -1669,15 +1702,15 @@ export function StorefrontCustomizer({
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
                       <div className="flex gap-2">
-                        <Input value={L.ourProductsTitle || ""} onChange={(e) => handleLayoutChange("ourProductsTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <input type="color" value={L.ourProductsTitleColor || "#000000"} onChange={(e) => handleLayoutChange("ourProductsTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.ourProductsTitle || ""} onChange={(e: any) => handleLayoutChange("ourProductsTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.ourProductsTitleColor || "#000000"} onChange={(val) => handleLayoutChange("ourProductsTitleColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
                       <div className="flex gap-2">
-                        <Input value={L.ourProductsDescription || ""} onChange={(e) => handleLayoutChange("ourProductsDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <input type="color" value={L.ourProductsDescColor || "#000000"} onChange={(e) => handleLayoutChange("ourProductsDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.ourProductsDescription || ""} onChange={(e: any) => handleLayoutChange("ourProductsDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.ourProductsDescColor || "#000000"} onChange={(val) => handleLayoutChange("ourProductsDescColor", val)} />
                       </div>
                     </div>
                   </div>
@@ -1698,15 +1731,15 @@ export function StorefrontCustomizer({
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
                       <div className="flex gap-2">
-                        <Input value={L.quickPicksTitle || ""} onChange={(e) => handleLayoutChange("quickPicksTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <input type="color" value={L.quickPicksTitleColor || "#000000"} onChange={(e) => handleLayoutChange("quickPicksTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.quickPicksTitle || ""} onChange={(e: any) => handleLayoutChange("quickPicksTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.quickPicksTitleColor || "#000000"} onChange={(val) => handleLayoutChange("quickPicksTitleColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
                       <div className="flex gap-2">
-                        <Input value={L.quickPicksDescription || ""} onChange={(e) => handleLayoutChange("quickPicksDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <input type="color" value={L.quickPicksDescColor || "#000000"} onChange={(e) => handleLayoutChange("quickPicksDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.quickPicksDescription || ""} onChange={(e: any) => handleLayoutChange("quickPicksDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.quickPicksDescColor || "#000000"} onChange={(val) => handleLayoutChange("quickPicksDescColor", val)} />
                       </div>
                     </div>
                   </div>
@@ -1722,15 +1755,15 @@ export function StorefrontCustomizer({
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
                       <div className="flex gap-2">
-                        <Input value={L.allProductsTitle || ""} onChange={(e) => handleLayoutChange("allProductsTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <input type="color" value={L.allProductsTitleColor || "#000000"} onChange={(e) => handleLayoutChange("allProductsTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.allProductsTitle || ""} onChange={(e: any) => handleLayoutChange("allProductsTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.allProductsTitleColor || "#000000"} onChange={(val) => handleLayoutChange("allProductsTitleColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
                       <div className="flex gap-2">
-                        <Input value={L.allProductsDescription || ""} onChange={(e) => handleLayoutChange("allProductsDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <input type="color" value={L.allProductsDescColor || "#000000"} onChange={(e) => handleLayoutChange("allProductsDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.allProductsDescription || ""} onChange={(e: any) => handleLayoutChange("allProductsDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.allProductsDescColor || "#000000"} onChange={(val) => handleLayoutChange("allProductsDescColor", val)} />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1764,15 +1797,15 @@ export function StorefrontCustomizer({
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
                       <div className="flex gap-2">
-                        <Input value={L.instagramTitle || ""} onChange={(e) => handleLayoutChange("instagramTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <input type="color" value={L.instagramTitleColor || "#000000"} onChange={(e) => handleLayoutChange("instagramTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.instagramTitle || ""} onChange={(e: any) => handleLayoutChange("instagramTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.instagramTitleColor || "#000000"} onChange={(val) => handleLayoutChange("instagramTitleColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
                       <div className="flex gap-2">
-                        <Input value={L.instagramDescription || ""} onChange={(e) => handleLayoutChange("instagramDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <input type="color" value={L.instagramDescColor || "#000000"} onChange={(e) => handleLayoutChange("instagramDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.instagramDescription || ""} onChange={(e: any) => handleLayoutChange("instagramDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.instagramDescColor || "#000000"} onChange={(val) => handleLayoutChange("instagramDescColor", val)} />
                       </div>
                     </div>
                     <div>
@@ -1805,20 +1838,20 @@ export function StorefrontCustomizer({
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
                       <div className="flex gap-2">
-                        <Input value={L.videoSectionTitle || ""} onChange={(e) => handleLayoutChange("videoSectionTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <input type="color" value={L.videoSectionTitleColor || "#000000"} onChange={(e) => handleLayoutChange("videoSectionTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.videoSectionTitle || ""} onChange={(e: any) => handleLayoutChange("videoSectionTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.videoSectionTitleColor || "#000000"} onChange={(val) => handleLayoutChange("videoSectionTitleColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
                       <div className="flex gap-2">
-                        <Input value={L.videoSectionDescription || ""} onChange={(e) => handleLayoutChange("videoSectionDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <input type="color" value={L.videoSectionDescColor || "#000000"} onChange={(e) => handleLayoutChange("videoSectionDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.videoSectionDescription || ""} onChange={(e: any) => handleLayoutChange("videoSectionDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.videoSectionDescColor || "#000000"} onChange={(val) => handleLayoutChange("videoSectionDescColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Video URL or Upload</Label>
-                      <Input value={L.videoUrl || ""} onChange={(e) => handleLayoutChange("videoUrl", e.target.value)} placeholder="YouTube / Vimeo URL or leave empty to upload" className="text-xs" />
+                      <DebouncedInput value={L.videoUrl || ""} onChange={(e: any) => handleLayoutChange("videoUrl", e.target.value)} placeholder="YouTube / Vimeo URL or leave empty to upload" className="text-xs" />
                       <div className="mt-2">
                         {sectionVideoPreview ? (
                           <div className="flex items-center gap-2 p-2 bg-muted rounded text-xs">
@@ -1865,22 +1898,22 @@ export function StorefrontCustomizer({
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Eyebrow</Label>
                       <div className="flex gap-2">
-                        <Input value={L.ourStoryEyebrow || ""} onChange={(e) => handleLayoutChange("ourStoryEyebrow", e.target.value)} placeholder="Eyebrow text" className="text-xs flex-1" />
-                        <input type="color" value={L.ourStoryEyebrowColor || "#000000"} onChange={(e) => handleLayoutChange("ourStoryEyebrowColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.ourStoryEyebrow || ""} onChange={(e: any) => handleLayoutChange("ourStoryEyebrow", e.target.value)} placeholder="Eyebrow text" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.ourStoryEyebrowColor || "#000000"} onChange={(val) => handleLayoutChange("ourStoryEyebrowColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
                       <div className="flex gap-2">
-                        <Input value={L.ourStoryTitle || ""} onChange={(e) => handleLayoutChange("ourStoryTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <input type="color" value={L.ourStoryTitleColor || "#000000"} onChange={(e) => handleLayoutChange("ourStoryTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.ourStoryTitle || ""} onChange={(e: any) => handleLayoutChange("ourStoryTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.ourStoryTitleColor || "#000000"} onChange={(val) => handleLayoutChange("ourStoryTitleColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
                       <div className="flex gap-2">
-                        <Input value={L.ourStoryDescription || ""} onChange={(e) => handleLayoutChange("ourStoryDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <input type="color" value={L.ourStoryDescColor || "#000000"} onChange={(e) => handleLayoutChange("ourStoryDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.ourStoryDescription || ""} onChange={(e: any) => handleLayoutChange("ourStoryDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.ourStoryDescColor || "#000000"} onChange={(val) => handleLayoutChange("ourStoryDescColor", val)} />
                       </div>
                     </div>
                     <div>
@@ -1935,15 +1968,15 @@ export function StorefrontCustomizer({
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
                       <div className="flex gap-2">
-                        <Input value={L.newsletterTitle || ""} onChange={(e) => handleLayoutChange("newsletterTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <input type="color" value={L.newsletterTitleColor || "#000000"} onChange={(e) => handleLayoutChange("newsletterTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.newsletterTitle || ""} onChange={(e: any) => handleLayoutChange("newsletterTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.newsletterTitleColor || "#000000"} onChange={(val) => handleLayoutChange("newsletterTitleColor", val)} />
                       </div>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
                       <div className="flex gap-2">
-                        <Input value={L.newsletterDescription || ""} onChange={(e) => handleLayoutChange("newsletterDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <input type="color" value={L.newsletterDescColor || "#000000"} onChange={(e) => handleLayoutChange("newsletterDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        <DebouncedInput value={L.newsletterDescription || ""} onChange={(e: any) => handleLayoutChange("newsletterDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <DebouncedColorInput value={L.newsletterDescColor || "#000000"} onChange={(val) => handleLayoutChange("newsletterDescColor", val)} />
                       </div>
                     </div>
                   </div>
