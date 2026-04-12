@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Instagram, Play, ChevronLeft, ChevronRight } from "lucide-react";
+import { Instagram, Play } from "lucide-react";
 
 interface InstagramCarouselProps {
   urls: string[];
@@ -30,7 +30,6 @@ export function InstagramCarousel({ urls, title, description, titleColor, descCo
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [inView, setInView] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const validEmbeds = useMemo(
     () =>
@@ -67,15 +66,10 @@ export function InstagramCarousel({ urls, title, description, titleColor, descCo
     );
   }
 
-  const scroll = (dir: "left" | "right") => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const amount = 300;
-    el.scrollBy({ left: dir === "left" ? -amount : amount, behavior: "smooth" });
-  };
+  const marqueeItems = [...validEmbeds, ...validEmbeds];
 
   return (
-    <section ref={containerRef} className="pt-8 sm:pt-12 lg:pt-16 pb-16 sm:pb-20 lg:pb-24 mb-8 sm:mb-12 overflow-hidden">
+    <section ref={containerRef} className="pt-8 sm:pt-12 lg:pt-16 pb-12 sm:pb-16 lg:pb-20 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
         <div className="text-center">
           <h2
@@ -94,118 +88,71 @@ export function InstagramCarousel({ urls, title, description, titleColor, descCo
         </div>
       </div>
 
-      {/* Active player — only one iframe loaded at a time */}
-      {activeIndex !== null && (
-        <div className="max-w-md mx-auto mb-8 px-4">
-          <div
-            className="relative rounded-2xl overflow-hidden bg-black shadow-2xl"
-            style={{ width: "100%", maxWidth: "400px", height: "500px", margin: "0 auto" }}
-          >
-            <iframe
-              key={activeIndex}
-              src={validEmbeds[activeIndex].src}
-              title={`Instagram reel ${activeIndex}`}
-              allow="encrypted-media"
-              allowFullScreen
-              scrolling="no"
-              style={{
-                width: "100%",
-                height: "820px",
-                border: 0,
-                display: "block",
-                marginTop: "-60px",
-              }}
-            />
-          </div>
-          <p
-            className="text-center text-xs text-muted-foreground mt-3 cursor-pointer hover:underline"
-            onClick={() => setActiveIndex(null)}
-          >
-            Close player
-          </p>
-        </div>
-      )}
-
-      {/* Thumbnail strip */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {validEmbeds.length > 3 && (
-          <>
-            <button
-              onClick={() => scroll("left")}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/90 shadow-lg hover:bg-white transition-colors"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => scroll("right")}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/90 shadow-lg hover:bg-white transition-colors"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </>
-        )}
-
-        <div
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-2"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {validEmbeds.map((item, i) => (
-            <button
-              key={`${item.url}-${i}`}
-              onClick={() => setActiveIndex(activeIndex === i ? null : i)}
-              className={`flex-shrink-0 relative rounded-2xl overflow-hidden bg-white shadow-md transition-all duration-300 ${
-                activeIndex === i
-                  ? "ring-3 ring-pink-500 scale-[1.03]"
-                  : "hover:shadow-xl hover:-translate-y-1"
-              }`}
-              style={{ width: "200px", height: "200px" }}
-            >
-              {inView ? (
-                activeIndex === i ? (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-100 to-purple-100">
-                    <div className="text-center">
-                      <Instagram className="h-8 w-8 mx-auto mb-2" style={{ color: "#E1306C" }} />
-                      <span className="text-xs font-semibold text-pink-600">Now Playing</span>
+      <div className="relative overflow-hidden">
+        <div className="track-ltr">
+          {marqueeItems.map((item, i) => {
+            const realIndex = i % validEmbeds.length;
+            const isActive = activeIndex === realIndex;
+            return (
+              <div
+                key={`ig-${i}`}
+                className="pc-card"
+                style={{ width: "220px", cursor: "pointer" }}
+                onClick={() => setActiveIndex(isActive ? null : realIndex)}
+              >
+                <div className="overflow-hidden relative" style={{ height: "280px" }}>
+                  {inView ? (
+                    isActive ? (
+                      <iframe
+                        key={`active-${realIndex}`}
+                        src={item.src}
+                        title="Instagram reel"
+                        allow="encrypted-media"
+                        allowFullScreen
+                        scrolling="no"
+                        style={{
+                          width: "100%",
+                          height: "820px",
+                          border: 0,
+                          display: "block",
+                          marginTop: "-60px",
+                        }}
+                      />
+                    ) : (
+                      <>
+                        <iframe
+                          src={item.src}
+                          title={`Instagram thumb ${i}`}
+                          loading="lazy"
+                          scrolling="no"
+                          tabIndex={-1}
+                          style={{
+                            width: "100%",
+                            height: "820px",
+                            border: 0,
+                            display: "block",
+                            marginTop: "-60px",
+                            pointerEvents: "none",
+                          }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/25 transition-colors">
+                          <div className="w-11 h-11 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                            <Play className="h-4 w-4 text-pink-600 fill-pink-600 ml-0.5" />
+                          </div>
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
+                      <Instagram className="h-8 w-8" style={{ color: "#E1306C" }} />
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <iframe
-                      src={item.src}
-                      title={`Instagram thumb ${i}`}
-                      loading="lazy"
-                      scrolling="no"
-                      tabIndex={-1}
-                      style={{
-                        width: "100%",
-                        height: "820px",
-                        border: 0,
-                        display: "block",
-                        marginTop: "-60px",
-                        pointerEvents: "none",
-                      }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                        <Play className="h-5 w-5 text-pink-600 fill-pink-600 ml-0.5" />
-                      </div>
-                    </div>
-                  </>
-                )
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
-                  <Instagram className="h-10 w-10" style={{ color: "#E1306C" }} />
+                  )}
                 </div>
-              )}
-            </button>
-          ))}
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-      `}</style>
     </section>
   );
 }
