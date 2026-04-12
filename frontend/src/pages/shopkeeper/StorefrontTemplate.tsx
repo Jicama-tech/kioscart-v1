@@ -55,6 +55,10 @@ import {
 } from "react-icons/fa";
 import { Helmet } from "react-helmet-async";
 import AnnouncementBar from "@/components/ui/adBar";
+import { BannerCarousel } from "@/components/ui/BannerCarousel";
+import { InstagramCarousel } from "@/components/ui/InstagramCarousel";
+import { VideoSection } from "@/components/ui/VideoSection";
+import { FeedbackBar } from "@/components/ui/FeedbackBar";
 
 export interface ShopkeeperStore {
   _id: string;
@@ -456,6 +460,14 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
   const design = settings.settings.design;
   const features = settings.settings.features;
   const general = settings.settings.general;
+  const layoutSettings = settings.settings.design.layout;
+
+  const headerStyle: React.CSSProperties = {
+    backgroundColor: layoutSettings.headerBgColor || "#ffffff",
+    color: layoutSettings.headerFontColor || "#000000",
+    fontSize: `${layoutSettings.headerFontSize || 16}px`,
+    fontWeight: layoutSettings.headerBold ? "bold" : "normal",
+  };
 
   const getThemeColors = () => {
     const isDark = design.theme === "dark";
@@ -687,13 +699,14 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
               }
               speed="100s"
               fontFamily={settings.settings.design.fontFamily || "Arial"}
+              position={settings.settings.design.layout.adBarPosition || "top"}
             />
           )}
         {/* Navigation - FIXED WHITE BACKGROUND */}
         {header === "modern" && (
-          <nav className="bg-white shadow-sm border-b sticky top-0 sm:top-0 z-40">
+          <nav className="shadow-sm border-b sticky top-0 sm:top-0 z-40" style={headerStyle}>
             <div className="max-w-7xl mx-auto px-2 sm:px-4">
-              <div className="flex justify-between items-center h-14 sm:h-16">
+              <div className={`flex items-center h-14 sm:h-16 ${layoutSettings.headerNavPosition === "center" ? "justify-center" : "justify-between"}`}>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1352,7 +1365,28 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
         )}
 
         {/* Hero Banner - RESPONSIVE */}
-        {banner === "modern" && design.showBanner && (
+        {/* Banner - Carousel */}
+        {banner === "modern" && design.showBanner && layoutSettings.bannerType === "carousel" && (
+          <section id="home">
+            <BannerCarousel
+              images={layoutSettings.bannerImages || []}
+              bannerImage={design.bannerImage}
+              heroBannerImage={design.heroBannerImage}
+              height={getBannerHeight()}
+              storeName={general.storeName}
+              description={general.tagline}
+              primaryColor={design.primaryColor}
+              fontSize={layoutSettings.bannerFontSize || 24}
+              fontColor={layoutSettings.bannerFontColor || "#ffffff"}
+              bold={layoutSettings.bannerBold || false}
+              fontFamily={design.fontFamily}
+              apiUrl={apiURL}
+            />
+          </section>
+        )}
+
+        {/* Banner - Single Image */}
+        {banner === "modern" && design.showBanner && layoutSettings.bannerType !== "carousel" && (
           <section
             id="home"
             className="relative overflow-hidden"
@@ -1363,9 +1397,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 <div
                   className="absolute inset-0 bg-cover bg-center bg-no-repeat"
                   style={{
-                    backgroundImage: `url("${getImageUrl(
-                      design.bannerImage,
-                    )}")`,
+                    backgroundImage: `url("${getImageUrl(design.bannerImage)}")`,
                   }}
                 />
                 <div className="absolute inset-0 bg-black/50" />
@@ -1375,12 +1407,19 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
               <div className="max-w-xl sm:max-w-2xl lg:max-w-3xl text-white">
                 <h1
-                  className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight"
-                  style={{ fontFamily: design.fontFamily }}
+                  className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl mb-4 sm:mb-6 leading-tight"
+                  style={{
+                    fontFamily: design.fontFamily,
+                    fontSize: `${layoutSettings.bannerFontSize || 36}px`,
+                    color: layoutSettings.bannerFontColor || "#ffffff",
+                    fontWeight: layoutSettings.bannerBold ? "bold" : "normal",
+                  }}
                 >
                   {general.storeName}
                 </h1>
-                <p className="text-sm sm:text-lg lg:text-xl mb-6 sm:mb-8 opacity-90 leading-relaxed">
+                <p className="text-sm sm:text-lg lg:text-xl mb-6 sm:mb-8 opacity-90 leading-relaxed"
+                  style={{ color: `${layoutSettings.bannerFontColor || "#ffffff"}cc` }}
+                >
                   {general.tagline}
                 </p>
                 <div className="flex">
@@ -2405,6 +2444,35 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             </div>
           </section>
         )}
+        {/* Instagram Carousel */}
+        {settings.settings.design.layout.showInstagramBar &&
+          settings.settings.design.layout.instagramReelUrls?.length > 0 && (
+          <InstagramCarousel
+            urls={settings.settings.design.layout.instagramReelUrls}
+            primaryColor={design.primaryColor}
+          />
+        )}
+
+        {/* Video Section */}
+        {settings.settings.design.layout.showVideoSection &&
+          settings.settings.design.layout.videoUrl && (
+          <VideoSection
+            videoUrl={settings.settings.design.layout.videoUrl}
+            storeName={general.storeName}
+            primaryColor={design.primaryColor}
+          />
+        )}
+
+        {/* Feedback / Testimonials */}
+        {settings.settings.design.layout.showFeedbackBar &&
+          settings.settings.feedbacks?.length > 0 && (
+          <FeedbackBar
+            feedbacks={settings.settings.feedbacks}
+            primaryColor={design.primaryColor}
+            fontFamily={design.fontFamily}
+          />
+        )}
+
         {/* Footer - RESPONSIVE */}
         {footer === "modern" && (
           <footer

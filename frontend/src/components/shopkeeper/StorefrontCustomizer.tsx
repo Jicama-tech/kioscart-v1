@@ -78,11 +78,22 @@ export function StorefrontCustomizer({
   >();
   const [heroBannerFile, setHeroBannerFile] = useState<File | null>(null);
   const [heroBannerPreview, setHeroBannerPreview] = useState<string>("");
-  type CropTarget = "banner" | "heroBanner" | null;
+  // Multi-banner images state for mega/Dual Slider design
+  const bannerImagesFileInputRef = useRef<HTMLInputElement>(null);
+  const [bannerImagesFiles, setBannerImagesFiles] = useState<(File | null)[]>([]);
+  const [bannerImagesPreviews, setBannerImagesPreviews] = useState<string[]>([]);
+  const [cropBannerImageIndex, setCropBannerImageIndex] = useState<number>(-1);
+  const sectionVideoRef = useRef<HTMLInputElement>(null);
+  const [sectionVideoFile, setSectionVideoFile] = useState<File | null>(null);
+  const [sectionVideoPreview, setSectionVideoPreview] = useState<string>("");
+  const storyMediaRef = useRef<HTMLInputElement>(null);
+  const [storyMediaFiles, setStoryMediaFiles] = useState<File[]>([]);
+  const [storyMediaPreviews, setStoryMediaPreviews] = useState<string[]>([]);
+  type CropTarget = "banner" | "heroBanner" | "bannerImage" | null;
 
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
-  const [cropTarget, setCropTarget] = useState<"banner" | "hero" | null>(null);
+  const [cropTarget, setCropTarget] = useState<"banner" | "hero" | "bannerImage" | null>(null);
 
   // Default settings for new shopkeepers
   const defaultSettings = {
@@ -128,6 +139,49 @@ export function StorefrontCustomizer({
         quickPicks: "modern",
         banner: "modern",
         footer: "modern",
+        bannerImages: [] as string[],
+        showHistoryBox: false,
+        showInstagramBar: false,
+        instagramReelUrls: [],
+        showVideoSection: false,
+        videoUrl: "",
+        showOurStory: false,
+        ourStoryTitle: "",
+        ourStoryDescription: "",
+        ourStoryMedia: [],
+        ourStoryEyebrow: "How we started",
+        showFeedbackBar: false,
+        featuredProductTitle: "Featured Product",
+        featuredProductDescription: "Our newest addition",
+        ourProductsTitle: "Our Products",
+        ourProductsDescription: "Browse through our collection",
+        quickPicksTitle: "Quick Picks",
+        quickPicksDescription: "Handpicked products just for you",
+        allProductsTitle: "All Products",
+        allProductsDescription: "Handpicked products just for you",
+        instagramTitle: "Follow Us on Instagram",
+        instagramDescription: "Check out our latest reels and posts",
+        videoSectionTitle: "",
+        videoSectionDescription: "Get a behind-the-scenes look at what makes us special",
+        newsletterTitle: "Stay Updated",
+        newsletterDescription: "Subscribe to our newsletter for latest updates and offers",
+        featuredProductTitleColor: "",
+        featuredProductDescColor: "",
+        ourProductsTitleColor: "",
+        ourProductsDescColor: "",
+        quickPicksTitleColor: "",
+        quickPicksDescColor: "",
+        allProductsTitleColor: "",
+        allProductsDescColor: "",
+        instagramTitleColor: "",
+        instagramDescColor: "",
+        videoSectionTitleColor: "",
+        videoSectionDescColor: "",
+        newsletterTitleColor: "",
+        newsletterDescColor: "",
+        ourStoryEyebrowColor: "",
+        ourStoryTitleColor: "",
+        ourStoryDescColor: "",
       },
       bannerImage:
         "https://images.unsplash.com/photo-1441986300917-64674bd600d8",
@@ -389,6 +443,66 @@ export function StorefrontCustomizer({
     });
   };
 
+  // --- Multi-banner image handlers for Dual Slider ---
+  const handleBannerImagesUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const currentImages = settings.design.layout.bannerImages || [];
+    if (currentImages.length + bannerImagesPreviews.filter((p) => !currentImages.includes(p)).length >= 5) {
+      toast({
+        title: "Limit Reached",
+        description: "You can add up to 5 banner images.",
+        variant: "destructive",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid File", description: "Please select an image file.", variant: "destructive" });
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File Too Large", description: "Please select an image smaller than 5MB.", variant: "destructive" });
+      event.target.value = "";
+      return;
+    }
+
+    // Track which index will be appended
+    const totalCount = bannerImagesFiles.length;
+    setCropBannerImageIndex(totalCount);
+    setCropTarget("bannerImage");
+    setCropImage(URL.createObjectURL(file));
+    setCropOpen(true);
+    event.target.value = "";
+  };
+
+  const removeBannerImageAtIndex = (index: number) => {
+    const existingImages = [...(settings.design.layout.bannerImages || [])];
+    const previews = [...bannerImagesPreviews];
+    const files = [...bannerImagesFiles];
+
+    // If index is within existing saved images, remove from settings
+    if (index < existingImages.length) {
+      existingImages.splice(index, 1);
+      handleLayoutChange("bannerImages", existingImages);
+    }
+
+    // Also clean up corresponding preview/file entries
+    if (previews[index]) {
+      URL.revokeObjectURL(previews[index]);
+    }
+    previews.splice(index, 1);
+    files.splice(index, 1);
+
+    setBannerImagesPreviews(previews);
+    setBannerImagesFiles(files);
+
+    toast({ title: "Banner Image Removed", description: "The banner image has been removed." });
+  };
+
   const handleCropComplete = (file: File) => {
     const previewUrl = URL.createObjectURL(file);
 
@@ -404,9 +518,16 @@ export function StorefrontCustomizer({
       handleInputChange("design", "heroBannerImage", file);
     }
 
+    if (cropTarget === "bannerImage") {
+      // Append new file/preview for multi-banner
+      setBannerImagesFiles((prev) => [...prev, file]);
+      setBannerImagesPreviews((prev) => [...prev, previewUrl]);
+    }
+
     setCropOpen(false);
     setCropImage(null);
     setCropTarget(null);
+    setCropBannerImageIndex(-1);
 
     toast({
       title: "Image Cropped",
@@ -460,6 +581,23 @@ export function StorefrontCustomizer({
         formData.append("heroBannerImage", heroBannerFile);
       }
 
+      // Add multi-banner image files for Dual Slider
+      bannerImagesFiles.forEach((file) => {
+        if (file) {
+          formData.append("bannerImages", file);
+        }
+      });
+
+      // Add section video file
+      if (sectionVideoFile) {
+        formData.append("sectionVideo", sectionVideoFile);
+      }
+
+      // Add story media files
+      storyMediaFiles.forEach((file) => {
+        formData.append("storyMedia", file);
+      });
+
       const response = await fetch(
         `${apiUrl}/shopkeeper-stores/update-store-settings`,
         {
@@ -490,6 +628,13 @@ export function StorefrontCustomizer({
           }
           setBannerPreview("");
           setBannerFile(null);
+        }
+
+        // Clean up multi-banner previews after save
+        if (bannerImagesFiles.length > 0) {
+          bannerImagesPreviews.forEach((p) => { if (p) URL.revokeObjectURL(p); });
+          setBannerImagesPreviews([]);
+          setBannerImagesFiles([]);
         }
 
       }
@@ -552,21 +697,8 @@ export function StorefrontCustomizer({
   };
 
   const handleLayoutChange = (
-    part:
-      | "header"
-      | "allProducts"
-      | "footer"
-      | "featuredProducts"
-      | "quickPicks"
-      | "banner"
-      | "visibleFeaturedProducts"
-      | "visibleQuickPicks"
-      | "visibleAdvertismentBar"
-      | "advertiseText"
-      | "adBarBgcolor"
-      | "adBarTextColor"
-      | "visibleProductCarausel",
-    value: string | boolean,
+    part: string,
+    value: any,
   ) => {
     setSettings((prev) => ({
       ...prev,
@@ -1260,643 +1392,603 @@ export function StorefrontCustomizer({
 
             <Card>
               <CardHeader>
-                <CardTitle>Layout & Banner</CardTitle>
+                <CardTitle>Storefront Sections</CardTitle>
                 <CardDescription>
-                  Choose your store layout and banner settings
+                  Configure each section of your storefront
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="relative">
-                  {/* Advertisement Bar */}
-                  <div className="flex items-center justify-between mt-4">
-                    <Label>Advertisement Bar</Label>
-                    <Switch
-                      checked={settings.design.layout.visibleAdvertismentBar}
-                      onCheckedChange={(checked) =>
-                        handleLayoutChange("visibleAdvertismentBar", checked)
-                      }
-                    />
-                  </div>
+              <CardContent className="space-y-3">
+                {(() => { const L: any = settings.design.layout; return (<>
 
-                  {visibleAdvertisementBar && (
-                    <div className="space-y-3 mt-2">
-                      <div>
-                        <Label htmlFor="advertiseText">Announcement Text</Label>
-                        <Input
-                          id="advertiseText"
-                          value={settings.design.layout.advertiseText ?? ""}
-                          onChange={(e) =>
-                            handleLayoutChange("advertiseText", e.target.value)
-                          }
-                          placeholder="e.g. ✨ Special Offer: Get 20% off on all new arrivals! ✨"
+                {/* 1. Advertisement Bar */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Advertisement Bar</span>
+                        <Switch
+                        checked={L.visibleAdvertismentBar}
+                        onCheckedChange={(checked) => handleLayoutChange("visibleAdvertismentBar", checked)}
                         />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          This text will appear in the scrolling announcement
-                          bar.
-                        </p>
+                  </div>
+                  {L.visibleAdvertismentBar && (
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Announcement Text</Label>
+                      <Input value={L.advertiseText ?? ""} onChange={(e) => handleLayoutChange("advertiseText", e.target.value)} placeholder="e.g. Flat 10% Off" className="text-xs" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground mb-1 block">Background Color</Label>
+                        <div className="flex gap-2">
+                          <Input value={L.adBarBgcolor ?? "#000000"} onChange={(e) => handleLayoutChange("adBarBgcolor", e.target.value)} placeholder="#000000" className="text-xs flex-1" />
+                          <input type="color" value={L.adBarBgcolor ?? "#000000"} onChange={(e) => handleLayoutChange("adBarBgcolor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        </div>
                       </div>
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground mb-1 block">Text Color</Label>
+                        <div className="flex gap-2">
+                          <Input value={L.adBarTextColor ?? "#ffffff"} onChange={(e) => handleLayoutChange("adBarTextColor", e.target.value)} placeholder="#ffffff" className="text-xs flex-1" />
+                          <input type="color" value={L.adBarTextColor ?? "#ffffff"} onChange={(e) => handleLayoutChange("adBarTextColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  )}
+                </div>
 
-                      <div className="space-y-4 p-4 border border-border rounded-xl bg-gradient-to-r bg-muted/30">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Background Color */}
-                          <div className="space-y-2">
-                            <Label className="text-sm font-semibold text-foreground tracking-tight">
-                              Background Color
-                            </Label>
-                            <div className="flex items-center gap-3 p-3 bg-background border border-border rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-                              <input
-                                type="color"
-                                value={
-                                  settings.design.layout.adBarBgcolor ??
-                                  "#000000"
-                                }
-                                onChange={(e) =>
-                                  handleLayoutChange(
-                                    "adBarBgcolor",
-                                    e.target.value,
-                                  )
-                                }
-                                className="w-14 h-14 p-0 rounded-xl border-2 border-border hover:border-primary/80 shadow-lg hover:shadow-xl cursor-pointer transition-all duration-200 hover:scale-[1.05]"
-                              />
-                              <Input
-                                value={
-                                  settings.design.layout.adBarBgcolor ??
-                                  "#000000"
-                                }
-                                onChange={(e) =>
-                                  handleLayoutChange(
-                                    "adBarBgcolor",
-                                    e.target.value,
-                                  )
-                                }
-                                placeholder="#000000"
-                                className="h-12 flex-1 text-sm font-mono"
-                              />
-                              <div
-                                className="w-16 h-16 rounded-xl border-2 border-border/50 shadow-lg flex items-center justify-center"
-                                style={{
-                                  backgroundColor:
-                                    settings.design.layout.adBarBgcolor ??
-                                    "#000000",
-                                }}
-                              />
-                            </div>
-                          </div>
+                {/* 2. Header */}
+                <details className="group border rounded-lg overflow-hidden">
+                  <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
+                    <span className="text-xs font-semibold">Header</span>
+                  </summary>
+                  <div className="p-3 space-y-3 bg-background">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("header", "modern")}>
+                        <h4 className="font-medium">Modern</h4>
+                        <p className="text-sm text-muted-foreground">Bold top bar with logo, navigation and primary actions highlighted.</p>
+                      </div>
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("header", "minimal")}>
+                        <h4 className="font-medium">Minimal</h4>
+                        <p className="text-sm text-muted-foreground">Clean header with compact logo and simple navigation for a focused look.</p>
+                      </div>
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("header", "mega")}>
+                        <h4 className="font-medium">Mega</h4>
+                        <p className="text-sm text-muted-foreground">Expanded header with space for menus, categories and promos.</p>
+                      </div>
+                    </div>
+                  </div>
+                </details>
 
-                          {/* Text Color */}
-                          <div className="space-y-2">
-                            <Label className="text-sm font-semibold text-foreground tracking-tight">
-                              Text Color
-                            </Label>
-                            <div className="flex items-center gap-3 p-3 bg-background border border-border rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-                              <input
-                                type="color"
-                                value={
-                                  settings.design.layout.adBarTextColor ??
-                                  "#ffffff"
-                                }
-                                onChange={(e) =>
-                                  handleLayoutChange(
-                                    "adBarTextColor",
-                                    e.target.value,
-                                  )
-                                }
-                                className="w-14 h-14 p-0 rounded-xl border-2 border-border hover:border-primary/80 shadow-lg hover:shadow-xl cursor-pointer transition-all duration-200 hover:scale-[1.05]"
-                              />
-                              <Input
-                                value={
-                                  settings.design.layout.adBarTextColor ??
-                                  "#ffffff"
-                                }
-                                onChange={(e) =>
-                                  handleLayoutChange(
-                                    "adBarTextColor",
-                                    e.target.value,
-                                  )
-                                }
-                                placeholder="#ffffff"
-                                className="h-12 flex-1 text-sm font-mono"
-                              />
-                              <div
-                                className="w-16 h-16 rounded-xl border-2 border-border/50 shadow-lg flex items-center justify-center text-xs font-semibold px-2"
-                                style={{
-                                  backgroundColor:
-                                    settings.design.layout.adBarBgcolor ??
-                                    "#000000",
-                                  color:
-                                    settings.design.layout.adBarTextColor ??
-                                    "#ffffff",
-                                }}
-                              >
-                                Aa
+                {/* 3. Banner / Hero */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Banner / Hero</span>
+                        <Switch
+                        checked={settings.design.showBanner}
+                        onCheckedChange={(checked) => handleInputChange("design", "showBanner", checked)}
+                        />
+                  </div>
+                  {settings.design.showBanner && (
+                  <div className="p-3 space-y-4 bg-background">
+                    <div className="space-y-4">
+                      {bannerDesign === "mega" && (
+                        <Label>Card Image (Click Image to Crop)</Label>
+                      )}
+                      {bannerDesign === "modern" || (bannerDesign === "minimal" && (
+                        <Label>Banner Image (Click Image to Crop)</Label>
+                      ))}
+
+                      {bannerPreview || settings.design.bannerImage ? (
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <img
+                              src={bannerPreview ? bannerPreview : getBannerSrc(settings.design.bannerImage)}
+                              alt="Banner preview"
+                              className="w-full h-96 object-cover rounded-lg border cursor-pointer"
+                              loading="lazy"
+                              onClick={() => {
+                                const src = bannerPreview ? bannerPreview : getBannerSrc(settings.design.bannerImage);
+                                setCropImage(src);
+                                setCropOpen(true);
+                              }}
+                            />
+                            <Button variant="destructive" size="sm" className="absolute top-2 right-2" onClick={removeBannerImage}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                            {bannerPreview && (
+                              <div className="absolute bottom-2 left-2">
+                                <Badge variant="secondary" className="text-xs">New Image Selected</Badge>
                               </div>
-                            </div>
+                            )}
+                          </div>
+                          <Button variant="buttonOutline" onClick={() => bannerFileInputRef.current?.click()} className="w-full">
+                            <Upload className="h-4 w-4 mr-2" />
+                            Change Banner
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="border-2 border-dashed border-border rounded-lg p-6">
+                          <div className="text-center">
+                            <ImagePlus className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                            <p className="text-muted-foreground mb-2">No banner image uploaded</p>
+                            <Button variant="buttonOutline" onClick={() => bannerFileInputRef.current?.click()}>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload Banner
+                            </Button>
                           </div>
                         </div>
-                        <p className="text-xs text-muted-foreground px-1">
-                          Live preview shows exact announcement bar appearance
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  {/* HEADER DESIGN */}
-                  <div className="space-y-4 mt-4">
-                    <Label>Header Design</Label>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Modern */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.header === "modern"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() => handleLayoutChange("header", "modern")}
-                      >
-                        <h4 className="font-medium">Modern</h4>
-
-                        <p className="text-sm text-muted-foreground">
-                          Bold top bar with logo, navigation and primary actions
-                          highlighted.
-                        </p>
-                      </div>
-
-                      {/* Minimal */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.header === "minimal"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() => handleLayoutChange("header", "minimal")}
-                      >
-                        <h4 className="font-medium">Minimal</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Clean header with compact logo and simple navigation
-                          for a focused look.
-                        </p>
-                      </div>
-
-                      {/* Mega */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.header === "mega"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() => handleLayoutChange("header", "mega")}
-                      >
-                        <h4 className="font-medium">Mega</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Expanded header with space for menus, categories and
-                          promos.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5 mt-4 mb-4">
-                      <Label>Show Banner (Hero Section)</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Display a hero banner on your homepage
+                      <input ref={bannerFileInputRef} type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
+                      <p className="text-xs text-muted-foreground">
+                        Recommended size: 1920x600px. Maximum file size: 5MB.
+                        {bannerFile && (<span className="text-primary block mt-1">New banner ready to upload: {bannerFile.name}</span>)}
                       </p>
                     </div>
+
+                    <div className="space-y-4 mt-4">
+                      <Label>Banner Design (Hero Design)</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.banner === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "modern")}>
+                          <h4 className="font-medium">Full Width</h4>
+                          <p className="text-sm text-muted-foreground">Single large hero banner spanning full viewport width. Perfect for maximum visual impact.</p>
+                        </div>
+                        <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.banner === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "minimal")}>
+                          <h4 className="font-medium">Compact</h4>
+                          <p className="text-sm text-muted-foreground">Smaller banner optimized for text overlay and quick navigation focus.</p>
+                        </div>
+                        <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.banner === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "mega")}>
+                          <h4 className="font-medium">Dual Slider</h4>
+                          <p className="text-sm text-muted-foreground">Supports up to 5 banner images with auto-rotating carousel for multiple promotions.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {bannerDesign === "mega" && (
+                      <div className="space-y-3">
+                        <Label>Banner Images for Dual Slider (up to 5)</Label>
+                        <p className="text-sm text-muted-foreground">These images will rotate in a carousel on your storefront. Click an image to crop it.</p>
+
+                        {/* Existing saved images + new previews */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {(() => {
+                            const savedImages = settings.design.layout.bannerImages || [];
+                            const allItems = [
+                              ...savedImages.map((img: string, i: number) => ({ type: "saved" as const, src: getBannerSrc(img), index: i })),
+                              ...bannerImagesPreviews.map((p: string, i: number) => ({ type: "new" as const, src: p, index: savedImages.length + i })),
+                            ];
+                            return allItems.map((item) => (
+                              <div key={`${item.type}-${item.index}`} className="relative group">
+                                <img
+                                  src={item.src}
+                                  alt={`Banner ${item.index + 1}`}
+                                  className="w-full h-32 object-cover rounded-lg border cursor-pointer"
+                                  loading="lazy"
+                                />
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => {
+                                    if (item.type === "saved") {
+                                      removeBannerImageAtIndex(item.index);
+                                    } else {
+                                      // Remove from previews/files (offset by savedImages length)
+                                      const previewIdx = item.index - savedImages.length;
+                                      const previews = [...bannerImagesPreviews];
+                                      const files = [...bannerImagesFiles];
+                                      if (previews[previewIdx]) URL.revokeObjectURL(previews[previewIdx]);
+                                      previews.splice(previewIdx, 1);
+                                      files.splice(previewIdx, 1);
+                                      setBannerImagesPreviews(previews);
+                                      setBannerImagesFiles(files);
+                                    }
+                                  }}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                                {item.type === "new" && (
+                                  <div className="absolute bottom-1 left-1">
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">New</Badge>
+                                  </div>
+                                )}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+
+                        {/* Add button */}
+                        {((settings.design.layout.bannerImages || []).length + bannerImagesPreviews.length) < 5 && (
+                          <div
+                            className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                            onClick={() => bannerImagesFileInputRef.current?.click()}
+                          >
+                            <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground mb-1" />
+                            <p className="text-sm text-muted-foreground">Add Banner Image</p>
+                          </div>
+                        )}
+                        <input ref={bannerImagesFileInputRef} type="file" accept="image/*" onChange={handleBannerImagesUpload} className="hidden" />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bannerHeight">Banner Height</Label>
+                      <Select value={settings.design.bannerHeight} onValueChange={(value) => handleInputChange("design", "bannerHeight", value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="small">Small (300px)</SelectItem>
+                          <SelectItem value="medium">Medium (400px)</SelectItem>
+                          <SelectItem value="large">Large (500px)</SelectItem>
+                          <SelectItem value="xl">Extra Large (600px)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  )}
+                </div>
+
+                {/* 4. Featured Product */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Featured Product</span>
+                        <Switch
+                        checked={L.visibleFeaturedProducts}
+                        onCheckedChange={(checked) => handleLayoutChange("visibleFeaturedProducts", checked)}
+                        />
+                  </div>
+                  {L.visibleFeaturedProducts && (
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.featuredProductTitle || ""} onChange={(e) => handleLayoutChange("featuredProductTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <input type="color" value={L.featuredProductTitleColor || "#000000"} onChange={(e) => handleLayoutChange("featuredProductTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.featuredProductDescription || ""} onChange={(e) => handleLayoutChange("featuredProductDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <input type="color" value={L.featuredProductDescColor || "#000000"} onChange={(e) => handleLayoutChange("featuredProductDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                  </div>
+                  )}
+                </div>
+
+                {/* 5. Our Products (includes carousel toggle) */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Our Products</span>
                     <Switch
-                      checked={settings.design.showBanner}
-                      onCheckedChange={(checked) =>
-                        handleInputChange("design", "showBanner", checked)
-                      }
+                      checked={L.visibleProductCarausel}
+                      onCheckedChange={(checked) => handleLayoutChange("visibleProductCarausel", checked)}
                     />
                   </div>
+                  {L.visibleProductCarausel && (
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.ourProductsTitle || ""} onChange={(e) => handleLayoutChange("ourProductsTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <input type="color" value={L.ourProductsTitleColor || "#000000"} onChange={(e) => handleLayoutChange("ourProductsTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.ourProductsDescription || ""} onChange={(e) => handleLayoutChange("ourProductsDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <input type="color" value={L.ourProductsDescColor || "#000000"} onChange={(e) => handleLayoutChange("ourProductsDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                  </div>
+                  )}
+                </div>
 
-                  {settings.design.showBanner && (
-                    <div className="space-y-4">
-                      <div className="space-y-4">
-                        {bannerDesign === "mega" && (
-                          <Label>Card Image (Click Image to Crop)</Label>
-                        )}
+                {/* 6. Quick Picks */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Quick Picks</span>
+                        <Switch
+                        checked={L.visibleQuickPicks}
+                        onCheckedChange={(checked) => handleLayoutChange("visibleQuickPicks", checked)}
+                        />
+                  </div>
+                  {L.visibleQuickPicks && (
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.quickPicksTitle || ""} onChange={(e) => handleLayoutChange("quickPicksTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <input type="color" value={L.quickPicksTitleColor || "#000000"} onChange={(e) => handleLayoutChange("quickPicksTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.quickPicksDescription || ""} onChange={(e) => handleLayoutChange("quickPicksDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <input type="color" value={L.quickPicksDescColor || "#000000"} onChange={(e) => handleLayoutChange("quickPicksDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                  </div>
+                  )}
+                </div>
 
-                        {bannerDesign === "modern" ||
-                          (bannerDesign === "minimal" && (
-                            <Label>Banner Image (Click Image to Crop)</Label>
-                          ))}
+                {/* 7. All Products */}
+                <details className="group border rounded-lg overflow-hidden">
+                  <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
+                    <span className="text-xs font-semibold">All Products</span>
+                  </summary>
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.allProductsTitle || ""} onChange={(e) => handleLayoutChange("allProductsTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <input type="color" value={L.allProductsTitleColor || "#000000"} onChange={(e) => handleLayoutChange("allProductsTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.allProductsDescription || ""} onChange={(e) => handleLayoutChange("allProductsDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <input type="color" value={L.allProductsDescColor || "#000000"} onChange={(e) => handleLayoutChange("allProductsDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("allProducts", "modern")}>
+                        <h4 className="font-medium">Single Card</h4>
+                        <p className="text-sm text-muted-foreground">Large single product card per row with bigger images, bold pricing and clear primary actions.</p>
+                      </div>
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("allProducts", "minimal")}>
+                        <h4 className="font-medium">Double Cards</h4>
+                        <p className="text-sm text-muted-foreground">Two product cards per row for a balanced grid that keeps details readable while showing more items.</p>
+                      </div>
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("allProducts", "mega")}>
+                        <h4 className="font-medium">Triple Cards</h4>
+                        <p className="text-sm text-muted-foreground">Three compact product cards per row, optimized for fast browsing and higher product density.</p>
+                      </div>
+                    </div>
+                  </div>
+                </details>
 
-                        {bannerPreview || settings.design.bannerImage ? (
-                          <div className="space-y-2">
-                            <div className="relative">
-                              <img
-                                src={
-                                  bannerPreview
-                                    ? bannerPreview
-                                    : getBannerSrc(settings.design.bannerImage)
-                                }
-                                alt="Banner preview"
-                                className="w-full h-96 object-cover rounded-lg border cursor-pointer"
-                                loading="lazy"
-                                onClick={() => {
-                                  // Open crop on click
-                                  const src = bannerPreview
-                                    ? bannerPreview
-                                    : getBannerSrc(settings.design.bannerImage);
-                                  setCropImage(src);
-                                  setCropOpen(true);
-                                }}
-                              />
+                {/* 9. Instagram Carousel */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Instagram Carousel</span>
+                        <Switch
+                        checked={L.showInstagramBar}
+                        onCheckedChange={(checked) => handleLayoutChange("showInstagramBar", checked)}
+                        />
+                  </div>
+                  {L.showInstagramBar && (
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.instagramTitle || ""} onChange={(e) => handleLayoutChange("instagramTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <input type="color" value={L.instagramTitleColor || "#000000"} onChange={(e) => handleLayoutChange("instagramTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.instagramDescription || ""} onChange={(e) => handleLayoutChange("instagramDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <input type="color" value={L.instagramDescColor || "#000000"} onChange={(e) => handleLayoutChange("instagramDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Reel URLs (max 6)</Label>
+                      {(L.instagramReelUrls || []).map((url: string, idx: number) => (
+                        <div key={idx} className="flex gap-2 mb-2">
+                          <Input value={url} onChange={(e) => { const urls = [...(L.instagramReelUrls || [])]; urls[idx] = e.target.value; handleLayoutChange("instagramReelUrls", urls); }} placeholder="https://www.instagram.com/reel/..." className="text-xs flex-1" />
+                          <Button variant="destructive" size="sm" onClick={() => { const urls = [...(L.instagramReelUrls || [])]; urls.splice(idx, 1); handleLayoutChange("instagramReelUrls", urls); }}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ))}
+                      {(L.instagramReelUrls || []).length < 6 && (
+                        <Button variant="buttonOutline" size="sm" onClick={() => handleLayoutChange("instagramReelUrls", [...(L.instagramReelUrls || []), ""])}>Add Reel URL</Button>
+                      )}
+                    </div>
+                  </div>
+                  )}
+                </div>
 
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                className="absolute top-2 right-2"
-                                onClick={removeBannerImage}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-
-                              {bannerPreview && (
-                                <div className="absolute bottom-2 left-2">
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    New Image Selected
-                                  </Badge>
-                                </div>
-                              )}
-                            </div>
-
-                            <Button
-                              variant="buttonOutline"
-                              onClick={() =>
-                                bannerFileInputRef.current?.click()
-                              }
-                              className="w-full"
-                            >
-                              <Upload className="h-4 w-4 mr-2" />
-                              Change Banner
+                {/* 10. Video Section */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Video Section</span>
+                        <Switch
+                        checked={L.showVideoSection}
+                        onCheckedChange={(checked) => handleLayoutChange("showVideoSection", checked)}
+                        />
+                  </div>
+                  {L.showVideoSection && (
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.videoSectionTitle || ""} onChange={(e) => handleLayoutChange("videoSectionTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <input type="color" value={L.videoSectionTitleColor || "#000000"} onChange={(e) => handleLayoutChange("videoSectionTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.videoSectionDescription || ""} onChange={(e) => handleLayoutChange("videoSectionDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <input type="color" value={L.videoSectionDescColor || "#000000"} onChange={(e) => handleLayoutChange("videoSectionDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Video URL or Upload</Label>
+                      <Input value={L.videoUrl || ""} onChange={(e) => handleLayoutChange("videoUrl", e.target.value)} placeholder="YouTube / Vimeo URL or leave empty to upload" className="text-xs" />
+                      <div className="mt-2">
+                        {sectionVideoPreview ? (
+                          <div className="flex items-center gap-2 p-2 bg-muted rounded text-xs">
+                            <span className="truncate flex-1">{sectionVideoFile?.name}</span>
+                            <Button variant="destructive" size="sm" onClick={() => { setSectionVideoFile(null); setSectionVideoPreview(""); }}>
+                              <X className="h-3 w-3" />
                             </Button>
                           </div>
                         ) : (
-                          <div className="border-2 border-dashed border-border rounded-lg p-6">
-                            <div className="text-center">
-                              <ImagePlus className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                              <p className="text-muted-foreground mb-2">
-                                No banner image uploaded
-                              </p>
-                              <Button
-                                variant="buttonOutline"
-                                onClick={() =>
-                                  bannerFileInputRef.current?.click()
-                                }
-                              >
-                                <Upload className="h-4 w-4 mr-2" />
-                                Upload Banner
-                              </Button>
-                            </div>
-                          </div>
+                          <Button variant="outline" size="sm" className="text-xs w-full" onClick={() => sectionVideoRef.current?.click()}>
+                            Upload Video File (.mp4, .webm, .mov)
+                          </Button>
                         )}
-
                         <input
-                          ref={bannerFileInputRef}
+                          ref={sectionVideoRef}
                           type="file"
-                          accept="image/*"
-                          onChange={handleBannerUpload}
+                          accept="video/*"
                           className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setSectionVideoFile(file);
+                              setSectionVideoPreview(URL.createObjectURL(file));
+                            }
+                          }}
                         />
-
-                        <p className="text-xs text-muted-foreground">
-                          Recommended size: 1920x600px. Maximum file size: 5MB.
-                          {bannerFile && (
-                            <span className="text-primary block mt-1">
-                              ✓ New banner ready to upload: {bannerFile.name}
-                            </span>
-                          )}
-                        </p>
                       </div>
+                    </div>
+                  </div>
+                  )}
+                </div>
 
-                      <div className="space-y-4 mt-4">
-                        <div className="flex items-center justify-between mt-4">
-                          <Label>Banner Design (Hero Design)</Label>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {/* Modern */}
-                          <div
-                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                              settings.design.layout.banner === "modern"
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                            onClick={() =>
-                              handleLayoutChange("banner", "modern")
-                            }
-                          >
-                            <h4 className="font-medium">Full Width</h4>
-                            <p className="text-sm text-muted-foreground">
-                              Single large hero banner spanning full viewport
-                              width. Perfect for maximum visual impact.
-                            </p>
-                          </div>
-
-                          {/* Minimal */}
-                          <div
-                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                              settings.design.layout.banner === "minimal"
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                            onClick={() =>
-                              handleLayoutChange("banner", "minimal")
-                            }
-                          >
-                            <h4 className="font-medium">Compact</h4>
-                            <p className="text-sm text-muted-foreground">
-                              Smaller banner optimized for text overlay and
-                              quick navigation focus.
-                            </p>
-                          </div>
-
-                          {/* Mega */}
-                          <div
-                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                              settings.design.layout.banner === "mega"
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                            onClick={() => handleLayoutChange("banner", "mega")}
-                          >
-                            <h4 className="font-medium">Dual Slider</h4>
-                            <p className="text-sm text-muted-foreground">
-                              Supports 2 banner images with carousel slider for
-                              multiple promotions.
-                            </p>
-                          </div>
-                        </div>
+                {/* 11. Our Story */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Our Story</span>
+                        <Switch
+                        checked={L.showOurStory}
+                        onCheckedChange={(checked) => { handleLayoutChange("showOurStory", checked); handleLayoutChange("showHistoryBox", checked); }}
+                        />
+                  </div>
+                  {L.showOurStory && (
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Eyebrow</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.ourStoryEyebrow || ""} onChange={(e) => handleLayoutChange("ourStoryEyebrow", e.target.value)} placeholder="Eyebrow text" className="text-xs flex-1" />
+                        <input type="color" value={L.ourStoryEyebrowColor || "#000000"} onChange={(e) => handleLayoutChange("ourStoryEyebrowColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
                       </div>
-                      {bannerDesign === "mega" && (
-                        <div className="space-y-2">
-                          <Label>
-                            Hero Banner For Mega Hero Section (Click Image to
-                            Crop)
-                          </Label>
-                          <p className="text-sm">
-                            {" "}
-                            (This image will be shown as your main banner. *)
-                          </p>
-
-                          {heroBannerPreview ||
-                          settings.design.heroBannerImage ? (
-                            <div className="relative">
-                              <img
-                                src={
-                                  heroBannerPreview
-                                    ? heroBannerPreview
-                                    : getBannerSrc(
-                                        settings.design.heroBannerImage,
-                                      )
-                                }
-                                alt="Hero Banner"
-                                className="w-full h-96 object-cover rounded-lg border cursor-pointer"
-                                loading="lazy"
-                                onClick={() => {
-                                  const src = heroBannerPreview
-                                    ? heroBannerPreview
-                                    : getBannerSrc(
-                                        settings.design.heroBannerImage,
-                                      );
-
-                                  setCropTarget("hero");
-                                  setCropImage(src);
-                                  setCropOpen(true);
-                                }}
-                              />
-
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                className="absolute top-2 right-2"
-                                onClick={removeHeroBannerImage}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-
-                              {heroBannerPreview && (
-                                <div className="absolute bottom-2 left-2">
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    New Image Selected
-                                  </Badge>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div
-                              className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer"
-                              onClick={() =>
-                                heroBannerFileInputRef.current?.click()
-                              }
-                            >
-                              <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
-                              <p className="text-muted-foreground mb-2">
-                                No hero banner uploaded
-                              </p>
-                              <Button variant="buttonOutline">
-                                Upload Hero Banner
-                              </Button>
-                            </div>
-                          )}
-
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.ourStoryTitle || ""} onChange={(e) => handleLayoutChange("ourStoryTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <input type="color" value={L.ourStoryTitleColor || "#000000"} onChange={(e) => handleLayoutChange("ourStoryTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.ourStoryDescription || ""} onChange={(e) => handleLayoutChange("ourStoryDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <input type="color" value={L.ourStoryDescColor || "#000000"} onChange={(e) => handleLayoutChange("ourStoryDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Media (max 3)</Label>
+                      {(L.ourStoryMedia || []).map((item: any, idx: number) => (
+                        <div key={idx} className="flex gap-2 mb-2 items-center">
+                          <Select value={item.type || "image"} onValueChange={(v) => { const media = [...(L.ourStoryMedia || [])]; media[idx] = { ...media[idx], type: v }; handleLayoutChange("ourStoryMedia", media); }}>
+                            <SelectTrigger className="w-24 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="image">Image</SelectItem>
+                              <SelectItem value="video">Video</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input value={item.url || ""} onChange={(e) => { const media = [...(L.ourStoryMedia || [])]; media[idx] = { ...media[idx], url: e.target.value }; handleLayoutChange("ourStoryMedia", media); }} placeholder="URL" className="text-xs flex-1" />
+                          <Button variant="destructive" size="sm" onClick={() => { const media = [...(L.ourStoryMedia || [])]; media.splice(idx, 1); handleLayoutChange("ourStoryMedia", media); }}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ))}
+                      {(L.ourStoryMedia || []).length < 3 && (
+                        <div className="flex gap-2">
+                          <Button variant="buttonOutline" size="sm" onClick={() => handleLayoutChange("ourStoryMedia", [...(L.ourStoryMedia || []), { type: "image", url: "" }])}>Add via URL</Button>
+                          <Button variant="outline" size="sm" className="text-xs" onClick={() => storyMediaRef.current?.click()}>Upload File</Button>
                           <input
-                            ref={heroBannerFileInputRef}
+                            ref={storyMediaRef}
                             type="file"
-                            accept="image/*"
-                            onChange={handleHeroBannerUpload}
+                            accept="image/*,video/*"
                             className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setStoryMediaFiles((prev) => [...prev, file]);
+                                const preview = URL.createObjectURL(file);
+                                setStoryMediaPreviews((prev) => [...prev, preview]);
+                                const isVideo = file.type.startsWith("video/");
+                                handleLayoutChange("ourStoryMedia", [...(L.ourStoryMedia || []), { type: isVideo ? "video" : "image", url: preview }]);
+                              }
+                              e.target.value = "";
+                            }}
                           />
                         </div>
                       )}
-                      <div className="space-y-2">
-                        <Label htmlFor="bannerHeight">Banner Height</Label>
-                        <Select
-                          value={settings.design.bannerHeight}
-                          onValueChange={(value) =>
-                            handleInputChange("design", "bannerHeight", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="small">Small (300px)</SelectItem>
-                            <SelectItem value="medium">
-                              Medium (400px)
-                            </SelectItem>
-                            <SelectItem value="large">Large (500px)</SelectItem>
-                            <SelectItem value="xl">
-                              Extra Large (600px)
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
                     </div>
+                  </div>
                   )}
-
-                  {/* FEATURED PRODUCT DESIGN */}
-                  <div className="space-y-4 mt-4">
-                    <div className="flex items-center justify-between mt-4">
-                      <Label>Featured Product</Label>
-                      <Switch
-                        checked={settings.design.layout.visibleFeaturedProducts}
-                        onCheckedChange={(checked) =>
-                          handleLayoutChange("visibleFeaturedProducts", checked)
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 mt-4">
-                    <div className="flex items-center justify-between mt-4">
-                      <Label>Product Caraousel</Label>
-                      <Switch
-                        checked={settings.design.layout.visibleProductCarausel}
-                        onCheckedChange={(checked) =>
-                          handleLayoutChange("visibleProductCarausel", checked)
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Quick Picks DESIGN */}
-                  <div className="space-y-4 mt-4">
-                    <div className="flex items-center justify-between mt-4">
-                      <Label>Quick Picks Design</Label>
-                      <Switch
-                        checked={settings.design.layout.visibleQuickPicks}
-                        onCheckedChange={(checked) =>
-                          handleLayoutChange("visibleQuickPicks", checked)
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* All Products DESIGN */}
-                  <div className="space-y-4 mt-4">
-                    <Label>All Products Card Design</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Modern */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.allProducts === "modern"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() =>
-                          handleLayoutChange("allProducts", "modern")
-                        }
-                      >
-                        <h4 className="font-medium">Single Card</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Large single product card per row with bigger images,
-                          bold pricing and clear primary actions.
-                        </p>
-                      </div>
-
-                      {/* Minimal */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.allProducts === "minimal"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() =>
-                          handleLayoutChange("allProducts", "minimal")
-                        }
-                      >
-                        <h4 className="font-medium">Double Cards</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Two product cards per row for a balanced grid that
-                          keeps details readable while showing more items.
-                        </p>
-                      </div>
-
-                      {/* Mega */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.allProducts === "mega"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() =>
-                          handleLayoutChange("allProducts", "mega")
-                        }
-                      >
-                        <h4 className="font-medium">Triple Cards</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Three compact product cards per row, optimized for
-                          fast browsing and higher product density.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* FOOTER DESIGN */}
-                  <div className="space-y-4 mt-4">
-                    <Label>Footer Design</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Modern */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.footer === "modern"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() => handleLayoutChange("footer", "modern")}
-                      >
-                        <h4 className="font-medium">Modern</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Multi‑column footer with links, social icons and
-                          newsletter.
-                        </p>
-                      </div>
-
-                      {/* Minimal */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.footer === "minimal"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() => handleLayoutChange("footer", "minimal")}
-                      >
-                        <h4 className="font-medium">Minimal</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Simple single‑row footer with basic links and
-                          copyright.
-                        </p>
-                      </div>
-
-                      {/* Mega */}
-                      <div
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          settings.design.layout.footer === "mega"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onClick={() => handleLayoutChange("footer", "mega")}
-                      >
-                        <h4 className="font-medium">Mega</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Detailed footer with multiple sections for navigation
-                          and info.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
-                {/* HERO DESIGN */}
+                {/* 12. Newsletter */}
+                <details className="group border rounded-lg overflow-hidden">
+                  <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
+                    <span className="text-xs font-semibold">Newsletter</span>
+                  </summary>
+                  <div className="p-3 space-y-3 bg-background">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.newsletterTitle || ""} onChange={(e) => handleLayoutChange("newsletterTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
+                        <input type="color" value={L.newsletterTitleColor || "#000000"} onChange={(e) => handleLayoutChange("newsletterTitleColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
+                      <div className="flex gap-2">
+                        <Input value={L.newsletterDescription || ""} onChange={(e) => handleLayoutChange("newsletterDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
+                        <input type="color" value={L.newsletterDescColor || "#000000"} onChange={(e) => handleLayoutChange("newsletterDescColor", e.target.value)} className="w-9 h-9 rounded cursor-pointer border" />
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                {/* 13. Footer */}
+                <details className="group border rounded-lg overflow-hidden">
+                  <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
+                    <span className="text-xs font-semibold">Footer</span>
+                  </summary>
+                  <div className="p-3 space-y-3 bg-background">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("footer", "modern")}>
+                        <h4 className="font-medium">Modern</h4>
+                        <p className="text-sm text-muted-foreground">Multi-column footer with links, social icons and newsletter.</p>
+                      </div>
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("footer", "minimal")}>
+                        <h4 className="font-medium">Minimal</h4>
+                        <p className="text-sm text-muted-foreground">Simple single-row footer with basic links and copyright.</p>
+                      </div>
+                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("footer", "mega")}>
+                        <h4 className="font-medium">Mega</h4>
+                        <p className="text-sm text-muted-foreground">Detailed footer with multiple sections for navigation and info.</p>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                {/* 14. Feedback / Testimonials */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                    <span className="text-xs font-semibold">Feedback / Testimonials</span>
+                        <Switch
+                        checked={L.showFeedbackBar}
+                        onCheckedChange={(checked) => handleLayoutChange("showFeedbackBar", checked)}
+                        />
+                  </div>
+                  {L.showFeedbackBar && (
+                  <div className="p-3 space-y-3 bg-background">
+                    <p className="text-xs text-muted-foreground">Displays a feedback / testimonials section on your storefront.</p>
+                  </div>
+                  )}
+                </div>
+
+                </>); })()}
               </CardContent>
             </Card>
           </TabsContent>

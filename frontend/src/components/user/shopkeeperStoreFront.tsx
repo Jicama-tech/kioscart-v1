@@ -58,6 +58,11 @@ import {
 } from "react-icons/fa";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import AnnouncementBar from "../ui/adBar";
+import { BannerCarousel } from "../ui/BannerCarousel";
+import { InstagramCarousel } from "../ui/InstagramCarousel";
+import { VideoSection } from "../ui/VideoSection";
+import { OurStorySection } from "../ui/OurStorySection";
+import { FeedbackBar } from "../ui/FeedbackBar";
 import {
   Dialog,
   DialogContent,
@@ -718,8 +723,42 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
   const design = settings.settings.design;
   const features = settings.settings.features;
   const general = settings.settings.general;
-  // const layout = settings.settings.design.layout;
-  // setLayout(settings.settings.design.layout);
+  const layoutConfig = settings.settings.design.layout;
+
+  // Header styling from settings
+  const headerStyle: React.CSSProperties = {
+    backgroundColor: layoutConfig.headerBgColor || "#ffffff",
+    color: layoutConfig.headerFontColor || "#000000",
+    fontSize: `${layoutConfig.headerFontSize || 16}px`,
+    fontWeight: layoutConfig.headerBold ? "bold" : "normal",
+  };
+
+  // Section titles styling
+  const sectionTitleStyle: React.CSSProperties = {
+    fontSize: `${layoutConfig.sectionFontSize || 28}px`,
+    color: layoutConfig.sectionFontColor || "#0f172a",
+    fontWeight: layoutConfig.sectionBold !== false ? "bold" : "normal",
+    fontFamily: design.fontFamily,
+  };
+
+  // Product card styling
+  const cardNameStyle: React.CSSProperties = {
+    fontSize: `${layoutConfig.cardNameFontSize || 16}px`,
+    color: layoutConfig.cardNameColor || "#0f172a",
+  };
+  const cardPriceStyle: React.CSSProperties = {
+    color: layoutConfig.cardPriceColor || "#16a34a",
+  };
+  const cardDescStyle: React.CSSProperties = {
+    color: layoutConfig.cardDescColor || "#64748b",
+  };
+
+  // Footer styling
+  const footerStyle: React.CSSProperties = {
+    backgroundColor: layoutConfig.footerBgColor || "#f8fafc",
+    color: layoutConfig.footerTextColor || "#0f172a",
+    fontSize: `${layoutConfig.footerFontSize || 14}px`,
+  };
 
   // themeColors moved before early returns — see above
 
@@ -852,13 +891,14 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
               }
               speed="50s"
               fontFamily={settings.settings.design.fontFamily || "Arial"}
+              position={settings.settings.design.layout.adBarPosition || "top"}
             />
           )}
         {/* Navigation - FIXED WHITE BACKGROUND */}
         {header === "modern" && (
-          <nav className="bg-white shadow-sm border-b sticky top-0 sm:top-0 z-40">
+          <nav className="shadow-sm border-b sticky top-0 sm:top-0 z-40" style={headerStyle}>
             <div className="max-w-7xl mx-auto px-2 sm:px-4">
-              <div className="flex justify-between items-center h-14 sm:h-16">
+              <div className={`flex items-center h-14 sm:h-16 ${layoutConfig.headerNavPosition === "center" ? "justify-center" : "justify-between"}`}>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1517,7 +1557,26 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
         )}
 
         {/* Hero Banner - RESPONSIVE */}
-        {banner === "modern" && design.showBanner && (
+        {banner === "modern" && design.showBanner && layoutConfig.bannerType === "carousel" && (
+          <section id="home">
+            <BannerCarousel
+              images={layoutConfig.bannerImages || []}
+              bannerImage={design.bannerImage}
+              heroBannerImage={design.heroBannerImage}
+              height={getBannerHeight()}
+              storeName={general.storeName}
+              description={general.tagline}
+              primaryColor={design.primaryColor}
+              fontSize={layoutConfig.bannerFontSize || 24}
+              fontColor={layoutConfig.bannerFontColor || "#ffffff"}
+              bold={layoutConfig.bannerBold || false}
+              fontFamily={design.fontFamily}
+              apiUrl={apiURL}
+            />
+          </section>
+        )}
+
+        {banner === "modern" && design.showBanner && layoutConfig.bannerType !== "carousel" && (
           <section
             id="home"
             className="relative overflow-hidden"
@@ -1540,12 +1599,19 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
               <div className="max-w-xl sm:max-w-2xl lg:max-w-3xl text-white">
                 <h1
-                  className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight"
-                  style={{ fontFamily: design.fontFamily }}
+                  className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl mb-4 sm:mb-6 leading-tight"
+                  style={{
+                    fontFamily: design.fontFamily,
+                    fontSize: `${layoutConfig.bannerFontSize || 36}px`,
+                    color: layoutConfig.bannerFontColor || "#ffffff",
+                    fontWeight: layoutConfig.bannerBold ? "bold" : "normal",
+                  }}
                 >
                   {general.storeName}
                 </h1>
-                <p className="text-sm sm:text-lg lg:text-xl mb-6 sm:mb-8 opacity-90 leading-relaxed">
+                <p className="text-sm sm:text-lg lg:text-xl mb-6 sm:mb-8 opacity-90 leading-relaxed"
+                  style={{ color: `${layoutConfig.bannerFontColor || "#ffffff"}cc` }}
+                >
                   {general.tagline}
                 </p>
                 <div className="flex">
@@ -1609,17 +1675,68 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
           </section>
         )}
 
-        {banner === "mega" && design.showBanner && (
+        {banner === "mega" && design.showBanner && (layoutConfig.bannerImages && layoutConfig.bannerImages.length > 0) && (
+          <section id="home" className="relative overflow-hidden w-full" style={{ height: getBannerHeight() }}>
+              <BannerCarousel
+                images={layoutConfig.bannerImages}
+                height="100%"
+                apiUrl={apiURL}
+                showOverlay={true}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div className="relative h-full flex items-end max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 sm:pb-12 lg:pb-16 z-10">
+                  <div className="flex flex-col items-start space-y-4 sm:space-y-6">
+                    {general.logo && (
+                      <img
+                        loading="lazy"
+                        src={getImageUrl(general.logo)}
+                        alt={`${general.storeName} logo`}
+                        className="h-10 w-auto sm:h-12 lg:h-16 drop-shadow-lg"
+                      />
+                    )}
+                    <h1
+                      className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white drop-shadow-lg"
+                      style={{
+                        fontFamily: design.fontFamily,
+                        fontSize: `${layoutConfig.bannerFontSize || 36}px`,
+                        color: layoutConfig.bannerFontColor || "#ffffff",
+                        fontWeight: layoutConfig.bannerBold ? "bold" : "normal",
+                      }}
+                    >
+                      {general.storeName}
+                    </h1>
+                    {general.tagline && (
+                      <p className="text-sm sm:text-lg text-white/80 max-w-lg drop-shadow">{general.tagline}</p>
+                    )}
+                    <Button
+                      size="lg"
+                      className="px-4 sm:px-6 lg:px-10 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs lg:text-base font-bold shadow-lg transition-transform hover:scale-105 hover:shadow-xl"
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.95)",
+                        color: design.primaryColor,
+                        backdropFilter: "blur(10px)",
+                      }}
+                      onClick={() => scrollToSection("products")}
+                    >
+                      Shop Now
+                    </Button>
+                  </div>
+                </div>
+              </BannerCarousel>
+          </section>
+        )}
+
+        {banner === "mega" && design.showBanner && (!layoutConfig.bannerImages || layoutConfig.bannerImages.length === 0) && (
           <section
             id="home"
             className="w-full px-4 sm:px-6 lg:px-8 py-8"
             style={{ height: getBannerHeight() }}
           >
-            {/* Main Container Box */}
+            {/* Main Container Box - fallback to original single-image layout */}
             <div
               className="w-full h-full rounded-[2rem] sm:rounded-[3rem] overflow-hidden flex items-center relative"
               style={{
-                backgroundColor: design.primaryColor, // Default fallback
+                backgroundColor: design.primaryColor,
                 backgroundImage: design.heroBannerImage
                   ? `url("${getImageUrl(design.heroBannerImage)}")`
                   : "none",
@@ -1628,26 +1745,24 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 backgroundRepeat: "no-repeat",
               }}
             >
-              {/* Optional overlay for better text readability when using heroBannerImage */}
               {design.heroBannerImage && <div className="absolute inset-0" />}
 
               <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[0.8fr_1.2fr] gap-4 sm:gap-8 items-center relative z-10">
-                {/* Right Image Box */}
                 <div className="flex justify-center md:justify-end w-full order-1 lg:order-2">
                   <div
                     className={`
-                  w-full 
+                  w-full
                   max-w-[16rem]
-                  md:max-w-[14rem] 
-                  lg:max-w-[32rem] 
-                  h-56 
-                  sm:h-64 
-                  md:h-72 
-                  lg:h-[24rem] 
-                  bg-gray-200 
-                  rounded-3xl 
-                  overflow-hidden 
-                  shadow-2xl 
+                  md:max-w-[14rem]
+                  lg:max-w-[32rem]
+                  h-56
+                  sm:h-64
+                  md:h-72
+                  lg:h-[24rem]
+                  bg-gray-200
+                  rounded-3xl
+                  overflow-hidden
+                  shadow-2xl
                   relative
                 `}
                   >
@@ -1662,7 +1777,6 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
 
-                {/* Left Content */}
                 <div className="flex flex-col items-center md:items-start space-y-4 sm:space-y-6 lg:space-y-8 max-w-lg lg:max-w-sm mx-auto lg:mx-0 order-2 lg:order-1">
                   {general.logo && (
                     <img
@@ -1705,13 +1819,13 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-8 sm:mb-12">
                   <h2
-                    className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4"
-                    style={{ fontFamily: design.fontFamily }}
+                    className="mb-3 sm:mb-4"
+                    style={{ ...sectionTitleStyle, ...((settings.settings.design.layout as any).featuredProductTitleColor ? { color: (settings.settings.design.layout as any).featuredProductTitleColor } : {}) }}
                   >
-                    Featured Product
+                    {(settings.settings.design.layout as any).featuredProductTitle || "Featured Product"}
                   </h2>
-                  <p className="text-base sm:text-lg text-muted-foreground">
-                    Our newest addition
+                  <p className="text-base sm:text-lg" style={{ ...cardDescStyle, ...((settings.settings.design.layout as any).featuredProductDescColor ? { color: (settings.settings.design.layout as any).featuredProductDescColor } : {}) }}>
+                    {(settings.settings.design.layout as any).featuredProductDescription || "Our newest addition"}
                   </p>
                 </div>
 
@@ -1827,12 +1941,15 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
               <div className="text-center mb-8 px-4">
                 <h2
                   className="text-2xl sm:text-3xl lg:text-4xl font-bold"
-                  style={{ fontFamily: design.fontFamily }}
+                  style={{ fontFamily: design.fontFamily, ...((settings.settings.design.layout as any).ourProductsTitleColor ? { color: (settings.settings.design.layout as any).ourProductsTitleColor } : {}) }}
                 >
-                  Our Products
+                  {(settings.settings.design.layout as any).ourProductsTitle || "Our Products"}
                 </h2>
-                <p className="text-muted-foreground text-sm sm:text-base mt-1 italic">
-                  Browse through our collection
+                <p
+                  className="text-muted-foreground text-sm sm:text-base mt-1 italic"
+                  style={(settings.settings.design.layout as any).ourProductsDescColor ? { color: (settings.settings.design.layout as any).ourProductsDescColor } : undefined}
+                >
+                  {(settings.settings.design.layout as any).ourProductsDescription || "Browse through our collection"}
                 </p>
               </div>
 
@@ -1903,13 +2020,13 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center mb-8 sm:mb-12">
                 <h2
-                  className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4"
-                  style={{ fontFamily: design.fontFamily }}
+                  className="mb-3 sm:mb-4"
+                  style={{ ...sectionTitleStyle, ...((settings.settings.design.layout as any).quickPicksTitleColor ? { color: (settings.settings.design.layout as any).quickPicksTitleColor } : {}) }}
                 >
-                  Quick Picks
+                  {(settings.settings.design.layout as any).quickPicksTitle || "Quick Picks"}
                 </h2>
-                <p className="text-base sm:text-lg text-muted-foreground">
-                  Handpicked products just for you
+                <p className="text-base sm:text-lg" style={{ ...cardDescStyle, ...((settings.settings.design.layout as any).quickPicksDescColor ? { color: (settings.settings.design.layout as any).quickPicksDescColor } : {}) }}>
+                  {(settings.settings.design.layout as any).quickPicksDescription || "Handpicked products just for you"}
                 </p>
               </div>
 
@@ -1946,81 +2063,36 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                                 .map((product, index) => (
                                   <Card
                                     key={product._id}
-                                    className={`group cursor-pointer hover:shadow-xl transition-all duration-300 rounded-3xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-white to-gray-50 h-full flex flex-col ${
-                                      index === 1 ? "hidden sm:flex" : "flex"
+                                    className={`group cursor-pointer hover:shadow-xl transition-all duration-300 rounded-3xl sm:rounded-3xl overflow-hidden bg-white h-full relative ${
+                                      index === 1 ? "hidden sm:block" : "block"
                                     }`}
                                     onClick={() =>
                                       handleProductClick(product._id)
                                     }
                                   >
-                                    <div className="relative flex-1 min-h-0">
-                                      <img
-                                        loading="lazy"
-                                        src={getImageUrl(product.images?.[0])}
-                                        alt={product.name}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        onError={(e) => {
-                                          e.currentTarget.src =
-                                            "/placeholder-product.jpg";
-                                          e.currentTarget.onerror = null;
-                                        }}
-                                      />
-                                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <img
+                                      loading="lazy"
+                                      src={getImageUrl(product.images?.[0])}
+                                      alt={product.name}
+                                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                      onError={(e) => {
+                                        e.currentTarget.src =
+                                          "/placeholder-product.jpg";
+                                        e.currentTarget.onerror = null;
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                                      {!isProductAvailable(product) && (
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                          <Badge
-                                            variant="destructive"
-                                            className="text-white font-semibold"
-                                          >
-                                            Out of Stock
-                                          </Badge>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4 flex-1 flex flex-col justify-between">
-                                      <div className="space-y-2 flex-1">
-                                        <h3 className="font-bold text-lg sm:text-xl lg:text-2xl group-hover:text-primary transition-colors line-clamp-2">
-                                          {product.name}
-                                        </h3>
-                                        <p className="text-sm sm:text-base text-muted-foreground">
-                                          {product.description}
-                                        </p>
-                                      </div>
-
-                                      <div className="flex items-center justify-between pt-1">
-                                        <div className="space-y-1">
-                                          <div
-                                            className="font-bold text-xl sm:text-2xl"
-                                            style={{
-                                              color: design.primaryColor,
-                                            }}
-                                          >
-                                            {getDisplayPrice(product)}
-                                          </div>
-                                        </div>
-
-                                        <Button
-                                          className="rounded-lg sm:rounded-xl px-3 sm:px-6 py-1 sm:py-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-xs sm:text-sm h-auto"
-                                          style={{
-                                            backgroundColor:
-                                              design.primaryColor,
-                                          }}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleProductClick(product._id);
-                                          }}
-                                          disabled={
-                                            !isProductAvailable(product)
-                                          }
+                                    {!isProductAvailable(product) && (
+                                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                        <Badge
+                                          variant="destructive"
+                                          className="text-white font-semibold"
                                         >
-                                          {isProductAvailable(product)
-                                            ? "View Details"
-                                            : "Out of Stock"}
-                                        </Button>
+                                          Out of Stock
+                                        </Badge>
                                       </div>
-                                    </CardContent>
+                                    )}
                                   </Card>
                                 ))}
 
@@ -2101,13 +2173,13 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center mb-8 sm:mb-12">
                 <h2
-                  className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4"
-                  style={{ fontFamily: design.fontFamily }}
+                  className="mb-3 sm:mb-4"
+                  style={{ ...sectionTitleStyle, ...((settings.settings.design.layout as any).allProductsTitleColor ? { color: (settings.settings.design.layout as any).allProductsTitleColor } : {}) }}
                 >
-                  All Products
+                  {(settings.settings.design.layout as any).allProductsTitle || "All Products"}
                 </h2>
-                <p className="text-base sm:text-lg text-muted-foreground">
-                  Handpicked products just for you
+                <p className="text-base sm:text-lg" style={{ ...cardDescStyle, ...((settings.settings.design.layout as any).allProductsDescColor ? { color: (settings.settings.design.layout as any).allProductsDescColor } : {}) }}>
+                  {(settings.settings.design.layout as any).allProductsDescription || "Handpicked products just for you"}
                 </p>
               </div>
 
@@ -2262,13 +2334,13 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center mb-8 sm:mb-12">
                 <h2
-                  className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4"
-                  style={{ fontFamily: design.fontFamily }}
+                  className="mb-3 sm:mb-4"
+                  style={{ ...sectionTitleStyle, ...((settings.settings.design.layout as any).allProductsTitleColor ? { color: (settings.settings.design.layout as any).allProductsTitleColor } : {}) }}
                 >
-                  All Products
+                  {(settings.settings.design.layout as any).allProductsTitle || "All Products"}
                 </h2>
-                <p className="text-base sm:text-lg text-muted-foreground">
-                  Handpicked products just for you
+                <p className="text-base sm:text-lg" style={{ ...cardDescStyle, ...((settings.settings.design.layout as any).allProductsDescColor ? { color: (settings.settings.design.layout as any).allProductsDescColor } : {}) }}>
+                  {(settings.settings.design.layout as any).allProductsDescription || "Handpicked products just for you"}
                 </p>
               </div>
 
@@ -2318,10 +2390,10 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   {filteredProducts.map((product) => (
                     <Card
                       key={product._id}
-                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white to-gray-50 h-[24rem] sm:h-[28rem] lg:h-[26rem] xl:h-[30rem]"
+                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-white h-[24rem] sm:h-[28rem] lg:h-[26rem] xl:h-[30rem] flex flex-col"
                       onClick={() => handleProductClick(product._id)}
                     >
-                      <div className="relative h-[60%]">
+                      <div className="relative h-[80%]">
                         <img
                           loading="lazy"
                           src={getImageUrl(product.images?.[0])}
@@ -2346,45 +2418,14 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         )}
                       </div>
 
-                      <CardContent className="p-4 sm:p-6 lg:p-8 space-y-3 sm:space-y-4 h-[40%] flex flex-col justify-between">
-                        <div className="space-y-2 sm:space-y-3">
-                          <h3 className="font-bold text-lg sm:text-xl lg:text-2xl group-hover:text-primary transition-colors line-clamp-2 leading-tight">
-                            {product.name}
-                          </h3>
-                          <p className="text-sm sm:text-base text-muted-foreground line-clamp-1 leading-relaxed">
-                            {product.description}
-                          </p>
+                      <div className="h-[20%] flex items-center justify-center px-4">
+                        <div
+                          className="font-bold text-xl sm:text-2xl lg:text-3xl"
+                          style={{ color: design.primaryColor }}
+                        >
+                          {getDisplayPrice(product)}
                         </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <div
-                              className="font-bold text-l sm:text-xl lg:text-2xl"
-                              style={{
-                                color: design.primaryColor,
-                              }}
-                            >
-                              {getDisplayPrice(product)}
-                            </div>
-                          </div>
-
-                          <Button
-                            className="rounded-3xl mb-4 px-4 sm:px-6 py-2 sm:py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-xs sm:text-sm lg:text-base h-auto min-h-[40px]"
-                            style={{
-                              backgroundColor: design.primaryColor,
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleProductClick(product._id);
-                            }}
-                            disabled={!isProductAvailable(product)}
-                          >
-                            {isProductAvailable(product)
-                              ? "View Details"
-                              : "Out of Stock"}
-                          </Button>
-                        </div>
-                      </CardContent>
+                      </div>
                     </Card>
                   ))}
                 </div>
@@ -2398,13 +2439,13 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center mb-8 sm:mb-12">
                 <h2
-                  className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4"
-                  style={{ fontFamily: design.fontFamily }}
+                  className="mb-3 sm:mb-4"
+                  style={{ ...sectionTitleStyle, ...((settings.settings.design.layout as any).allProductsTitleColor ? { color: (settings.settings.design.layout as any).allProductsTitleColor } : {}) }}
                 >
-                  All Products
+                  {(settings.settings.design.layout as any).allProductsTitle || "All Products"}
                 </h2>
-                <p className="text-base sm:text-lg text-muted-foreground">
-                  Handpicked products just for you
+                <p className="text-base sm:text-lg" style={{ ...cardDescStyle, ...((settings.settings.design.layout as any).allProductsDescColor ? { color: (settings.settings.design.layout as any).allProductsDescColor } : {}) }}>
+                  {(settings.settings.design.layout as any).allProductsDescription || "Handpicked products just for you"}
                 </p>
               </div>
 
@@ -2454,10 +2495,10 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   {filteredProducts.map((product) => (
                     <Card
                       key={product._id}
-                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white to-gray-50 h-[24rem] sm:h-[28rem] lg:h-[30rem] xl:h-[30rem]"
+                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-white h-[24rem] sm:h-[28rem] lg:h-[30rem] xl:h-[30rem] flex flex-col"
                       onClick={() => handleProductClick(product._id)}
                     >
-                      <div className="relative h-[60%]">
+                      <div className="relative h-[80%]">
                         <img
                           loading="lazy"
                           src={getImageUrl(product.images?.[0])}
@@ -2482,45 +2523,14 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         )}
                       </div>
 
-                      <CardContent className="p-4 sm:p-6 lg:p-8 space-y-3 sm:space-y-4 h-[40%] flex flex-col justify-between">
-                        <div className="space-y-2 sm:space-y-3">
-                          <h3 className="font-bold text-lg sm:text-xl lg:text-2xl group-hover:text-primary transition-colors line-clamp-2 leading-tight">
-                            {product.name}
-                          </h3>
-                          <p className="text-sm sm:text-base text-muted-foreground line-clamp-1 leading-relaxed">
-                            {product.description}
-                          </p>
+                      <div className="h-[20%] flex items-center justify-center px-4">
+                        <div
+                          className="font-bold text-xl sm:text-2xl lg:text-3xl"
+                          style={{ color: design.primaryColor }}
+                        >
+                          {getDisplayPrice(product)}
                         </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <div
-                              className="font-bold text-l sm:text-xl lg:text-2xl"
-                              style={{
-                                color: design.primaryColor,
-                              }}
-                            >
-                              {getDisplayPrice(product)}
-                            </div>
-                          </div>
-
-                          <Button
-                            className="rounded-3xl mb-4 sm:px-6 py-2 sm:py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-xs sm:text-sm lg:text-base"
-                            style={{
-                              backgroundColor: design.primaryColor,
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleProductClick(product._id);
-                            }}
-                            disabled={!isProductAvailable(product)}
-                          >
-                            {isProductAvailable(product)
-                              ? "View Details"
-                              : "Out of Stock"}
-                          </Button>
-                        </div>
-                      </CardContent>
+                      </div>
                     </Card>
                   ))}
                 </div>
@@ -2537,13 +2547,13 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
           >
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
               <h2
-                className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4"
-                style={{ fontFamily: design.fontFamily }}
+                className="mb-3 sm:mb-4"
+                style={{ ...sectionTitleStyle, ...((settings.settings.design.layout as any).newsletterTitleColor ? { color: (settings.settings.design.layout as any).newsletterTitleColor } : {}) }}
               >
-                Stay Updated
+                {(settings.settings.design.layout as any).newsletterTitle || "Stay Updated"}
               </h2>
-              <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8">
-                Subscribe to our newsletter for latest updates and offers
+              <p className="text-base sm:text-lg mb-6 sm:mb-8" style={{ ...cardDescStyle, ...((settings.settings.design.layout as any).newsletterDescColor ? { color: (settings.settings.design.layout as any).newsletterDescColor } : {}) }}>
+                {(settings.settings.design.layout as any).newsletterDescription || "Subscribe to our newsletter for latest updates and offers"}
               </p>
               <div className="flex flex-col xs:flex-row gap-3 sm:gap-4 max-w-md mx-auto">
                 <Input
@@ -2563,11 +2573,72 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             </div>
           </section>
         )}
+        {/* Our Story */}
+        {(settings.settings.design.layout as any).showOurStory && (
+          <OurStorySection
+            title={(settings.settings.design.layout as any).ourStoryTitle || ""}
+            description={(settings.settings.design.layout as any).ourStoryDescription || ""}
+            media={(settings.settings.design.layout as any).ourStoryMedia || []}
+            primaryColor={settings.settings.design.primaryColor}
+            eyebrow={(settings.settings.design.layout as any).ourStoryEyebrow}
+            eyebrowColor={(settings.settings.design.layout as any).ourStoryEyebrowColor}
+            titleColor={(settings.settings.design.layout as any).ourStoryTitleColor}
+            descColor={(settings.settings.design.layout as any).ourStoryDescColor}
+          />
+        )}
+
+        {/* Instagram Carousel */}
+        {settings.settings.design.layout.showInstagramBar && (
+          <InstagramCarousel
+            urls={settings.settings.design.layout.instagramReelUrls || []}
+            primaryColor={settings.settings.design.primaryColor}
+            title={(settings.settings.design.layout as any).instagramTitle}
+            description={(settings.settings.design.layout as any).instagramDescription}
+            titleColor={(settings.settings.design.layout as any).instagramTitleColor}
+            descColor={(settings.settings.design.layout as any).instagramDescColor}
+          />
+        )}
+
+        {/* Video Section */}
+        {settings.settings.design.layout.showVideoSection && (
+          settings.settings.design.layout.videoUrl ? (
+            <VideoSection
+              videoUrl={settings.settings.design.layout.videoUrl}
+              storeName={settings.settings.general.storeName}
+              primaryColor={settings.settings.design.primaryColor}
+              title={(settings.settings.design.layout as any).videoSectionTitle}
+              description={(settings.settings.design.layout as any).videoSectionDescription}
+              titleColor={(settings.settings.design.layout as any).videoSectionTitleColor}
+              descColor={(settings.settings.design.layout as any).videoSectionDescColor}
+            />
+          ) : (
+            <section className="py-10 px-4 text-center" style={cardDescStyle}>
+              <p className="text-sm">Video section enabled — add a video URL in Storefront Customizer</p>
+            </section>
+          )
+        )}
+
+        {/* Feedback / Testimonials */}
+        {settings.settings.design.layout.showFeedbackBar && (
+          settings.settings.feedbacks?.length > 0 ? (
+            <FeedbackBar
+              feedbacks={settings.settings.feedbacks}
+              primaryColor={settings.settings.design.primaryColor}
+              fontFamily={settings.settings.design.fontFamily}
+            />
+          ) : (
+            <section className="py-10 px-4 text-center" style={cardDescStyle}>
+              <p className="text-sm">Feedback section enabled — add testimonials in Storefront Customizer</p>
+            </section>
+          )
+        )}
+
         {/* Footer - RESPONSIVE */}
         {footer === "modern" && (
           <footer
             id="about"
-            className="bg-card border-t py-8 sm:py-12 lg:py-16"
+            className="border-t py-8 sm:py-12 lg:py-16"
+            style={footerStyle}
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {/* Main Footer Details */}

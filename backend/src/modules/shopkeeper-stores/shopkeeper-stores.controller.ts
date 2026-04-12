@@ -118,17 +118,20 @@ export class ShopkeeperStoresController {
       [
         { name: "bannerImage", maxCount: 1 },
         { name: "heroBannerImage", maxCount: 1 },
+        { name: "bannerImages", maxCount: 5 },
+        { name: "sectionVideo", maxCount: 1 },
+        { name: "storyMedia", maxCount: 3 },
       ],
       {
         storage,
         fileFilter: (req, file, cb) => {
-          if (file.mimetype.startsWith("image/")) {
+          if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) {
             cb(null, true);
           } else {
-            cb(new Error("Only image files allowed"), false);
+            cb(new Error("Only image and video files allowed"), false);
           }
         },
-        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+        limits: { fileSize: 50 * 1024 * 1024 }, // 50MB for videos
       },
     ),
   )
@@ -138,6 +141,9 @@ export class ShopkeeperStoresController {
     files: {
       bannerImage?: Express.Multer.File[];
       heroBannerImage?: Express.Multer.File[];
+      bannerImages?: Express.Multer.File[];
+      sectionVideo?: Express.Multer.File[];
+      storyMedia?: Express.Multer.File[];
     },
     @Body() updateShopkeeperStoreDto: UpdateShopkeeperStoreDto,
   ) {
@@ -174,12 +180,37 @@ export class ShopkeeperStoresController {
         console.log("Hero banner image path:", heroBannerImagePath);
       }
 
-      // Call service with parsed DTO and optional file paths
+      // Handle bannerImages (multiple files for carousel)
+      let bannerImagesPaths: string[] | undefined;
+      if (files.bannerImages && files.bannerImages.length > 0) {
+        bannerImagesPaths = files.bannerImages.map(
+          (f) => `/uploads/banners/${f.filename}`,
+        );
+        console.log("Banner images paths:", bannerImagesPaths);
+      }
+
+      // Handle sectionVideo upload
+      let sectionVideoPath: string | undefined;
+      if (files.sectionVideo && files.sectionVideo.length > 0) {
+        sectionVideoPath = `/uploads/banners/${files.sectionVideo[0].filename}`;
+      }
+
+      // Handle storyMedia uploads
+      let storyMediaPaths: string[] | undefined;
+      if (files.storyMedia && files.storyMedia.length > 0) {
+        storyMediaPaths = files.storyMedia.map(
+          (f) => `/uploads/banners/${f.filename}`,
+        );
+      }
+
       return await this.shopkeeperStoresService.update(
         id,
         updateShopkeeperStoreDto,
-        bannerImagePath, // undefined if no file
-        heroBannerImagePath, // undefined if no file
+        bannerImagePath,
+        heroBannerImagePath,
+        bannerImagesPaths,
+        sectionVideoPath,
+        storyMediaPaths,
       );
     } catch (error) {
       console.log("Update error:", error);

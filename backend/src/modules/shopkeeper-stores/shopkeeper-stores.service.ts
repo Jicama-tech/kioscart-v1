@@ -94,27 +94,7 @@ export class ShopkeeperStoresService {
             secondaryColor: createShopkeeperStoreDto.design.secondaryColor,
             fontFamily: createShopkeeperStoreDto.design.fontFamily,
             layout: {
-              header: createShopkeeperStoreDto.design.layout.header,
-              allProducts: createShopkeeperStoreDto.design.layout.allProducts,
-              visibleFeaturedProducts:
-                createShopkeeperStoreDto.design.layout.visibleFeaturedProducts,
-              visibleAdvertismentBar:
-                createShopkeeperStoreDto.design.layout.visibleAdvertismentBar,
-              visibleProductCarausel:
-                createShopkeeperStoreDto.design.layout.visibleProductCarausel,
-              advertiseText:
-                createShopkeeperStoreDto.design.layout.advertiseText ?? "",
-              adBarBgcolor:
-                createShopkeeperStoreDto.design.layout.adBarBgcolor ?? "",
-              adBarTextColor:
-                createShopkeeperStoreDto.design.layout.adBarTextColor ?? "",
-              visibleQuickPicks:
-                createShopkeeperStoreDto.design.layout.visibleQuickPicks,
-              featuredProducts:
-                createShopkeeperStoreDto.design.layout.featuredProducts,
-              quickPicks: createShopkeeperStoreDto.design.layout.quickPicks,
-              banner: createShopkeeperStoreDto.design.layout.banner,
-              footer: createShopkeeperStoreDto.design.layout.footer,
+              ...createShopkeeperStoreDto.design.layout,
             },
             bannerImage: createShopkeeperStoreDto.design.bannerImage ?? "",
             showBanner: createShopkeeperStoreDto.design.showBanner,
@@ -123,13 +103,7 @@ export class ShopkeeperStoresService {
             bannerHeight: createShopkeeperStoreDto.design.bannerHeight,
           },
           features: {
-            showSearch: createShopkeeperStoreDto.features.showSearch,
-            showFilters: createShopkeeperStoreDto.features.showFilters,
-            showReviews: createShopkeeperStoreDto.features.showReviews,
-            showWishlist: createShopkeeperStoreDto.features.showWishlist,
-            showSocialMedia: createShopkeeperStoreDto.features.showSocialMedia,
-            enableChat: createShopkeeperStoreDto.features.enableChat,
-            showNewsletter: createShopkeeperStoreDto.features.showNewsletter,
+            ...createShopkeeperStoreDto.features,
           },
           seo: {
             metaTitle: createShopkeeperStoreDto.seo.metaTitle,
@@ -239,6 +213,9 @@ export class ShopkeeperStoresService {
     updateShopkeeperDto: UpdateShopkeeperStoreDto,
     bannerImagePath?: string,
     heroBannerImagePath?: string,
+    bannerImagesPaths?: string[],
+    sectionVideoPath?: string,
+    storyMediaPaths?: string[],
   ) {
     try {
       const existingStore = await this.shopkeeperStoreModel
@@ -336,9 +313,29 @@ export class ShopkeeperStoresService {
           fontFamily:
             updateShopkeeperDto.design.fontFamily ??
             existingStore.settings.design.fontFamily,
-          layout:
-            updateShopkeeperDto.design.layout ??
-            existingStore.settings.design.layout,
+          layout: (() => {
+            const baseLayout =
+              updateShopkeeperDto.design.layout ??
+              existingStore.settings.design.layout;
+            // Append newly uploaded bannerImages to the existing array
+            let layout = { ...baseLayout };
+            if (bannerImagesPaths && bannerImagesPaths.length > 0) {
+              const existingBannerImages = layout.bannerImages || [];
+              layout.bannerImages = [...existingBannerImages, ...bannerImagesPaths];
+            }
+            if (sectionVideoPath) {
+              layout.videoUrl = sectionVideoPath;
+            }
+            if (storyMediaPaths && storyMediaPaths.length > 0) {
+              const existingMedia = layout.ourStoryMedia || [];
+              const newMedia = storyMediaPaths.map((p: string) => ({
+                type: p.match(/\.(mp4|webm|ogg|mov|m4v)$/i) ? "video" : "image",
+                url: p,
+              }));
+              layout.ourStoryMedia = [...existingMedia, ...newMedia];
+            }
+            return layout;
+          })(),
           heroBannerImage:
             heroBannerImagePath ??
             updateShopkeeperDto.design.heroBannerImage ??
@@ -359,27 +356,8 @@ export class ShopkeeperStoresService {
       // Update features settings if provided
       if (updateShopkeeperDto.features) {
         updateData["settings.features"] = {
-          showSearch:
-            updateShopkeeperDto.features.showSearch ??
-            existingStore.settings.features.showSearch,
-          showFilters:
-            updateShopkeeperDto.features.showFilters ??
-            existingStore.settings.features.showFilters,
-          showReviews:
-            updateShopkeeperDto.features.showReviews ??
-            existingStore.settings.features.showReviews,
-          showWishlist:
-            updateShopkeeperDto.features.showWishlist ??
-            existingStore.settings.features.showWishlist,
-          showSocialMedia:
-            updateShopkeeperDto.features.showSocialMedia ??
-            existingStore.settings.features.showSocialMedia,
-          enableChat:
-            updateShopkeeperDto.features.enableChat ??
-            existingStore.settings.features.enableChat,
-          showNewsletter:
-            updateShopkeeperDto.features.showNewsletter ??
-            existingStore.settings.features.showNewsletter,
+          ...existingStore.settings.features,
+          ...updateShopkeeperDto.features,
         };
       }
 

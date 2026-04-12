@@ -1,11 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -84,7 +79,10 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
   function handleCopyLink() {
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
-    toast({ title: "Copied!", description: "Referral link copied to clipboard" });
+    toast({
+      title: "Copied!",
+      description: "Referral link copied to clipboard",
+    });
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -109,8 +107,12 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
               <Briefcase className="h-5 w-5 text-indigo-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Agent Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Welcome, {agentName}</p>
+              <h1 className="text-xl font-bold text-slate-900">
+                Agent Dashboard
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Welcome, {agentName}
+              </p>
             </div>
           </div>
           <Button variant="outline" onClick={onLogout}>
@@ -126,7 +128,9 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
           <CardContent className="py-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <div className="flex-1">
-                <p className="text-sm font-semibold text-indigo-900 mb-1">Your Referral Link</p>
+                <p className="text-sm font-semibold text-indigo-900 mb-1">
+                  Your Referral Link
+                </p>
                 <p className="text-xs font-mono text-indigo-700 bg-white rounded-lg px-3 py-2 border border-indigo-200 break-all">
                   {referralLink}
                 </p>
@@ -135,7 +139,11 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
                 onClick={handleCopyLink}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
               >
-                {copied ? <CheckCircle className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                {copied ? (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                ) : (
+                  <Copy className="h-4 w-4 mr-2" />
+                )}
                 {copied ? "Copied!" : "Copy Link"}
               </Button>
             </div>
@@ -149,44 +157,61 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Referrals
+              </CardTitle>
               <Users className="h-4 w-4 text-indigo-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analytics?.referredCount || 0}</div>
+              <div className="text-2xl font-bold">
+                {analytics?.referredCount || 0}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {analytics?.activeCount || 0} active, {analytics?.pendingCount || 0} pending
+                {analytics?.activeCount || 0} active,{" "}
+                {analytics?.pendingCount || 0} pending
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Orders
+              </CardTitle>
               <ShoppingCart className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analytics?.totalOrders || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">From referred shopkeepers</p>
+              <div className="text-2xl font-bold">
+                {analytics?.totalOrders || 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                From referred shopkeepers
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Stores</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Stores
+              </CardTitle>
               <Store className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
                 {analytics?.activeCount || 0}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Approved shopkeepers</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Approved shopkeepers
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sales Target</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Sales Target
+              </CardTitle>
               <Target className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
@@ -196,11 +221,15 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                 <div
                   className="bg-orange-500 h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(analytics?.salesTargetProgress || 0, 100)}%` }}
+                  style={{
+                    width: `${Math.min(analytics?.salesTargetProgress || 0, 100)}%`,
+                  }}
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {analytics?.agent?.salesTarget ? `Target: ${analytics.agent.salesTarget.toLocaleString()} referrals` : "No target set"}
+                {analytics?.agent?.salesTarget
+                  ? `Target: ${analytics.agent.salesTarget.toLocaleString()} referrals`
+                  : "No target set"}
               </p>
             </CardContent>
           </Card>
@@ -216,7 +245,9 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
               <div className="py-12 text-center text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg font-medium">No referrals yet</p>
-                <p className="text-sm mt-1">Share your referral link to start getting referrals.</p>
+                <p className="text-sm mt-1">
+                  Share your referral link to start getting referrals.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -228,7 +259,9 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
                       <TableHead className="font-semibold">Email</TableHead>
                       <TableHead className="font-semibold">Status</TableHead>
                       <TableHead className="font-semibold">Orders</TableHead>
-                      <TableHead className="font-semibold">Registered</TableHead>
+                      <TableHead className="font-semibold">
+                        Registered
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -236,13 +269,20 @@ export function AgentDashboard({ onLogout }: AgentDashboardProps) {
                       <TableRow key={sk._id} className="hover:bg-muted/30">
                         <TableCell className="font-medium">{sk.name}</TableCell>
                         <TableCell>{sk.shopName}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{sk.email}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {sk.email}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={sk.approved ? "default" : "secondary"} className="text-xs">
+                          <Badge
+                            variant={sk.approved ? "default" : "secondary"}
+                            className="text-xs"
+                          >
                             {sk.approved ? "Active" : "Pending"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-medium">{sk.ordersCount}</TableCell>
+                        <TableCell className="font-medium">
+                          {sk.ordersCount}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {new Date(sk.registeredAt).toLocaleDateString()}
                         </TableCell>
