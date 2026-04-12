@@ -59,10 +59,10 @@ import {
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import AnnouncementBar from "../ui/adBar";
 import { BannerCarousel } from "../ui/BannerCarousel";
-import { InstagramCarousel } from "../ui/InstagramCarousel";
-import { VideoSection } from "../ui/VideoSection";
-import { OurStorySection } from "../ui/OurStorySection";
-import { FeedbackBar } from "../ui/FeedbackBar";
+const InstagramCarousel = lazy(() => import("../ui/InstagramCarousel").then(m => ({ default: m.InstagramCarousel })));
+const VideoSection = lazy(() => import("../ui/VideoSection").then(m => ({ default: m.VideoSection })));
+const OurStorySection = lazy(() => import("../ui/OurStorySection").then(m => ({ default: m.OurStorySection })));
+const FeedbackBar = lazy(() => import("../ui/FeedbackBar").then(m => ({ default: m.FeedbackBar })));
 import {
   Dialog,
   DialogContent,
@@ -275,8 +275,8 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
         // Single API call — fetches storefront + shopkeeper + products in ONE request
         const bundleRes = await fetch(
-          `${apiURL}/shopkeeper-stores/storefront-bundle/${slug}`,
-          { method: "GET" },
+          `${apiURL}/shopkeeper-stores/storefront-bundle/${slug}?t=${Date.now()}`,
+          { method: "GET", cache: "no-store" },
         );
 
         if (!bundleRes.ok) throw new Error("Failed to load storefront");
@@ -295,7 +295,11 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
             bundle.store.settings = {
               ...bundle.store.settings,
               general: { ...bundle.store.settings.general, ...parsed.general },
-              design: { ...bundle.store.settings.design, ...parsed.design },
+              design: {
+                ...bundle.store.settings.design,
+                ...parsed.design,
+                layout: { ...bundle.store.settings.design.layout, ...parsed.design?.layout },
+              },
               features: { ...bundle.store.settings.features, ...parsed.features },
               seo: { ...bundle.store.settings.seo, ...parsed.seo },
             };
@@ -333,6 +337,40 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       fetchData();
     }
   }, [shopName]);
+
+  // Listen for live preview updates from customizer via postMessage
+  useEffect(() => {
+    const isPreview = new URLSearchParams(window.location.search).get("preview") === "true";
+    if (!isPreview) return;
+
+    const handler = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type !== "PREVIEW_SETTINGS_UPDATE") return;
+      const parsed = e.data.settings;
+      if (!parsed) return;
+
+      setSettings((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          settings: {
+            ...prev.settings,
+            general: { ...prev.settings.general, ...parsed.general },
+            design: {
+              ...prev.settings.design,
+              ...parsed.design,
+              layout: { ...prev.settings.design.layout, ...parsed.design?.layout },
+            },
+            features: { ...prev.settings.features, ...parsed.features },
+            seo: { ...prev.settings.seo, ...parsed.seo },
+          },
+        };
+      });
+    };
+
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   useEffect(() => {
     if (settings?.settings?.design?.layout) {
@@ -2418,9 +2456,12 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         )}
                       </div>
 
-                      <div className="h-[20%] flex items-center justify-center px-4">
+                      <div className="h-[20%] flex items-center justify-between px-4">
+                        <h3 className="font-semibold text-sm sm:text-base truncate max-w-[60%]">
+                          {product.name}
+                        </h3>
                         <div
-                          className="font-bold text-xl sm:text-2xl lg:text-3xl"
+                          className="font-bold text-base sm:text-lg lg:text-xl flex-shrink-0"
                           style={{ color: design.primaryColor }}
                         >
                           {getDisplayPrice(product)}
@@ -2523,9 +2564,12 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         )}
                       </div>
 
-                      <div className="h-[20%] flex items-center justify-center px-4">
+                      <div className="h-[20%] flex items-center justify-between px-4">
+                        <h3 className="font-semibold text-sm sm:text-base truncate max-w-[60%]">
+                          {product.name}
+                        </h3>
                         <div
-                          className="font-bold text-xl sm:text-2xl lg:text-3xl"
+                          className="font-bold text-base sm:text-lg lg:text-xl flex-shrink-0"
                           style={{ color: design.primaryColor }}
                         >
                           {getDisplayPrice(product)}
@@ -2575,62 +2619,70 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
         )}
         {/* Our Story */}
         {(settings.settings.design.layout as any).showOurStory && (
-          <OurStorySection
-            title={(settings.settings.design.layout as any).ourStoryTitle || ""}
-            description={(settings.settings.design.layout as any).ourStoryDescription || ""}
-            media={(settings.settings.design.layout as any).ourStoryMedia || []}
-            primaryColor={settings.settings.design.primaryColor}
-            eyebrow={(settings.settings.design.layout as any).ourStoryEyebrow}
-            eyebrowColor={(settings.settings.design.layout as any).ourStoryEyebrowColor}
-            titleColor={(settings.settings.design.layout as any).ourStoryTitleColor}
-            descColor={(settings.settings.design.layout as any).ourStoryDescColor}
-          />
+          <Suspense fallback={<div className="py-16 text-center text-muted-foreground text-sm">Loading...</div>}>
+            <OurStorySection
+              title={(settings.settings.design.layout as any).ourStoryTitle || ""}
+              description={(settings.settings.design.layout as any).ourStoryDescription || ""}
+              media={(settings.settings.design.layout as any).ourStoryMedia || []}
+              primaryColor={settings.settings.design.primaryColor}
+              eyebrow={(settings.settings.design.layout as any).ourStoryEyebrow}
+              eyebrowColor={(settings.settings.design.layout as any).ourStoryEyebrowColor}
+              titleColor={(settings.settings.design.layout as any).ourStoryTitleColor}
+              descColor={(settings.settings.design.layout as any).ourStoryDescColor}
+            />
+          </Suspense>
         )}
 
         {/* Instagram Carousel */}
         {settings.settings.design.layout.showInstagramBar && (
-          <InstagramCarousel
-            urls={settings.settings.design.layout.instagramReelUrls || []}
-            primaryColor={settings.settings.design.primaryColor}
-            title={(settings.settings.design.layout as any).instagramTitle}
-            description={(settings.settings.design.layout as any).instagramDescription}
-            titleColor={(settings.settings.design.layout as any).instagramTitleColor}
-            descColor={(settings.settings.design.layout as any).instagramDescColor}
-          />
+          <Suspense fallback={<div className="py-16 text-center text-muted-foreground text-sm">Loading...</div>}>
+            <InstagramCarousel
+              urls={settings.settings.design.layout.instagramReelUrls || []}
+              primaryColor={settings.settings.design.primaryColor}
+              title={(settings.settings.design.layout as any).instagramTitle}
+              description={(settings.settings.design.layout as any).instagramDescription}
+              titleColor={(settings.settings.design.layout as any).instagramTitleColor}
+              descColor={(settings.settings.design.layout as any).instagramDescColor}
+            />
+          </Suspense>
         )}
 
         {/* Video Section */}
         {settings.settings.design.layout.showVideoSection && (
-          settings.settings.design.layout.videoUrl ? (
-            <VideoSection
-              videoUrl={settings.settings.design.layout.videoUrl}
-              storeName={settings.settings.general.storeName}
-              primaryColor={settings.settings.design.primaryColor}
-              title={(settings.settings.design.layout as any).videoSectionTitle}
-              description={(settings.settings.design.layout as any).videoSectionDescription}
-              titleColor={(settings.settings.design.layout as any).videoSectionTitleColor}
-              descColor={(settings.settings.design.layout as any).videoSectionDescColor}
-            />
-          ) : (
-            <section className="py-10 px-4 text-center" style={cardDescStyle}>
-              <p className="text-sm">Video section enabled — add a video URL in Storefront Customizer</p>
-            </section>
-          )
+          <Suspense fallback={<div className="py-16 text-center text-muted-foreground text-sm">Loading...</div>}>
+            {settings.settings.design.layout.videoUrl ? (
+              <VideoSection
+                videoUrl={settings.settings.design.layout.videoUrl}
+                storeName={settings.settings.general.storeName}
+                primaryColor={settings.settings.design.primaryColor}
+                title={(settings.settings.design.layout as any).videoSectionTitle}
+                description={(settings.settings.design.layout as any).videoSectionDescription}
+                titleColor={(settings.settings.design.layout as any).videoSectionTitleColor}
+                descColor={(settings.settings.design.layout as any).videoSectionDescColor}
+              />
+            ) : (
+              <section className="py-10 px-4 text-center" style={cardDescStyle}>
+                <p className="text-sm">Video section enabled — add a video URL in Storefront Customizer</p>
+              </section>
+            )}
+          </Suspense>
         )}
 
         {/* Feedback / Testimonials */}
         {settings.settings.design.layout.showFeedbackBar && (
-          settings.settings.feedbacks?.length > 0 ? (
-            <FeedbackBar
-              feedbacks={settings.settings.feedbacks}
-              primaryColor={settings.settings.design.primaryColor}
-              fontFamily={settings.settings.design.fontFamily}
-            />
-          ) : (
-            <section className="py-10 px-4 text-center" style={cardDescStyle}>
-              <p className="text-sm">Feedback section enabled — add testimonials in Storefront Customizer</p>
-            </section>
-          )
+          <Suspense fallback={<div className="py-16 text-center text-muted-foreground text-sm">Loading...</div>}>
+            {settings.settings.feedbacks?.length > 0 ? (
+              <FeedbackBar
+                feedbacks={settings.settings.feedbacks}
+                primaryColor={settings.settings.design.primaryColor}
+                fontFamily={settings.settings.design.fontFamily}
+              />
+            ) : (
+              <section className="py-10 px-4 text-center" style={cardDescStyle}>
+                <p className="text-sm">Feedback section enabled — add testimonials in Storefront Customizer</p>
+              </section>
+            )}
+          </Suspense>
         )}
 
         {/* Footer - RESPONSIVE */}

@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import viteCompression from "vite-plugin-compression";
 
 export default defineConfig(({ mode }) => {
   // Load env variables based on `mode` (development or production)
@@ -12,9 +13,12 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8080,
     },
-    plugins: [react(), mode === "development" && componentTagger()].filter(
-      Boolean
-    ),
+    plugins: [
+      react(),
+      mode === "development" && componentTagger(),
+      mode === "production" && viteCompression({ algorithm: "gzip", threshold: 1024 }),
+      mode === "production" && viteCompression({ algorithm: "brotliCompress", ext: ".br", threshold: 1024 }),
+    ].filter(Boolean),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

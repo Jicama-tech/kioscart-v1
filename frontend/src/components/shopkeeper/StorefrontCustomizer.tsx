@@ -2193,18 +2193,26 @@ export function StorefrontCustomizer({
 
 // Live Preview Component
 function StorefrontPreview({ settings, slug, apiUrl }: { settings: any; slug: string; apiUrl: string }) {
-  const [iframeKey, setIframeKey] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [loaded, setLoaded] = useState(false);
   const storeUrl = slug ? `${window.location.origin}/${slug}?preview=true` : "";
 
-  // Save current unsaved settings to sessionStorage so the iframe can read them
+  // Save to sessionStorage for initial iframe load
   useEffect(() => {
     sessionStorage.setItem("storefrontPreviewSettings", JSON.stringify(settings));
-    setIframeKey((k) => k + 1);
   }, [settings]);
+
+  // After iframe loads, send live updates via postMessage (no reload needed)
+  useEffect(() => {
+    if (!loaded || !iframeRef.current?.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage(
+      { type: "PREVIEW_SETTINGS_UPDATE", settings },
+      window.location.origin,
+    );
+  }, [settings, loaded]);
 
   return (
     <div className="max-w-7xl mx-auto mt-6 mb-4 px-4">
-      {/* Browser-like URL bar */}
       <div className="flex items-center gap-2 mb-4 bg-muted rounded-xl px-4 py-3 border">
         <div className="flex gap-1.5">
           <div className="w-3 h-3 rounded-full bg-red-400" />
@@ -2216,14 +2224,14 @@ function StorefrontPreview({ settings, slug, apiUrl }: { settings: any; slug: st
         </div>
       </div>
 
-      {/* Iframe Preview */}
       {storeUrl ? (
         <div className="border rounded-xl overflow-hidden shadow-lg bg-white" style={{ height: "75vh" }}>
           <iframe
-            key={iframeKey}
+            ref={iframeRef}
             src={storeUrl}
             className="w-full h-full border-0"
             title="Storefront Preview"
+            onLoad={() => setLoaded(true)}
           />
         </div>
       ) : (
