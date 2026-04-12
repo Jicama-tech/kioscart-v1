@@ -329,7 +329,7 @@ export class ShopkeeperStoresService {
             if (storyMediaPaths && storyMediaPaths.length > 0) {
               const existingMedia = layout.ourStoryMedia || [];
               const newMedia = storyMediaPaths.map((p: string) => ({
-                type: p.match(/\.(mp4|webm|ogg|mov|m4v)$/i) ? "video" : "image",
+                type: (p.match(/\.(mp4|webm|ogg|mov|m4v)$/i) ? "video" : "image") as "video" | "image",
                 url: p,
               }));
               layout.ourStoryMedia = [...existingMedia, ...newMedia];

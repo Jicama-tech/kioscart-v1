@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Instagram, Play } from "lucide-react";
+import { Instagram } from "lucide-react";
 
 interface InstagramCarouselProps {
   urls: string[];
@@ -119,28 +119,21 @@ export function InstagramCarousel({ urls, title, description, titleColor, descCo
                         }}
                       />
                     ) : (
-                      <>
-                        <iframe
-                          src={item.src}
-                          title={`Instagram thumb ${i}`}
-                          loading="lazy"
-                          scrolling="no"
-                          tabIndex={-1}
-                          style={{
-                            width: "100%",
-                            height: "820px",
-                            border: 0,
-                            display: "block",
-                            marginTop: "-60px",
-                            pointerEvents: "none",
-                          }}
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/25 transition-colors">
-                          <div className="w-11 h-11 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                            <Play className="h-4 w-4 text-pink-600 fill-pink-600 ml-0.5" />
-                          </div>
-                        </div>
-                      </>
+                      <iframe
+                        src={item.src}
+                        title={`Instagram thumb ${i}`}
+                        loading="lazy"
+                        scrolling="no"
+                        tabIndex={-1}
+                        style={{
+                          width: "100%",
+                          height: "820px",
+                          border: 0,
+                          display: "block",
+                          marginTop: "-60px",
+                          pointerEvents: "none",
+                        }}
+                      />
                     )
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
