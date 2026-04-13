@@ -78,20 +78,15 @@ export default defineConfig(({ mode }) => {
       cssCodeSplit: true,
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ["react", "react-dom", "react-router-dom"],
-            ui: [
-              "@radix-ui/react-dialog",
-              "@radix-ui/react-dropdown-menu",
-              "@radix-ui/react-tabs",
-              "@radix-ui/react-tooltip",
-              "@radix-ui/react-select",
-              "@radix-ui/react-popover",
-              "@radix-ui/react-accordion",
-            ],
-            charts: ["recharts"],
-            motion: ["framer-motion"],
-            icons: ["lucide-react"],
+          manualChunks(id) {
+            if (id.includes("node_modules")) {
+              if (id.includes("react-dom") || id.includes("react-router") || id.includes("/react/")) {
+                return "vendor";
+              }
+              if (id.includes("@radix-ui")) {
+                return "ui";
+              }
+            }
           },
         },
       },
