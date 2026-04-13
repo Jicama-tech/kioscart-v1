@@ -49,6 +49,7 @@ export interface StorefrontSettings {
       quickPicks: string;
       quickPicksProducts: string[];
       banner: string;
+      bannerTextAlign: string;
       footer: string;
       headerFontSize: number;
       headerFontColor: string;
@@ -208,6 +209,7 @@ export class ShopfrontStore {
           quickPicks: "modern",
           quickPicksProducts: [],
           banner: "modern",
+          bannerTextAlign: "left",
           visibleProductCarausel: false,
           footer: "modern",
           headerFontSize: 16,

@@ -173,6 +173,7 @@ export function StorefrontCustomizer({
         featuredProducts: "modern",
         quickPicks: "modern",
         banner: "modern",
+        bannerTextAlign: "left",
         footer: "modern",
         bannerImages: [] as string[],
         showHistoryBox: false,
@@ -1509,7 +1510,7 @@ export function StorefrontCustomizer({
                       {bannerDesign === "minimal" && (
                         <Label>Overlay Image — Founder / Product (Click to Crop)</Label>
                       )}
-                      {bannerDesign === "modern" && (
+                      {(bannerDesign === "modern" || bannerDesign === "centered") && (
                         <Label>Banner Image (Click Image to Crop)</Label>
                       )}
 
@@ -1563,18 +1564,18 @@ export function StorefrontCustomizer({
 
                     <div className="space-y-4 mt-4">
                       <Label>Banner Design (Hero Design)</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.banner === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "modern")}>
-                          <h4 className="font-medium">Full Width</h4>
-                          <p className="text-sm text-muted-foreground">Single large hero banner spanning full viewport width. Perfect for maximum visual impact.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "modern")}>
+                          <h4 className="font-medium text-sm">Full Width</h4>
+                          <p className="text-xs text-muted-foreground">Full-width image with customizable text alignment (left, center, right).</p>
                         </div>
-                        <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.banner === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "minimal")}>
-                          <h4 className="font-medium">Compact</h4>
-                          <p className="text-sm text-muted-foreground">Smaller banner optimized for text overlay and quick navigation focus.</p>
+                        <div className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "minimal")}>
+                          <h4 className="font-medium text-sm">Banner on Banner</h4>
+                          <p className="text-xs text-muted-foreground">Background image/color + overlay card (founder photo, product).</p>
                         </div>
-                        <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.banner === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "mega")}>
-                          <h4 className="font-medium">Dual Slider</h4>
-                          <p className="text-sm text-muted-foreground">Supports up to 5 banner images with auto-rotating carousel for multiple promotions.</p>
+                        <div className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "mega")}>
+                          <h4 className="font-medium text-sm">Carousel</h4>
+                          <p className="text-xs text-muted-foreground">Up to 5 images, auto-rotating full-width slider.</p>
                         </div>
                       </div>
                     </div>
@@ -1678,6 +1679,45 @@ export function StorefrontCustomizer({
                           </div>
                         )}
                         <input ref={heroBannerFileInputRef} type="file" accept="image/*" onChange={handleHeroBannerUpload} className="hidden" />
+                      </div>
+                    )}
+
+                    {bannerDesign !== "mega" && (
+                      <div className="space-y-3 p-3 border rounded-lg bg-muted/20">
+                        <Label className="text-xs font-semibold">Banner Text Styling</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground mb-1 block">Font Color</Label>
+                            <div className="flex gap-2">
+                              <DebouncedInput value={L.bannerFontColor || "#ffffff"} onChange={(e: any) => handleLayoutChange("bannerFontColor", e.target.value)} placeholder="#ffffff" className="text-xs flex-1" />
+                              <DebouncedColorInput value={L.bannerFontColor || "#ffffff"} onChange={(val) => handleLayoutChange("bannerFontColor", val)} />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground mb-1 block">Font Size (px)</Label>
+                            <DebouncedInput type="number" value={L.bannerFontSize || 36} onChange={(e: any) => handleLayoutChange("bannerFontSize", parseInt(e.target.value) || 36)} className="text-xs" />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Bold Text</Label>
+                          <Switch checked={L.bannerBold || false} onCheckedChange={(v) => handleLayoutChange("bannerBold", v)} />
+                        </div>
+                        {bannerDesign === "modern" && (
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground mb-1 block">Text Alignment</Label>
+                            <div className="flex gap-2">
+                              {["left", "center", "right"].map((align) => (
+                                <button
+                                  key={align}
+                                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${L.bannerTextAlign === align || (!L.bannerTextAlign && align === "left") ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/50"}`}
+                                  onClick={() => handleLayoutChange("bannerTextAlign", align)}
+                                >
+                                  {align.charAt(0).toUpperCase() + align.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 

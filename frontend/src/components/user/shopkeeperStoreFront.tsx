@@ -389,9 +389,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       if (settings?.settings?.design?.layout.visibleQuickPicks) {
         setQuickPicks(settings?.settings?.design?.layout.quickPicks);
       }
-      if (settings?.settings?.design?.showBanner) {
-        setBanner(settings?.settings?.design?.layout.banner);
-      }
+      setBanner(settings?.settings?.design?.layout.banner);
       setAllProducts(settings?.settings.design.layout.allProducts);
       setFooter(settings?.settings?.design?.layout.footer);
     }
@@ -1603,26 +1601,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
         )}
 
         {/* Hero Banner - RESPONSIVE */}
-        {banner === "modern" && design.showBanner && layoutConfig.bannerType === "carousel" && (
-          <section id="home">
-            <BannerCarousel
-              images={layoutConfig.bannerImages || []}
-              bannerImage={design.bannerImage}
-              heroBannerImage={design.heroBannerImage}
-              height={getBannerHeight()}
-              storeName={general.storeName}
-              description={general.tagline}
-              primaryColor={design.primaryColor}
-              fontSize={layoutConfig.bannerFontSize || 24}
-              fontColor={layoutConfig.bannerFontColor || "#ffffff"}
-              bold={layoutConfig.bannerBold || false}
-              fontFamily={design.fontFamily}
-              apiUrl={apiURL}
-            />
-          </section>
-        )}
-
-        {banner === "modern" && design.showBanner && layoutConfig.bannerType !== "carousel" && (
+        {banner === "modern" && design.showBanner && (
           <section
             id="home"
             className="relative overflow-hidden"
@@ -1642,8 +1621,8 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
               </>
             )}
 
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
-              <div className="max-w-xl sm:max-w-2xl lg:max-w-3xl text-white">
+            <div className={`relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center ${layoutConfig.bannerTextAlign === "center" ? "justify-center" : layoutConfig.bannerTextAlign === "right" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-xl sm:max-w-2xl lg:max-w-3xl text-white ${layoutConfig.bannerTextAlign === "center" ? "text-center" : layoutConfig.bannerTextAlign === "right" ? "text-right" : "text-left"}`}>
                 <h1
                   className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl mb-4 sm:mb-6 leading-tight"
                   style={{
@@ -1660,7 +1639,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 >
                   {general.tagline}
                 </p>
-                <div className="flex">
+                <div className={`flex ${layoutConfig.bannerTextAlign === "center" ? "justify-center" : layoutConfig.bannerTextAlign === "right" ? "justify-end" : "justify-start"}`}>
                   <Button
                     size="lg"
                     className="px-10 sm:px-16 lg:px-20 py-3 sm:py-4 rounded-xl text-sm sm:text-base lg:text-lg font-bold shadow-xl transition-all hover:scale-105 w-full sm:w-auto"

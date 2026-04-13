@@ -52,6 +52,7 @@ export class UpdateShopkeeperStoreDto {
       quickPicks?: string;
       quickPicksProducts?: string[];
       banner?: string;
+      bannerTextAlign?: string;
       footer?: string;
       headerFontSize?: number;
       headerFontColor?: string;

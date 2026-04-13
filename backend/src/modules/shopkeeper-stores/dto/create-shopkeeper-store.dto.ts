@@ -53,6 +53,7 @@ class LayoutSettingsDto {
   @IsOptional() @IsString() quickPicks?: string;
   @IsOptional() @IsArray() quickPicksProducts?: string[];
   @IsOptional() @IsString() banner?: string;
+  @IsOptional() @IsString() bannerTextAlign?: string;
   @IsOptional() @IsString() footer?: string;
   @IsOptional() @IsNumber() headerFontSize?: number;
   @IsOptional() @IsString() headerFontColor?: string;
