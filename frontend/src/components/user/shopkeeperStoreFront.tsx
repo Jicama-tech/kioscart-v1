@@ -252,15 +252,17 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       .replace(/-+/g, "-");
 
   // Helper function to get full image URL
-  const getImageUrl = (imagePath: string | undefined): string => {
-    if (!imagePath) return "/placeholder-product.jpg";
+  const getImageUrl = (imagePath: any): string => {
+    if (!imagePath || typeof imagePath !== "string") return "/placeholder-product.jpg";
 
-    // Already a full URL
+    if (imagePath.startsWith("blob:") || imagePath.startsWith("data:")) {
+      return imagePath;
+    }
+
     if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
       return imagePath;
     }
 
-    // Relative path - add API URL
     const fullPath = imagePath.startsWith("/") ? imagePath : "/" + imagePath;
     return `${apiURL}${fullPath}`;
   };
@@ -273,15 +275,21 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
       try {
         const slug = slugify(shopName);
 
-        // Single API call — fetches storefront + shopkeeper + products in ONE request
-        const bundleRes = await fetch(
-          `${apiURL}/shopkeeper-stores/storefront-bundle/${slug}?t=${Date.now()}`,
-          { method: "GET", cache: "no-store" },
-        );
-
-        if (!bundleRes.ok) throw new Error("Failed to load storefront");
-
-        const bundle = await bundleRes.json();
+        // Use prefetched data from index.html if available, otherwise fetch fresh
+        let bundle: any = null;
+        const prefetched = (window as any).__PREFETCHED_STORE__;
+        if (prefetched) {
+          bundle = await prefetched;
+          (window as any).__PREFETCHED_STORE__ = null;
+        }
+        if (!bundle) {
+          const bundleRes = await fetch(
+            `${apiURL}/shopkeeper-stores/storefront-bundle/${slug}?t=${Date.now()}`,
+            { method: "GET", cache: "no-store" },
+          );
+          if (!bundleRes.ok) throw new Error("Failed to load storefront");
+          bundle = await bundleRes.json();
+        }
 
         if (!bundle.store) throw new Error("Store not found");
 
@@ -1670,43 +1678,91 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
         {banner === "minimal" && design.showBanner && (
           <section
             id="home"
-            className="relative overflow-hidden"
+            className="w-full px-4 sm:px-6 lg:px-8 py-8"
             style={{ height: getBannerHeight() }}
           >
-            {design.bannerImage && (
-              <>
-                <div
-                  className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: `url("${getImageUrl(
-                      design.bannerImage,
-                    )}")`,
-                  }}
-                />
-                <div className="absolute inset-0" />
-              </>
-            )}
+            <div
+              className="w-full h-full rounded-[2rem] sm:rounded-[3rem] overflow-hidden flex items-center relative"
+              style={{
+                backgroundColor: design.primaryColor,
+                backgroundImage: design.heroBannerImage
+                  ? `url("${getImageUrl(design.heroBannerImage)}")`
+                  : "none",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+              }}
+            >
+              {design.heroBannerImage && (
+                <div className="absolute inset-0 bg-black/20" />
+              )}
 
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
-              <div className="max-w-3xl text-white text-center flex flex-col items-center">
-                <h1
-                  className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight"
-                  style={{ fontFamily: design.fontFamily }}
-                >
-                  {general.storeName}
-                </h1>
-                <p className="text-sm sm:text-lg lg:text-xl mb-6 sm:mb-8 opacity-90 leading-relaxed max-w-2xl">
-                  {general.tagline}
-                </p>
-                <div className="flex justify-center w-full">
-                  <Button
-                    size="lg"
-                    className="px-10 sm:px-16 lg:px-20 py-3 sm:py-4 rounded-xl text-sm sm:text-base lg:text-lg font-bold shadow-xl transition-all hover:scale-105 w-full sm:w-auto"
-                    style={{ backgroundColor: design.primaryColor }}
-                    onClick={() => scrollToSection("products")}
+              <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[0.8fr_1.2fr] gap-4 sm:gap-8 items-center relative z-10">
+                {/* Right — overlay image (founder photo, product shot, etc.) */}
+                <div className="flex justify-center md:justify-end w-full order-1 lg:order-2">
+                  <div className="w-full max-w-[16rem] md:max-w-[14rem] lg:max-w-[32rem] h-56 sm:h-64 md:h-72 lg:h-[24rem] bg-white/10 rounded-3xl overflow-hidden shadow-2xl relative">
+                    {design.bannerImage ? (
+                      <img
+                        loading="lazy"
+                        src={getImageUrl(design.bannerImage)}
+                        alt="Hero image"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        {general.logo && (
+                          <img
+                            loading="lazy"
+                            src={getImageUrl(general.logo)}
+                            alt={general.storeName}
+                            className="h-20 w-auto opacity-80"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Left — text content */}
+                <div className="flex flex-col items-center md:items-start space-y-4 sm:space-y-6 lg:space-y-8 max-w-lg lg:max-w-sm mx-auto lg:mx-0 order-2 lg:order-1">
+                  {general.logo && (
+                    <img
+                      loading="lazy"
+                      src={getImageUrl(general.logo)}
+                      alt={`${general.storeName} logo`}
+                      className="h-10 w-auto sm:h-12 lg:h-16 drop-shadow-lg"
+                    />
+                  )}
+                  <h1
+                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-white text-center md:text-left drop-shadow-lg"
+                    style={{
+                      fontFamily: design.fontFamily,
+                      fontSize: `${layoutConfig.bannerFontSize || 36}px`,
+                      color: layoutConfig.bannerFontColor || "#ffffff",
+                      fontWeight: layoutConfig.bannerBold ? "bold" : "normal",
+                    }}
                   >
-                    Shop Now
-                  </Button>
+                    {general.storeName}
+                  </h1>
+                  {general.tagline && (
+                    <p className="text-sm sm:text-lg text-white/80 text-center md:text-left max-w-md drop-shadow">
+                      {general.tagline}
+                    </p>
+                  )}
+                  <div className="w-full sm:w-auto flex justify-center md:justify-start">
+                    <Button
+                      size="lg"
+                      className="px-4 sm:px-6 lg:px-10 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs lg:text-base font-bold shadow-lg w-full sm:w-auto transition-transform hover:scale-105 hover:shadow-xl"
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.95)",
+                        color: design.primaryColor,
+                        backdropFilter: "blur(10px)",
+                      }}
+                      onClick={() => scrollToSection("products")}
+                    >
+                      Shop Now
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2262,102 +2318,63 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 </div>
               )}
 
-              <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 lg:gap-8">
                 {filteredProducts.map((product) => (
                   <div
                     key={product._id}
-                    className="group mb-4 cursor-pointer border-2 border-border/50 hover:border-primary/80 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+                    className="group cursor-pointer border border-border/50 hover:border-primary/60 rounded-2xl overflow-hidden bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                     onClick={() => handleProductClick(product._id)}
                   >
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center p-6 sm:p-8">
-                      {/* Image */}
+                    <div className="grid grid-cols-[1fr_1fr] items-stretch min-h-[14rem] sm:min-h-[16rem]">
+                      {/* Image — left side, full height */}
                       <div className="relative">
                         <img
                           loading="lazy"
                           src={getImageUrl(product.images?.[0])}
                           alt={product.name}
-                          className="w-full h-64 sm:h-80 lg:h-96 object-cover rounded-3xl sm:rounded-[2.5rem] shadow-lg group-hover:shadow-xl group-hover:scale-[1.02] transition-all duration-500"
+                          className="w-full h-full object-cover"
                           onError={(e) => {
                             e.currentTarget.src = "/placeholder-product.jpg";
                             e.currentTarget.onerror = null;
                           }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl sm:rounded-[2.5rem]" />
-
                         {!isProductAvailable(product) && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-3xl sm:rounded-[2.5rem]">
-                            <Badge
-                              variant="destructive"
-                              className="text-white font-semibold text-lg"
-                            >
-                              Out of Stock
-                            </Badge>
+                          <div className="absolute top-3 left-3">
+                            <Badge variant="destructive" className="text-white font-semibold text-xs">Out of Stock</Badge>
                           </div>
                         )}
                       </div>
 
-                      {/* Product Details */}
-                      <div className="space-y-4 sm:space-y-6">
-                        {/* Name and Description */}
-                        <div className="space-y-2">
-                          <Badge
-                            variant="secondary"
-                            className="text-xs md:text-sm"
-                            style={infoBadgeStyle}
-                          >
-                            {product.category}
-                          </Badge>
-                          <h3
-                            className="text-xl sm:text-2xl lg:text-3xl font-bold leading-tight group-hover:text-primary transition-colors"
-                            style={{ fontFamily: design.fontFamily }}
-                          >
-                            {product.name}
-                          </h3>
-                          {/* Responsive Description: Shortened on mobile (line-clamp-2), longer on desktop (line-clamp-4) */}
-                          <p className="text-sm sm:text-base lg:text-lg text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-4">
-                            {product.description}
-                          </p>
-                        </div>
-
+                      {/* Details — right side */}
+                      <div className="p-4 sm:p-5 flex flex-col justify-center space-y-2 sm:space-y-3">
+                        {product.category && (
+                          <Badge variant="secondary" className="text-[10px] font-semibold w-fit" style={infoBadgeStyle}>{product.category}</Badge>
+                        )}
+                        <h3
+                          className="font-bold text-sm sm:text-base lg:text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors"
+                          style={{ fontFamily: design.fontFamily }}
+                        >
+                          {product.name}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                          {product.description}
+                        </p>
                         <div
-                          className="text-2xl sm:text-3xl lg:text-4xl font-bold"
+                          className="font-bold text-base sm:text-lg lg:text-xl"
                           style={{ color: design.primaryColor }}
                         >
                           {getDisplayPrice(product)}
                         </div>
-
-                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                          <Button
-                            size="lg"
-                            className="flex-1 py-3 sm:py-4 rounded-3xl font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all duration-300"
-                            style={{
-                              backgroundColor: design.primaryColor,
-                              color: "#fff",
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Add to cart logic would go here, using handleProductClick for now as per original
-                              handleProductClick(product._id);
-                            }}
-                            disabled={!isProductAvailable(product)}
-                          >
-                            <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
-                            {isProductAvailable(product)
-                              ? "Add to Cart"
-                              : "Out of Stock"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="lg"
-                            className="py-3 sm:py-4 px-6 sm:px-8 rounded-3xl border-2 font-semibold text-base sm:text-lg hover:shadow-xl transition-all duration-300"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleProductClick(product._id);
-                            }}
-                          >
-                            View Details
-                          </Button>
-                        </div>
+                        <Button
+                          size="sm"
+                          className="rounded-full text-xs px-4 font-semibold w-fit"
+                          style={{ backgroundColor: design.primaryColor, color: "#fff" }}
+                          onClick={(e) => { e.stopPropagation(); handleProductClick(product._id); }}
+                          disabled={!isProductAvailable(product)}
+                        >
+                          <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
+                          Add to Cart
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -2423,51 +2440,45 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 </div>
               )}
 
+              {/* Overlay Cards — full image with floating name + price */}
               {filteredProducts.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 lg:gap-8">
                   {filteredProducts.map((product) => (
-                    <Card
+                    <div
                       key={product._id}
-                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-white h-[24rem] sm:h-[28rem] lg:h-[26rem] xl:h-[30rem] flex flex-col"
+                      className="group relative cursor-pointer rounded-2xl sm:rounded-3xl overflow-hidden h-[22rem] sm:h-[26rem] lg:h-[30rem] hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
                       onClick={() => handleProductClick(product._id)}
                     >
-                      <div className="relative h-[80%]">
-                        <img
-                          loading="lazy"
-                          src={getImageUrl(product.images?.[0])}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-3xl sm:rounded-t-[2.5rem]"
-                          onError={(e) => {
-                            e.currentTarget.src = "/placeholder-product.jpg";
-                            e.currentTarget.onerror = null;
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-t-3xl sm:rounded-t-[2.5rem]" />
+                      <img
+                        loading="lazy"
+                        src={getImageUrl(product.images?.[0])}
+                        alt={product.name}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          e.currentTarget.src = "/placeholder-product.jpg";
+                          e.currentTarget.onerror = null;
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
-                        {!isProductAvailable(product) && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-t-3xl sm:rounded-t-[2.5rem]">
-                            <Badge
-                              variant="destructive"
-                              className="text-white font-semibold text-base px-3 py-1.5"
-                            >
-                              Out of Stock
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
+                      {!isProductAvailable(product) && (
+                        <div className="absolute top-4 left-4 z-10">
+                          <Badge variant="destructive" className="text-white font-semibold">Out of Stock</Badge>
+                        </div>
+                      )}
 
-                      <div className="h-[20%] flex items-center justify-between px-4">
-                        <h3 className="font-semibold text-sm sm:text-base truncate max-w-[60%]">
+                      <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6 text-white">
+                        <h3 className="font-bold text-lg sm:text-xl lg:text-2xl leading-tight mb-1 drop-shadow-lg">
                           {product.name}
                         </h3>
                         <div
-                          className="font-bold text-base sm:text-lg lg:text-xl flex-shrink-0"
-                          style={{ color: design.primaryColor }}
+                          className="font-bold text-xl sm:text-2xl drop-shadow-lg"
+                          style={{ color: `${design.primaryColor}` }}
                         >
                           {getDisplayPrice(product)}
                         </div>
                       </div>
-                    </Card>
+                    </div>
                   ))}
                 </div>
               )}
@@ -2531,48 +2542,68 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 </div>
               )}
 
+              {/* Classic Cards — image top, details below */}
               {filteredProducts.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 xl:gap-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                   {filteredProducts.map((product) => (
                     <Card
                       key={product._id}
-                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-white h-[24rem] sm:h-[28rem] lg:h-[30rem] xl:h-[30rem] flex flex-col"
+                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-2xl overflow-hidden bg-white border-0 shadow-md"
                       onClick={() => handleProductClick(product._id)}
                     >
-                      <div className="relative h-[80%]">
+                      <div className="relative aspect-square">
                         <img
                           loading="lazy"
                           src={getImageUrl(product.images?.[0])}
                           alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-3xl sm:rounded-t-[2.5rem]"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => {
                             e.currentTarget.src = "/placeholder-product.jpg";
                             e.currentTarget.onerror = null;
                           }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-t-3xl sm:rounded-t-[2.5rem]" />
-
                         {!isProductAvailable(product) && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-t-3xl sm:rounded-t-[2.5rem]">
-                            <Badge
-                              variant="destructive"
-                              className="text-white font-semibold text-base px-3 py-1.5"
-                            >
-                              Out of Stock
-                            </Badge>
+                          <div className="absolute top-3 left-3">
+                            <Badge variant="destructive" className="text-white font-semibold text-xs">Out of Stock</Badge>
+                          </div>
+                        )}
+                        {product.category && (
+                          <div className="absolute top-3 right-3">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-sm text-gray-700 shadow-sm">
+                              {product.category}
+                            </span>
                           </div>
                         )}
                       </div>
 
-                      <div className="h-[20%] flex items-center justify-between px-4">
-                        <h3 className="font-semibold text-sm sm:text-base truncate max-w-[60%]">
+                      <div className="p-4 sm:p-5 space-y-2">
+                        <h3
+                          className="font-bold text-base sm:text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors"
+                          style={{ fontFamily: design.fontFamily }}
+                        >
                           {product.name}
                         </h3>
-                        <div
-                          className="font-bold text-base sm:text-lg lg:text-xl flex-shrink-0"
-                          style={{ color: design.primaryColor }}
-                        >
-                          {getDisplayPrice(product)}
+                        {product.description && (
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                            {product.description}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between pt-1">
+                          <div
+                            className="font-bold text-lg sm:text-xl"
+                            style={{ color: design.primaryColor }}
+                          >
+                            {getDisplayPrice(product)}
+                          </div>
+                          <Button
+                            size="sm"
+                            className="rounded-full text-xs px-4 font-semibold shadow-sm"
+                            style={{ backgroundColor: design.primaryColor, color: "#fff" }}
+                            onClick={(e) => { e.stopPropagation(); handleProductClick(product._id); }}
+                            disabled={!isProductAvailable(product)}
+                          >
+                            View
+                          </Button>
                         </div>
                       </div>
                     </Card>

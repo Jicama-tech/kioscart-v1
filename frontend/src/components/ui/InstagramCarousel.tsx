@@ -29,7 +29,6 @@ function toEmbedSrc(url: string): string | null {
 export function InstagramCarousel({ urls, title, description, titleColor, descColor }: InstagramCarouselProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [inView, setInView] = useState(false);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const validEmbeds = useMemo(
     () =>
@@ -66,7 +65,8 @@ export function InstagramCarousel({ urls, title, description, titleColor, descCo
     );
   }
 
-  const marqueeItems = [...validEmbeds, ...validEmbeds];
+  const repeatCount = Math.max(2, Math.ceil(12 / validEmbeds.length));
+  const marqueeItems = Array.from({ length: repeatCount }, () => validEmbeds).flat();
 
   return (
     <section ref={containerRef} className="pt-8 sm:pt-12 lg:pt-16 pb-12 sm:pb-16 lg:pb-20 overflow-hidden">
@@ -90,60 +90,37 @@ export function InstagramCarousel({ urls, title, description, titleColor, descCo
 
       <div className="relative overflow-hidden">
         <div className="track-ltr">
-          {marqueeItems.map((item, i) => {
-            const realIndex = i % validEmbeds.length;
-            const isActive = activeIndex === realIndex;
-            return (
-              <div
-                key={`ig-${i}`}
-                className="pc-card"
-                style={{ width: "220px", cursor: "pointer" }}
-                onClick={() => setActiveIndex(isActive ? null : realIndex)}
-              >
-                <div className="overflow-hidden relative" style={{ height: "280px" }}>
-                  {inView ? (
-                    isActive ? (
-                      <iframe
-                        key={`active-${realIndex}`}
-                        src={item.src}
-                        title="Instagram reel"
-                        allow="encrypted-media"
-                        allowFullScreen
-                        scrolling="no"
-                        style={{
-                          width: "100%",
-                          height: "820px",
-                          border: 0,
-                          display: "block",
-                          marginTop: "-60px",
-                        }}
-                      />
-                    ) : (
-                      <iframe
-                        src={item.src}
-                        title={`Instagram thumb ${i}`}
-                        loading="lazy"
-                        scrolling="no"
-                        tabIndex={-1}
-                        style={{
-                          width: "100%",
-                          height: "820px",
-                          border: 0,
-                          display: "block",
-                          marginTop: "-60px",
-                          pointerEvents: "none",
-                        }}
-                      />
-                    )
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
-                      <Instagram className="h-8 w-8" style={{ color: "#E1306C" }} />
-                    </div>
-                  )}
-                </div>
+          {marqueeItems.map((item, i) => (
+            <div
+              key={`ig-${i}`}
+              className="pc-card"
+              style={{ width: "220px" }}
+            >
+              <div className="overflow-hidden relative" style={{ height: "280px" }}>
+                {inView ? (
+                  <iframe
+                    src={item.src}
+                    title={`Instagram reel ${i}`}
+                    loading="lazy"
+                    allow="encrypted-media"
+                    allowFullScreen
+                    scrolling="no"
+                    style={{
+                      width: "100%",
+                      height: "820px",
+                      border: 0,
+                      display: "block",
+                      marginTop: "-60px",
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
+                    <Instagram className="h-8 w-8" style={{ color: "#E1306C" }} />
+                  </div>
+                )}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     </section>

@@ -3,9 +3,9 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import viteCompression from "vite-plugin-compression";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
-  // Load env variables based on `mode` (development or production)
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
@@ -18,6 +18,50 @@ export default defineConfig(({ mode }) => {
       mode === "development" && componentTagger(),
       mode === "production" && viteCompression({ algorithm: "gzip", threshold: 1024 }),
       mode === "production" && viteCompression({ algorithm: "brotliCompress", ext: ".br", threshold: 1024 }),
+      VitePWA({
+        registerType: "autoUpdate",
+        workbox: {
+          globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+              handler: "CacheFirst",
+              options: {
+                cacheName: "google-fonts",
+                expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              },
+            },
+            {
+              urlPattern: /\/uploads\/.*/i,
+              handler: "StaleWhileRevalidate",
+              options: {
+                cacheName: "uploads-cache",
+                expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              },
+            },
+            {
+              urlPattern: /\/shopkeeper-stores\/storefront-bundle\/.*/i,
+              handler: "NetworkFirst",
+              options: {
+                cacheName: "api-storefront",
+                expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 },
+                networkTimeoutSeconds: 5,
+              },
+            },
+          ],
+        },
+        manifest: {
+          name: "KiosCart",
+          short_name: "KiosCart",
+          theme_color: "#6366f1",
+          background_color: "#ffffff",
+          display: "standalone",
+          icons: [
+            { src: "/KiosCart.png", sizes: "192x192", type: "image/png" },
+            { src: "/KiosCart.png", sizes: "512x512", type: "image/png" },
+          ],
+        },
+      }),
     ].filter(Boolean),
     resolve: {
       alias: {

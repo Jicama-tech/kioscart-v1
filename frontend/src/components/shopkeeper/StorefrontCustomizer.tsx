@@ -128,7 +128,7 @@ export function StorefrontCustomizer({
 
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
-  const [cropTarget, setCropTarget] = useState<"banner" | "hero" | "bannerImage" | null>(null);
+  const [cropTarget, setCropTarget] = useState<"banner" | "hero" | "heroBanner" | "bannerImage" | null>(null);
 
   // Default settings for new shopkeepers
   const defaultSettings = {
@@ -544,13 +544,13 @@ export function StorefrontCustomizer({
     if (cropTarget === "banner") {
       setBannerFile(file);
       setBannerPreview(previewUrl);
-      handleInputChange("design", "bannerImage", file);
+      handleInputChange("design", "bannerImage", previewUrl);
     }
 
-    if (cropTarget === "hero") {
+    if (cropTarget === "hero" || cropTarget === "heroBanner") {
       setHeroBannerFile(file);
       setHeroBannerPreview(previewUrl);
-      handleInputChange("design", "heroBannerImage", file);
+      handleInputChange("design", "heroBannerImage", previewUrl);
     }
 
     if (cropTarget === "bannerImage") {
@@ -1469,7 +1469,7 @@ export function StorefrontCustomizer({
                 </div>
 
                 {/* 2. Header */}
-                <details className="group border rounded-lg overflow-hidden">
+                <details open className="group border rounded-lg overflow-hidden">
                   <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
                     <span className="text-xs font-semibold">Header</span>
                   </summary>
@@ -1506,9 +1506,12 @@ export function StorefrontCustomizer({
                       {bannerDesign === "mega" && (
                         <Label>Card Image (Click Image to Crop)</Label>
                       )}
-                      {bannerDesign === "modern" || (bannerDesign === "minimal" && (
+                      {bannerDesign === "minimal" && (
+                        <Label>Overlay Image — Founder / Product (Click to Crop)</Label>
+                      )}
+                      {bannerDesign === "modern" && (
                         <Label>Banner Image (Click Image to Crop)</Label>
-                      ))}
+                      )}
 
                       {bannerPreview || settings.design.bannerImage ? (
                         <div className="space-y-2">
@@ -1643,6 +1646,41 @@ export function StorefrontCustomizer({
                       </div>
                     )}
 
+                    {bannerDesign === "minimal" && (
+                      <div className="space-y-2">
+                        <Label>Background Image (Click to Crop)</Label>
+                        <p className="text-xs text-muted-foreground">This appears behind the overlay card. If not uploaded, your primary color is used as background.</p>
+                        {heroBannerPreview || settings.design.heroBannerImage ? (
+                          <div className="relative">
+                            <img
+                              src={heroBannerPreview ? heroBannerPreview : getBannerSrc(settings.design.heroBannerImage)}
+                              alt="Background Banner"
+                              className="w-full h-48 object-cover rounded-lg border cursor-pointer"
+                              loading="lazy"
+                              onClick={() => {
+                                const src = heroBannerPreview ? heroBannerPreview : getBannerSrc(settings.design.heroBannerImage);
+                                setCropTarget("heroBanner");
+                                setCropImage(src);
+                                setCropOpen(true);
+                              }}
+                            />
+                            <Button variant="destructive" size="sm" className="absolute top-2 right-2" onClick={removeHeroBannerImage}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div
+                            className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                            onClick={() => heroBannerFileInputRef.current?.click()}
+                          >
+                            <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground mb-1" />
+                            <p className="text-sm text-muted-foreground">Upload Background Image</p>
+                          </div>
+                        )}
+                        <input ref={heroBannerFileInputRef} type="file" accept="image/*" onChange={handleHeroBannerUpload} className="hidden" />
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label htmlFor="bannerHeight">Banner Height</Label>
                       <Select value={settings.design.bannerHeight} onValueChange={(value) => handleInputChange("design", "bannerHeight", value)}>
@@ -1747,7 +1785,7 @@ export function StorefrontCustomizer({
                 </div>
 
                 {/* 7. All Products */}
-                <details className="group border rounded-lg overflow-hidden">
+                <details open className="group border rounded-lg overflow-hidden">
                   <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
                     <span className="text-xs font-semibold">All Products</span>
                   </summary>
@@ -1960,7 +1998,7 @@ export function StorefrontCustomizer({
                 </div>
 
                 {/* 12. Newsletter */}
-                <details className="group border rounded-lg overflow-hidden">
+                <details open className="group border rounded-lg overflow-hidden">
                   <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
                     <span className="text-xs font-semibold">Newsletter</span>
                   </summary>
@@ -1983,7 +2021,7 @@ export function StorefrontCustomizer({
                 </details>
 
                 {/* 13. Footer */}
-                <details className="group border rounded-lg overflow-hidden">
+                <details open className="group border rounded-lg overflow-hidden">
                   <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
                     <span className="text-xs font-semibold">Footer</span>
                   </summary>
