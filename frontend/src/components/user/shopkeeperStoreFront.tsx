@@ -2614,40 +2614,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
           </section>
         )}
 
-        {/* Newsletter - RESPONSIVE */}
-        {features.showNewsletter && (
-          <section
-            className="py-8 sm:py-12 lg:py-16"
-            style={{ backgroundColor: `${design.primaryColor}15` }}
-          >
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <h2
-                className="mb-3 sm:mb-4"
-                style={{ ...sectionTitleStyle, ...((settings.settings.design.layout as any).newsletterTitleColor ? { color: (settings.settings.design.layout as any).newsletterTitleColor } : {}) }}
-              >
-                {(settings.settings.design.layout as any).newsletterTitle || "Stay Updated"}
-              </h2>
-              <p className="text-base sm:text-lg mb-6 sm:mb-8" style={{ ...cardDescStyle, ...((settings.settings.design.layout as any).newsletterDescColor ? { color: (settings.settings.design.layout as any).newsletterDescColor } : {}) }}>
-                {(settings.settings.design.layout as any).newsletterDescription || "Subscribe to our newsletter for latest updates and offers"}
-              </p>
-              <div className="flex flex-col xs:flex-row gap-3 sm:gap-4 max-w-md mx-auto">
-                <Input
-                  placeholder="Enter your email"
-                  value={newsletterEmail}
-                  onChange={(e) => setNewsletterEmail(e.target.value)}
-                  className="flex-1 h-10 sm:h-12 rounded-lg border-2 text-sm sm:text-base"
-                />
-                <Button
-                  size="sm"
-                  className="h-10 sm:h-12 px-4 sm:px-8 rounded-lg font-semibold text-sm sm:text-base"
-                  style={{ backgroundColor: design.primaryColor }}
-                >
-                  Subscribe
-                </Button>
-              </div>
-            </div>
-          </section>
-        )}
+        {/* Newsletter - HIDDEN FOR NOW */}
         {/* Our Story */}
         {(settings.settings.design.layout as any).showOurStory && (
           <Suspense fallback={<div className="py-16 text-center text-muted-foreground text-sm">Loading...</div>}>
@@ -2699,22 +2666,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
           </Suspense>
         )}
 
-        {/* Feedback / Testimonials */}
-        {settings.settings.design.layout.showFeedbackBar && (
-          <Suspense fallback={<div className="py-16 text-center text-muted-foreground text-sm">Loading...</div>}>
-            {settings.settings.feedbacks?.length > 0 ? (
-              <FeedbackBar
-                feedbacks={settings.settings.feedbacks}
-                primaryColor={settings.settings.design.primaryColor}
-                fontFamily={settings.settings.design.fontFamily}
-              />
-            ) : (
-              <section className="py-10 px-4 text-center" style={cardDescStyle}>
-                <p className="text-sm">Feedback section enabled — add testimonials in Storefront Customizer</p>
-              </section>
-            )}
-          </Suspense>
-        )}
+        {/* Feedback / Testimonials - HIDDEN FOR NOW */}
 
         {/* Footer - RESPONSIVE */}
         {footer === "modern" && (

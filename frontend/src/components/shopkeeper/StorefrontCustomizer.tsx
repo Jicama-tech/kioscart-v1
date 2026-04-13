@@ -1997,28 +1997,7 @@ export function StorefrontCustomizer({
                   )}
                 </div>
 
-                {/* 12. Newsletter */}
-                <details open className="group border rounded-lg overflow-hidden">
-                  <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
-                    <span className="text-xs font-semibold">Newsletter</span>
-                  </summary>
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.newsletterTitle || ""} onChange={(e: any) => handleLayoutChange("newsletterTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.newsletterTitleColor || "#000000"} onChange={(val) => handleLayoutChange("newsletterTitleColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.newsletterDescription || ""} onChange={(e: any) => handleLayoutChange("newsletterDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.newsletterDescColor || "#000000"} onChange={(val) => handleLayoutChange("newsletterDescColor", val)} />
-                      </div>
-                    </div>
-                  </div>
-                </details>
+                {/* 12. Newsletter — HIDDEN FOR NOW */}
 
                 {/* 13. Footer */}
                 <details open className="group border rounded-lg overflow-hidden">
@@ -2043,21 +2022,7 @@ export function StorefrontCustomizer({
                   </div>
                 </details>
 
-                {/* 14. Feedback / Testimonials */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Feedback / Testimonials</span>
-                        <Switch
-                        checked={L.showFeedbackBar}
-                        onCheckedChange={(checked) => handleLayoutChange("showFeedbackBar", checked)}
-                        />
-                  </div>
-                  {L.showFeedbackBar && (
-                  <div className="p-3 space-y-3 bg-background">
-                    <p className="text-xs text-muted-foreground">Displays a feedback / testimonials section on your storefront.</p>
-                  </div>
-                  )}
-                </div>
+                {/* 14. Feedback / Testimonials — HIDDEN FOR NOW */}
 
                 </>); })()}
               </CardContent>
