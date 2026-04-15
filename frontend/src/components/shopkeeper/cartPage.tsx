@@ -614,7 +614,7 @@ export function CartPage() {
     const closedFrom = closedFromStr ? new Date(closedFromStr) : null;
     const closedTo = closedToStr ? new Date(closedToStr) : null;
 
-    for (let i = 0; i <= 14; i++) {
+    for (let i = 2; i <= 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
 
