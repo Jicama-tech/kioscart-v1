@@ -12,6 +12,7 @@ import {
   Operator,
   OperatorSchema,
 } from "../operators/entities/operator.entity";
+import { Plan, PlanSchema } from "../plans/entities/plan.entity";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import {
       { name: Shopkeeper.name, schema: ShopkeeperSchema },
       { name: Otp.name, schema: OtpSchema },
       { name: Operator.name, schema: OperatorSchema },
+      { name: Plan.name, schema: PlanSchema },
     ]),
     forwardRef(() => OtpModule),
     forwardRef(() => OperatorsModule), // Wrap here with forwardRef

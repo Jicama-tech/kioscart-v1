@@ -241,4 +241,22 @@ export class ShopkeepersController {
       throw error;
     }
   }
+
+  @Get("subscription/:id")
+  async getSubscription(@Param("id") id: string) {
+    return this.shopkeepersService.getSubscription(id);
+  }
+
+  @Patch("add-subscription-plan/:id/plan/:planId")
+  async addSubscriptionPlan(
+    @Param("id") id: string,
+    @Param("planId") planId: string,
+  ) {
+    return this.shopkeepersService.addSubscriptionPlan(id, planId);
+  }
+
+  @Patch("cancel-subscription/:id")
+  async cancelSubscription(@Param("id") id: string) {
+    return this.shopkeepersService.cancelSubscription(id);
+  }
 }

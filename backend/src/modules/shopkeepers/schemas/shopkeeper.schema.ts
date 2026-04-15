@@ -179,6 +179,21 @@ export class Shopkeeper {
 
   @Prop({ default: false })
   dynamicQR: boolean;
+
+  @Prop({ default: false })
+  subscribed: boolean;
+
+  @Prop({ type: String, default: null })
+  planId: string;
+
+  @Prop()
+  planStartDate: Date;
+
+  @Prop()
+  planExpiryDate: Date;
+
+  @Prop()
+  pricePaid: string;
 }
 
 export const RazorpayLinkedAccountSchema = SchemaFactory.createForClass(

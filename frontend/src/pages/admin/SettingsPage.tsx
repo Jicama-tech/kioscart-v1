@@ -49,6 +49,10 @@ import {
   CreditCard,
   Lock,
   ExternalLink,
+  QrCode,
+  Upload,
+  Banknote,
+  DollarSign,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -145,8 +149,85 @@ export function SettingsPage() {
   const [isStripeLoading, setIsStripeLoading] = useState(false);
   const { toast } = useToast();
 
+  const apiURL = __API_URL__;
+  const [platformPayment, setPlatformPayment] = useState<any>({
+    accountHolderName: "",
+    accountNumber: "",
+    ifscCode: "",
+    bankName: "",
+    branchName: "",
+    upiId: "",
+    qrCodeURL: "",
+    paypalEmail: "",
+    stripeAccountId: "",
+    acceptUPI: true,
+    acceptBankTransfer: true,
+    acceptPayPal: false,
+    acceptStripe: false,
+    contactEmail: "",
+    contactPhone: "",
+    instructions: "",
+  });
+  const [qrFile, setQrFile] = useState<File | null>(null);
+  const [qrPreview, setQrPreview] = useState<string | null>(null);
+  const [savingPayment, setSavingPayment] = useState(false);
+
+  const fetchPlatformPayment = async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(`${apiURL}/admin/platform-payment`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPlatformPayment((prev: any) => ({ ...prev, ...data }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const savePlatformPayment = async () => {
+    try {
+      setSavingPayment(true);
+      const token = sessionStorage.getItem("token");
+      const fd = new FormData();
+      Object.entries(platformPayment).forEach(([k, v]) => {
+        if (k === "qrCodeURL" || k === "_id" || k === "__v" || k === "createdAt" || k === "updatedAt") return;
+        if (v !== undefined && v !== null) fd.append(k, String(v));
+      });
+      if (qrFile) fd.append("qrCode", qrFile);
+
+      const res = await fetch(`${apiURL}/admin/platform-payment`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      const data = await res.json();
+      setPlatformPayment((prev: any) => ({ ...prev, ...data }));
+      setQrFile(null);
+      setQrPreview(null);
+      toast({ title: "✅ Payment settings saved", duration: 4000 });
+    } catch (err: any) {
+      toast({ title: "Failed to save", description: err.message, duration: 5000 });
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
+  const onQrFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setQrFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setQrPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     fetchContentItems();
+    fetchPlatformPayment();
   }, []);
 
   const fetchContentItems = async () => {
@@ -587,6 +668,7 @@ export function SettingsPage() {
       >
         <TabsList>
           <TabsTrigger value="content">Website Content</TabsTrigger>
+          <TabsTrigger value="payment">Payment Receiving</TabsTrigger>
           <TabsTrigger value="stripe">Stripe Config</TabsTrigger>
           <TabsTrigger value="seo">SEO Settings</TabsTrigger>
           <TabsTrigger value="system">System Settings</TabsTrigger>
@@ -750,6 +832,209 @@ export function SettingsPage() {
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payment">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Payment Receiving Setup
+              </CardTitle>
+              <CardDescription>
+                Configure where shopkeepers send their subscription payments. These details will be shown to them.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Accepted Methods */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Accepted Payment Methods</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { key: "acceptUPI", label: "UPI Payments", icon: QrCode },
+                    { key: "acceptBankTransfer", label: "Bank Transfer", icon: Banknote },
+                    { key: "acceptPayPal", label: "PayPal", icon: CreditCard },
+                    { key: "acceptStripe", label: "Stripe / Card", icon: CreditCard },
+                  ].map((m) => {
+                    const Icon = m.icon;
+                    return (
+                      <div key={m.key} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4 text-indigo-600" />
+                          <span className="text-sm font-medium">{m.label}</span>
+                        </div>
+                        <Switch
+                          checked={!!platformPayment[m.key]}
+                          onCheckedChange={(v) => setPlatformPayment((p: any) => ({ ...p, [m.key]: v }))}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* UPI */}
+              {platformPayment.acceptUPI && (
+                <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg space-y-4">
+                  <h4 className="font-semibold text-blue-900 flex items-center gap-2">
+                    <QrCode className="h-4 w-4" /> UPI Configuration
+                  </h4>
+                  <div className="space-y-2">
+                    <Label>UPI ID</Label>
+                    <Input
+                      placeholder="your-name@paytm / upi"
+                      value={platformPayment.upiId || ""}
+                      onChange={(e) => setPlatformPayment((p: any) => ({ ...p, upiId: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Payment QR Code</Label>
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                      <div className="w-40 h-40 rounded-lg border-2 border-blue-300 flex items-center justify-center bg-white overflow-hidden flex-shrink-0">
+                        {qrPreview ? (
+                          <img src={qrPreview} alt="QR preview" className="w-full h-full object-contain" />
+                        ) : platformPayment.qrCodeURL ? (
+                          <img src={apiURL + platformPayment.qrCodeURL} alt="Payment QR" className="w-full h-full object-contain" />
+                        ) : (
+                          <div className="text-center">
+                            <Upload className="w-8 h-8 text-blue-300 mx-auto mb-2" />
+                            <span className="text-xs text-muted-foreground">No QR</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <Input type="file" accept="image/*" onChange={onQrFileChange} className="cursor-pointer" />
+                        <p className="text-xs text-muted-foreground">PNG/JPG, max 5MB. Square image (e.g. 512×512) recommended.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bank */}
+              {platformPayment.acceptBankTransfer && (
+                <div className="p-4 border border-emerald-200 bg-emerald-50 rounded-lg space-y-4">
+                  <h4 className="font-semibold text-emerald-900 flex items-center gap-2">
+                    <Banknote className="h-4 w-4" /> Bank Account Details
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Account Holder Name</Label>
+                      <Input
+                        value={platformPayment.accountHolderName || ""}
+                        onChange={(e) => setPlatformPayment((p: any) => ({ ...p, accountHolderName: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Account Number</Label>
+                      <Input
+                        value={platformPayment.accountNumber || ""}
+                        onChange={(e) => setPlatformPayment((p: any) => ({ ...p, accountNumber: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>IFSC Code</Label>
+                      <Input
+                        value={platformPayment.ifscCode || ""}
+                        onChange={(e) => setPlatformPayment((p: any) => ({ ...p, ifscCode: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Bank Name</Label>
+                      <Input
+                        value={platformPayment.bankName || ""}
+                        onChange={(e) => setPlatformPayment((p: any) => ({ ...p, bankName: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Branch Name</Label>
+                      <Input
+                        value={platformPayment.branchName || ""}
+                        onChange={(e) => setPlatformPayment((p: any) => ({ ...p, branchName: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PayPal */}
+              {platformPayment.acceptPayPal && (
+                <div className="p-4 border border-indigo-200 bg-indigo-50 rounded-lg space-y-3">
+                  <h4 className="font-semibold text-indigo-900 flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" /> PayPal
+                  </h4>
+                  <div className="space-y-2">
+                    <Label>PayPal Email</Label>
+                    <Input
+                      type="email"
+                      value={platformPayment.paypalEmail || ""}
+                      onChange={(e) => setPlatformPayment((p: any) => ({ ...p, paypalEmail: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Stripe */}
+              {platformPayment.acceptStripe && (
+                <div className="p-4 border border-purple-200 bg-purple-50 rounded-lg space-y-3">
+                  <h4 className="font-semibold text-purple-900 flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" /> Stripe
+                  </h4>
+                  <div className="space-y-2">
+                    <Label>Stripe Account ID</Label>
+                    <Input
+                      placeholder="acct_..."
+                      value={platformPayment.stripeAccountId || ""}
+                      onChange={(e) => setPlatformPayment((p: any) => ({ ...p, stripeAccountId: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">Configure Stripe keys under "Stripe Config" tab.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Contact / Instructions */}
+              <div className="space-y-4 pt-4 border-t">
+                <h4 className="font-semibold">Support & Instructions</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Contact Email</Label>
+                    <Input
+                      type="email"
+                      placeholder="billing@kioscart.com"
+                      value={platformPayment.contactEmail || ""}
+                      onChange={(e) => setPlatformPayment((p: any) => ({ ...p, contactEmail: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contact Phone</Label>
+                    <Input
+                      placeholder="+91 ..."
+                      value={platformPayment.contactPhone || ""}
+                      onChange={(e) => setPlatformPayment((p: any) => ({ ...p, contactPhone: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Instructions (shown to shopkeepers)</Label>
+                  <Textarea
+                    rows={3}
+                    placeholder="e.g. After payment, send a screenshot to billing@..."
+                    value={platformPayment.instructions || ""}
+                    onChange={(e) => setPlatformPayment((p: any) => ({ ...p, instructions: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={savePlatformPayment} disabled={savingPayment} className="bg-indigo-600 hover:bg-indigo-700">
+                  {savingPayment && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Payment Settings
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

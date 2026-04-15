@@ -95,6 +95,7 @@ const modules = {
 
 interface ShopkeeperSettingsProps {
   onSave?: (settings: any) => void;
+  isModuleEnabled?: (moduleKey: string) => boolean;
 }
 
 interface Operator {
@@ -152,7 +153,7 @@ const COUNTRIES = [
   },
 ];
 
-export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
+export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettingsProps) {
   const { toast } = useToast();
   const [paymentQrFile, setPaymentQrFile] = useState<File | null>(null);
   const [paymentQrPreview, setPaymentQrPreview] = useState<string | null>(null);
@@ -218,6 +219,60 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   });
 
   const currentCountry = COUNTRIES.find((c) => c.code === selectedCountry);
+
+  const [subscription, setSubscription] = useState<any>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const [changePlanOpen, setChangePlanOpen] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [switchingPlanId, setSwitchingPlanId] = useState<string | null>(null);
+
+  const openChangePlan = async () => {
+    setChangePlanOpen(true);
+    setLoadingPlans(true);
+    try {
+      const res = await fetch(`${apiURL}/plans/get-plans?active=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setAvailablePlans(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  const switchToPlan = async (planId: string) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      const decoded: any = jwtDecode(token);
+      const id = decoded?.sub;
+      if (!id) return;
+
+      setSwitchingPlanId(planId);
+      const res = await fetch(
+        `${apiURL}/shopkeepers/add-subscription-plan/${id}/plan/${planId}`,
+        { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) throw new Error("Failed to switch plan");
+
+      const subRes = await fetch(`${apiURL}/shopkeepers/subscription/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (subRes.ok) {
+        const data = await subRes.json();
+        setSubscription(data);
+      }
+      setChangePlanOpen(false);
+      toast({ duration: 5000, title: "✅ Plan switched successfully" });
+    } catch (err: any) {
+      toast({ duration: 5000, title: "Failed to switch plan", description: err.message });
+    } finally {
+      setSwitchingPlanId(null);
+    }
+  };
 
   const [gstVerified, setGstVerified] = useState(false);
   const [gstVerifying, setGstVerifying] = useState(false);
@@ -1545,6 +1600,31 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     fetchProfile();
   }, []);
 
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        const token = sessionStorage.getItem("token");
+        if (!token) return;
+        const decoded: any = jwtDecode(token);
+        const id = decoded?.sub;
+        if (!id) return;
+
+        const res = await fetch(`${apiURL}/shopkeepers/subscription/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSubscription(data);
+        }
+      } catch (err) {
+        console.error("Failed to load subscription:", err);
+      } finally {
+        setLoadingSubscription(false);
+      }
+    };
+    fetchSubscription();
+  }, []);
+
   const daysOfWeek = [
     { key: "monday", label: "Monday" },
     { key: "tuesday", label: "Tuesday" },
@@ -1578,47 +1658,35 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="profile" className="flex items-center gap-2">
+        <TabsList className="flex w-full">
+          <TabsTrigger value="profile" className="flex-1 flex items-center justify-center gap-2">
             <Store className="w-4 h-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="operator" className="flex items-center gap-2">
-            <UserPlus2 className="w-4 h-4" />
-            Operator
-          </TabsTrigger>
-          {/* <TabsTrigger value="branding" className="flex items-center gap-2">
-            <Palette className="w-4 h-4" />
-            Branding
-          </TabsTrigger> */}
-          {/* <TabsTrigger value="products" className="flex items-center gap-2">
-            <Package className="w-4 h-4" />
-            Products
-          </TabsTrigger> */}
-          <TabsTrigger value="payments" className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4" />
-            Payments
-          </TabsTrigger>
-          <TabsTrigger value="receipts" className="flex items-center gap-2">
-            <ReceiptTextIcon className="w-4 h-4" />
-            Receipts
-          </TabsTrigger>
-          <TabsTrigger value="coupons" className="flex items-center gap-2">
-            <CopyPlusIcon className="w-4 h-4" />
-            Coupons
-          </TabsTrigger>
-
-          {/* <TabsTrigger value="shipping" className="flex items-center gap-2">
-            <Truck className="w-4 h-4" />
-            Shipping
-          </TabsTrigger> */}
-          {/* <TabsTrigger
-            value="notifications"
-            className="flex items-center gap-2"
-          >
-            <Bell className="w-4 h-4" />
-            Notifications
-          </TabsTrigger> */}
+          {(!isModuleEnabled || isModuleEnabled("operators")) && (
+            <TabsTrigger value="operator" className="flex-1 flex items-center justify-center gap-2">
+              <UserPlus2 className="w-4 h-4" />
+              Operator
+            </TabsTrigger>
+          )}
+          {(!isModuleEnabled || isModuleEnabled("staticQR") || isModuleEnabled("dynamicQR") || isModuleEnabled("paymentTracking") || isModuleEnabled("razorpay")) && (
+            <TabsTrigger value="payments" className="flex-1 flex items-center justify-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              Payments
+            </TabsTrigger>
+          )}
+          {(!isModuleEnabled || isModuleEnabled("receipts")) && (
+            <TabsTrigger value="receipts" className="flex-1 flex items-center justify-center gap-2">
+              <ReceiptTextIcon className="w-4 h-4" />
+              Receipts
+            </TabsTrigger>
+          )}
+          {(!isModuleEnabled || isModuleEnabled("coupons")) && (
+            <TabsTrigger value="coupons" className="flex-1 flex items-center justify-center gap-2">
+              <CopyPlusIcon className="w-4 h-4" />
+              Coupons
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -2387,6 +2455,179 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </div> */}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Subscription Plan</CardTitle>
+              <CardDescription>
+                Your current plan and what's included
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingSubscription ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader className="h-6 w-6 animate-spin text-indigo-600" />
+                </div>
+              ) : !subscription?.subscribed ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-lg font-medium">No Active Plan</p>
+                  <p className="text-sm mt-1 mb-4">Choose a plan to get started.</p>
+                  <Button onClick={openChangePlan} className="bg-indigo-600 hover:bg-indigo-700">
+                    Browse Plans
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg bg-indigo-50 border border-indigo-200">
+                    <div>
+                      <h3 className="text-xl font-bold text-indigo-700">{subscription.planName}</h3>
+                      <p className="text-sm text-indigo-600 mt-1">
+                        ${subscription.pricePaid} / {subscription.validityInDays} days
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={subscription.isExpired ? "destructive" : "default"}
+                        className="text-sm px-3 py-1 w-fit"
+                      >
+                        {subscription.isExpired ? "Expired" : "Active"}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        onClick={openChangePlan}
+                        className="bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        Change Plan
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-3 rounded-lg border">
+                      <p className="text-xs text-muted-foreground">Start Date</p>
+                      <p className="font-medium">
+                        {subscription.planStartDate
+                          ? new Date(subscription.planStartDate).toLocaleDateString("en-US", {
+                              year: "numeric", month: "long", day: "numeric",
+                            })
+                          : "—"}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg border">
+                      <p className="text-xs text-muted-foreground">Expiry Date</p>
+                      <p className="font-medium">
+                        {subscription.planExpiryDate
+                          ? new Date(subscription.planExpiryDate).toLocaleDateString("en-US", {
+                              year: "numeric", month: "long", day: "numeric",
+                            })
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {subscription.features?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2">Features</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {subscription.features.map((f: string, i: number) => (
+                          <Badge key={i} variant="secondary">{f}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {subscription.modules && Object.keys(subscription.modules).length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold mb-3">Modules</h4>
+                      <div className="space-y-2">
+                        {[
+                          { label: "Product Management", color: "blue", items: [
+                            { key: "products", label: "Products" },
+                            { key: "bulkImport", label: "Bulk Import / Export" },
+                          ]},
+                          { label: "Order Management", color: "amber", items: [
+                            { key: "orders", label: "Orders" },
+                            { key: "receipts", label: "Receipt Printing" },
+                          ]},
+                          { label: "Online Storefront", color: "emerald", items: [
+                            { key: "storefront", label: "Storefront" },
+                            { key: "customDomain", label: "Custom Domain" },
+                            { key: "instagram", label: "Instagram Integration" },
+                            { key: "videoSection", label: "Video Section" },
+                            { key: "ourStory", label: "Our Story Section" },
+                          ]},
+                          { label: "Analytics", color: "purple", items: [
+                            { key: "analytics", label: "Analytics & Reports" },
+                          ]},
+                          { label: "Payments", color: "indigo", items: [
+                            { key: "staticQR", label: "Static QR" },
+                            { key: "dynamicQR", label: "Dynamic QR" },
+                            { key: "paymentTracking", label: "Payment Tracking (Gmail)" },
+                            { key: "razorpay", label: "Card Payments (Razorpay)" },
+                          ]},
+                          { label: "CRM / Customers", color: "pink", items: [
+                            { key: "crm", label: "Customer Management" },
+                          ]},
+                          { label: "Coupons", color: "orange", items: [
+                            { key: "coupons", label: "Coupon Management" },
+                          ]},
+                          { label: "Kiosk Mode", color: "cyan", items: [
+                            { key: "kiosk", label: "Kiosk / POS Mode" },
+                          ]},
+                          { label: "Operators", color: "rose", items: [
+                            { key: "operators", label: "Multi-User Operators" },
+                          ]},
+                          { label: "Communication", color: "green", items: [
+                            { key: "whatsappQR", label: "WhatsApp QR" },
+                          ]},
+                        ].map((group) => {
+                          const groupHasAny = group.items.some((i) => subscription.modules[i.key]?.enabled);
+                          if (!groupHasAny) return (
+                            <div key={group.label} className="rounded-lg border border-gray-200 bg-gray-50 p-3 opacity-60">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-500">{group.label}</span>
+                                <Badge variant="secondary" className="text-xs">OFF</Badge>
+                              </div>
+                            </div>
+                          );
+                          return (
+                            <div key={group.label} className="rounded-lg border border-green-200 bg-green-50 overflow-hidden">
+                              <div className="flex items-center justify-between p-3">
+                                <span className="text-sm font-semibold text-green-700">{group.label}</span>
+                                <Badge variant="default" className="text-xs">ON</Badge>
+                              </div>
+                              <div className="border-t border-green-200/60 divide-y divide-green-100">
+                                {group.items.map((item) => {
+                                  const config = subscription.modules[item.key];
+                                  const on = config?.enabled;
+                                  return (
+                                    <div key={item.key} className="flex items-center justify-between px-4 py-1.5 pl-6">
+                                      <span className="text-xs">{item.label}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        {item.key === "products" && on && (
+                                          <span className="text-xs text-muted-foreground">
+                                            {config?.limit ? `Limit: ${config.limit}` : "Unlimited"}
+                                          </span>
+                                        )}
+                                        <Badge variant={on ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                                          {on ? "ON" : "OFF"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="operator">
@@ -2754,6 +2995,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
         <TabsContent value="payments" className="space-y-4">
           {/* STATIC QR TOGGLE */}
+          {(!isModuleEnabled || isModuleEnabled("staticQR")) && (<>
           <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
             <div className="flex items-center gap-3">
               <QrCode className="w-5 h-5 text-blue-600" />
@@ -2865,8 +3107,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           )}
+          </>)}
 
           {/* DYNAMIC QR TOGGLE */}
+          {(!isModuleEnabled || isModuleEnabled("dynamicQR")) && (<>
           <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
             <div className="flex items-center gap-3">
               <Zap className="w-5 h-5 text-amber-600" />
@@ -2935,6 +3179,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           )}
+          </>)}
 
           {/* CARD PAYMENTS TOGGLE */}
           {/* <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
@@ -2961,6 +3206,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           </div> */}
 
           {/* CARD PAYMENTS SECTION - APPEARS RIGHT BELOW TOGGLE */}
+          {(!isModuleEnabled || isModuleEnabled("razorpay")) && (<>
           {/* 🔘 RAZORPAY CARD PAYMENTS TOGGLE */}
           <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
             <div className="flex items-center gap-3">
@@ -3497,6 +3743,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           )}
+          </>)}
 
           {/* 💾 SAVE BUTTON - BOTTOM */}
           {/* <Button
@@ -3521,7 +3768,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           </Button> */}
 
           {/* Gmail Payment Email Tracking */}
-          <GmailPaymentSection />
+          {(!isModuleEnabled || isModuleEnabled("paymentTracking")) && (
+            <GmailPaymentSection />
+          )}
         </TabsContent>
 
         <TabsContent value="shipping">
@@ -4092,6 +4341,89 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               Yes, Delete
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Plan Dialog */}
+      <Dialog open={changePlanOpen} onOpenChange={setChangePlanOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Choose a Plan</DialogTitle>
+            <DialogDescription>
+              Select a plan to upgrade or switch your subscription
+            </DialogDescription>
+          </DialogHeader>
+          {loadingPlans ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader className="h-8 w-8 animate-spin text-indigo-600" />
+            </div>
+          ) : availablePlans.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">No plans available.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              {availablePlans.map((plan) => {
+                const isCurrent = subscription?.planId === plan._id;
+                const enabledModuleCount = plan.modules
+                  ? Object.values(plan.modules).filter((m: any) => m?.enabled).length
+                  : 0;
+                return (
+                  <div
+                    key={plan._id}
+                    className={`rounded-lg border p-4 space-y-3 ${
+                      isCurrent ? "border-indigo-400 bg-indigo-50" : "border-gray-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-bold text-lg">{plan.planName}</h3>
+                        <p className="text-2xl font-bold text-indigo-600 mt-1">
+                          ${plan.price}
+                          <span className="text-sm font-normal text-muted-foreground">
+                            {" "}/ {plan.validityInDays} days
+                          </span>
+                        </p>
+                      </div>
+                      {isCurrent && (
+                        <Badge className="bg-indigo-600">Current</Badge>
+                      )}
+                    </div>
+                    {plan.description && (
+                      <p className="text-sm text-muted-foreground">{plan.description}</p>
+                    )}
+                    <Badge variant="outline" className="text-xs">
+                      {enabledModuleCount} modules included
+                    </Badge>
+                    {plan.features && plan.features.length > 0 && (
+                      <ul className="text-sm space-y-1">
+                        {plan.features.slice(0, 5).map((f: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                            <span>{f}</span>
+                          </li>
+                        ))}
+                        {plan.features.length > 5 && (
+                          <li className="text-xs text-muted-foreground pl-6">
+                            +{plan.features.length - 5} more
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                    <Button
+                      disabled={isCurrent || switchingPlanId === plan._id}
+                      onClick={() => switchToPlan(plan._id)}
+                      className={`w-full ${isCurrent ? "" : "bg-indigo-600 hover:bg-indigo-700"}`}
+                      variant={isCurrent ? "outline" : "default"}
+                    >
+                      {switchingPlanId === plan._id && (
+                        <Loader className="h-4 w-4 mr-2 animate-spin" />
+                      )}
+                      {isCurrent ? "Current Plan" : "Switch to this Plan"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

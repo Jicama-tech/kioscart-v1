@@ -8,12 +8,18 @@ import {
   Delete,
   UseGuards,
   Req,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from "@nestjs/common";
 import { AdminService } from "./admin.service";
 import { CreateAdminDto } from "./dto/create-admin.dto";
 import { LocalDto } from "../auth/dto/local.dto";
 import { LoginDto } from "./dto/login.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import { extname } from "path";
 // import { UpdateAdminDto } from './dto/update-admin.dto';
 
 @Controller("admin")
@@ -95,15 +101,52 @@ export class AdminController {
     return this.adminService.getUsersOverview();
   }
 
+  @Get("platform-payment")
+  getPlatformPayment() {
+    return this.adminService.getPlatformPayment();
+  }
+
+  @Patch("platform-payment")
+  @UseInterceptors(
+    FileInterceptor("qrCode", {
+      storage: diskStorage({
+        destination: "./uploads/platformPayment",
+        filename: (_req, file, cb) => {
+          const ts = Date.now();
+          const ext = extname(file.originalname || "") || ".png";
+          cb(null, `qr-${ts}${ext}`);
+        },
+      }),
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith("image/")) {
+          return cb(new BadRequestException("Only image files allowed"), false);
+        }
+        cb(null, true);
+      },
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async updatePlatformPayment(
+    @Body() body: any,
+    @UploadedFile() qrCode: Express.Multer.File,
+  ) {
+    const qrPublicUrl = qrCode?.filename
+      ? `/uploads/platformPayment/${qrCode.filename}`
+      : null;
+
+    ["acceptUPI", "acceptBankTransfer", "acceptPayPal", "acceptStripe"].forEach((k) => {
+      if (body[k] !== undefined && typeof body[k] === "string") {
+        body[k] = body[k] === "true";
+      }
+    });
+
+    return this.adminService.updatePlatformPayment(body, qrPublicUrl);
+  }
+
   @Get(":id")
   findOne(@Param("id") id: string) {
     return this.adminService.findOne(+id);
   }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {
-  //   return this.adminService.update(+id, updateAdminDto);
-  // }
 
   @Delete(":id")
   remove(@Param("id") id: string) {

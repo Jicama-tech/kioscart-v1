@@ -360,6 +360,32 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [subscriptionModules, setSubscriptionModules] = useState<Record<string, any> | null>(null);
+
+  useEffect(() => {
+    async function fetchSubscription() {
+      if (!shopkeeperId) return;
+      try {
+        const token = sessionStorage.getItem('token');
+        const res = await fetch(`${apiUrl}/shopkeepers/subscription/${shopkeeperId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.subscribed && data.modules) {
+            setSubscriptionModules(data.modules);
+          }
+        }
+      } catch {}
+    }
+    fetchSubscription();
+  }, [shopkeeperId]);
+
+  const isModuleEnabled = useCallback((moduleKey: string) => {
+    if (!subscriptionModules) return true;
+    return subscriptionModules[moduleKey]?.enabled !== false;
+  }, [subscriptionModules]);
+
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
     null,
   );
@@ -825,7 +851,18 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
         >
           <div className="h-full flex flex-col">
             <nav className="p-3 sm:p-4 space-y-1 sm:space-y-2 flex-1 overflow-y-auto">
-              {NAVIGATION_ITEMS.map((item) => (
+              {NAVIGATION_ITEMS.filter((item) => {
+                const navToModule: Record<string, string> = {
+                  orders: 'orders',
+                  products: 'products',
+                  crm: 'crm',
+                  storefront: 'storefront',
+                  kiosk: 'kiosk',
+                };
+                const moduleKey = navToModule[item.id];
+                if (moduleKey && !isModuleEnabled(moduleKey)) return false;
+                return true;
+              }).map((item) => (
                 <Button
                   key={item.id}
                   variant={activeTab === item.id ? 'default' : 'buttonOutline'}
@@ -1785,7 +1822,7 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
                 {hasTabAccess('settings') ? (
                   <Suspense fallback={<TabLoadingFallback />}>
                     <div className="space-y-4">
-                      <ShopkeeperSettings onSave={handleSaveSettings} />
+                      <ShopkeeperSettings onSave={handleSaveSettings} isModuleEnabled={isModuleEnabled} />
                     </div>
                   </Suspense>
                 ) : <NoAccessOverlay />}

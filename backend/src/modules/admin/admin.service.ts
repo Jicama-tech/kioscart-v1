@@ -32,6 +32,8 @@ export class AdminService {
     @InjectModel("Order") private orderModel: Model<any>,
     @InjectModel("Operator") private operatorModel: Model<any>,
     @InjectModel("Agent") private agentModel: Model<any>,
+    @InjectModel("Plan") private planModel: Model<any>,
+    @InjectModel("PlatformPayment") private platformPaymentModel: Model<any>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService
   ) {}
@@ -424,9 +426,22 @@ export class AdminService {
       : [];
     const agentMap = new Map(agents.map((a: any) => [a._id.toString(), { name: a.name, referralCode: a.referralCode }]));
 
+    // Get plan info for subscribed shopkeepers
+    const planIds = [...new Set(shopkeepers.filter((s: any) => s.planId).map((s: any) => s.planId.toString()))];
+    const plans = planIds.length > 0
+      ? await this.planModel.find({ _id: { $in: planIds } }).select("planName price validityInDays").lean()
+      : [];
+    const planMap = new Map(plans.map((p: any) => [p._id.toString(), p]));
+
     const result = shopkeepers.map((s: any) => {
       const sid = s._id.toString();
       const stats = orderMap.get(sid) || { orders: 0, revenue: 0, completed: 0 };
+      const plan: any = s.planId ? planMap.get(s.planId.toString()) : null;
+      const now = Date.now();
+      const expiry = s.planExpiryDate ? new Date(s.planExpiryDate).getTime() : null;
+      const daysLeft = expiry ? Math.max(0, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))) : null;
+      const isExpired = expiry ? now > expiry : false;
+
       return {
         _id: s._id,
         name: s.name,
@@ -453,6 +468,17 @@ export class AdminService {
           ? agentMap.get(s.providerId) || null
           : null,
         provider: s.provider,
+        subscription: {
+          subscribed: s.subscribed || false,
+          planName: plan?.planName || null,
+          planPrice: plan?.price ?? null,
+          validityInDays: plan?.validityInDays ?? null,
+          planStartDate: s.planStartDate || null,
+          planExpiryDate: s.planExpiryDate || null,
+          pricePaid: s.pricePaid || null,
+          daysLeft,
+          isExpired,
+        },
       };
     });
 
@@ -515,5 +541,31 @@ export class AdminService {
       totalOrders,
       totalSpent,
     };
+  }
+
+  async getPlatformPayment() {
+    let doc: any = await this.platformPaymentModel.findOne().lean();
+    if (!doc) {
+      const created: any = await this.platformPaymentModel.create({});
+      doc = created.toObject();
+    }
+    return doc;
+  }
+
+  async updatePlatformPayment(body: any, qrPublicUrl?: string | null) {
+    const existing = await this.platformPaymentModel.findOne();
+    const update: any = { ...body };
+    if (qrPublicUrl) update.qrCodeURL = qrPublicUrl;
+
+    if (!existing) {
+      const created: any = await this.platformPaymentModel.create(update);
+      return created.toObject();
+    }
+    const updated = await this.platformPaymentModel.findByIdAndUpdate(
+      existing._id,
+      update,
+      { new: true },
+    ).lean();
+    return updated;
   }
 }

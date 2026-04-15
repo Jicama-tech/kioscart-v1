@@ -633,9 +633,9 @@ export function ShopKeeperRegister() {
         duration: 5000,
         title: "Registration Success",
         description:
-          "Registration complete! we’ll notify you as soon as your account is approved so you can start using KiosCart.",
+          "Registration complete! You can now login with your WhatsApp number.",
       });
-      navigate("/");
+      navigate("/login");
     } catch (error: any) {
       toast({
         title: "Error",

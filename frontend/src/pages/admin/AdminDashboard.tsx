@@ -47,12 +47,14 @@ const ShopkeepersPage = lazy(() => import("./ShopkeepersPage"));
 const UsersPage = lazy(() =>
   import("./UsersPage").then((m) => ({ default: m.UsersPage }))
 );
+const SubscriptionsPage = lazy(() => import("./SubscriptionsPage"));
 
 const NAVIGATION_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "shopkeepers", label: "Shopkeepers", icon: Store },
   { id: "agents", label: "Agents", icon: Briefcase },
   { id: "users", label: "Users", icon: Users },
+  { id: "subscriptions", label: "Subscriptions", icon: Package },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -435,6 +437,13 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               <TabsContent value="users" className="mt-0">
                 <Suspense fallback={<TabLoadingFallback />}>
                   <UsersPage />
+                </Suspense>
+              </TabsContent>
+
+              {/* Subscriptions Tab */}
+              <TabsContent value="subscriptions" className="mt-0">
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <SubscriptionsPage />
                 </Suspense>
               </TabsContent>
 

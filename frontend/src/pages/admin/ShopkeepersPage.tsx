@@ -73,6 +73,17 @@ interface ShopkeeperOverview {
   operators: { name: string; email: string; whatsAppNumber: string }[];
   referredBy: { name: string; referralCode: string } | null;
   provider: string;
+  subscription?: {
+    subscribed: boolean;
+    planName: string | null;
+    planPrice: number | null;
+    validityInDays: number | null;
+    planStartDate: string | null;
+    planExpiryDate: string | null;
+    pricePaid: string | null;
+    daysLeft: number | null;
+    isExpired: boolean;
+  };
 }
 
 export default function ShopkeepersPage() {
@@ -233,6 +244,7 @@ export default function ShopkeepersPage() {
                   <TableHead className="font-semibold text-center">Products</TableHead>
                   <TableHead className="font-semibold text-center">Orders</TableHead>
                   <TableHead className="font-semibold">Referred By</TableHead>
+                  <TableHead className="font-semibold">Plan</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
                   <TableHead className="font-semibold">Operators</TableHead>
                   <TableHead className="font-semibold text-center">Actions</TableHead>
@@ -241,7 +253,7 @@ export default function ShopkeepersPage() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                       No shopkeepers found
                     </TableCell>
                   </TableRow>
@@ -274,6 +286,28 @@ export default function ShopkeepersPage() {
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">Direct</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {sk.subscription?.subscribed && sk.subscription.planName ? (
+                          <div className="text-xs space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">{sk.subscription.planName}</span>
+                              <Badge
+                                variant={sk.subscription.isExpired ? "destructive" : "default"}
+                                className="text-[10px] px-1.5 py-0"
+                              >
+                                {sk.subscription.isExpired
+                                  ? "Expired"
+                                  : `${sk.subscription.daysLeft}d left`}
+                              </Badge>
+                            </div>
+                            <p className="text-muted-foreground">
+                              ${sk.subscription.pricePaid} / {sk.subscription.validityInDays}d
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No Plan</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -389,6 +423,51 @@ export default function ShopkeepersPage() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Subscription Info */}
+                {selectedShopkeeper.subscription?.subscribed && selectedShopkeeper.subscription.planName && (
+                  <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-indigo-900">
+                        Subscription: {selectedShopkeeper.subscription.planName}
+                      </span>
+                      <Badge
+                        variant={selectedShopkeeper.subscription.isExpired ? "destructive" : "default"}
+                        className="text-xs"
+                      >
+                        {selectedShopkeeper.subscription.isExpired
+                          ? "Expired"
+                          : `${selectedShopkeeper.subscription.daysLeft} days left`}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Price Paid: </span>
+                        <span className="font-medium">${selectedShopkeeper.subscription.pricePaid}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Validity: </span>
+                        <span className="font-medium">{selectedShopkeeper.subscription.validityInDays} days</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Started: </span>
+                        <span className="font-medium">
+                          {selectedShopkeeper.subscription.planStartDate
+                            ? new Date(selectedShopkeeper.subscription.planStartDate).toLocaleDateString()
+                            : "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Expires: </span>
+                        <span className="font-medium">
+                          {selectedShopkeeper.subscription.planExpiryDate
+                            ? new Date(selectedShopkeeper.subscription.planExpiryDate).toLocaleDateString()
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Referral Info */}
                 {selectedShopkeeper.referredBy && (

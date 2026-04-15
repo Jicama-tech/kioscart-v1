@@ -27,6 +27,7 @@ import {
   Operator,
   OperatorDocument,
 } from "../operators/entities/operator.entity";
+import { Plan, PlanDocument } from "../plans/entities/plan.entity";
 
 @Injectable()
 export class ShopkeepersService {
@@ -35,7 +36,8 @@ export class ShopkeepersService {
   constructor(
     @InjectModel(Shopkeeper.name) private shopModel: Model<ShopkeeperDocument>,
     @InjectModel(Otp.name) private otpModel: Model<Otp>,
-    @InjectModel(Operator.name) private operatorModel: Model<OperatorDocument>, // Use your existing Otp model
+    @InjectModel(Operator.name) private operatorModel: Model<OperatorDocument>,
+    @InjectModel(Plan.name) private planModel: Model<PlanDocument>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
   ) {
@@ -635,14 +637,33 @@ export class ShopkeepersService {
       }
     }
 
+    const starterPlan = await this.planModel.findOne({
+      planName: { $regex: /^starter/i },
+      isActive: true,
+      moduleType: { $in: ["Shopkeeper", "Both"] },
+    });
+
+    const subscriptionFields = starterPlan
+      ? {
+          subscribed: true,
+          planId: starterPlan._id.toString(),
+          planStartDate: new Date(),
+          planExpiryDate: new Date(
+            Date.now() + starterPlan.validityInDays * 24 * 60 * 60 * 1000,
+          ),
+          pricePaid: starterPlan.price.toString(),
+        }
+      : {};
+
     const created = await new this.shopModel({
       ...dto,
       email: normalizedEmail,
-      approved: false,
+      approved: true,
       rejected: false,
-      status: "pending",
+      status: "active",
       provider,
       providerId,
+      ...subscriptionFields,
     }).save();
 
     await this.mailService.sendApprovalRequestToAdmin({
@@ -986,5 +1007,63 @@ export class ShopkeepersService {
 
   async findByRazorpayStatus(status: string) {
     return this.shopModel.find({ "razorpay.status": status });
+  }
+
+  async getSubscription(shopkeeperId: string) {
+    const shopkeeper = await this.shopModel.findById(shopkeeperId).lean();
+    if (!shopkeeper) throw new NotFoundException("Shopkeeper not found");
+
+    if (!shopkeeper.subscribed || !shopkeeper.planId) {
+      return { subscribed: false, plan: null };
+    }
+
+    const plan = await this.planModel.findById(shopkeeper.planId).lean();
+
+    return {
+      subscribed: shopkeeper.subscribed,
+      planId: shopkeeper.planId,
+      planName: plan?.planName || "Unknown",
+      planStartDate: shopkeeper.planStartDate,
+      planExpiryDate: shopkeeper.planExpiryDate,
+      pricePaid: shopkeeper.pricePaid,
+      validityInDays: plan?.validityInDays,
+      features: plan?.features || [],
+      modules: plan?.modules || {},
+      isExpired: shopkeeper.planExpiryDate
+        ? new Date() > new Date(shopkeeper.planExpiryDate)
+        : false,
+    };
+  }
+
+  async addSubscriptionPlan(id: string, planSelected: string) {
+    const shopkeeper = await this.shopModel.findById(id);
+    if (!shopkeeper) throw new NotFoundException("Shopkeeper not found");
+
+    const plan = await this.planModel.findById(planSelected);
+    if (!plan || !plan.isActive)
+      throw new NotFoundException("Plan not found or inactive");
+
+    shopkeeper.subscribed = true;
+    shopkeeper.planId = plan._id.toString();
+    shopkeeper.planStartDate = new Date();
+    shopkeeper.planExpiryDate = new Date(
+      Date.now() + plan.validityInDays * 24 * 60 * 60 * 1000,
+    );
+    shopkeeper.pricePaid = plan.price.toString();
+
+    await shopkeeper.save();
+    return { message: "Plan activated", data: shopkeeper };
+  }
+
+  async cancelSubscription(id: string) {
+    const shopkeeper = await this.shopModel.findById(id);
+    if (!shopkeeper) throw new NotFoundException("Shopkeeper not found");
+
+    shopkeeper.subscribed = false;
+    shopkeeper.planId = null;
+    shopkeeper.planExpiryDate = new Date();
+
+    await shopkeeper.save();
+    return { message: "Subscription cancelled", data: shopkeeper };
   }
 }
