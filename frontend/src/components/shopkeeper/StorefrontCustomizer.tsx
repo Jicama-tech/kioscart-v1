@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, lazy, Suspense } from "react";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -95,6 +96,7 @@ export function StorefrontCustomizer({
   onBack,
   onSave,
 }: StorefrontCustomizerProps) {
+  const { isModuleEnabled } = useSubscription();
   const apiUrl = __API_URL__;
   const { toast } = useToast();
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
@@ -1862,6 +1864,7 @@ export function StorefrontCustomizer({
                 </details>
 
                 {/* 9. Instagram Carousel */}
+                {isModuleEnabled("instagram") && (
                 <div className="border rounded-lg overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
                     <span className="text-xs font-semibold">Instagram Carousel</span>
@@ -1901,8 +1904,10 @@ export function StorefrontCustomizer({
                   </div>
                   )}
                 </div>
+                )}
 
                 {/* 10. Video Section */}
+                {isModuleEnabled("videoSection") && (
                 <div className="border rounded-lg overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
                     <span className="text-xs font-semibold">Video Section</span>
@@ -1961,8 +1966,10 @@ export function StorefrontCustomizer({
                   </div>
                   )}
                 </div>
+                )}
 
                 {/* 11. Our Story */}
+                {isModuleEnabled("ourStory") && (
                 <div className="border rounded-lg overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
                     <span className="text-xs font-semibold">Our Story</span>
@@ -2036,6 +2043,7 @@ export function StorefrontCustomizer({
                   </div>
                   )}
                 </div>
+                )}
 
                 {/* 12. Newsletter — HIDDEN FOR NOW */}
 

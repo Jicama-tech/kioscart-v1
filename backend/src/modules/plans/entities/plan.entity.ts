@@ -27,7 +27,10 @@ export class Plan {
   validityInDays: number; // Plan validity duration
 
   @Prop({ default: true })
-  isActive: boolean; // To enable/disable plans
+  isActive: boolean;
+
+  @Prop({ default: false })
+  isDefault: boolean;
 
   @Prop()
   description?: string; // Optional plan description

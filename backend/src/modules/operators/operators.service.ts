@@ -150,7 +150,7 @@ export class OperatorsService {
         throw new BadRequestException("Invalid shopkeeper ID");
       }
 
-      const operators = await this.operatorModel.find({ shopkeeperId });
+      const operators = await this.operatorModel.find({ shopkeeperId, isSoftDeleted: { $ne: true } });
       return { message: "Operators fetched successfully", data: operators };
     } catch (error) {
       throw error;
@@ -201,7 +201,11 @@ export class OperatorsService {
         throw new BadRequestException("Invalid operator ID");
       }
 
-      const operator = await this.operatorModel.findByIdAndDelete(id);
+      const operator = await this.operatorModel.findByIdAndUpdate(
+        id,
+        { isSoftDeleted: true, softDeletedAt: new Date() },
+        { new: true },
+      );
       if (!operator) {
         throw new NotFoundException("Operator not found");
       }

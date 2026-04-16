@@ -52,6 +52,7 @@ interface Plan {
   moduleType: string;
   validityInDays: number;
   isActive: boolean;
+  isDefault?: boolean;
   description?: string;
   modules?: PlanModules;
   forModule?: string;
@@ -322,6 +323,19 @@ export default function SubscriptionsPage() {
     }
   };
 
+  const handleSetDefault = async (id: string) => {
+    try {
+      const res = await fetch(`${apiURL}/plans/${id}/set-default`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) throw new Error("Failed to set default");
+      await fetchPlans();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deletingId) return;
     try {
@@ -396,6 +410,9 @@ export default function SubscriptionsPage() {
                       <Badge variant={plan.isActive ? "default" : "secondary"}>
                         {plan.isActive ? "Active" : "Inactive"}
                       </Badge>
+                      {plan.isDefault && (
+                        <Badge className="bg-indigo-600">Default</Badge>
+                      )}
                       <Badge variant="outline">
                         {getEnabledCount(plan)}/{ALL_MODULE_KEYS.length} modules
                       </Badge>
@@ -430,7 +447,7 @@ export default function SubscriptionsPage() {
                     })}
                   </div>
                 )}
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
                   <Button size="sm" variant="outline" className="flex-1" onClick={() => openEdit(plan)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                   </Button>
@@ -438,6 +455,11 @@ export default function SubscriptionsPage() {
                     <ToggleLeft className="h-3.5 w-3.5 mr-1" />
                     {plan.isActive ? "Disable" : "Enable"}
                   </Button>
+                  {!plan.isDefault && (
+                    <Button size="sm" variant="outline" className="text-indigo-600 hover:bg-indigo-50" onClick={() => handleSetDefault(plan._id)}>
+                      Set Default
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"

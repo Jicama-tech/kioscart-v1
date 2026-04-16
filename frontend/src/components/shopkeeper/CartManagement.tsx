@@ -1,5 +1,8 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { ModuleGate } from "@/components/ui/ModuleGate";
+import { Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -184,6 +187,7 @@ function LoadingOverlay({ show }: { show: boolean }) {
 }
 
 export function CartManagement() {
+  const { isModuleEnabled } = useSubscription();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -1262,14 +1266,15 @@ Thank you for shopping with us.
   if (orders.length === 0 && activeTab === "orders")
     return (
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 mb-6">
+        <TabsList className="grid w-full mb-6 grid-cols-2">
           <TabsTrigger value="orders" className="flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
             Orders
           </TabsTrigger>
-          <TabsTrigger value="payments" className="flex items-center gap-2">
+          <TabsTrigger value="payments" className={`flex items-center gap-2 ${!isModuleEnabled("paymentTracking") ? "opacity-60" : ""}`}>
             <CreditCard className="h-4 w-4" />
             Payments
+            {!isModuleEnabled("paymentTracking") && <Lock className="h-3 w-3 ml-1" />}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="orders">
@@ -1284,31 +1289,33 @@ Thank you for shopping with us.
           </Card>
         </TabsContent>
         <TabsContent value="payments">
-          <PaymentsTabContent
-            paymentEmails={paymentEmails}
-            paymentLoading={paymentLoading}
-            onAction={handlePaymentAction}
-            onRefresh={fetchPaymentEmails}
-            formatPrice={formatPrice}
-            orders={orders}
-            onViewOrder={(order) => { setSelectedOrder(order); setViewOpen(true); }}
-            onFetchAndViewOrder={async (matchedOrderId) => {
-              try {
-                const token = sessionStorage.getItem("token");
-                if (!token) return;
-                const decoded: any = jwtDecode(token);
-                const sid = decoded.sub;
-                const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`);
-                if (res.ok) {
-                  const data = await res.json();
-                  const allOrders = Array.isArray(data) ? data : (data.orders || []);
-                  const found = allOrders.find((o: any) => o.orderId === matchedOrderId);
-                  if (found) { setSelectedOrder(found); setViewOpen(true); }
-                }
-              } catch {}
-            }}
-            onStatusChange={promptStatusChange}
-          />
+          <ModuleGate moduleKey="paymentTracking" fallbackText="Upgrade your plan to access Payment Tracking">
+            <PaymentsTabContent
+              paymentEmails={paymentEmails}
+              paymentLoading={paymentLoading}
+              onAction={handlePaymentAction}
+              onRefresh={fetchPaymentEmails}
+              formatPrice={formatPrice}
+              orders={orders}
+              onViewOrder={(order) => { setSelectedOrder(order); setViewOpen(true); }}
+              onFetchAndViewOrder={async (matchedOrderId) => {
+                try {
+                  const token = sessionStorage.getItem("token");
+                  if (!token) return;
+                  const decoded: any = jwtDecode(token);
+                  const sid = decoded.sub;
+                  const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    const allOrders = Array.isArray(data) ? data : (data.orders || []);
+                    const found = allOrders.find((o: any) => o.orderId === matchedOrderId);
+                    if (found) { setSelectedOrder(found); setViewOpen(true); }
+                  }
+                } catch {}
+              }}
+              onStatusChange={promptStatusChange}
+            />
+          </ModuleGate>
         </TabsContent>
       </Tabs>
     );
@@ -1316,14 +1323,15 @@ Thank you for shopping with us.
   return (
     <>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 mb-6">
+        <TabsList className="grid w-full mb-6 grid-cols-2">
           <TabsTrigger value="orders" className="flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
             Orders
           </TabsTrigger>
-          <TabsTrigger value="payments" className="flex items-center gap-2">
+          <TabsTrigger value="payments" className={`flex items-center gap-2 ${!isModuleEnabled("paymentTracking") ? "opacity-60" : ""}`}>
             <CreditCard className="h-4 w-4" />
             Payments
+            {!isModuleEnabled("paymentTracking") && <Lock className="h-3 w-3 ml-1" />}
           </TabsTrigger>
         </TabsList>
 
@@ -1643,14 +1651,16 @@ Thank you for shopping with us.
                             >
                               <Eye className="h-3 w-3" />
                             </Button>
-                            <Button
-                              variant="buttonOutline"
-                              size="sm"
-                              onClick={() => handlePrintRequest(order)}
-                              className="flex items-center gap-1"
-                            >
-                              <Printer className="h-3 w-3" />
-                            </Button>
+                            {isModuleEnabled("receipts") && (
+                              <Button
+                                variant="buttonOutline"
+                                size="sm"
+                                onClick={() => handlePrintRequest(order)}
+                                className="flex items-center gap-1"
+                              >
+                                <Printer className="h-3 w-3" />
+                              </Button>
+                            )}
                             <Button
                               variant="buttonOutline"
                               size="sm"
@@ -2213,31 +2223,33 @@ Thank you for shopping with us.
         </TabsContent>
 
         <TabsContent value="payments">
-          <PaymentsTabContent
-            paymentEmails={paymentEmails}
-            paymentLoading={paymentLoading}
-            onAction={handlePaymentAction}
-            onRefresh={fetchPaymentEmails}
-            formatPrice={formatPrice}
-            orders={orders}
-            onViewOrder={(order) => { setSelectedOrder(order); setViewOpen(true); }}
-            onFetchAndViewOrder={async (matchedOrderId) => {
-              try {
-                const token = sessionStorage.getItem("token");
-                if (!token) return;
-                const decoded: any = jwtDecode(token);
-                const sid = decoded.sub;
-                const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`);
-                if (res.ok) {
-                  const data = await res.json();
-                  const allOrders = Array.isArray(data) ? data : (data.orders || []);
-                  const found = allOrders.find((o: any) => o.orderId === matchedOrderId);
-                  if (found) { setSelectedOrder(found); setViewOpen(true); }
-                }
-              } catch {}
-            }}
-            onStatusChange={promptStatusChange}
-          />
+          <ModuleGate moduleKey="paymentTracking" fallbackText="Upgrade your plan to access Payment Tracking">
+            <PaymentsTabContent
+              paymentEmails={paymentEmails}
+              paymentLoading={paymentLoading}
+              onAction={handlePaymentAction}
+              onRefresh={fetchPaymentEmails}
+              formatPrice={formatPrice}
+              orders={orders}
+              onViewOrder={(order) => { setSelectedOrder(order); setViewOpen(true); }}
+              onFetchAndViewOrder={async (matchedOrderId) => {
+                try {
+                  const token = sessionStorage.getItem("token");
+                  if (!token) return;
+                  const decoded: any = jwtDecode(token);
+                  const sid = decoded.sub;
+                  const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    const allOrders = Array.isArray(data) ? data : (data.orders || []);
+                    const found = allOrders.find((o: any) => o.orderId === matchedOrderId);
+                    if (found) { setSelectedOrder(found); setViewOpen(true); }
+                  }
+                } catch {}
+              }}
+              onStatusChange={promptStatusChange}
+            />
+          </ModuleGate>
         </TabsContent>
       </Tabs>
 

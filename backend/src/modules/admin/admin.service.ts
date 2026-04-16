@@ -33,6 +33,7 @@ export class AdminService {
     @InjectModel("Operator") private operatorModel: Model<any>,
     @InjectModel("Agent") private agentModel: Model<any>,
     @InjectModel("Plan") private planModel: Model<any>,
+    @InjectModel("Coupon") private couponModel: Model<any>,
     @InjectModel("PlatformPayment") private platformPaymentModel: Model<any>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService
@@ -164,36 +165,47 @@ export class AdminService {
     try {
       // Stats
       const totalUsers = await this.userModel.countDocuments();
-      const totalEvents = await this.eventModel.countDocuments();
-      const activeOrganizers = await this.organizerModel.countDocuments({
-        approved: true,
-      });
+      const totalShopkeepers = await this.shopkeeperModel.countDocuments();
       const activeShopkeepers = await this.shopkeeperModel.countDocuments({
         approved: true,
       });
+      const totalProducts = await this.productModel.countDocuments();
 
-      // Events in the current month
+      // Order aggregate (count + revenue)
+      const orderAgg = await this.orderModel.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalOrders: { $sum: 1 },
+            totalRevenue: { $sum: "$totalAmount" },
+          },
+        },
+      ]);
+      const totalOrders = orderAgg[0]?.totalOrders || 0;
+      const totalRevenue = orderAgg[0]?.totalRevenue || 0;
+
+      // New shopkeepers this month
       const startOfMonth = new Date(
         new Date().getFullYear(),
         new Date().getMonth(),
         1
       );
-      const thisMonthEvents = await this.eventModel.countDocuments({
+      const thisMonthShopkeepers = await this.shopkeeperModel.countDocuments({
         createdAt: { $gte: startOfMonth },
       });
 
-      // Pending approvals
-      const organizers = await this.organizerModel.find({ approved: false });
+      // Active subscriptions count
+      const activeSubscriptions = await this.shopkeeperModel.countDocuments({
+        subscribed: true,
+        planExpiryDate: { $gte: new Date() },
+      });
+
+      // Pending approvals (shopkeepers only now — organizers removed from dashboard)
       const shopkeepers = await this.shopkeeperModel.find({ approved: false });
-      const totalPending = organizers.length + shopkeepers.length;
+      const totalPending = shopkeepers.length;
 
-      // Define time window for recent activity (e.g. last 24 hours)
+      // Define time window for recent activity (last 7 days)
       const twentyFourHoursAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-      const recentStatusUpdatesOrganizers = await this.organizerModel
-        .find({ updatedAt: { $gte: twentyFourHoursAgo } })
-        .sort({ updatedAt: -1 })
-        .lean();
 
       const recentAddedAdmins = await this.adminModel
         .find({ createdAt: { $gte: twentyFourHoursAgo } })
@@ -205,25 +217,7 @@ export class AdminService {
         .sort({ updatedAt: -1 })
         .lean();
 
-      // Recent organizers who applied in last 24h (pending)
-      const recentOrganizerApplications = await this.organizerModel
-        .find({ approved: false, createdAt: { $gte: twentyFourHoursAgo } })
-        .sort({ createdAt: -1 })
-        .lean();
-
-      // Recent shopkeepers who applied in last 24h (pending)
-      const recentShopkeeperApplications = await this.shopkeeperModel
-        .find({ approved: false, createdAt: { $gte: twentyFourHoursAgo } })
-        .sort({ createdAt: -1 })
-        .lean();
-
-      // Recent events created in last 24h
-      const recentEvents = await this.eventModel
-        .find({ createdAt: { $gte: twentyFourHoursAgo } })
-        .sort({ createdAt: -1 })
-        .lean();
-
-      // Recent user registrations in last 24h
+      // Recent user registrations in last 7 days
       const recentUsers = await this.userModel
         .find({ createdAt: { $gte: twentyFourHoursAgo } })
         .sort({ createdAt: -1 })
@@ -239,16 +233,6 @@ export class AdminService {
           time: a.createdAt,
           status: "Admin Added",
         })),
-        ...recentStatusUpdatesOrganizers.map((o) => ({
-          id: o._id,
-          type: "organizer",
-          name: o.name,
-          action: o.approved
-            ? "approved for organizer role"
-            : "rejected for organizer role",
-          time: o.updatedAt,
-          status: o.approved ? "Approved" : "Rejected",
-        })),
         ...recentStatusUpdatesShopkeepers.map((s) => ({
           id: s._id,
           type: "shopkeeper",
@@ -258,14 +242,6 @@ export class AdminService {
             : "rejected for shopkeeper role",
           time: s.updatedAt,
           status: s.approved ? "Approved" : "Rejected",
-        })),
-        ...recentEvents.map((e) => ({
-          id: e._id,
-          type: "event",
-          name: e.title,
-          action: "event created",
-          time: e.createdAt,
-          status: "Live",
         })),
         ...recentUsers.map((u) => ({
           id: u._id,
@@ -307,14 +283,16 @@ export class AdminService {
         message: "Admin dashboard data fetched successfully",
         stats: {
           totalUsers,
-          totalEvents,
-          activeOrganizers,
+          totalShopkeepers,
           activeShopkeepers,
+          totalProducts,
+          totalOrders,
+          totalRevenue,
+          activeSubscriptions,
           pendingApprovals: totalPending,
-          thisMonthEvents,
+          thisMonthShopkeepers,
         },
         pendingApprovals: {
-          organizers,
           shopkeepers: enrichedShopkeepers,
         },
         recentActivity,
@@ -540,6 +518,39 @@ export class AdminService {
       activeUsers,
       totalOrders,
       totalSpent,
+    };
+  }
+
+  async cleanupSoftDeleted() {
+    const sixMonthsAgo = new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000);
+
+    const [products, orders, coupons, operators] = await Promise.all([
+      this.productModel.deleteMany({
+        isSoftDeleted: true,
+        softDeletedAt: { $lt: sixMonthsAgo },
+      }),
+      this.orderModel.deleteMany({
+        isSoftDeleted: true,
+        softDeletedAt: { $lt: sixMonthsAgo },
+      }),
+      this.couponModel.deleteMany({
+        isDeleted: true,
+        softDeletedAt: { $lt: sixMonthsAgo },
+      }),
+      this.operatorModel.deleteMany({
+        isSoftDeleted: true,
+        softDeletedAt: { $lt: sixMonthsAgo },
+      }),
+    ]);
+
+    return {
+      message: "Cleanup complete",
+      deleted: {
+        products: products.deletedCount,
+        orders: orders.deletedCount,
+        coupons: coupons.deletedCount,
+        operators: operators.deletedCount,
+      },
     };
   }
 

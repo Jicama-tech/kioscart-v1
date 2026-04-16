@@ -45,6 +45,9 @@ export class Coupon {
   isDeleted: boolean;
 
   @Prop()
+  softDeletedAt?: Date;
+
+  @Prop()
   eventId?: string;
 }
 

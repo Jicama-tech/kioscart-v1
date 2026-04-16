@@ -189,6 +189,12 @@ export class Product {
 
   @Prop({ required: true })
   shopkeeperId: string;
+
+  @Prop({ default: false })
+  isSoftDeleted: boolean;
+
+  @Prop()
+  softDeletedAt?: Date;
 }
 
 function arrayLimit(val: string[]) {

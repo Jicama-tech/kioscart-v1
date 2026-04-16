@@ -194,6 +194,15 @@ export class Shopkeeper {
 
   @Prop()
   pricePaid: string;
+
+  @Prop({ default: true })
+  pickupDateRequired: boolean;
+
+  @Prop({ default: 2 })
+  pickupMinDays: number;
+
+  @Prop()
+  pickupMessage?: string;
 }
 
 export const RazorpayLinkedAccountSchema = SchemaFactory.createForClass(

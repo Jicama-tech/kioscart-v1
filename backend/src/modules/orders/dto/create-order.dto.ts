@@ -7,6 +7,7 @@ import {
   IsOptional,
   ValidateNested,
   IsDateString,
+  ValidateIf,
   IsObject,
   IsBoolean,
 } from "class-validator";
@@ -104,11 +105,9 @@ export class CreateOrderDto {
   deliveryAddress?: AddressDto;
 
   @IsOptional()
-  @IsDateString()
   pickupDate?: string;
 
   @IsOptional()
-  @IsString()
   pickupTime?: string;
 
   @IsOptional()

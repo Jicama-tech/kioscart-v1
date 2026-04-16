@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -136,6 +137,8 @@ const categories = [
 ];
 
 export function ProductManagement() {
+  const { subscription } = useSubscription();
+  const productLimit = subscription?.modules?.products?.limit || 0;
   const apiURL = __API_URL__;
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
@@ -1014,10 +1017,19 @@ export function ProductManagement() {
                 Import Excel
               </Button> */}
 
-              <Button onClick={openAddDialog} size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Product
-              </Button>
+              {productLimit > 0 && products.length >= productLimit ? (
+                <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-3 py-1.5">
+                  <span>Limit reached ({products.length}/{productLimit}). Upgrade plan to add more.</span>
+                </div>
+              ) : (
+                <Button onClick={openAddDialog} size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Product
+                  {productLimit > 0 && (
+                    <span className="ml-2 text-xs opacity-80">({products.length}/{productLimit})</span>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>

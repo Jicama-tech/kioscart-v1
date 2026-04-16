@@ -156,6 +156,7 @@ export class CouponService {
 
     coupon.isDeleted = true;
     coupon.isActive = false;
+    (coupon as any).softDeletedAt = new Date();
     await coupon.save();
 
     return { message: "Coupon deleted successfully" };

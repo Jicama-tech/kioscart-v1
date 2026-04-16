@@ -259,4 +259,9 @@ export class ShopkeepersController {
   async cancelSubscription(@Param("id") id: string) {
     return this.shopkeepersService.cancelSubscription(id);
   }
+
+  @Post("check-expired-subscriptions")
+  async checkExpiredSubscriptions() {
+    return this.shopkeepersService.checkAndDowngradeExpired();
+  }
 }

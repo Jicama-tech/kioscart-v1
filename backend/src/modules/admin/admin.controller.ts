@@ -148,6 +148,12 @@ export class AdminController {
     return this.adminService.findOne(+id);
   }
 
+  @Post("cleanup-soft-deleted")
+  @UseGuards(JwtAuthGuard)
+  async cleanupSoftDeleted() {
+    return this.adminService.cleanupSoftDeleted();
+  }
+
   @Delete(":id")
   remove(@Param("id") id: string) {
     return this.adminService.remove(+id);

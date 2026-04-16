@@ -1595,8 +1595,9 @@ export class OrdersService {
         throw new NotFoundException("Invalid shopkeeperId");
       }
 
+      const filter = { shopkeeperId, isSoftDeleted: { $ne: true } };
       const query = this.orderModel
-        .find({ shopkeeperId })
+        .find(filter)
         .populate("userId")
         .sort({ createdAt: -1 });
 
@@ -1605,7 +1606,7 @@ export class OrdersService {
         const skip = (page - 1) * limit;
         const [orders, total] = await Promise.all([
           query.skip(skip).limit(limit).lean().exec(),
-          this.orderModel.countDocuments({ shopkeeperId }),
+          this.orderModel.countDocuments(filter),
         ]);
         return { orders, total, page, limit, totalPages: Math.ceil(total / limit) };
       }
@@ -1731,7 +1732,10 @@ export class OrdersService {
         throw new NotFoundException("Order Not Found");
       }
 
-      await this.orderModel.deleteOne({ orderId: orderId });
+      await this.orderModel.updateOne(
+        { orderId: orderId },
+        { isSoftDeleted: true, softDeletedAt: new Date() },
+      );
       return { message: "Order Deleted Successfully" };
     } catch (error) {
       throw error;

@@ -104,6 +104,12 @@ export class Order extends Document {
 
   @Prop({ type: String, required: false })
   transactionId?: string;
+
+  @Prop({ default: false })
+  isSoftDeleted: boolean;
+
+  @Prop()
+  softDeletedAt?: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

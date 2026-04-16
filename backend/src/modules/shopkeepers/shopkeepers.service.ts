@@ -38,6 +38,7 @@ export class ShopkeepersService {
     @InjectModel(Otp.name) private otpModel: Model<Otp>,
     @InjectModel(Operator.name) private operatorModel: Model<OperatorDocument>,
     @InjectModel(Plan.name) private planModel: Model<PlanDocument>,
+    @InjectModel("Product") private productModel: Model<any>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
   ) {
@@ -638,6 +639,9 @@ export class ShopkeepersService {
     }
 
     const starterPlan = await this.planModel.findOne({
+      isDefault: true,
+      isActive: true,
+    }) || await this.planModel.findOne({
       planName: { $regex: /^starter/i },
       isActive: true,
       moduleType: { $in: ["Shopkeeper", "Both"] },
@@ -717,9 +721,12 @@ export class ShopkeepersService {
       receiptType?: ReceiptType | string;
       termsAndConditions?: string;
       paymentURL?: string;
-      shopClosedFromDate?: Date; // Accept string from FormData
-      shopClosedToDate?: Date; // Accept string from FormData
-      country?: string; // IN/SG
+      shopClosedFromDate?: Date;
+      shopClosedToDate?: Date;
+      country?: string;
+      pickupDateRequired?: boolean | string;
+      pickupMinDays?: number | string;
+      pickupMessage?: string;
     },
     paymentQrPublicUrl?: string | null,
   ) {
@@ -811,6 +818,20 @@ export class ShopkeepersService {
 
     // ✅ NEW: Country field
     if (body.country !== undefined) update.country = body.country;
+
+    if (body.pickupDateRequired !== undefined) {
+      update.pickupDateRequired =
+        typeof body.pickupDateRequired === "boolean"
+          ? body.pickupDateRequired
+          : body.pickupDateRequired === "true";
+    }
+    if (body.pickupMinDays !== undefined) {
+      const num = typeof body.pickupMinDays === "string"
+        ? parseInt(body.pickupMinDays)
+        : body.pickupMinDays;
+      update.pickupMinDays = isNaN(num) ? 2 : num;
+    }
+    if (body.pickupMessage !== undefined) update.pickupMessage = body.pickupMessage;
 
     if (body.receiptType !== undefined) {
       const allowedValues = Object.values(ReceiptType);
@@ -1009,6 +1030,46 @@ export class ShopkeepersService {
     return this.shopModel.find({ "razorpay.status": status });
   }
 
+  async enforceProductLimit(shopkeeperId: string, limit: number) {
+    if (limit <= 0) {
+      await this.productModel.updateMany(
+        { shopkeeperId, isSoftDeleted: true, softDeletedAt: { $ne: null } },
+        { isSoftDeleted: false, $unset: { softDeletedAt: "" } },
+      );
+      return;
+    }
+
+    const activeCount = await this.productModel.countDocuments({
+      shopkeeperId,
+      isSoftDeleted: { $ne: true },
+    });
+
+    if (activeCount > limit) {
+      const excess = activeCount - limit;
+      const excessProducts = await this.productModel
+        .find({ shopkeeperId, isSoftDeleted: { $ne: true } })
+        .sort({ createdAt: -1 })
+        .limit(excess);
+      const excessIds = excessProducts.map((p: any) => p._id);
+      await this.productModel.updateMany(
+        { _id: { $in: excessIds } },
+        { isSoftDeleted: true, softDeletedAt: new Date() },
+      );
+    } else if (activeCount < limit) {
+      const canRestore = limit - activeCount;
+      const toRestore = await this.productModel
+        .find({ shopkeeperId, isSoftDeleted: true })
+        .sort({ createdAt: 1 })
+        .limit(canRestore);
+      if (toRestore.length > 0) {
+        await this.productModel.updateMany(
+          { _id: { $in: toRestore.map((p: any) => p._id) } },
+          { isSoftDeleted: false, $unset: { softDeletedAt: "" } },
+        );
+      }
+    }
+  }
+
   async getSubscription(shopkeeperId: string) {
     const shopkeeper = await this.shopModel.findById(shopkeeperId).lean();
     if (!shopkeeper) throw new NotFoundException("Shopkeeper not found");
@@ -1018,6 +1079,18 @@ export class ShopkeepersService {
     }
 
     const plan = await this.planModel.findById(shopkeeper.planId).lean();
+
+    const productLimit = (plan?.modules as any)?.products?.limit || 0;
+    await this.enforceProductLimit(shopkeeperId, productLimit);
+
+    const now = new Date();
+    const expiry = shopkeeper.planExpiryDate ? new Date(shopkeeper.planExpiryDate) : null;
+    const isExpired = expiry ? now > expiry : false;
+    const gracePeriodEnd = expiry ? new Date(expiry.getTime() + 7 * 24 * 60 * 60 * 1000) : null;
+    const inGracePeriod = isExpired && gracePeriodEnd ? now <= gracePeriodEnd : false;
+    const graceDaysLeft = inGracePeriod && gracePeriodEnd
+      ? Math.ceil((gracePeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
 
     return {
       subscribed: shopkeeper.subscribed,
@@ -1029,9 +1102,10 @@ export class ShopkeepersService {
       validityInDays: plan?.validityInDays,
       features: plan?.features || [],
       modules: plan?.modules || {},
-      isExpired: shopkeeper.planExpiryDate
-        ? new Date() > new Date(shopkeeper.planExpiryDate)
-        : false,
+      isExpired,
+      inGracePeriod,
+      graceDaysLeft,
+      isDefault: (plan as any)?.isDefault || false,
     };
   }
 
@@ -1050,9 +1124,41 @@ export class ShopkeepersService {
       Date.now() + plan.validityInDays * 24 * 60 * 60 * 1000,
     );
     shopkeeper.pricePaid = plan.price.toString();
-
     await shopkeeper.save();
+
+    const newLimit = (plan.modules as any)?.products?.limit || 0;
+    await this.enforceProductLimit(id, newLimit);
+
     return { message: "Plan activated", data: shopkeeper };
+  }
+
+  async checkAndDowngradeExpired() {
+    const graceCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const expiredShopkeepers = await this.shopModel.find({
+      subscribed: true,
+      planExpiryDate: { $lt: graceCutoff },
+    });
+
+    if (expiredShopkeepers.length === 0) return { downgraded: 0 };
+
+    const defaultPlan = await this.planModel.findOne({ isDefault: true, isActive: true });
+    if (!defaultPlan) return { downgraded: 0, error: "No default plan found" };
+
+    let count = 0;
+    const newLimit = (defaultPlan.modules as any)?.products?.limit || 0;
+    for (const sk of expiredShopkeepers) {
+      if (sk.planId === defaultPlan._id.toString()) continue;
+      sk.planId = defaultPlan._id.toString();
+      sk.planStartDate = new Date();
+      sk.planExpiryDate = new Date(
+        Date.now() + defaultPlan.validityInDays * 24 * 60 * 60 * 1000,
+      );
+      sk.pricePaid = defaultPlan.price.toString();
+      await sk.save();
+      await this.enforceProductLimit(sk._id.toString(), newLimit);
+      count++;
+    }
+    return { downgraded: count };
   }
 
   async cancelSubscription(id: string) {

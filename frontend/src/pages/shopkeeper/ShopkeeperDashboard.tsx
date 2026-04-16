@@ -100,6 +100,9 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { StorefrontCustomizer } from '@/components/shopkeeper/StorefrontCustomizer';
+import { SubscriptionProvider, useSubscription } from '@/context/SubscriptionContext';
+import { ModuleGate } from '@/components/ui/ModuleGate';
+import { Lock } from 'lucide-react';
 
 interface ShopkeeperDashboardProps {
   onLogout: () => void;
@@ -226,7 +229,15 @@ function TabLoadingFallback() {
   );
 }
 
-export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
+export function ShopkeeperDashboard(props: ShopkeeperDashboardProps) {
+  return (
+    <SubscriptionProvider>
+      <ShopkeeperDashboardInner {...props} />
+    </SubscriptionProvider>
+  );
+}
+
+function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   const apiUrl = __API_URL__;
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -360,31 +371,17 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [subscriptionModules, setSubscriptionModules] = useState<Record<string, any> | null>(null);
+  const { isModuleEnabled, subscription: subData } = useSubscription();
 
   useEffect(() => {
-    async function fetchSubscription() {
-      if (!shopkeeperId) return;
-      try {
-        const token = sessionStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/shopkeepers/subscription/${shopkeeperId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.subscribed && data.modules) {
-            setSubscriptionModules(data.modules);
-          }
-        }
-      } catch {}
+    if (subData?.inGracePeriod) {
+      toast({
+        duration: 15000,
+        title: `Your plan has expired!`,
+        description: `You have ${subData.graceDaysLeft} day${subData.graceDaysLeft === 1 ? '' : 's'} left to renew before you're downgraded to the Starter plan. Go to Settings > Profile to change your plan.`,
+      });
     }
-    fetchSubscription();
-  }, [shopkeeperId]);
-
-  const isModuleEnabled = useCallback((moduleKey: string) => {
-    if (!subscriptionModules) return true;
-    return subscriptionModules[moduleKey]?.enabled !== false;
-  }, [subscriptionModules]);
+  }, [subData?.inGracePeriod]);
 
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
     null,
@@ -487,17 +484,19 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
           fetch(`${apiUrl}/orders/customers/${shopkeeperId}`, { signal }),
         ]);
 
-      // Process shopkeeper info
+      // Process shopkeeper info — shop name comes from here (settings profile)
       if (shopkeeperRes.status === 'fulfilled' && shopkeeperRes.value.ok) {
         const data = await shopkeeperRes.value.json();
         setShopkeeperInfo(data.data);
+        if (data?.data?.shopName) {
+          setShopName(data.data.shopName);
+        }
       }
 
-      // Process store details
+      // Process store details — only for slug (storefront URL)
       if (storeRes.status === 'fulfilled' && storeRes.value.ok) {
         const shopData = await storeRes.value.json();
-        if (shopData?.data?.settings?.general?.storeName) {
-          setShopName(shopData.data.settings.general.storeName);
+        if (shopData?.data?.slug) {
           setSlug(shopData.data.slug);
         }
       }
@@ -851,7 +850,7 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
         >
           <div className="h-full flex flex-col">
             <nav className="p-3 sm:p-4 space-y-1 sm:space-y-2 flex-1 overflow-y-auto">
-              {NAVIGATION_ITEMS.filter((item) => {
+              {NAVIGATION_ITEMS.map((item) => {
                 const navToModule: Record<string, string> = {
                   orders: 'orders',
                   products: 'products',
@@ -860,30 +859,31 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
                   kiosk: 'kiosk',
                 };
                 const moduleKey = navToModule[item.id];
-                if (moduleKey && !isModuleEnabled(moduleKey)) return false;
-                return true;
-              }).map((item) => (
-                <Button
-                  key={item.id}
-                  variant={activeTab === item.id ? 'default' : 'buttonOutline'}
-                  className="w-full justify-start text-sm"
-                  onClick={() => {
-                    if (item.id === 'storefront') {
-                      handleViewStorefront();
-                    } else {
-                      handleTabChange(item.id);
-                    }
-                  }}
-                  disabled={item.id === 'storefront' && loading}
-                >
-                  <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">
-                    {item.id === 'storefront' && loading
-                      ? 'Loading...'
-                      : item.label}
-                  </span>
-                </Button>
-              ))}
+                const locked = moduleKey ? !isModuleEnabled(moduleKey) : false;
+                return (
+                  <Button
+                    key={item.id}
+                    variant={activeTab === item.id ? 'default' : 'buttonOutline'}
+                    className={`w-full justify-start text-sm ${locked ? 'opacity-60' : ''}`}
+                    onClick={() => {
+                      if (item.id === 'storefront' && !locked) {
+                        handleViewStorefront();
+                      } else {
+                        handleTabChange(item.id);
+                      }
+                    }}
+                    disabled={item.id === 'storefront' && loading}
+                  >
+                    <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span className="truncate flex-1 text-left">
+                      {item.id === 'storefront' && loading
+                        ? 'Loading...'
+                        : item.label}
+                    </span>
+                    {locked && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
+                  </Button>
+                );
+              })}
 
               {/* The border-t section is now empty or can be used for Logout */}
             </nav>
@@ -1764,57 +1764,67 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
 
               <TabsContent value="products" className="mt-0">
                 {hasTabAccess('products') ? (
-                  <Suspense fallback={<TabLoadingFallback />}>
-                    <div className="space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <h2 className="text-2xl sm:text-3xl font-bold">Products</h2>
+                  <ModuleGate moduleKey="products">
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <div className="space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <h2 className="text-2xl sm:text-3xl font-bold">Products</h2>
+                        </div>
+                        <ProductManagement />
                       </div>
-                      <ProductManagement />
-                    </div>
-                  </Suspense>
+                    </Suspense>
+                  </ModuleGate>
                 ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="kiosk" className="mt-0">
                 {hasTabAccess('kiosk') ? (
-                  <Suspense fallback={<TabLoadingFallback />}>
-                    {shopkeeperId && <KioskMode shopkeeperId={shopkeeperId} />}
-                  </Suspense>
+                  <ModuleGate moduleKey="kiosk">
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      {shopkeeperId && <KioskMode shopkeeperId={shopkeeperId} />}
+                    </Suspense>
+                  </ModuleGate>
                 ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="orders" className="mt-0">
                 {hasTabAccess('orders') ? (
-                  <Suspense fallback={<TabLoadingFallback />}>
-                    <div className="space-y-4">
-                      <h2 className="text-2xl sm:text-3xl font-bold">Orders & Payments</h2>
-                      <CartManagement />
-                    </div>
-                  </Suspense>
+                  <ModuleGate moduleKey="orders">
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <div className="space-y-4">
+                        <h2 className="text-2xl sm:text-3xl font-bold">Orders & Payments</h2>
+                        <CartManagement />
+                      </div>
+                    </Suspense>
+                  </ModuleGate>
                 ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="crm" className="mt-0">
                 {hasTabAccess('crm') ? (
-                  <Suspense fallback={<TabLoadingFallback />}>
-                    <div className="space-y-4">
-                      <h2 className="text-2xl sm:text-3xl font-bold">Management Dashboard</h2>
-                      <CRMManagement />
-                    </div>
-                  </Suspense>
+                  <ModuleGate moduleKey="crm">
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <div className="space-y-4">
+                        <h2 className="text-2xl sm:text-3xl font-bold">Management Dashboard</h2>
+                        <CRMManagement />
+                      </div>
+                    </Suspense>
+                  </ModuleGate>
                 ) : <NoAccessOverlay />}
               </TabsContent>
 
               <TabsContent value="storefront" className="mt-0 outline-none">
                 {hasTabAccess('storefront') ? (
-                  <Suspense fallback={<TabLoadingFallback />}>
-                    <div className="space-y-4">
-                      <StorefrontCustomizer
-                        onBack={() => setActiveTab('storefront')}
-                        onSave={() => setShowPreview(true)}
-                      />
-                    </div>
-                  </Suspense>
+                  <ModuleGate moduleKey="storefront">
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <div className="space-y-4">
+                        <StorefrontCustomizer
+                          onBack={() => setActiveTab('storefront')}
+                          onSave={() => setShowPreview(true)}
+                        />
+                      </div>
+                    </Suspense>
+                  </ModuleGate>
                 ) : <NoAccessOverlay />}
               </TabsContent>
 
@@ -1822,7 +1832,7 @@ export function ShopkeeperDashboard({ onLogout }: ShopkeeperDashboardProps) {
                 {hasTabAccess('settings') ? (
                   <Suspense fallback={<TabLoadingFallback />}>
                     <div className="space-y-4">
-                      <ShopkeeperSettings onSave={handleSaveSettings} isModuleEnabled={isModuleEnabled} />
+                      <ShopkeeperSettings onSave={handleSaveSettings} />
                     </div>
                   </Suspense>
                 ) : <NoAccessOverlay />}

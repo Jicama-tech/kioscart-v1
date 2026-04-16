@@ -74,4 +74,17 @@ export class PlansService {
       .findByIdAndUpdate(id, plan, { new: true })
       .exec();
   }
+
+  async setDefault(id: string): Promise<Plan> {
+    await this.planModel.updateMany({}, { isDefault: false });
+    const plan = await this.planModel
+      .findByIdAndUpdate(id, { isDefault: true }, { new: true })
+      .exec();
+    if (!plan) throw new NotFoundException(`Plan with ID ${id} not found`);
+    return plan;
+  }
+
+  async findDefault(): Promise<Plan | null> {
+    return this.planModel.findOne({ isDefault: true, isActive: true }).exec();
+  }
 }

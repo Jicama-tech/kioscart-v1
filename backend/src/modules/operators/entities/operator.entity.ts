@@ -23,6 +23,12 @@ export class Operator {
 
   @Prop({ type: [String], default: ["dashboard", "orders", "products", "crm", "kiosk", "storefront", "settings"] })
   accessTabs: string[];
+
+  @Prop({ default: false })
+  isSoftDeleted: boolean;
+
+  @Prop()
+  softDeletedAt?: Date;
 }
 
 export const OperatorSchema = SchemaFactory.createForClass(Operator);

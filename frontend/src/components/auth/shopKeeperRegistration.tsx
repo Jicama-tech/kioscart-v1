@@ -1048,38 +1048,24 @@ export function ShopKeeperRegister() {
             </div> */}
 
             {/* Agent Referral (Optional) */}
-            {(agents.length > 0 || referralLocked) && (
-              <div className="grid gap-2">
-                <Label htmlFor="agentReferral">
-                  Referred by {referralLocked ? "" : "(Optional)"}
-                </Label>
-                {referralLocked ? (
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md border">
-                    <span className="text-sm font-medium">
-                      {agents.find((a) => a.referralCode === selectedAgentCode)?.name || selectedAgentCode}
-                    </span>
-                    <Badge variant="secondary" className="text-xs">Referral Link</Badge>
-                  </div>
-                ) : (
-                  <Select
-                    value={selectedAgentCode}
-                    onValueChange={setSelectedAgentCode}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select agent (if referred)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No referral</SelectItem>
-                      {agents.map((agent) => (
-                        <SelectItem key={agent.referralCode} value={agent.referralCode}>
-                          {agent.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            )}
+            <div className="grid gap-2">
+              <Label htmlFor="agentReferral">
+                Referral Code {referralLocked ? "" : "(Optional)"}
+              </Label>
+              {referralLocked ? (
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md border">
+                  <span className="text-sm font-medium">{selectedAgentCode}</span>
+                  <Badge variant="secondary" className="text-xs">Referral Link</Badge>
+                </div>
+              ) : (
+                <Input
+                  id="agentReferral"
+                  placeholder="Enter referral code (if you have one)"
+                  value={selectedAgentCode}
+                  onChange={(e) => setSelectedAgentCode(e.target.value.trim())}
+                />
+              )}
+            </div>
 
             <p className="align-center text-xl">
               Post Review! You will be Notified via Email...

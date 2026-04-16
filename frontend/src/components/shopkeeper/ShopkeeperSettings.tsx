@@ -69,6 +69,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { ModuleGate } from "@/components/ui/ModuleGate";
 import { jwtDecode } from "jwt-decode";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { format } from "date-fns";
@@ -93,9 +94,10 @@ const modules = {
   ],
 };
 
+import { useSubscription } from "@/context/SubscriptionContext";
+
 interface ShopkeeperSettingsProps {
   onSave?: (settings: any) => void;
-  isModuleEnabled?: (moduleKey: string) => boolean;
 }
 
 interface Operator {
@@ -153,7 +155,8 @@ const COUNTRIES = [
   },
 ];
 
-export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettingsProps) {
+export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
+  const { isModuleEnabled } = useSubscription();
   const { toast } = useToast();
   const [paymentQrFile, setPaymentQrFile] = useState<File | null>(null);
   const [paymentQrPreview, setPaymentQrPreview] = useState<string | null>(null);
@@ -313,6 +316,9 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
     shopClosedFromDate: "",
     shopClosedToDate: "",
     termsAndConditions: "",
+    pickupDateRequired: true,
+    pickupMinDays: 2,
+    pickupMessage: "",
     businessHours: {
       monday: { open: "09:00", close: "18:00", closed: false },
       tuesday: { open: "09:00", close: "18:00", closed: false },
@@ -1310,6 +1316,9 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
       fd.append("email", shopProfile.email || "");
       fd.append("businessEmail", shopProfile.businessEmail || "");
       fd.append("termsAndConditions", shopProfile.termsAndConditions || "");
+      fd.append("pickupDateRequired", String(shopProfile.pickupDateRequired));
+      fd.append("pickupMinDays", String(shopProfile.pickupMinDays));
+      fd.append("pickupMessage", shopProfile.pickupMessage || "");
       fd.append("whatsappNumber", getFullWhatsappNumber() || "");
       fd.append("taxPercentage", shopProfile.taxPercentage.toString() || "");
       fd.append(
@@ -1382,6 +1391,9 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
         termsAndConditions: d?.termsAndConditions ?? p.termsAndConditions,
         businessCategory: d?.businessCategory ?? p.businessCategory,
         paymentURL: d?.paymentURL ?? p.paymentURL,
+        pickupDateRequired: d?.pickupDateRequired ?? p.pickupDateRequired,
+        pickupMinDays: d?.pickupMinDays ?? p.pickupMinDays,
+        pickupMessage: d?.pickupMessage ?? p.pickupMessage,
       }));
 
       if (paymentQrPreview) {
@@ -1559,6 +1571,9 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
           hasDocVerification: d?.hasDocVerification ?? "",
           description: d?.description ?? "",
           businessCategory: d?.businessCategory ?? "",
+          pickupDateRequired: d?.pickupDateRequired ?? true,
+          pickupMinDays: d?.pickupMinDays ?? 2,
+          pickupMessage: d?.pickupMessage ?? "",
           shopClosedFromDate: d?.shopClosedFromDate,
           shopClosedToDate: d?.shopClosedToDate,
           paymentURL: d?.paymentURL ?? "",
@@ -1663,30 +1678,25 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
             <Store className="w-4 h-4" />
             Profile
           </TabsTrigger>
-          {(!isModuleEnabled || isModuleEnabled("operators")) && (
-            <TabsTrigger value="operator" className="flex-1 flex items-center justify-center gap-2">
-              <UserPlus2 className="w-4 h-4" />
-              Operator
-            </TabsTrigger>
-          )}
-          {(!isModuleEnabled || isModuleEnabled("staticQR") || isModuleEnabled("dynamicQR") || isModuleEnabled("paymentTracking") || isModuleEnabled("razorpay")) && (
-            <TabsTrigger value="payments" className="flex-1 flex items-center justify-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              Payments
-            </TabsTrigger>
-          )}
-          {(!isModuleEnabled || isModuleEnabled("receipts")) && (
-            <TabsTrigger value="receipts" className="flex-1 flex items-center justify-center gap-2">
-              <ReceiptTextIcon className="w-4 h-4" />
-              Receipts
-            </TabsTrigger>
-          )}
-          {(!isModuleEnabled || isModuleEnabled("coupons")) && (
-            <TabsTrigger value="coupons" className="flex-1 flex items-center justify-center gap-2">
-              <CopyPlusIcon className="w-4 h-4" />
-              Coupons
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="operator" className={`flex-1 flex items-center justify-center gap-2 ${!isModuleEnabled("operators") ? "opacity-50" : ""}`}>
+            <UserPlus2 className="w-4 h-4" />
+            Operator
+            {!isModuleEnabled("operators") && <Lock className="w-3 h-3 ml-1" />}
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex-1 flex items-center justify-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            Payments
+          </TabsTrigger>
+          <TabsTrigger value="receipts" className={`flex-1 flex items-center justify-center gap-2 ${!isModuleEnabled("receipts") ? "opacity-50" : ""}`}>
+            <ReceiptTextIcon className="w-4 h-4" />
+            Receipts
+            {!isModuleEnabled("receipts") && <Lock className="w-3 h-3 ml-1" />}
+          </TabsTrigger>
+          <TabsTrigger value="coupons" className={`flex-1 flex items-center justify-center gap-2 ${!isModuleEnabled("coupons") ? "opacity-50" : ""}`}>
+            <CopyPlusIcon className="w-4 h-4" />
+            Coupons
+            {!isModuleEnabled("coupons") && <Lock className="w-3 h-3 ml-1" />}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -2232,6 +2242,58 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
                 />
               </div>
 
+              {/* PICKUP DATE SETTINGS */}
+              <div className="md:col-span-2 space-y-4 border rounded-lg p-4 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="font-medium">Require Pickup Date & Time</Label>
+                    <p className="text-xs text-muted-foreground">
+                      If enabled, customers must select a pickup date and time during checkout
+                    </p>
+                  </div>
+                  <Switch
+                    checked={shopProfile.pickupDateRequired}
+                    onCheckedChange={(checked) =>
+                      setShopProfile((p) => ({ ...p, pickupDateRequired: checked }))
+                    }
+                  />
+                </div>
+
+                {shopProfile.pickupDateRequired ? (
+                  <div className="space-y-2">
+                    <Label className="text-sm">Minimum Lead Days</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Earliest pickup date will be this many days from today (e.g. 2 = day after tomorrow)
+                    </p>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={30}
+                      className="w-32"
+                      value={shopProfile.pickupMinDays}
+                      onChange={(e) =>
+                        setShopProfile((p) => ({ ...p, pickupMinDays: Number(e.target.value) || 0 }))
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label className="text-sm">Checkout Message</Label>
+                    <p className="text-xs text-muted-foreground">
+                      This message is shown to customers instead of date/time picker (e.g. "We'll contact you to arrange delivery")
+                    </p>
+                    <Textarea
+                      rows={2}
+                      placeholder="e.g. We'll contact you on WhatsApp to arrange pickup/delivery"
+                      value={shopProfile.pickupMessage}
+                      onChange={(e) =>
+                        setShopProfile((p) => ({ ...p, pickupMessage: e.target.value }))
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* SHOP HOLIDAY PERIOD */}
               <div className="md:col-span-2">
                 <Label className="font-medium">Shop Holiday Period</Label>
@@ -2488,10 +2550,12 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={subscription.isExpired ? "destructive" : "default"}
+                        variant={subscription.inGracePeriod ? "destructive" : subscription.isExpired ? "destructive" : "default"}
                         className="text-sm px-3 py-1 w-fit"
                       >
-                        {subscription.isExpired ? "Expired" : "Active"}
+                        {subscription.inGracePeriod
+                          ? `Grace: ${subscription.graceDaysLeft}d left`
+                          : subscription.isExpired ? "Expired" : "Active"}
                       </Badge>
                       <Button
                         size="sm"
@@ -2502,6 +2566,11 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
                       </Button>
                     </div>
                   </div>
+                  {subscription.inGracePeriod && (
+                    <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+                      Your plan expired. You have <strong>{subscription.graceDaysLeft} day{subscription.graceDaysLeft === 1 ? "" : "s"}</strong> to renew before being downgraded to the default plan. Products exceeding the new limit will be hidden.
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-3 rounded-lg border">
@@ -2631,6 +2700,7 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
         </TabsContent>
 
         <TabsContent value="operator">
+          <ModuleGate moduleKey="operators" fallbackText="Upgrade your plan to access Operators">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -2889,6 +2959,7 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
               </Button>
             </DialogContent>
           </Dialog>
+          </ModuleGate>
         </TabsContent>
 
         <TabsContent value="branding">
@@ -3823,6 +3894,7 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
         </TabsContent>
 
         <TabsContent value="receipts">
+          <ModuleGate moduleKey="receipts" fallbackText="Upgrade your plan to access Receipt Settings">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -3910,6 +3982,7 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
               {/* QR CODE SETTINGS */}
               <div className="space-y-4 border-t pt-4">
                 {/* WhatsApp QR */}
+                {isModuleEnabled("whatsappQR") && (
                 <div className="space-y-4">
                   {/* TOGGLE */}
                   <div className="flex items-center justify-between">
@@ -4020,6 +4093,7 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Instagram QR */}
                 <div className="flex items-center justify-between mt-4">
@@ -4063,9 +4137,11 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
               </div>
             </CardContent>
           </Card>
+          </ModuleGate>
         </TabsContent>
 
         <TabsContent value="coupons">
+          <ModuleGate moduleKey="coupons" fallbackText="Upgrade your plan to access Coupons">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -4141,6 +4217,7 @@ export function ShopkeeperSettings({ onSave, isModuleEnabled }: ShopkeeperSettin
               )}
             </CardContent>
           </Card>
+          </ModuleGate>
         </TabsContent>
 
         <Dialog open={openCouponDialog} onOpenChange={setOpenCouponDialog}>

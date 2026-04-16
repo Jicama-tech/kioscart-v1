@@ -70,7 +70,7 @@ export class ProductsService {
 
   async findByShopkeeper(shopkeeperId: string): Promise<Product[]> {
     try {
-      return await this.productModel.find({ shopkeeperId }).lean().exec();
+      return await this.productModel.find({ shopkeeperId, isSoftDeleted: { $ne: true } }).lean().exec();
     } catch (error) {
       throw new HttpException(
         `Failed to retrieve products for shopkeeper: ${error.message}`,
@@ -81,9 +81,9 @@ export class ProductsService {
 
   async getShopkeeperProducts(shopkeeperId: string) {
     try {
-      const shopkeeperObjectId = new Types.ObjectId(shopkeeperId);
       const products = await this.productModel.find({
         shopkeeperId: shopkeeperId,
+        isSoftDeleted: { $ne: true },
       }).lean();
       if (!products) {
         throw new BadRequestException("No products found");
@@ -161,7 +161,11 @@ export class ProductsService {
         throw new BadRequestException("Invalid product ID");
       }
 
-      const result = await this.productModel.findByIdAndDelete(id).exec();
+      const result = await this.productModel.findByIdAndUpdate(
+        id,
+        { isSoftDeleted: true, softDeletedAt: new Date() },
+        { new: true },
+      ).exec();
       if (!result) {
         throw new NotFoundException("Product not found");
       }

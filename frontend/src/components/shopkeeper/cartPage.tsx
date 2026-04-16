@@ -81,6 +81,9 @@ export function CartPage() {
   const [whatsAppNumber, setWhatsappNumber] = useState("");
   const [shopClosedFromDate, setClosedFromDate] = useState("");
   const [shopClosedToDate, setClosedToDate] = useState("");
+  const [pickupDateRequired, setPickupDateRequired] = useState(true);
+  const [pickupMinDays, setPickupMinDays] = useState(2);
+  const [pickupMessage, setPickupMessage] = useState("");
 
   // Order is always customer mode now (kiosk moved to dashboard)
   const [orderFor] = useState<"customer" | "self">("customer");
@@ -158,6 +161,12 @@ export function CartPage() {
           setClosedFromDate(shopData.data.shopClosedFromDate);
           setClosedToDate(shopData.data.shopClosedToDate);
           setPickupAddress(shopData.data.address);
+          if (shopData.data.pickupDateRequired !== undefined)
+            setPickupDateRequired(shopData.data.pickupDateRequired);
+          if (shopData.data.pickupMinDays !== undefined)
+            setPickupMinDays(shopData.data.pickupMinDays);
+          if (shopData.data.pickupMessage)
+            setPickupMessage(shopData.data.pickupMessage);
         }
       } catch (error) {
         console.error("Error fetching store details:", error);
@@ -614,7 +623,7 @@ export function CartPage() {
     const closedFrom = closedFromStr ? new Date(closedFromStr) : null;
     const closedTo = closedToStr ? new Date(closedToStr) : null;
 
-    for (let i = 2; i <= 14; i++) {
+    for (let i = pickupMinDays; i <= pickupMinDays + 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
 
@@ -693,7 +702,7 @@ export function CartPage() {
         });
         return;
       }
-    } else if (!isSelfOrder) {
+    } else if (!isSelfOrder && pickupDateRequired) {
       if (!pickupDate || !pickupTime) {
         toast({
           duration: 5000,
@@ -752,8 +761,8 @@ export function CartPage() {
           userId,
           orderType,
           deliveryAddress: orderType === "delivery" ? deliveryAddress : null,
-          pickupDate: orderType === "pickup" ? pickupDate : null,
-          pickupTime: orderType === "pickup" ? pickupTime : null,
+          ...(orderType === "pickup" && pickupDate ? { pickupDate } : {}),
+          ...(orderType === "pickup" && pickupTime ? { pickupTime } : {}),
           cartItems: shopCart,
           subtotal,
           deliveryFee,
@@ -1142,7 +1151,7 @@ export function CartPage() {
                             Kiosk Order — Pickup set to now
                           </span>
                         </div>
-                      ) : (
+                      ) : pickupDateRequired ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <Label
@@ -1211,6 +1220,12 @@ export function CartPage() {
                               </SelectContent>
                             </Select>
                           </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-muted/50 border rounded-lg">
+                          <p className="text-sm text-muted-foreground">
+                            {pickupMessage || "The shopkeeper will contact you to arrange pickup/delivery."}
+                          </p>
                         </div>
                       )}
 
@@ -1390,7 +1405,7 @@ export function CartPage() {
                       !lastName ||
                       (orderFor === "customer" && !buyerGoogleLoggedIn) ||
                       (orderFor === "self" && !isShopkeeperVerified) ||
-                      (!isSelfOrder && orderType === "pickup" && !pickupDate && !pickupTime) ||
+                      (!isSelfOrder && orderType === "pickup" && pickupDateRequired && !pickupDate && !pickupTime) ||
                       (orderType === "delivery" && !deliveryAddress)
                     }
                     className="w-full"
@@ -1826,7 +1841,7 @@ export function CartPage() {
                           Kiosk Order — Pickup set to now
                         </span>
                       </div>
-                    ) : (
+                    ) : pickupDateRequired ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <Label
@@ -1895,6 +1910,12 @@ export function CartPage() {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-muted/50 border rounded-lg">
+                        <p className="text-sm text-muted-foreground">
+                          {pickupMessage || "The shopkeeper will contact you to arrange pickup/delivery."}
+                        </p>
                       </div>
                     )}
 
@@ -2068,7 +2089,7 @@ export function CartPage() {
                     !lastName ||
                     (orderFor === "customer" && !buyerGoogleLoggedIn) ||
                     (orderFor === "self" && !isShopkeeperVerified) ||
-                    (!isSelfOrder && orderType === "pickup" && (!pickupDate || !pickupTime)) ||
+                    (!isSelfOrder && orderType === "pickup" && pickupDateRequired && (!pickupDate || !pickupTime)) ||
                     (orderType === "delivery" && !deliveryAddress)
                   }
                   className="w-full"

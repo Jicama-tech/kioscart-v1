@@ -15,6 +15,7 @@ import { OrderSchema } from "../orders/entities/order.entity";
 import { OperatorSchema } from "../operators/entities/operator.entity";
 import { AgentSchema } from "../agents/schemas/agent.schema";
 import { PlanSchema } from "../plans/entities/plan.entity";
+import { CouponSchema } from "../coupon/entities/coupon.entity";
 import { PlatformPaymentSchema } from "./entities/platform-payment.entity";
 import { MailModule } from "../roles/mail.module";
 import { MailService } from "../roles/mail.service";
@@ -32,6 +33,7 @@ import { MailService } from "../roles/mail.service";
       { name: "Operator", schema: OperatorSchema },
       { name: "Agent", schema: AgentSchema },
       { name: "Plan", schema: PlanSchema },
+      { name: "Coupon", schema: CouponSchema },
       { name: "PlatformPayment", schema: PlatformPaymentSchema },
     ]),
     MailModule,
