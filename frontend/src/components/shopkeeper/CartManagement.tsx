@@ -1889,13 +1889,26 @@ Thank you for shopping with us.
                     {selectedOrder.orderType === "pickup" && (
                       <>
                         <h4 className="font-semibold mt-2">Pickup Details</h4>
-                        <p>
-                          Date:{" "}
-                          {new Date(
-                            selectedOrder.pickupDate!,
-                          ).toLocaleDateString()}
-                        </p>
-                        <p>Time: {selectedOrder.pickupTime}</p>
+                        {selectedOrder.pickupDate ? (
+                          <>
+                            <p>
+                              Date:{" "}
+                              {new Date(
+                                selectedOrder.pickupDate!,
+                              ).toLocaleDateString()}
+                            </p>
+                            <p>Time: {selectedOrder.pickupTime}</p>
+                          </>
+                        ) : (
+                          <div className="p-3 mt-1 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p className="text-sm text-amber-800 font-medium">
+                              No pickup date/time selected
+                            </p>
+                            <p className="text-xs text-amber-700 mt-1">
+                              Please contact the customer to arrange pickup date and time.
+                            </p>
+                          </div>
+                        )}
                         {selectedOrder.instructions && (
                           <p>
                             Special Instructions: {selectedOrder.instructions}
