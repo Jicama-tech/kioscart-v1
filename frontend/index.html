@@ -61,7 +61,7 @@
   <script>
     (function(){
       var path = window.location.pathname.replace(/^\//,'');
-      if(path && !['login','signup','admin','shopkeeper','agent','pricing','blog','faq','contact-us','about-us','terms','privacy-policy'].some(function(r){return path.startsWith(r)})){
+      if(path && !['login','signup','register','admin','shopkeeper','agent','api','auth','estore','cart','payment','pricing','blog','faq','contact','about','terms','privacy-policy'].some(function(r){return path.startsWith(r)})){
         var slug = path.split('/')[0];
         if(slug){
           var url = (window.__API_URL__ || 'https://api.kioscart.com') + '/shopkeeper-stores/storefront-bundle/' + slug + '?t=' + Date.now();
