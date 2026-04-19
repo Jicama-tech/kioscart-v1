@@ -8,6 +8,13 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
+  const apiUrl = env.VITE_API_URL || (mode === "production" ? "" : "http://localhost:3000");
+  if (mode === "production" && !apiUrl) {
+    throw new Error(
+      "VITE_API_URL is not set. Set it in frontend/.env or export it before running `npm run build` (e.g. VITE_API_URL=https://kioscart.com/api).",
+    );
+  }
+
   return {
     server: {
       host: "::",
@@ -69,7 +76,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      __API_URL__: JSON.stringify(env.VITE_API_URL),
+      __API_URL__: JSON.stringify(apiUrl),
     },
     build: {
       target: "esnext",
