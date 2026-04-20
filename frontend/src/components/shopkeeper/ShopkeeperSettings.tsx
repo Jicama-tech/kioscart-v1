@@ -319,6 +319,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     pickupDateRequired: true,
     pickupMinDays: 2,
     pickupMessage: "",
+    voiceAccessEnabled: false,
     businessHours: {
       monday: { open: "09:00", close: "18:00", closed: false },
       tuesday: { open: "09:00", close: "18:00", closed: false },
@@ -1319,6 +1320,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       fd.append("pickupDateRequired", String(shopProfile.pickupDateRequired));
       fd.append("pickupMinDays", String(shopProfile.pickupMinDays));
       fd.append("pickupMessage", shopProfile.pickupMessage || "");
+      fd.append("voiceAccessEnabled", String(shopProfile.voiceAccessEnabled));
       fd.append("whatsappNumber", getFullWhatsappNumber() || "");
       fd.append("taxPercentage", shopProfile.taxPercentage.toString() || "");
       fd.append(
@@ -1394,6 +1396,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         pickupDateRequired: d?.pickupDateRequired ?? p.pickupDateRequired,
         pickupMinDays: d?.pickupMinDays ?? p.pickupMinDays,
         pickupMessage: d?.pickupMessage ?? p.pickupMessage,
+        voiceAccessEnabled: d?.voiceAccessEnabled ?? p.voiceAccessEnabled,
       }));
 
       if (paymentQrPreview) {
@@ -1574,6 +1577,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           pickupDateRequired: d?.pickupDateRequired ?? true,
           pickupMinDays: d?.pickupMinDays ?? 2,
           pickupMessage: d?.pickupMessage ?? "",
+          voiceAccessEnabled: d?.voiceAccessEnabled ?? false,
           shopClosedFromDate: d?.shopClosedFromDate,
           shopClosedToDate: d?.shopClosedToDate,
           paymentURL: d?.paymentURL ?? "",
@@ -2294,6 +2298,22 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 )}
               </div>
 
+              {/* VOICE ACCESS */}
+              <div className="md:col-span-2 flex items-center justify-between p-4 border rounded-lg bg-muted/20">
+                <div>
+                  <Label className="font-medium">Voice Access (KiosAI)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Enable "Hey Kios" voice command to open the chatbot hands-free
+                  </p>
+                </div>
+                <Switch
+                  checked={shopProfile.voiceAccessEnabled}
+                  onCheckedChange={(checked) =>
+                    setShopProfile((p) => ({ ...p, voiceAccessEnabled: checked }))
+                  }
+                />
+              </div>
+
               {/* SHOP HOLIDAY PERIOD */}
               <div className="md:col-span-2">
                 <Label className="font-medium">Shop Holiday Period</Label>
@@ -2649,6 +2669,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                           ]},
                           { label: "Communication", color: "green", items: [
                             { key: "whatsappQR", label: "WhatsApp QR" },
+                            { key: "chatbot", label: "Smart Assistant" },
                           ]},
                         ].map((group) => {
                           const groupHasAny = group.items.some((i) => subscription.modules[i.key]?.enabled);

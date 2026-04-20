@@ -203,6 +203,9 @@ export class Shopkeeper {
 
   @Prop()
   pickupMessage?: string;
+
+  @Prop({ default: false })
+  voiceAccessEnabled: boolean;
 }
 
 export const RazorpayLinkedAccountSchema = SchemaFactory.createForClass(

@@ -727,6 +727,7 @@ export class ShopkeepersService {
       pickupDateRequired?: boolean | string;
       pickupMinDays?: number | string;
       pickupMessage?: string;
+      voiceAccessEnabled?: boolean | string;
     },
     paymentQrPublicUrl?: string | null,
   ) {
@@ -832,6 +833,12 @@ export class ShopkeepersService {
       update.pickupMinDays = isNaN(num) ? 2 : num;
     }
     if (body.pickupMessage !== undefined) update.pickupMessage = body.pickupMessage;
+    if (body.voiceAccessEnabled !== undefined) {
+      update.voiceAccessEnabled =
+        typeof body.voiceAccessEnabled === "boolean"
+          ? body.voiceAccessEnabled
+          : body.voiceAccessEnabled === "true";
+    }
 
     if (body.receiptType !== undefined) {
       const allowedValues = Object.values(ReceiptType);

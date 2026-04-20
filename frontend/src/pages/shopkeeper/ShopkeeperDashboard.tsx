@@ -102,6 +102,7 @@ import { useNavigate } from 'react-router-dom';
 import { StorefrontCustomizer } from '@/components/shopkeeper/StorefrontCustomizer';
 import { SubscriptionProvider, useSubscription } from '@/context/SubscriptionContext';
 import { ModuleGate } from '@/components/ui/ModuleGate';
+import { ChatbotWidget } from '@/components/shopkeeper/ChatbotWidget';
 import { Lock } from 'lucide-react';
 
 interface ShopkeeperDashboardProps {
@@ -1880,6 +1881,9 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Chatbot */}
+      <ChatbotWidget onNavigate={(tab) => { setActiveTab(tab); setSidebarOpen(false); }} />
     </div>
   );
 }

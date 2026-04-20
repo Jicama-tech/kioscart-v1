@@ -25,6 +25,7 @@ import { CouponModule } from "./modules/coupon/coupon.module";
 import { OperatorsModule } from "./modules/operators/operators.module";
 import { PaymentEmailsModule } from "./modules/payment-emails/payment-emails.module";
 import { AgentsModule } from "./modules/agents/agents.module";
+import { ChatbotModule } from "./modules/chatbot/chatbot.module";
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { AgentsModule } from "./modules/agents/agents.module";
     OperatorsModule,
     PaymentEmailsModule,
     AgentsModule,
+    ChatbotModule,
   ],
 })
 export class AppModule {}
