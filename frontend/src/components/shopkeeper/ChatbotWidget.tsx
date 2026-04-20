@@ -3,16 +3,72 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
+import QRCode from "react-qr-code";
+import jsQR from "jsqr";
 
 const apiURL = __API_URL__;
 
 interface QuickAction { label: string; action: string; }
+interface QRPayload {
+  orderId: string;
+  amount: number;
+  country: string;
+  shopName?: string;
+  qrValue: string;
+}
 interface Message {
   id: string;
   role: "user" | "bot";
   text: string;
   quickActions?: QuickAction[];
+  qr?: QRPayload;
   timestamp: Date;
+}
+
+async function extractUpiFromImage(imageUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve("");
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(data.data, canvas.width, canvas.height);
+      if (code?.data?.includes("upi://pay")) {
+        const m = code.data.match(/pa=([^&]+)/);
+        resolve(m?.[1] || "");
+      } else resolve("");
+    };
+    img.onerror = () => resolve("");
+    img.src = imageUrl;
+  });
+}
+
+async function buildQrValue(action: {
+  country: string;
+  amount: number;
+  orderId: string;
+  shopName?: string;
+  shopkeeperPhone?: string;
+  paymentURL?: string;
+}): Promise<string> {
+  if (action.country === "SG") {
+    const clean = (action.shopkeeperPhone || "").startsWith("+65")
+      ? action.shopkeeperPhone!.substring(3)
+      : action.shopkeeperPhone || "";
+    const now = new Date();
+    const expiry = new Date(now.getTime() + 90 * 60 * 60 * 1000);
+    const formatted = `${expiry.getFullYear()}/${String(expiry.getMonth() + 1).padStart(2, "0")}/${String(expiry.getDate()).padStart(2, "0")} ${String(expiry.getHours()).padStart(2, "0")}:${String(expiry.getMinutes()).padStart(2, "0")}`;
+    return `https://www.sgqrcode.com/paynow?mobile=${clean}&uen=&editable=0&amount=${action.amount.toFixed(2)}&expiry=${encodeURIComponent(formatted)}&ref_id=${encodeURIComponent(action.orderId)}&company=`;
+  }
+  // India — extract UPI from the shopkeeper's payment image
+  const upi = action.paymentURL ? await extractUpiFromImage(apiURL + action.paymentURL) : "";
+  if (!upi) return "";
+  return `upi://pay?pa=${upi}&pn=${encodeURIComponent(action.shopName || "Payment")}&am=${action.amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent("KiosAI Order - " + action.orderId)}`;
 }
 
 interface ChatbotWidgetProps {
@@ -53,9 +109,22 @@ export function ChatbotWidget({ onNavigate }: ChatbotWidgetProps) {
       });
       if (res.ok) {
         const data = await res.json();
+        let qr: QRPayload | undefined;
+        if (data.botAction?.type === "showQR") {
+          const qrValue = await buildQrValue(data.botAction);
+          if (qrValue) {
+            qr = {
+              orderId: data.botAction.orderId,
+              amount: data.botAction.amount,
+              country: data.botAction.country,
+              shopName: data.botAction.shopName,
+              qrValue,
+            };
+          }
+        }
         setMessages((prev) => [...prev, {
           id: (Date.now() + 1).toString(), role: "bot", text: data.text,
-          quickActions: data.quickActions, timestamp: new Date(),
+          quickActions: data.quickActions, qr, timestamp: new Date(),
         }]);
         if (data.botAction?.type === "navigate" && data.botAction.tab && onNavigate) {
           setTimeout(() => {
@@ -170,6 +239,20 @@ export function ChatbotWidget({ onNavigate }: ChatbotWidgetProps) {
                       <div dangerouslySetInnerHTML={{ __html: formatText(msg.text) }} />
                     </div>
                   </div>
+                  {msg.qr && (
+                    <div className="mt-2 ml-8 inline-block bg-white border rounded-xl p-3 shadow-sm">
+                      <div className="text-xs font-semibold text-gray-700 mb-1">
+                        {msg.qr.country === "SG" ? "PayNow" : "UPI"} — Order #{msg.qr.orderId}
+                      </div>
+                      <div className="text-xs text-gray-500 mb-2">
+                        {msg.qr.shopName || ""} · {msg.qr.country === "SG" ? "S$" : "₹"}{msg.qr.amount.toFixed(2)}
+                      </div>
+                      <div className="bg-white p-2 rounded">
+                        <QRCode value={msg.qr.qrValue} size={160} />
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-1">Customer scans to pay</div>
+                    </div>
+                  )}
                   {msg.quickActions && msg.quickActions.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2 ml-8">
                       {msg.quickActions.map((qa, i) => (

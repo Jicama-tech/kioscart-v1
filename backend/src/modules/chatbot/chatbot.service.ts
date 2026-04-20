@@ -4,7 +4,17 @@ import { Model } from "mongoose";
 import OpenAI from "openai";
 
 export interface QuickAction { label: string; action: string; }
-export interface BotAction { type: "navigate"; tab?: string; }
+export type BotAction =
+  | { type: "navigate"; tab: string }
+  | {
+      type: "showQR";
+      orderId: string;
+      amount: number;
+      country: string;
+      shopName?: string;
+      shopkeeperPhone?: string;
+      paymentURL?: string;
+    };
 export interface BotResponse { text: string; quickActions?: QuickAction[]; botAction?: BotAction; }
 
 @Injectable()
@@ -21,14 +31,21 @@ export class ChatbotService {
     @InjectModel("Plan") private planModel: Model<any>,
     @InjectModel("PaymentEmail") private paymentEmailModel: Model<any>,
   ) {
-    this.ai = new OpenAI({
-      apiKey: process.env.QWEN_API_KEY || "",
-      baseURL: process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-    });
+    // Provider: Groq (free, fast tool-calling). Override with QWEN_* env vars if needed.
+    const apiKey = process.env.GROQ_API_KEY || process.env.QWEN_API_KEY || "";
+    const baseURL = process.env.GROQ_API_KEY
+      ? "https://api.groq.com/openai/v1"
+      : process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+    this.ai = new OpenAI({ apiKey, baseURL });
   }
 
   private get model() {
+    if (process.env.GROQ_API_KEY) return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
     return process.env.QWEN_MODEL || "qwen-plus";
+  }
+
+  private hasApiKey() {
+    return !!(process.env.GROQ_API_KEY || process.env.QWEN_API_KEY);
   }
 
   private tools: OpenAI.ChatCompletionTool[] = [
@@ -46,6 +63,9 @@ export class ChatbotService {
     { type: "function", function: { name: "update_subcategory", description: "Update a subcategory inside a product (matched by name). Edits subcategory-level fields like basePrice and inventory.", parameters: { type: "object", properties: { product_name: { type: "string" }, subcategory_name: { type: "string" }, basePrice: { type: "number" }, additionalPrice: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" } }, required: ["product_name", "subcategory_name"] } } },
     { type: "function", function: { name: "update_option", description: "Update a product option (e.g. Size/Quantity/Pack) by its title. Only for products that have productOptions.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "option_title"] } } },
     { type: "function", function: { name: "delete_product", description: "Soft-delete a product by name. Asks for confirmation implicitly — only call if user clearly said to delete/remove.", parameters: { type: "object", properties: { product_name: { type: "string" } }, required: ["product_name"] } } },
+    { type: "function", function: { name: "confirm_payment_by_order_id", description: "Confirm a single matched payment for a specific order — moves that order from pending to processing. Only works when a payment email already matched that order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
+    { type: "function", function: { name: "place_order", description: "Create a new order for a walk-in / phoned-in customer. Looks up each product by name, resolves variants if given, builds the cart, and creates a pending order. Returns the new orderId. Follow with get_payment_qr to show the customer a payment QR.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Optional WhatsApp number" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Optional: variant/size/subcategory name if the product has variants" }, quantity: { type: "number" } }, required: ["product_name", "quantity"] } } }, required: ["customer_name", "items"] } } },
+    { type: "function", function: { name: "get_payment_qr", description: "Generate a payment QR for an existing order. Returns UPI payload for India or PayNow data for Singapore, based on shopkeeper's country setting. Always call this AFTER place_order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
     { type: "function", function: { name: "get_analytics", description: "Get analytics for a period", parameters: { type: "object", properties: { period: { type: "string", enum: ["monthly", "lastmonth", "quarterly", "lastquarter", "yearly", "lastyear"] } }, required: ["period"] } } },
     { type: "function", function: { name: "get_today_revenue", description: "Get today's revenue", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_top_products", description: "Get top selling products", parameters: { type: "object", properties: {}, required: [] } } },
@@ -63,7 +83,7 @@ export class ChatbotService {
 
   async processMessage(shopkeeperId: string, message: string): Promise<BotResponse> {
     try {
-      if (!process.env.QWEN_API_KEY) {
+      if (!this.hasApiKey()) {
         return this.fallbackKeyword(shopkeeperId, message);
       }
 
@@ -81,6 +101,8 @@ Rules:
 - Number lists. Use emojis sparingly.
 - Suggest 2-3 follow-up actions in your response text.
 - Product edits: update_product for top-level fields. For specific variants/sizes/packs, call get_product_detail first to see the structure, then use update_variant, update_subcategory, or update_option. Use delete_product only when the user clearly asks to delete.
+- Placing an order: when shopkeeper says "place order for <name>: <items>", call place_order with the items. If an item mentions a size/variant (e.g. "Large", "500ml", "Pack of 2"), include it as variant_title. After place_order succeeds, immediately call get_payment_qr with the returned orderId so the customer sees a QR to pay. If place_order returns a product/variant ambiguity, show the shopkeeper the candidates and ask which one.
+- Payment confirmation: "confirm payment for order X" → confirm_payment_by_order_id. "confirm all matched payments" → confirm_matched_payments.
 - For creating new products, editing images, or editing coupons, use navigate_to.
 - Handle Hindi/Hinglish naturally (aaj ka order = today's orders).`,
         },
@@ -107,6 +129,16 @@ Rules:
           toolMessages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
           if (tc.function.name === "navigate_to") {
             botAction = { type: "navigate", tab: args.tab };
+          } else if (tc.function.name === "get_payment_qr" && result && !result.error) {
+            botAction = {
+              type: "showQR",
+              orderId: result.orderId,
+              amount: result.amount,
+              country: result.country,
+              shopName: result.shopName,
+              shopkeeperPhone: result.shopkeeperPhone,
+              paymentURL: result.paymentURL,
+            };
           }
         }
 
@@ -305,6 +337,146 @@ Rules:
         const product: any = p.product;
         await this.productModel.findByIdAndUpdate(product._id, { $set: { isSoftDeleted: true, softDeletedAt: new Date() } });
         return { success: true, deleted: product.name };
+      }
+      case "confirm_payment_by_order_id": {
+        const order: any = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } });
+        if (!order) return { error: "Order not found" };
+        const payment: any = await this.paymentEmailModel.findOne({ shopkeeperId: sid, matchedOrderId: order.orderId, status: "matched" });
+        if (!payment) return { error: "No matched payment awaiting confirmation for this order", hint: "Check if the payment email was received and matched, or use confirm_matched_payments to see the list." };
+        await this.paymentEmailModel.findByIdAndUpdate(payment._id, { status: "confirmed" });
+        order.status = "processing";
+        order.statusHistory = [...(order.statusHistory || []), { status: "processing", changedAt: new Date(), changedBy: "KiosAI" }];
+        await order.save();
+        return { success: true, orderId: order.orderId, amount: payment.amount, newStatus: "processing" };
+      }
+      case "place_order": {
+        if (!Array.isArray(input.items) || input.items.length === 0) return { error: "No items provided" };
+        const resolved: any[] = [];
+        for (const it of input.items) {
+          if (!it?.product_name || !it?.quantity) return { error: "Each item needs product_name and quantity" };
+          const prodMatches = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: it.product_name, $options: "i" } }).lean();
+          if (prodMatches.length === 0) return { error: `Product not found: "${it.product_name}"` };
+          if (prodMatches.length > 1) return { error: `Multiple products matched "${it.product_name}"`, matches: prodMatches.slice(0, 5).map((p: any) => p.name) };
+          const prod: any = prodMatches[0];
+          let price = prod.price;
+          let variantTitle: string | undefined;
+          let subcategoryName: string | undefined;
+          if (it.variant_title) {
+            const q = String(it.variant_title).toLowerCase();
+            const top = (prod.variants || []).find((v: any) => (v.title || "").toLowerCase().includes(q) || (v.sku || "").toLowerCase().includes(q));
+            if (top) {
+              price = top.price;
+              variantTitle = top.title;
+            } else {
+              for (const sc of (prod.subcategories || [])) {
+                const scv = (sc.variants || []).find((v: any) => (v.title || "").toLowerCase().includes(q) || (v.sku || "").toLowerCase().includes(q));
+                if (scv) {
+                  price = scv.price;
+                  variantTitle = scv.title;
+                  subcategoryName = sc.name;
+                  break;
+                }
+              }
+              if (!variantTitle) {
+                const sc = (prod.subcategories || []).find((s: any) => (s.name || "").toLowerCase().includes(q));
+                if (sc) {
+                  price = sc.basePrice ?? prod.price;
+                  subcategoryName = sc.name;
+                }
+              }
+            }
+            if (!variantTitle && !subcategoryName) {
+              return {
+                error: `Variant "${it.variant_title}" not found for ${prod.name}`,
+                availableVariants: [
+                  ...((prod.variants || []).map((v: any) => v.title)),
+                  ...((prod.subcategories || []).flatMap((sc: any) => [sc.name, ...((sc.variants || []).map((v: any) => `${sc.name} > ${v.title}`))])),
+                ],
+              };
+            }
+          }
+          resolved.push({
+            productId: prod._id.toString(),
+            productName: prod.name,
+            price,
+            quantity: Number(it.quantity),
+            variantTitle,
+            subcategoryName,
+            image: prod.images?.[0],
+            trackQuantity: !!prod.trackQuantity,
+          });
+        }
+        const totalAmount = resolved.reduce((s, r) => s + (r.price || 0) * (r.quantity || 0), 0);
+        const orderId = `KIOSAI-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        const nameParts = String(input.customer_name || "").trim().split(/\s+/);
+        try {
+          const order: any = await this.orderModel.create({
+            orderId,
+            shopkeeperId: sid,
+            items: resolved,
+            totalAmount,
+            orderType: "pickup",
+            whatsAppNumber: input.whatsapp || "kiosk-order",
+            fullName: input.customer_name,
+            firstName: nameParts[0] || input.customer_name,
+            lastName: nameParts.slice(1).join(" ") || "",
+            status: "pending",
+            paymentConfirmed: false,
+            statusHistory: [{ status: "pending", changedAt: new Date(), changedBy: "KiosAI" }],
+          });
+          for (const r of resolved) {
+            if (!r.trackQuantity) continue;
+            try {
+              if (r.variantTitle && r.subcategoryName) {
+                await this.productModel.updateOne(
+                  { _id: r.productId, "subcategories.name": r.subcategoryName, "subcategories.variants.title": r.variantTitle },
+                  { $inc: { "subcategories.$[sc].variants.$[v].inventory": -r.quantity } },
+                  { arrayFilters: [{ "sc.name": r.subcategoryName }, { "v.title": r.variantTitle }] } as any,
+                );
+              } else if (r.variantTitle) {
+                await this.productModel.updateOne(
+                  { _id: r.productId, "variants.title": r.variantTitle },
+                  { $inc: { "variants.$.inventory": -r.quantity } },
+                );
+              } else if (r.subcategoryName) {
+                await this.productModel.updateOne(
+                  { _id: r.productId, "subcategories.name": r.subcategoryName },
+                  { $inc: { "subcategories.$.inventory": -r.quantity } },
+                );
+              } else {
+                await this.productModel.updateOne({ _id: r.productId }, { $inc: { inventory: -r.quantity } });
+              }
+            } catch (invErr) {
+              this.logger.warn(`Inventory decrement failed for ${r.productName}: ${(invErr as any)?.message}`);
+            }
+          }
+          return {
+            success: true,
+            orderId: order.orderId,
+            totalAmount,
+            customer: input.customer_name,
+            items: resolved.map(r => ({ name: r.productName, variant: r.variantTitle, subcategory: r.subcategoryName, qty: r.quantity, price: r.price })),
+            nextStep: "Call get_payment_qr with this orderId to show the customer a QR code.",
+          };
+        } catch (err: any) {
+          return { error: `Failed to create order: ${err.message}` };
+        }
+      }
+      case "get_payment_qr": {
+        const order: any = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } }).lean();
+        if (!order) return { error: "Order not found" };
+        const sk: any = await this.shopkeeperModel.findById(sid).lean();
+        const rawCountry = (sk?.country || "IN").toString().trim().toUpperCase();
+        const country = rawCountry.startsWith("SG") || rawCountry.startsWith("SING") ? "SG" : "IN";
+        return {
+          orderId: order.orderId,
+          amount: order.totalAmount,
+          country,
+          shopName: sk?.shopName,
+          shopkeeperPhone: country === "SG" ? sk?.whatsappNumber : undefined,
+          paymentURL: country === "IN" ? sk?.paymentURL : undefined,
+          message: country === "SG" ? "PayNow QR will be shown." : "UPI QR will be shown.",
+        };
       }
       case "get_analytics": {
         try {
