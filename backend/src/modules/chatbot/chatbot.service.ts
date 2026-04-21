@@ -81,6 +81,62 @@ export class ChatbotService {
     { type: "function", function: { name: "navigate_to", description: "Navigate user to a dashboard tab", parameters: { type: "object", properties: { tab: { type: "string", enum: ["dashboard", "products", "orders", "crm", "kiosk", "storefront", "settings"] } }, required: ["tab"] } } },
   ];
 
+  // Agentic pipeline — router classifies the message into a tab,
+  // then a tab-specific specialist runs with only that tab's tools +
+  // a tuned system prompt. Small focused tool lists = better tool-call accuracy.
+  private static TAB_TOOLS: Record<string, string[]> = {
+    dashboard: ["get_today_orders", "get_today_revenue", "get_analytics", "get_top_products", "get_product_count", "get_customers", "get_pending_orders"],
+    kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr"],
+    orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "get_matched_payments", "get_unmatched_payments"],
+    crm: ["get_customers"], // TODO phase 2: customer detail + messaging tools
+    products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "update_product", "update_variant", "update_subcategory", "update_option", "delete_product", "get_top_products"],
+    storefront: [], // TODO phase 2: storefront config + branding tools
+    settings: ["get_shop_info", "get_plan_info", "get_operators", "get_coupons"], // TODO phase 2: profile/coupon/operator edit tools
+    general: ["get_shop_info", "get_today_orders", "get_today_revenue", "get_products", "get_pending_orders"],
+  };
+
+  private static SPECIALIST_PROMPTS: Record<string, string> = {
+    dashboard: `You are the **Dashboard** specialist for "{SHOP}" on KiosCart.
+Focus: analytics, performance overview, revenue trends, top products, customer counts.
+- Always use tools — never guess numbers.
+- Lead with the headline number in **bold**, then 1-2 supporting metrics.
+- For "how is my shop doing" questions, call get_analytics then get_today_revenue.
+- If the user asks for something that belongs to another tab (e.g. edit a product), briefly answer and suggest navigate_to.`,
+    kiosk: `You are the **Kiosk** specialist for "{SHOP}" on KiosCart.
+Focus: placing walk-in / in-store orders and generating payment QR codes.
+- To place an order: call place_order with the items. If an item mentions a size/variant (Large, 500ml, Pack of 2), include it as variant_title.
+- After place_order succeeds, IMMEDIATELY call get_payment_qr with the returned orderId so the customer sees a QR.
+- If place_order returns a product ambiguity, present the candidates and ask which one.
+- If the user just wants to browse products, use get_products.`,
+    orders: `You are the **Orders & Payments** specialist for "{SHOP}" on KiosCart.
+Focus: orders, order status, payment tracking (Gmail-matched payments).
+- "pending orders" → get_pending_orders. "today" → get_today_orders.
+- "order X details" → get_order_detail. "mark order X as ready/completed" → update_order_status.
+- "confirm payment for order X" → confirm_payment_by_order_id. "confirm all matched" → confirm_matched_payments.
+- Always reference the orderId in responses.`,
+    crm: `You are the **CRM / Customers** specialist for "{SHOP}" on KiosCart.
+Focus: customer list and customer insights.
+- Today you can only call get_customers (total count). For customer-specific lookups, say so and suggest navigate_to crm so the shopkeeper can filter the UI.`,
+    products: `You are the **Products / Catalog** specialist for "{SHOP}" on KiosCart.
+Focus: product catalog, inventory, prices, variants, subcategories, options.
+- "show products" → get_products. "how many products" → get_product_count. "low stock" → get_low_stock.
+- Edit flow: if the user mentions a variant/size/pack, call get_product_detail FIRST to see the structure, then use update_variant / update_subcategory / update_option. For top-level fields use update_product.
+- For CREATING new products or editing IMAGES, use navigate_to (the chat cannot upload files).
+- delete_product only when the user clearly says to delete.`,
+    storefront: `You are the **Storefront / Branding** specialist for "{SHOP}" on KiosCart.
+Focus: store branding, banners, colors, logo, SEO, layout.
+- Storefront edits aren't wired to chat tools yet — always navigate_to the storefront tab and briefly say what the user should change there.`,
+    settings: `You are the **Settings** specialist for "{SHOP}" on KiosCart.
+Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
+- "my plan" / "subscription" → get_plan_info.
+- "list operators" → get_operators. "list coupons" → get_coupons. "shop details" → get_shop_info.
+- Edit operations (create/update/delete coupons, add/remove operators, change pickup settings) aren't chat tools yet — navigate_to settings and tell the shopkeeper which section to open.`,
+    general: `You are KiosAI for "{SHOP}" on KiosCart. The user's request didn't clearly match a specific tab, so keep things short and guide them.
+- Brief greeting / help.
+- Offer 3-5 quick action chips for common tasks.
+- If the user asks a concrete question, answer it using the few read-only tools available (shop info, today's orders/revenue, products).`,
+  };
+
   async processMessage(shopkeeperId: string, message: string): Promise<BotResponse> {
     try {
       if (!this.hasApiKey()) {
@@ -90,78 +146,131 @@ export class ChatbotService {
       const shopkeeper: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
       const shopName = shopkeeper?.shopName || "Store";
 
-      const messages: OpenAI.ChatCompletionMessageParam[] = [
-        {
-          role: "system",
-          content: `You are KiosAI, a smart store assistant for "${shopName}" on KiosCart. Help the shopkeeper manage their store.
+      // Stage 1 — router: classify the message into a tab.
+      const tab = await this.routeToTab(message);
+      this.logger.log(`[Router] "${message.slice(0, 60)}" → ${tab}`);
 
-Rules:
-- Be concise. Use **bold** for key numbers.
-- Always use tools to get real data — never make up numbers.
-- Number lists. Use emojis sparingly.
-- Suggest 2-3 follow-up actions in your response text.
-- Product edits: update_product for top-level fields. For specific variants/sizes/packs, call get_product_detail first to see the structure, then use update_variant, update_subcategory, or update_option. Use delete_product only when the user clearly asks to delete.
-- Placing an order: when shopkeeper says "place order for <name>: <items>", call place_order with the items. If an item mentions a size/variant (e.g. "Large", "500ml", "Pack of 2"), include it as variant_title. After place_order succeeds, immediately call get_payment_qr with the returned orderId so the customer sees a QR to pay. If place_order returns a product/variant ambiguity, show the shopkeeper the candidates and ask which one.
-- Payment confirmation: "confirm payment for order X" → confirm_payment_by_order_id. "confirm all matched payments" → confirm_matched_payments.
-- For creating new products, editing images, or editing coupons, use navigate_to.
-- Handle Hindi/Hinglish naturally (aaj ka order = today's orders).`,
-        },
-        { role: "user", content: message },
-      ];
-
-      const response = await this.ai.chat.completions.create({
-        model: this.model,
-        messages,
-        tools: this.tools,
-        tool_choice: "auto",
-        max_tokens: 1024,
-      });
-
-      const assistantMsg = response.choices[0].message as any;
-      let botAction: BotAction | undefined;
-
-      if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
-        const toolMessages: any[] = [...messages, assistantMsg];
-
-        for (const tc of assistantMsg.tool_calls) {
-          const args = JSON.parse(tc.function.arguments || "{}");
-          const result = await this.executeTool(shopkeeperId, tc.function.name, args);
-          toolMessages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
-          if (tc.function.name === "navigate_to") {
-            botAction = { type: "navigate", tab: args.tab };
-          } else if (tc.function.name === "get_payment_qr" && result && !result.error) {
-            botAction = {
-              type: "showQR",
-              orderId: result.orderId,
-              amount: result.amount,
-              country: result.country,
-              shopName: result.shopName,
-              shopkeeperPhone: result.shopkeeperPhone,
-              paymentURL: result.paymentURL,
-            };
-          }
-        }
-
-        const followUp = await this.ai.chat.completions.create({
-          model: this.model,
-          messages: toolMessages,
-          max_tokens: 1024,
-        });
-
-        const text = (followUp.choices[0].message as any).content || "Done!";
-        return { text, quickActions: this.suggestActions(message), botAction };
-      }
-
-      return {
-        text: assistantMsg.content || "How can I help you?",
-        quickActions: this.suggestActions(message),
-        botAction,
-      };
+      // Stage 2 — specialist for that tab runs the tool-calling loop.
+      return await this.runSpecialist(shopkeeperId, message, tab, shopName);
     } catch (error) {
       const detail = error?.response?.data?.error?.failed_generation || error?.error?.failed_generation || "";
       this.logger.error(`AI Error: ${error.message}${detail ? ` | failed_generation: ${JSON.stringify(detail).slice(0, 500)}` : ""}`);
       return this.fallbackKeyword(shopkeeperId, message);
     }
+  }
+
+  // Stage 1 — small, cheap classification call. Returns one of:
+  // dashboard | kiosk | orders | crm | products | storefront | settings | general
+  private async routeToTab(message: string): Promise<string> {
+    const validTabs = Object.keys(ChatbotService.TAB_TOOLS);
+    try {
+      const res = await this.ai.chat.completions.create({
+        model: this.model,
+        messages: [
+          {
+            role: "system",
+            content: `You are a router. Classify the shopkeeper's message into exactly one tab id. Output ONLY the id, nothing else.
+
+Tabs:
+- dashboard: analytics, revenue, stats, performance, "how is my shop doing"
+- kiosk: place an order for a walk-in/in-store customer, generate payment QR, POS
+- orders: list orders, order status updates, payment confirmations, Gmail-matched payments
+- crm: customer list, customer details, customer messaging
+- products: product catalog, inventory, prices, variants, edit/create/delete products, low stock
+- storefront: store branding, banners, colors, logo, SEO, theme/design
+- settings: shop profile, operators, coupons, tax/discount, pickup settings, subscription plan, shop details
+- general: greetings, help, unclear or off-topic
+
+Return just the id.`,
+          },
+          { role: "user", content: message },
+        ],
+        max_tokens: 12,
+        temperature: 0,
+      });
+      const raw = ((res.choices?.[0]?.message as any)?.content || "general").trim().toLowerCase();
+      for (const tab of validTabs) {
+        if (raw === tab || raw.includes(tab)) return tab;
+      }
+      return "general";
+    } catch (e: any) {
+      this.logger.warn(`Router failed: ${e.message} — defaulting to general`);
+      return "general";
+    }
+  }
+
+  // Stage 2 — run the specialist for a given tab. Tool list is scoped to
+  // that tab (plus navigate_to as escape hatch).
+  private async runSpecialist(
+    shopkeeperId: string,
+    message: string,
+    tab: string,
+    shopName: string,
+  ): Promise<BotResponse> {
+    const allowed = new Set([...(ChatbotService.TAB_TOOLS[tab] || []), "navigate_to"]);
+    const tools = this.tools.filter(t => t.type === "function" && allowed.has(t.function.name));
+    const prompt = (ChatbotService.SPECIALIST_PROMPTS[tab] || ChatbotService.SPECIALIST_PROMPTS.general)
+      .replace("{SHOP}", shopName);
+
+    const sysCommon = `
+Global rules:
+- Be concise. Use **bold** for key numbers and order ids.
+- Always use tools to get real data — never make up numbers.
+- Suggest 2-3 follow-up actions in your reply text.
+- Handle Hindi/Hinglish naturally.`;
+
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+      { role: "system", content: `${prompt}\n${sysCommon}` },
+      { role: "user", content: message },
+    ];
+
+    const response = await this.ai.chat.completions.create({
+      model: this.model,
+      messages,
+      tools: tools.length > 0 ? tools : undefined,
+      tool_choice: tools.length > 0 ? "auto" : undefined,
+      max_tokens: 1024,
+    });
+
+    const assistantMsg = response.choices[0].message as any;
+    let botAction: BotAction | undefined;
+
+    if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
+      const toolMessages: any[] = [...messages, assistantMsg];
+
+      for (const tc of assistantMsg.tool_calls) {
+        const args = JSON.parse(tc.function.arguments || "{}");
+        const result = await this.executeTool(shopkeeperId, tc.function.name, args);
+        toolMessages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
+        if (tc.function.name === "navigate_to") {
+          botAction = { type: "navigate", tab: args.tab };
+        } else if (tc.function.name === "get_payment_qr" && result && !result.error) {
+          botAction = {
+            type: "showQR",
+            orderId: result.orderId,
+            amount: result.amount,
+            country: result.country,
+            shopName: result.shopName,
+            shopkeeperPhone: result.shopkeeperPhone,
+            paymentURL: result.paymentURL,
+          };
+        }
+      }
+
+      const followUp = await this.ai.chat.completions.create({
+        model: this.model,
+        messages: toolMessages,
+        max_tokens: 1024,
+      });
+      const text = (followUp.choices[0].message as any).content || "Done!";
+      return { text, quickActions: this.suggestActions(message), botAction };
+    }
+
+    return {
+      text: assistantMsg.content || "How can I help you?",
+      quickActions: this.suggestActions(message),
+      botAction,
+    };
   }
 
   private suggestActions(msg: string): QuickAction[] {
