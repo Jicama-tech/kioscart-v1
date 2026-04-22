@@ -242,6 +242,19 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
       const tab = await this.routeToTab(shopkeeperId, message);
       this.logger.log(`[Router] "${message.slice(0, 60)}" → ${tab}`);
 
+      // Deterministic fast path for kiosk orders that match the standard format.
+      // Bypasses the LLM entirely so the order lands even when Groq is rate-limited
+      // or the 8B fallback fumbles structured extraction.
+      if (tab === "kiosk") {
+        const parsed = this.tryParseKioskOrder(message);
+        if (parsed) {
+          const result = await this.executeTool(shopkeeperId, "place_order", parsed);
+          const reply = await this.renderKioskOrderReply(shopkeeperId, result, parsed.payment_method);
+          this.appendHistory(shopkeeperId, message, reply.text);
+          return reply;
+        }
+      }
+
       // Stage 2 — specialist for that tab runs the tool-calling loop.
       const reply = await this.runSpecialist(shopkeeperId, message, tab, shopName);
       this.appendHistory(shopkeeperId, message, reply.text);
@@ -506,6 +519,112 @@ Global rules:
     } catch {
       return null;
     }
+  }
+
+  // Deterministic parser for the "Place order for NAME, PHONE, EMAIL: items [cash|qr]" format.
+  // Returns null if the format doesn't match, in which case the LLM path runs.
+  private tryParseKioskOrder(message: string): null | { customer_name: string; whatsapp?: string; email?: string; items: { product_name: string; variant_title?: string; quantity: number }[]; payment_method?: "cash" | "qr" } {
+    const m = message.match(/^\s*(?:please\s+)?(?:place|create|new|take|ring\s*up)\s+(?:an?\s+|the\s+)?order\s+(?:for\s+)?([^:]+?)\s*:\s*(.+?)\s*$/i);
+    if (!m) return null;
+
+    const header = m[1].trim();
+    let body = m[2].trim();
+
+    // Pull out "cash" / "qr" / "upi" / "paynow" if present at the end of body
+    let payment_method: "cash" | "qr" | undefined;
+    const payMatch = body.match(/(?:,\s*|\s+)(cash|qr|upi|paynow)\s*$/i);
+    if (payMatch) {
+      const p = payMatch[1].toLowerCase();
+      payment_method = p === "cash" ? "cash" : "qr";
+      body = body.slice(0, body.length - payMatch[0].length).trim();
+    }
+
+    // Split header by comma: name, whatsapp, email (in any order; whatsapp starts with + or digits, email has @)
+    const parts = header.split(",").map(s => s.trim()).filter(Boolean);
+    let customer_name = "";
+    let whatsapp: string | undefined;
+    let email: string | undefined;
+    for (const part of parts) {
+      if (!email && /@/.test(part)) email = part;
+      else if (!whatsapp && /^\+?[\d\s\-()]{6,}$/.test(part)) whatsapp = part.replace(/[\s\-()]/g, "");
+      else if (!customer_name) customer_name = part;
+    }
+    if (!customer_name) customer_name = parts[0] || "";
+    if (!customer_name) return null;
+
+    // Split body into items by comma, then parse quantity out of each.
+    const itemStrings = body.split(/\s*,\s*/).filter(Boolean);
+    if (itemStrings.length === 0) return null;
+
+    const items = itemStrings.map(raw => {
+      let s = raw.trim();
+      let quantity = 1;
+      // "2 Chai" — leading integer
+      let m1 = s.match(/^(\d+)\s+(.+)$/);
+      if (m1) { quantity = parseInt(m1[1], 10); s = m1[2].trim(); }
+      else {
+        // "Chai x2" / "Chai X2"
+        const m2 = s.match(/^(.+?)\s+x\s*(\d+)$/i);
+        if (m2) { quantity = parseInt(m2[2], 10); s = m2[1].trim(); }
+      }
+      // First word is product_name; rest (if any) becomes variant_title.
+      // The executor's auto-split will expand multi-word product names as needed.
+      const words = s.split(/\s+/);
+      if (words.length === 1) return { product_name: words[0], quantity };
+      return { product_name: words[0], variant_title: words.slice(1).join(" "), quantity };
+    });
+
+    return { customer_name, whatsapp, email, items, payment_method };
+  }
+
+  // Builds the user-facing reply for a deterministic kiosk order. If place_order
+  // succeeded and the method is QR, auto-calls get_payment_qr so the widget shows
+  // the code without needing another round trip.
+  private async renderKioskOrderReply(shopkeeperId: string, result: any, paymentMethod?: "cash" | "qr"): Promise<BotResponse> {
+    if (result?.error) {
+      const lines = [`⚠️ ${result.error}`];
+      if (result.available) {
+        if (result.available.variants?.length) lines.push(`Variants: ${result.available.variants.join(", ")}`);
+        if (result.available.subcategories?.length) lines.push(`Subcategories: ${result.available.subcategories.join(", ")}`);
+        if (result.available.subcategoryVariants?.length) lines.push(`Sub-variants: ${result.available.subcategoryVariants.join(", ")}`);
+        if (result.available.options?.length) lines.push(`Options: ${result.available.options.join(", ")}`);
+      }
+      if (Array.isArray(result.matches) && result.matches.length) lines.push(`Matched: ${result.matches.join(", ")}`);
+      lines.push("Please reply with the exact variant/subcategory name.");
+      return { text: lines.join("\n"), quickActions: this.suggestActions("") };
+    }
+    if (!result?.success) return { text: "Couldn't place order. Please try again." };
+
+    const b = result.breakdown || {};
+    const itemsLine = (result.items || []).map((i: any) => {
+      const variant = [i.subcategory, i.variant].filter(Boolean).join(" > ");
+      return `  ${i.qty}× ${i.name}${variant ? ` (${variant})` : ""}`;
+    }).join("\n");
+    const text = [
+      `✅ Order **#${result.orderId}** placed for ${result.customer}.`,
+      itemsLine,
+      `Subtotal: ${b.subtotal}${b.discountPercentage ? `  ·  Discount ${b.discountPercentage}%: -${b.discount}` : ""}${b.taxPercentage ? `  ·  Tax ${b.taxPercentage}%: +${b.tax}` : ""}`,
+      `**Total: ${b.total}**  (${paymentMethod === "cash" ? "cash received" : "QR payment"})`,
+    ].filter(Boolean).join("\n");
+
+    // For QR orders, pre-fetch the QR payload so the widget renders it inline.
+    let botAction: BotAction | undefined;
+    if (paymentMethod !== "cash") {
+      const qr = await this.executeTool(shopkeeperId, "get_payment_qr", { order_id: result.orderId });
+      if (qr && !qr.error) {
+        botAction = {
+          type: "showQR",
+          orderId: qr.orderId,
+          amount: qr.amount,
+          country: qr.country,
+          shopName: qr.shopName,
+          shopkeeperPhone: qr.shopkeeperPhone,
+          paymentURL: qr.paymentURL,
+        };
+      }
+    }
+
+    return { text, quickActions: this.suggestActions("order"), botAction };
   }
 
   private async findOneProduct(sid: string, query: string): Promise<{ product: any } | { error: string; matches?: string[] }> {
