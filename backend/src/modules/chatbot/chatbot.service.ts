@@ -109,6 +109,12 @@ export class ChatbotService {
     { type: "function", function: { name: "get_matched_payments", description: "Get matched payments awaiting confirmation", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_unmatched_payments", description: "Get unmatched payments", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_customers", description: "Get total customer count", parameters: { type: "object", properties: {}, required: [] } } },
+    { type: "function", function: { name: "list_customers", description: "List customers for this shop with aggregated stats (orderCount, totalSpent, lastOrderDate). Supports optional search and filtering.", parameters: { type: "object", properties: { search: { type: "string", description: "Substring match on name, phone, or email" }, vip_only: { type: "boolean", description: "Only customers whose totalSpent > 100" }, limit: { type: "number", description: "Defaults to 20, max 100" } }, required: [] } } },
+    { type: "function", function: { name: "get_customer", description: "Get a single customer's full profile — contact info + order stats + recent orders. Identify by phone OR email OR exact name.", parameters: { type: "object", properties: { phone: { type: "string", description: "WhatsApp number with country code" }, email: { type: "string" }, name: { type: "string" } }, required: [] } } },
+    { type: "function", function: { name: "get_customer_orders", description: "List a customer's recent orders. Identify by phone/email/name as for get_customer.", parameters: { type: "object", properties: { phone: { type: "string" }, email: { type: "string" }, name: { type: "string" }, limit: { type: "number", description: "Defaults to 10" } }, required: [] } } },
+    { type: "function", function: { name: "create_customer", description: "Create a new customer profile manually (not via an order). Requires first_name, last_name, whatsapp; email is optional.", parameters: { type: "object", properties: { first_name: { type: "string" }, last_name: { type: "string" }, whatsapp: { type: "string", description: "With country code, e.g. +918401201831" }, email: { type: "string" } }, required: ["first_name", "last_name", "whatsapp"] } } },
+    { type: "function", function: { name: "update_customer", description: "Update an existing customer's fields. Identify them with phone/email/name; supply any of the editable fields.", parameters: { type: "object", properties: { phone: { type: "string" }, email: { type: "string" }, name: { type: "string" }, new_first_name: { type: "string" }, new_last_name: { type: "string" }, new_whatsapp: { type: "string" }, new_email: { type: "string" } }, required: [] } } },
+    { type: "function", function: { name: "get_crm_stats", description: "Aggregate CRM stats for this shop: totalCustomers, vipCount (spend > 100), totalRevenue, avgOrderValue, totalOrders, and local vs international counts based on shopkeeper country.", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_coupons", description: "Get active coupons", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_plan_info", description: "Get subscription plan info", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_operators", description: "Get list of operators", parameters: { type: "object", properties: {}, required: [] } } },
@@ -123,7 +129,7 @@ export class ChatbotService {
     dashboard: ["get_today_orders", "get_today_revenue", "get_analytics", "get_top_products", "get_product_count", "get_customers", "get_pending_orders"],
     kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr", "get_order_receipt", "get_order_detail"],
     orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "get_matched_payments", "get_unmatched_payments"],
-    crm: ["get_customers"], // TODO phase 2: customer detail + messaging tools
+    crm: ["get_customers", "list_customers", "get_customer", "get_customer_orders", "create_customer", "update_customer", "get_crm_stats"],
     products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "update_product", "update_variant", "update_subcategory", "update_option", "add_variant", "remove_variant", "add_subcategory", "remove_subcategory", "add_option", "remove_option", "delete_product", "get_top_products"],
     storefront: [], // TODO phase 2: storefront config + branding tools
     settings: ["get_shop_info", "get_plan_info", "get_operators", "get_coupons"], // TODO phase 2: profile/coupon/operator edit tools
@@ -181,8 +187,21 @@ Focus: orders, order status, payment tracking (Gmail-matched payments).
 - "confirm payment for order X" → confirm_payment_by_order_id. "confirm all matched" → confirm_matched_payments.
 - Always reference the orderId in responses.`,
     crm: `You are the **CRM / Customers** specialist for "{SHOP}" on KiosCart.
-Focus: customer list and customer insights.
-- Today you can only call get_customers (total count). For customer-specific lookups, say so and suggest navigate_to crm so the shopkeeper can filter the UI.`,
+Focus: customer list, profiles, order history, and contact CRUD.
+
+Read:
+- "how many customers" / "total customers" → get_customers. Richer dashboard → get_crm_stats.
+- "show customers" / "list customers" / "VIP customers" → list_customers (use vip_only=true for VIP). Pass search="<term>" to filter by name, phone, or email.
+- "tell me about <customer>" / "show <phone|email>" → get_customer.
+- "orders for <customer>" → get_customer_orders.
+
+Write:
+- "add customer <name>, <phone>, <email>" → create_customer. Require first_name, last_name, whatsapp; email is optional.
+- "change <customer>'s email / phone / name" → update_customer. Identify them with phone/email/name + pass new_* fields.
+
+Not supported in chat (direct the shopkeeper to the CRM tab):
+- Bulk CSV export / import.
+- Sending WhatsApp / email campaigns (the CRM tab opens wa.me links client-side — use navigate_to crm).`,
     products: `You are the **Products / Catalog** specialist for "{SHOP}" on KiosCart.
 Focus: product catalog, inventory, prices, variants, subcategories, options.
 
@@ -630,6 +649,23 @@ Global rules:
     }
 
     return { text, quickActions: this.suggestActions("order"), botAction };
+  }
+
+  // Flexible customer lookup by phone, email, or name (any one is enough).
+  private async findCustomer(input: { phone?: string; email?: string; name?: string }): Promise<any | null> {
+    if (input.phone) {
+      const u = await this.userModel.findOne({ whatsAppNumber: input.phone }).lean();
+      if (u) return u;
+    }
+    if (input.email) {
+      const u = await this.userModel.findOne({ email: { $regex: `^${String(input.email).trim()}$`, $options: "i" } }).lean();
+      if (u) return u;
+    }
+    if (input.name) {
+      const u = await this.userModel.findOne({ name: { $regex: String(input.name).trim(), $options: "i" } }).lean();
+      if (u) return u;
+    }
+    return null;
   }
 
   private async findOneProduct(sid: string, query: string): Promise<{ product: any } | { error: string; matches?: string[] }> {
@@ -1333,6 +1369,147 @@ Global rules:
       case "get_customers": {
         const agg = await this.orderModel.aggregate([{ $match: { shopkeeperId: sid, isSoftDeleted: { $ne: true } } }, { $group: { _id: "$userId" } }]);
         return { totalCustomers: agg.length };
+      }
+      case "list_customers": {
+        const limit = Math.min(Number(input.limit) || 20, 100);
+        // Aggregate per-customer stats from the Order collection
+        const stats = await this.orderModel.aggregate([
+          { $match: { shopkeeperId: sid, isSoftDeleted: { $ne: true } } },
+          {
+            $group: {
+              _id: "$userId",
+              orderCount: { $sum: 1 },
+              totalSpent: { $sum: { $ifNull: ["$totalAmount", 0] } },
+              lastOrderDate: { $max: "$createdAt" },
+            },
+          },
+          { $sort: { totalSpent: -1 } },
+        ]);
+        const userIds = stats.map((s: any) => s._id).filter(Boolean);
+        const users = await this.userModel.find({ _id: { $in: userIds } }).lean();
+        const userById = new Map(users.map((u: any) => [u._id.toString(), u]));
+        // Also include shopkeeper-created users that have no orders yet
+        const createdUsers = await this.userModel.find({ provider: { $in: ["shopkeeper", "kiosk", "chatbot"] } }).lean();
+        for (const u of createdUsers) {
+          const id = u._id.toString();
+          if (!userById.has(id)) userById.set(id, u);
+        }
+        let combined = Array.from(userById.values()).map((u: any) => {
+          const s = stats.find((x: any) => String(x._id) === String(u._id)) || {};
+          const totalSpent = Number(s.totalSpent || 0);
+          return {
+            id: u._id.toString(),
+            name: u.name,
+            email: u.email,
+            whatsapp: u.whatsAppNumber,
+            orderCount: s.orderCount || 0,
+            totalSpent,
+            lastOrderDate: s.lastOrderDate,
+            status: totalSpent > 100 ? "vip" : s.orderCount ? "active" : "inactive",
+          };
+        });
+        if (input.search) {
+          const q = String(input.search).toLowerCase();
+          combined = combined.filter(c =>
+            (c.name || "").toLowerCase().includes(q) ||
+            (c.email || "").toLowerCase().includes(q) ||
+            (c.whatsapp || "").toLowerCase().includes(q),
+          );
+        }
+        if (input.vip_only) combined = combined.filter(c => c.status === "vip");
+        return { count: combined.length, customers: combined.slice(0, limit) };
+      }
+      case "get_customer": {
+        const user = await this.findCustomer(input);
+        if (!user) return { error: "Customer not found. Try a different phone / email / name." };
+        const orders = await this.orderModel.find({ shopkeeperId: sid, userId: user._id.toString(), isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
+        const totalSpent = orders.reduce((s: number, o: any) => s + (Number(o.totalAmount) || 0), 0);
+        return {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          whatsapp: user.whatsAppNumber,
+          provider: user.provider,
+          orderCount: orders.length,
+          totalSpent,
+          avgOrderValue: orders.length ? Math.round((totalSpent / orders.length) * 100) / 100 : 0,
+          lastOrderDate: orders[0]?.createdAt,
+          status: totalSpent > 100 ? "vip" : orders.length ? "active" : "inactive",
+          recentOrders: orders.slice(0, 5).map((o: any) => ({ orderId: o.orderId, status: o.status, totalAmount: o.totalAmount, createdAt: o.createdAt })),
+        };
+      }
+      case "get_customer_orders": {
+        const user = await this.findCustomer(input);
+        if (!user) return { error: "Customer not found. Try a different phone / email / name." };
+        const limit = Math.min(Number(input.limit) || 10, 50);
+        const orders = await this.orderModel.find({ shopkeeperId: sid, userId: user._id.toString(), isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(limit).lean();
+        return {
+          customer: user.name || user.whatsAppNumber,
+          orders: orders.map((o: any) => ({ orderId: o.orderId, status: o.status, totalAmount: o.totalAmount, orderType: o.orderType, createdAt: o.createdAt, items: (o.items || []).map((i: any) => `${i.quantity}× ${i.productName}${i.variantTitle ? ` (${i.variantTitle})` : ""}`).join(", ") })),
+        };
+      }
+      case "create_customer": {
+        const { first_name, last_name, whatsapp, email } = input;
+        if (!first_name || !last_name || !whatsapp) return { error: "first_name, last_name and whatsapp are required" };
+        const existing: any = await this.userModel.findOne({ whatsAppNumber: whatsapp }).lean();
+        if (existing) return { error: "A customer with that whatsapp already exists", existing: { id: existing._id.toString(), name: existing.name, email: existing.email } };
+        const user = await this.userModel.create({
+          name: `${first_name} ${last_name}`.trim(),
+          email: email || null,
+          password: null,
+          provider: "shopkeeper",
+          providerId: null,
+          whatsAppNumber: whatsapp,
+        });
+        return { success: true, customer: { id: user._id.toString(), name: user.name, email: user.email, whatsapp: user.whatsAppNumber } };
+      }
+      case "update_customer": {
+        const user: any = await this.findCustomer(input);
+        if (!user) return { error: "Customer not found" };
+        const updates: any = {};
+        if (input.new_first_name || input.new_last_name) {
+          const first = input.new_first_name || user.name?.split(" ")?.[0] || "";
+          const last = input.new_last_name ?? user.name?.split(" ")?.slice(1).join(" ") ?? "";
+          updates.name = `${first} ${last}`.trim();
+        }
+        if (input.new_whatsapp !== undefined) updates.whatsAppNumber = input.new_whatsapp;
+        if (input.new_email !== undefined) updates.email = input.new_email;
+        if (Object.keys(updates).length === 0) return { error: "No fields to update. Provide new_first_name / new_last_name / new_whatsapp / new_email." };
+        await this.userModel.updateOne({ _id: user._id }, { $set: updates });
+        return { success: true, customer: { id: user._id.toString(), ...updates } };
+      }
+      case "get_crm_stats": {
+        const orders = await this.orderModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } }, { userId: 1, totalAmount: 1 }).lean();
+        const byUser = new Map<string, { count: number; spent: number }>();
+        let totalRevenue = 0;
+        for (const o of orders) {
+          const uid = String(o.userId);
+          const amt = Number(o.totalAmount) || 0;
+          totalRevenue += amt;
+          const cur = byUser.get(uid) || { count: 0, spent: 0 };
+          cur.count++;
+          cur.spent += amt;
+          byUser.set(uid, cur);
+        }
+        const totalCustomers = byUser.size;
+        const vipCount = Array.from(byUser.values()).filter(v => v.spent > 100).length;
+        // Local vs international based on shopkeeper country
+        const sk: any = await this.shopkeeperModel.findById(sid).lean();
+        const country = (sk?.country || "IN").toString().trim().toUpperCase();
+        const localPrefix = country.startsWith("SG") || country.startsWith("SING") ? "+65" : "+91";
+        const users = await this.userModel.find({ _id: { $in: Array.from(byUser.keys()) } }, { whatsAppNumber: 1 }).lean();
+        const localCustomers = users.filter((u: any) => (u.whatsAppNumber || "").startsWith(localPrefix)).length;
+        const totalOrders = orders.length;
+        const avgOrderValue = totalOrders ? Math.round((totalRevenue / totalOrders) * 100) / 100 : 0;
+        return {
+          totalCustomers,
+          vipCount,
+          totalOrders,
+          totalRevenue: Math.round(totalRevenue * 100) / 100,
+          avgOrderValue,
+          localCustomers,
+          internationalCustomers: totalCustomers - localCustomers,
+        };
       }
       case "get_coupons": {
         const c = await this.couponModel.find({ shopkeeperId: sid, isDeleted: false, isActive: true }).lean();
