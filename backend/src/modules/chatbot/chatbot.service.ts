@@ -91,7 +91,10 @@ export class ChatbotService {
     { type: "function", function: { name: "get_product_count", description: "Get product counts", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_low_stock", description: "Get products with low stock", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_product_detail", description: "Get full structure of a single product — including its variants, subcategories, and options. Use this before editing when the user mentions a variant, size, or pack.", parameters: { type: "object", properties: { product_name: { type: "string", description: "Name or partial name of the product" } }, required: ["product_name"] } } },
-    { type: "function", function: { name: "update_product", description: "Update a product's top-level fields (name, price, inventory, status, etc). Works on any product regardless of variants. To edit a specific variant or subcategory, use update_variant or update_subcategory instead.", parameters: { type: "object", properties: { product_name: { type: "string" }, new_name: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, status: { type: "string", enum: ["active", "draft", "archived"] }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name"] } } },
+    { type: "function", function: { name: "update_product", description: "Update a product's top-level fields. Works on any product regardless of variants. To edit a specific variant/subcategory/option, use the dedicated tool instead.", parameters: { type: "object", properties: { product_name: { type: "string" }, new_name: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, status: { type: "string", enum: ["active", "draft", "archived"] }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" }, description: { type: "string" }, barcode: { type: "string" }, measurement: { type: "string" }, tags: { type: "array", items: { type: "string" }, description: "Replaces the full tags list. Pass the complete new array." } }, required: ["product_name"] } } },
+    { type: "function", function: { name: "create_product", description: "Create a new simple product (no images, no variants). Use when the shopkeeper wants to add a quick catalog entry. For image upload / complex variants, navigate_to the products tab.", parameters: { type: "object", properties: { name: { type: "string" }, price: { type: "number" }, category: { type: "string", description: "Required. Pick a category the shop already uses (e.g. food, clothing, etc)." }, sku: { type: "string", description: "Optional — auto-generated if omitted." }, status: { type: "string", enum: ["active", "draft", "archived"], description: "Defaults to active." }, description: { type: "string" }, inventory: { type: "number" }, trackQuantity: { type: "boolean" }, lowstockThreshold: { type: "number" }, tags: { type: "array", items: { type: "string" } } }, required: ["name", "price", "category"] } } },
+    { type: "function", function: { name: "bulk_update_products_status", description: "Change status (active/draft/archived) for multiple products at once — e.g. archive a seasonal line.", parameters: { type: "object", properties: { product_names: { type: "array", items: { type: "string" } }, status: { type: "string", enum: ["active", "draft", "archived"] } }, required: ["product_names", "status"] } } },
+    { type: "function", function: { name: "bulk_delete_products", description: "Soft-delete multiple products by name in one call.", parameters: { type: "object", properties: { product_names: { type: "array", items: { type: "string" } } }, required: ["product_names"] } } },
     { type: "function", function: { name: "update_variant", description: "Update a variant inside a product by title or SKU. For tree-structured products with the same variant title under multiple subcategories (e.g. Veg>Medium and Non-Veg>Medium), pass subcategory_name to disambiguate.", parameters: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Variant title or SKU to match" }, subcategory_name: { type: "string", description: "Optional: restrict the match to a specific subcategory" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "variant_title"] } } },
     { type: "function", function: { name: "update_subcategory", description: "Update a subcategory inside a product (matched by name). Edits subcategory-level fields like basePrice and inventory.", parameters: { type: "object", properties: { product_name: { type: "string" }, subcategory_name: { type: "string" }, basePrice: { type: "number" }, additionalPrice: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" } }, required: ["product_name", "subcategory_name"] } } },
     { type: "function", function: { name: "update_option", description: "Update a product option (e.g. Size/Quantity/Pack) by its title. Only for products that have productOptions.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "option_title"] } } },
@@ -135,7 +138,7 @@ export class ChatbotService {
     kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr", "get_order_receipt", "get_order_detail"],
     orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "get_matched_payments", "get_unmatched_payments"],
     crm: ["list_customers", "get_customer", "get_customer_orders", "create_customer", "update_customer", "get_crm_stats"],
-    products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "update_product", "update_variant", "update_subcategory", "update_option", "add_variant", "remove_variant", "add_subcategory", "remove_subcategory", "add_option", "remove_option", "delete_product", "get_top_products"],
+    products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "create_product", "update_product", "update_variant", "update_subcategory", "update_option", "add_variant", "remove_variant", "add_subcategory", "remove_subcategory", "add_option", "remove_option", "delete_product", "bulk_update_products_status", "bulk_delete_products", "get_top_products"],
     storefront: [], // TODO phase 2: storefront config + branding tools
     settings: ["get_shop_info", "get_plan_info", "get_operators", "get_coupons"], // TODO phase 2: profile/coupon/operator edit tools
     general: ["get_shop_info", "get_today_orders", "get_today_revenue", "get_products", "get_pending_orders"],
@@ -216,8 +219,12 @@ Read:
 - Before editing a variant/subcategory/option, call **get_product_detail** first so you know the exact titles and structure.
 
 Top-level product:
-- Update any simple field (price, inventory, status, name, lowstockThreshold, trackQuantity, isDiscounted, discountedPrice) → update_product.
+- Create a simple product → create_product (name, price, category required; no images from chat).
+- Update any scalar field (price, inventory, status, name, lowstockThreshold, trackQuantity, isDiscounted, discountedPrice, description, barcode, measurement, tags) → update_product.
+  Tags replaces the full list — pass the whole new array.
 - Delete the whole product → delete_product.
+- Bulk status change (archive/activate several) → bulk_update_products_status.
+- Bulk delete → bulk_delete_products.
 
 Variants (flat):
 - Add → add_variant { product_name, title, price, sku? }
@@ -812,6 +819,10 @@ Global rules:
         if (input.trackQuantity !== undefined) updates.trackQuantity = input.trackQuantity;
         if (input.isDiscounted !== undefined) updates.isDiscounted = input.isDiscounted;
         if (input.discountedPrice !== undefined) updates.discountedPrice = input.discountedPrice;
+        if (input.description !== undefined) updates.description = input.description;
+        if (input.barcode !== undefined) updates.barcode = input.barcode;
+        if (input.measurement !== undefined) updates.measurement = input.measurement;
+        if (Array.isArray(input.tags)) updates.tags = input.tags.map((t: any) => String(t).trim()).filter(Boolean);
         if (Object.keys(updates).length === 0) return { error: "No fields to update" };
         await this.productModel.findByIdAndUpdate(product._id, { $set: updates });
         const note = ((product.productOptions?.length || 0) > 0 || (product.variants?.length || 0) > 0 || (product.subcategories?.length || 0) > 0)
@@ -1001,6 +1012,61 @@ Global rules:
         const product: any = p.product;
         await this.productModel.findByIdAndUpdate(product._id, { $set: { isSoftDeleted: true, softDeletedAt: new Date() } });
         return { success: true, deleted: product.name };
+      }
+      case "create_product": {
+        if (!input.name || input.price === undefined || !input.category) return { error: "name, price and category are required" };
+        const dup = await this.productModel.findOne({ shopkeeperId: sid, name: { $regex: `^${String(input.name).trim()}$`, $options: "i" }, isSoftDeleted: { $ne: true } }).lean();
+        if (dup) return { error: `A product named "${input.name}" already exists` };
+        const sku = input.sku ? String(input.sku) : `${String(input.name).slice(0, 3).toUpperCase().replace(/\s/g, "")}-${Date.now().toString().slice(-5)}`;
+        const doc = await this.productModel.create({
+          shopkeeperId: sid,
+          name: String(input.name).trim(),
+          price: Number(input.price),
+          category: String(input.category).trim(),
+          sku,
+          status: input.status || "active",
+          description: input.description || undefined,
+          inventory: input.inventory !== undefined ? Number(input.inventory) : 0,
+          trackQuantity: !!input.trackQuantity,
+          lowstockThreshold: input.lowstockThreshold !== undefined ? Number(input.lowstockThreshold) : 10,
+          tags: Array.isArray(input.tags) ? input.tags.map((t: any) => String(t).trim()).filter(Boolean) : [],
+          images: [],
+          variants: [],
+          subcategories: [],
+          productOptions: [],
+        });
+        return { success: true, product: { id: doc._id.toString(), name: doc.name, sku: doc.sku, price: doc.price, category: doc.category, status: doc.status } };
+      }
+      case "bulk_update_products_status": {
+        if (!Array.isArray(input.product_names) || input.product_names.length === 0) return { error: "product_names array is required" };
+        if (!["active", "draft", "archived"].includes(input.status)) return { error: "status must be active | draft | archived" };
+        const updated: string[] = [];
+        const notFound: string[] = [];
+        for (const raw of input.product_names) {
+          const hits = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: `^${String(raw).trim()}$`, $options: "i" } }).lean();
+          if (hits.length === 1) {
+            await this.productModel.updateOne({ _id: (hits[0] as any)._id }, { $set: { status: input.status } });
+            updated.push((hits[0] as any).name);
+          } else {
+            notFound.push(raw);
+          }
+        }
+        return { success: true, status: input.status, updated, notFound };
+      }
+      case "bulk_delete_products": {
+        if (!Array.isArray(input.product_names) || input.product_names.length === 0) return { error: "product_names array is required" };
+        const deleted: string[] = [];
+        const notFound: string[] = [];
+        for (const raw of input.product_names) {
+          const hits = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: `^${String(raw).trim()}$`, $options: "i" } }).lean();
+          if (hits.length === 1) {
+            await this.productModel.updateOne({ _id: (hits[0] as any)._id }, { $set: { isSoftDeleted: true, softDeletedAt: new Date() } });
+            deleted.push((hits[0] as any).name);
+          } else {
+            notFound.push(raw);
+          }
+        }
+        return { success: true, deleted, notFound };
       }
       case "confirm_payment_by_order_id": {
         const order: any = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } });
