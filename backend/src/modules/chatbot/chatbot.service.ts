@@ -41,30 +41,35 @@ export class ChatbotService {
     @InjectModel("PaymentEmail") private paymentEmailModel: Model<any>,
     @InjectModel("User") private userModel: Model<any>,
   ) {
-    // Provider: Groq (free, fast tool-calling). Override with QWEN_* env vars if needed.
-    const apiKey = process.env.GROQ_API_KEY || process.env.QWEN_API_KEY || "";
-    const baseURL = process.env.GROQ_API_KEY
-      ? "https://api.groq.com/openai/v1"
-      : process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+    // Provider priority: Qwen (Alibaba DashScope) if key is set, else Groq.
+    // Qwen's free/paid tiers are more generous and its tool-calling is more
+    // reliable than Groq's 8B fallback.
+    const useQwen = !!process.env.QWEN_API_KEY;
+    const apiKey = useQwen ? process.env.QWEN_API_KEY : (process.env.GROQ_API_KEY || "");
+    const baseURL = useQwen
+      ? (process.env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1")
+      : "https://api.groq.com/openai/v1";
     this.ai = new OpenAI({ apiKey, baseURL });
+    this.provider = useQwen ? "qwen" : "groq";
   }
+
+  private provider: "qwen" | "groq" = "groq";
 
   private get model() {
-    if (process.env.GROQ_API_KEY) return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-    return process.env.QWEN_MODEL || "qwen-plus";
+    if (this.provider === "qwen") return process.env.QWEN_MODEL || "qwen-plus";
+    return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
   }
 
-  // Small/cheap model used for routing (doesn't need 70B). Falls back to the
-  // main model if the smaller one isn't configured.
+  // Small/cheap model used for routing (classification only).
   private get routerModel() {
-    if (process.env.GROQ_API_KEY) return process.env.GROQ_ROUTER_MODEL || "llama-3.1-8b-instant";
-    return this.model;
+    if (this.provider === "qwen") return process.env.QWEN_ROUTER_MODEL || "qwen-turbo";
+    return process.env.GROQ_ROUTER_MODEL || "llama-3.1-8b-instant";
   }
 
   // Fallback model used when the primary returns 429 (daily TPD exceeded).
   private get fallbackModel() {
-    if (process.env.GROQ_API_KEY) return process.env.GROQ_FALLBACK_MODEL || "llama-3.1-8b-instant";
-    return this.model;
+    if (this.provider === "qwen") return process.env.QWEN_FALLBACK_MODEL || "qwen-turbo";
+    return process.env.GROQ_FALLBACK_MODEL || "llama-3.1-8b-instant";
   }
 
   private isRateLimit(err: any): boolean {
@@ -73,7 +78,7 @@ export class ChatbotService {
   }
 
   private hasApiKey() {
-    return !!(process.env.GROQ_API_KEY || process.env.QWEN_API_KEY);
+    return !!(process.env.QWEN_API_KEY || process.env.GROQ_API_KEY);
   }
 
   private tools: OpenAI.ChatCompletionTool[] = [
@@ -261,7 +266,7 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
       // Stage 1 — router: classify the message into a tab. Give it the last
       // few turns so mid-flow follow-ups ("use T-shirt XL") stay on the same tab.
       const tab = await this.routeToTab(shopkeeperId, message);
-      this.logger.log(`[Router] "${message.slice(0, 60)}" → ${tab}`);
+      this.logger.log(`[Router/${this.provider}] "${message.slice(0, 60)}" → ${tab}`);
 
       // Deterministic fast path for kiosk orders that match the standard format.
       // Bypasses the LLM entirely so the order lands even when Groq is rate-limited
