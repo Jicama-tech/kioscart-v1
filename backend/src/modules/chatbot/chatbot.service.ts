@@ -948,7 +948,9 @@ Global rules:
 
           // Resolve up to three independent layers: productOption + subcategory + variant.
           // Final unit price = (variant/subcat base price OR product base price) + option price.
-          let basePrice = prod.isDiscounted && prod.discountedPrice ? prod.discountedPrice : prod.price;
+          // Number() everywhere because prices can be stored as strings in some catalogs.
+          const num = (x: any) => Number(x) || 0;
+          let basePrice = num(prod.isDiscounted && prod.discountedPrice ? prod.discountedPrice : prod.price);
           let price = basePrice;
           let variantTitle: string | undefined;
           let subcategoryName: string | undefined;
@@ -970,7 +972,7 @@ Global rules:
             const opt = (prod.productOptions || []).find((o: any) => (o.title || "").toLowerCase() === oq || (o.title || "").toLowerCase().includes(oq));
             if (!opt) return { error: `Option "${it.option_title}" not found on ${prod.name}`, available: { options: (prod.productOptions || []).map((o: any) => o.title) } };
             optionTitle = opt.title;
-            optionPrice = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
+            optionPrice = num(opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price);
           }
 
           if (it.subcategory_name) {
@@ -983,17 +985,17 @@ Global rules:
               const v = (sc.variants || []).find((x: any) => (x.title || "").toLowerCase() === vq || (x.title || "").toLowerCase().includes(vq) || (x.sku || "").toLowerCase().includes(vq));
               if (!v) return { error: `Variant "${it.variant_title}" not found inside ${prod.name} > ${sc.name}`, available: (sc.variants || []).map((x: any) => x.title) };
               variantTitle = v.title;
-              price = v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price;
+              price = num(v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price);
             } else {
               // Subcategory-only (uses basePrice)
-              price = sc.basePrice ?? prod.price;
+              price = num(sc.basePrice ?? prod.price);
             }
           } else if (it.variant_title) {
             const q = String(it.variant_title).toLowerCase();
             // 1. Top-level variants
             const top = (prod.variants || []).find((v: any) => (v.title || "").toLowerCase().includes(q) || (v.sku || "").toLowerCase().includes(q));
             if (top) {
-              price = top.isDiscounted && top.discountedPrice ? top.discountedPrice : top.price;
+              price = num(top.isDiscounted && top.discountedPrice ? top.discountedPrice : top.price);
               variantTitle = top.title;
             }
             // 2. Subcategory > variants (match anywhere in the tree)
@@ -1001,7 +1003,7 @@ Global rules:
               for (const sc of (prod.subcategories || [])) {
                 const scv = (sc.variants || []).find((v: any) => (v.title || "").toLowerCase().includes(q) || (v.sku || "").toLowerCase().includes(q));
                 if (scv) {
-                  price = scv.isDiscounted && scv.discountedPrice ? scv.discountedPrice : scv.price;
+                  price = num(scv.isDiscounted && scv.discountedPrice ? scv.discountedPrice : scv.price);
                   variantTitle = scv.title;
                   subcategoryName = sc.name;
                   break;
@@ -1012,7 +1014,7 @@ Global rules:
             if (!variantTitle && !subcategoryName) {
               const sc = (prod.subcategories || []).find((s: any) => (s.name || "").toLowerCase().includes(q));
               if (sc) {
-                price = sc.basePrice ?? prod.price;
+                price = num(sc.basePrice ?? prod.price);
                 subcategoryName = sc.name;
               }
             }
@@ -1020,9 +1022,10 @@ Global rules:
             if (!variantTitle && !subcategoryName) {
               const opt = (prod.productOptions || []).find((o: any) => (o.title || "").toLowerCase().includes(q));
               if (opt) {
-                price = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
+                // Option as the only leaf: it REPLACES the base price (no double-count).
+                price = num(opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price);
                 optionTitle = opt.title;
-                optionPrice = opt.price;
+                optionPrice = 0; // already counted in `price`
               }
             }
             // 5. Fallback: auto-split multi-word descriptors as subcategory + variant.
@@ -1038,7 +1041,7 @@ Global rules:
                   const vt = (v.title || "").toLowerCase();
                   const vs = (v.sku || "").toLowerCase();
                   if (vt === remainder || vt.includes(remainder) || vs === remainder) {
-                    price = v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price;
+                    price = num(v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price);
                     variantTitle = v.title;
                     subcategoryName = sc.name;
                     break outer;
@@ -1059,7 +1062,7 @@ Global rules:
                 const t = normalise(o.title);
                 if (t && (new RegExp(`(^|\\W)${t}(\\W|$)`).test(haystack))) {
                   optionTitle = o.title;
-                  optionPrice = o.isDiscounted && o.discountedPrice ? o.discountedPrice : o.price;
+                  optionPrice = num(o.isDiscounted && o.discountedPrice ? o.discountedPrice : o.price);
                   break;
                 }
               }
@@ -1073,11 +1076,11 @@ Global rules:
                     const vt = normalise(v.title);
                     if (vt && (new RegExp(`(^|\\W)${vt}(\\W|$)`).test(haystack))) {
                       variantTitle = v.title;
-                      price = v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price;
+                      price = num(v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price);
                       break;
                     }
                   }
-                  if (!variantTitle) price = sc.basePrice ?? prod.price;
+                  if (!variantTitle) price = num(sc.basePrice ?? prod.price);
                   break;
                 }
               }
@@ -1087,7 +1090,7 @@ Global rules:
                   const vt = normalise(v.title);
                   if (vt && (new RegExp(`(^|\\W)${vt}(\\W|$)`).test(haystack))) {
                     variantTitle = v.title;
-                    price = v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price;
+                    price = num(v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price);
                     break;
                   }
                 }
