@@ -1540,8 +1540,10 @@ Global rules:
           name: `${first_name} ${last_name}`.trim(),
           email: email || null,
           password: null,
-          provider: "shopkeeper",
-          providerId: null,
+          // The CRM tab filters users by { provider: "Shopkeeper", providerId: shopkeeperId }
+          // (see users.service.fetchUsersByShopkeeperId), so both fields must match exactly.
+          provider: "Shopkeeper",
+          providerId: sid,
           whatsAppNumber: whatsapp,
         });
         return { success: true, customer: { id: user._id.toString(), name: user.name, email: user.email, whatsapp: user.whatsAppNumber } };
