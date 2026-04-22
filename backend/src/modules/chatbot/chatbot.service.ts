@@ -599,8 +599,11 @@ Global rules:
 
     const b = result.breakdown || {};
     const itemsLine = (result.items || []).map((i: any) => {
-      const variant = [i.subcategory, i.variant].filter(Boolean).join(" > ");
-      return `  ${i.qty}× ${i.name}${variant ? ` (${variant})` : ""}`;
+      const parts = [i.subcategory, i.variant].filter(Boolean);
+      if (i.option) parts.push(`option ${i.option}${i.optionPrice ? ` +${i.optionPrice}` : ""}`);
+      const detail = parts.length ? ` (${parts.join(" > ")})` : "";
+      const priceLine = i.unitPrice !== undefined ? ` — ${i.unitPrice} × ${i.qty}` : "";
+      return `  ${i.qty}× ${i.name}${detail}${priceLine}`;
     }).join("\n");
     const text = [
       `✅ Order **#${result.orderId}** placed for ${result.customer}.`,
@@ -1231,7 +1234,15 @@ Global rules:
               tax: Math.round(tax * 100) / 100,
               total: totalAmount,
             },
-            items: resolved.map(r => ({ name: r.productName, variant: r.variantTitle, subcategory: r.subcategoryName, qty: r.quantity, price: r.price })),
+            items: resolved.map(r => ({
+              name: r.productName,
+              variant: r.variantTitle,
+              subcategory: r.subcategoryName,
+              option: r.optionTitle,
+              optionPrice: r.optionPrice,
+              qty: r.quantity,
+              unitPrice: r.price, // already includes option price add-on
+            })),
             nextStep: isCash
               ? "Call get_order_receipt with this orderId to provide a PDF receipt."
               : "Call get_payment_qr with this orderId to show the customer a QR code.",
