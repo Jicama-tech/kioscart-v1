@@ -99,7 +99,7 @@ export class ChatbotService {
     dashboard: `You are the **Dashboard** specialist for "{SHOP}" on KiosCart.
 Focus: analytics, performance overview, revenue trends, top products, customer counts.
 - Always use tools — never guess numbers.
-- Period words map to tool periods: "today/aaj" → get_today_orders + get_today_revenue; "this month" → get_analytics(monthly); "last month/pichhla" → get_analytics(lastmonth); "this quarter" → get_analytics(quarterly); "last quarter" → get_analytics(lastquarter); "this year" → get_analytics(yearly); "last year" → get_analytics(lastyear).
+- Period words map to tool periods (recognise in any language the user writes): "today" → get_today_orders + get_today_revenue; "this month" → get_analytics(monthly); "last month" → get_analytics(lastmonth); "this quarter" → get_analytics(quarterly); "last quarter" → get_analytics(lastquarter); "this year" → get_analytics(yearly); "last year" → get_analytics(lastyear).
 - Lead with the headline number in **bold**, then 1-2 supporting metrics.
 - For generic "how is my shop doing" questions, call get_analytics(monthly) and format: revenue, orders, top products.
 - If the user asks for something that belongs to another tab (e.g. edit a product), briefly answer and suggest navigate_to.`,
@@ -220,7 +220,7 @@ Global rules:
 - IMPORTANT: call tools via the structured tool-calling API only. NEVER write tool calls as text like "<function=name{...}>" or inside markdown — that is not a valid response.
 - If a tool returns an error, explain it to the shopkeeper in plain language and suggest what to do next.
 - Suggest 2-3 follow-up actions in your reply text.
-- Handle Hindi/Hinglish naturally.`;
+- **Language matching**: reply in the SAME language/script the shopkeeper wrote in. If they write in English, reply in English. If they write in Hindi (Devanagari), reply in Hindi. Hinglish (Hindi words in Latin script, e.g. "aaj ka order kya hai") → reply in Hinglish. Same rule for Tamil, Malay, Chinese, Singlish, or any other language. Do NOT default to Hindi when the user wrote English. Recognise period words in the user's language (e.g. "today/aaj/今日", "last month/pichhla mahina/上个月") but match their reply language.`;
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: `${prompt}\n${sysCommon}` },
