@@ -567,11 +567,12 @@ Global rules:
         const m2 = s.match(/^(.+?)\s+x\s*(\d+)$/i);
         if (m2) { quantity = parseInt(m2[2], 10); s = m2[1].trim(); }
       }
-      // First word is product_name; rest (if any) becomes variant_title.
-      // The executor's auto-split will expand multi-word product names as needed.
-      const words = s.split(/\s+/);
-      if (words.length === 1) return { product_name: words[0], quantity };
-      return { product_name: words[0], variant_title: words.slice(1).join(" "), quantity };
+      // Pass the whole descriptor as product_name. The executor tries the full
+      // string first; if no product matches and it contains spaces, auto-split
+      // peels the descriptor word-by-word and pushes the remainder into
+      // variant_title. That way "Mixed Nuts" stays intact when it's a real
+      // product name, and "Clothes T-shirt XL" gets split correctly.
+      return { product_name: s, quantity };
     });
 
     return { customer_name, whatsapp, email, items, payment_method };
