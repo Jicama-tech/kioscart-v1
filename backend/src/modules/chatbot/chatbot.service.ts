@@ -1043,6 +1043,53 @@ Global rules:
                 }
               }
             }
+            // 6. Fuzzy multi-layer: the caller lumped several leaves into
+            // variant_title (e.g. "option 9 T-shirt XL"). Tokenise the string,
+            // strip filler words, and match each known option / subcategory /
+            // variant by substring. Only accept when at least one layer matches.
+            if (!variantTitle && !subcategoryName && !optionTitle) {
+              const filler = new Set(["option", "size", "subcategory", "variant", "in", "of", "-", ">", ","]);
+              const haystack = q;
+              const normalise = (s: any) => String(s || "").toLowerCase().trim();
+              // productOption
+              for (const o of (prod.productOptions || [])) {
+                const t = normalise(o.title);
+                if (t && (new RegExp(`(^|\\W)${t}(\\W|$)`).test(haystack))) {
+                  optionTitle = o.title;
+                  optionPrice = o.isDiscounted && o.discountedPrice ? o.discountedPrice : o.price;
+                  break;
+                }
+              }
+              // subcategory
+              for (const sc of (prod.subcategories || [])) {
+                const n = normalise(sc.name);
+                if (n && haystack.includes(n)) {
+                  subcategoryName = sc.name;
+                  // variant inside that subcategory
+                  for (const v of (sc.variants || [])) {
+                    const vt = normalise(v.title);
+                    if (vt && (new RegExp(`(^|\\W)${vt}(\\W|$)`).test(haystack))) {
+                      variantTitle = v.title;
+                      price = v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price;
+                      break;
+                    }
+                  }
+                  if (!variantTitle) price = sc.basePrice ?? prod.price;
+                  break;
+                }
+              }
+              // top-level variant if no subcategory used
+              if (!subcategoryName && !variantTitle) {
+                for (const v of (prod.variants || [])) {
+                  const vt = normalise(v.title);
+                  if (vt && (new RegExp(`(^|\\W)${vt}(\\W|$)`).test(haystack))) {
+                    variantTitle = v.title;
+                    price = v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price;
+                    break;
+                  }
+                }
+              }
+            }
             if (!variantTitle && !subcategoryName && !optionTitle) {
               return { error: `No variant/subcategory/option matching "${it.variant_title}" on ${prod.name}`, available: avail() };
             }
