@@ -257,6 +257,17 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
   // dashboard | kiosk | orders | crm | products | storefront | settings | general
   private async routeToTab(shopkeeperId: string, message: string): Promise<string> {
     const validTabs = Object.keys(ChatbotService.TAB_TOOLS);
+
+    // Heuristic shortcut — unambiguous phrases bypass the LLM entirely.
+    // Saves tokens and guarantees correct routing regardless of model.
+    const m = message.toLowerCase().trim();
+    if (/\b(place|create|new|take|ring up|ringup)\s+(an?\s+)?order\b/.test(m)) return "kiosk";
+    if (/\b(checkout|kiosk mode)\b/.test(m)) return "kiosk";
+    if (/\b(pending orders|order status|mark order|confirm payment|update order|cancel order)\b/.test(m)) return "orders";
+    if (/\b(revenue|analytics|stats|performance|how is my shop)\b/.test(m)) return "dashboard";
+    if (/\b(add|edit|delete|remove|update)\s+(a\s+)?(product|variant|subcategory|option)\b/.test(m)) return "products";
+    if (/\b(low stock|top products|show products|show menu|list products)\b/.test(m)) return "products";
+
     // Last 2 turns keep the router anchored when the user writes a follow-up.
     const recent = this.historyAsMessages(shopkeeperId, 4);
     try {
@@ -269,13 +280,15 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
 
 Tabs:
 - dashboard: analytics, revenue, stats, performance, "how is my shop doing"
-- kiosk: place an order for a walk-in/in-store customer, generate payment QR, POS
-- orders: list orders, order status updates, payment confirmations, Gmail-matched payments
+- **kiosk**: CREATE / PLACE a new order for a walk-in / in-store / over-the-counter customer, generate payment QR, issue receipt. Phrases like "place order for X", "create order", "new order", "take order", "ring up", "checkout for", "kiosk" → ALWAYS kiosk.
+- orders: LIST / VIEW / UPDATE STATUS of EXISTING orders, confirm Gmail-matched payments. Phrases like "show pending orders", "mark order X as ready", "confirm payment for order X" → orders. Does NOT create new orders.
 - crm: customer list, customer details, customer messaging
-- products: product catalog, inventory, prices, variants, edit/create/delete products, low stock
+- products: product catalog, inventory, prices, variants, edit/create/delete PRODUCTS (not orders), low stock
 - storefront: store branding, banners, colors, logo, SEO, theme/design
 - settings: shop profile, operators, coupons, tax/discount, pickup settings, subscription plan, shop details
 - general: greetings, help, unclear or off-topic
+
+KEY RULE: creating / placing a new order = **kiosk**. Managing existing orders = **orders**. Never confuse them.
 
 If the latest message is a short follow-up / clarification to recent turns (e.g. the user just picked a variant you had asked about), stick with the tab that fits the overall flow — usually the same tab the earlier messages were on.
 
