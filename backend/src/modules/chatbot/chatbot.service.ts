@@ -190,10 +190,11 @@ Focus: orders, order status, payment tracking (Gmail-matched payments).
 Focus: customer list, profiles, order history, and contact CRUD.
 
 Read:
-- "how many customers" / "total customers" → get_customers. Richer dashboard → get_crm_stats.
-- "show customers" / "list customers" / "VIP customers" → list_customers (use vip_only=true for VIP). Pass search="<term>" to filter by name, phone, or email.
-- "tell me about <customer>" / "show <phone|email>" → get_customer.
-- "orders for <customer>" → get_customer_orders.
+- **"show all customers" / "show customer list" / "list customers"** → call list_customers WITHOUT a search filter. Return the total count plus the customer list in a readable table (name, phone, email, orderCount, totalSpent, status).
+- **"customer <name>" / "show <name>" / "show customer <phone|email>"** → call get_customer with the identifier. Present: full contact info, join date, orderCount, totalSpent, avg order value, first/last order date, status badge (vip/active/inactive), and the FULL orderHistory from the tool response (don't truncate unless the list is very long — then show the most recent 20 and mention the rest).
+- "VIP customers" → list_customers(vip_only: true).
+- "how many customers" / "total customers" → get_customers (quick count). For richer dashboard use get_crm_stats.
+- "orders for <customer>" / "what did <customer> order last" → get_customer_orders.
 
 Write:
 - "add customer <name>, <phone>, <email>" → create_customer. Require first_name, last_name, whatsapp; email is optional.
@@ -1445,12 +1446,27 @@ Global rules:
           email: user.email,
           whatsapp: user.whatsAppNumber,
           provider: user.provider,
+          joinDate: (user as any).createdAt,
           orderCount: orders.length,
-          totalSpent,
+          totalSpent: Math.round(totalSpent * 100) / 100,
           avgOrderValue: orders.length ? Math.round((totalSpent / orders.length) * 100) / 100 : 0,
+          firstOrderDate: orders[orders.length - 1]?.createdAt,
           lastOrderDate: orders[0]?.createdAt,
           status: totalSpent > 100 ? "vip" : orders.length ? "active" : "inactive",
-          recentOrders: orders.slice(0, 5).map((o: any) => ({ orderId: o.orderId, status: o.status, totalAmount: o.totalAmount, createdAt: o.createdAt })),
+          // Full history — order by most recent first
+          orderHistory: orders.map((o: any) => ({
+            orderId: o.orderId,
+            status: o.status,
+            totalAmount: o.totalAmount,
+            orderType: o.orderType,
+            paymentConfirmed: o.paymentConfirmed,
+            createdAt: o.createdAt,
+            items: (o.items || []).map((i: any) => {
+              const extras = [i.subcategoryName, i.variantTitle].filter(Boolean).join(" > ");
+              const optPart = i.optionTitle ? ` [opt ${i.optionTitle}]` : "";
+              return `${i.quantity}× ${i.productName}${extras ? ` (${extras})` : ""}${optPart}`;
+            }),
+          })),
         };
       }
       case "get_customer_orders": {
