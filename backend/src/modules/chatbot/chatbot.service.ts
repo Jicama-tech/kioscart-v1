@@ -295,6 +295,10 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
     // Heuristic shortcut — unambiguous phrases bypass the LLM entirely.
     // Saves tokens and guarantees correct routing regardless of model.
     const m = message.toLowerCase().trim();
+    // CRM first — "add customer" must not be confused with "add" → products.
+    if (/\b(add|new|create|register)\s+(a\s+)?(customer|client|buyer|contact)\b/.test(m)) return "crm";
+    if (/\b(edit|update|change|remove|delete)\s+(a\s+)?(customer|client|contact)\b/.test(m)) return "crm";
+    if (/\b(customer list|list customers|show customers|all customers|my customers|vip customers|show customer|customer details|crm stats)\b/.test(m)) return "crm";
     if (/\b(place|create|new|take|ring up|ringup)\s+(an?\s+)?order\b/.test(m)) return "kiosk";
     if (/\b(checkout|kiosk mode)\b/.test(m)) return "kiosk";
     if (/\b(pending orders|order status|mark order|confirm payment|update order|cancel order)\b/.test(m)) return "orders";
@@ -695,8 +699,13 @@ Global rules:
   private normaliseEmail(raw: any): string | undefined {
     if (!raw) return undefined;
     let s = String(raw).trim().toLowerCase();
-    // "foo at bar.com" → "foo@bar.com", "foo at bar dot com" → "foo@bar.com"
-    s = s.replace(/\s+at\s+/g, "@").replace(/\s+dot\s+/g, ".");
+    // Common voice/IME variants for @ and .
+    // "at the rate" (Indian English), "at rate", "at" → @
+    // "dot" → .
+    s = s.replace(/\s+at\s+the\s+rate\s+/g, "@")
+         .replace(/\s+at\s+rate\s+/g, "@")
+         .replace(/\s+at\s+/g, "@")
+         .replace(/\s+dot\s+/g, ".");
     // Remove stray spaces inside the email
     s = s.replace(/\s+/g, "");
     return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : undefined;
