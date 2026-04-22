@@ -17,10 +17,19 @@ export type BotAction =
     };
 export interface BotResponse { text: string; quickActions?: QuickAction[]; botAction?: BotAction; }
 
+interface ConvEntry { role: "user" | "assistant"; content: string; ts: number }
+
 @Injectable()
 export class ChatbotService {
   private logger = new Logger(ChatbotService.name);
   private ai: OpenAI;
+  // Rolling per-shopkeeper chat history. Keeps last MAX_TURNS pairs for ~TTL_MINUTES
+  // so follow-ups like "use T-shirt XL" are interpreted in the context of the prior
+  // order attempt. In-memory is fine for a single-node dev server; for a multi-node
+  // prod deploy swap this for Redis keyed on shopkeeperId.
+  private conversations = new Map<string, ConvEntry[]>();
+  private static readonly MAX_TURNS = 6; // i.e. 12 messages
+  private static readonly TTL_MINUTES = 30;
 
   constructor(
     @InjectModel("Product") private productModel: Model<any>,
@@ -210,12 +219,15 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
       const shopkeeper: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
       const shopName = shopkeeper?.shopName || "Store";
 
-      // Stage 1 — router: classify the message into a tab.
-      const tab = await this.routeToTab(message);
+      // Stage 1 — router: classify the message into a tab. Give it the last
+      // few turns so mid-flow follow-ups ("use T-shirt XL") stay on the same tab.
+      const tab = await this.routeToTab(shopkeeperId, message);
       this.logger.log(`[Router] "${message.slice(0, 60)}" → ${tab}`);
 
       // Stage 2 — specialist for that tab runs the tool-calling loop.
-      return await this.runSpecialist(shopkeeperId, message, tab, shopName);
+      const reply = await this.runSpecialist(shopkeeperId, message, tab, shopName);
+      this.appendHistory(shopkeeperId, message, reply.text);
+      return reply;
     } catch (error) {
       const detail = error?.response?.data?.error?.failed_generation || error?.error?.failed_generation || "";
       this.logger.error(`AI Error: ${error.message}${detail ? ` | failed_generation: ${JSON.stringify(detail).slice(0, 500)}` : ""}`);
@@ -225,8 +237,10 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
 
   // Stage 1 — small, cheap classification call. Returns one of:
   // dashboard | kiosk | orders | crm | products | storefront | settings | general
-  private async routeToTab(message: string): Promise<string> {
+  private async routeToTab(shopkeeperId: string, message: string): Promise<string> {
     const validTabs = Object.keys(ChatbotService.TAB_TOOLS);
+    // Last 2 turns keep the router anchored when the user writes a follow-up.
+    const recent = this.historyAsMessages(shopkeeperId, 4);
     try {
       const res = await this.ai.chat.completions.create({
         model: this.model,
@@ -245,8 +259,11 @@ Tabs:
 - settings: shop profile, operators, coupons, tax/discount, pickup settings, subscription plan, shop details
 - general: greetings, help, unclear or off-topic
 
+If the latest message is a short follow-up / clarification to recent turns (e.g. the user just picked a variant you had asked about), stick with the tab that fits the overall flow — usually the same tab the earlier messages were on.
+
 Return just the id.`,
           },
+          ...recent,
           { role: "user", content: message },
         ],
         max_tokens: 12,
@@ -285,8 +302,10 @@ Global rules:
 - Suggest 2-3 follow-up actions in your reply text.
 - **Language matching**: reply in the SAME language/script the shopkeeper wrote in. If they write in English, reply in English. If they write in Hindi (Devanagari), reply in Hindi. Hinglish (Hindi words in Latin script, e.g. "aaj ka order kya hai") → reply in Hinglish. Same rule for Tamil, Malay, Chinese, Singlish, or any other language. Do NOT default to Hindi when the user wrote English. Recognise period words in the user's language (e.g. "today/aaj/今日", "last month/pichhla mahina/上个月") but match their reply language.`;
 
+    const history = this.historyAsMessages(shopkeeperId);
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: `${prompt}\n${sysCommon}` },
+      ...history,
       { role: "user", content: message },
     ];
 
@@ -390,6 +409,31 @@ Global rules:
       { label: "Analytics", action: "this month report" },
       { label: "Payments", action: "payment summary" },
     ];
+  }
+
+  // --- conversation memory helpers ---
+  private getHistory(sid: string): ConvEntry[] {
+    const cutoff = Date.now() - ChatbotService.TTL_MINUTES * 60 * 1000;
+    const all = this.conversations.get(sid) || [];
+    const live = all.filter(e => e.ts >= cutoff);
+    if (live.length !== all.length) this.conversations.set(sid, live);
+    return live;
+  }
+
+  private appendHistory(sid: string, user: string, assistant: string) {
+    const now = Date.now();
+    const hist = this.getHistory(sid);
+    hist.push({ role: "user", content: user, ts: now });
+    hist.push({ role: "assistant", content: assistant, ts: now });
+    // Keep last MAX_TURNS * 2 messages
+    const max = ChatbotService.MAX_TURNS * 2;
+    if (hist.length > max) hist.splice(0, hist.length - max);
+    this.conversations.set(sid, hist);
+  }
+
+  private historyAsMessages(sid: string, limit = ChatbotService.MAX_TURNS * 2): OpenAI.ChatCompletionMessageParam[] {
+    const hist = this.getHistory(sid).slice(-limit);
+    return hist.map(e => ({ role: e.role, content: e.content }));
   }
 
   // Recover from Groq's llama-3.x text-wrapped tool calls, e.g.:
