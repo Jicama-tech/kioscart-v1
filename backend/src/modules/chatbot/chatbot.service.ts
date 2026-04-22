@@ -436,7 +436,17 @@ Global rules:
       const toolMessages: any[] = [...messages, assistantMsg];
 
       for (const tc of assistantMsg.tool_calls) {
-        const args = JSON.parse(tc.function.arguments || "{}");
+        // The 8B fallback sometimes returns "null" or malformed JSON as the args
+        // payload. Normalise to an empty object so every executor case can safely
+        // read input.<field> without guarding.
+        let args: any = {};
+        try {
+          const raw = tc.function.arguments;
+          if (raw && raw !== "null") args = JSON.parse(raw) || {};
+        } catch {
+          args = {};
+        }
+        if (!args || typeof args !== "object") args = {};
         const result = await this.executeTool(shopkeeperId, tc.function.name, args);
         toolMessages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         if (tc.function.name === "navigate_to") {
