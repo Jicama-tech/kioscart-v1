@@ -367,8 +367,10 @@ Global rules:
 - **Language matching**: reply in the SAME language/script the shopkeeper wrote in. If they write in English, reply in English. If they write in Hindi (Devanagari), reply in Hindi. Hinglish (Hindi words in Latin script, e.g. "aaj ka order kya hai") → reply in Hinglish. Same rule for Tamil, Malay, Chinese, Singlish, or any other language. Do NOT default to Hindi when the user wrote English. Recognise period words in the user's language (e.g. "today/aaj/今日", "last month/pichhla mahina/上个月") but match their reply language.`;
 
     const history = this.historyAsMessages(shopkeeperId);
+    const lang = this.detectLanguage(message);
+    const langDirective = `REPLY LANGUAGE: ${lang}. This is mandatory — the shopkeeper's message is in ${lang}, so every word of your response must be in ${lang}. Ignore any earlier replies that used a different language.`;
     const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: `${prompt}\n${sysCommon}` },
+      { role: "system", content: `${langDirective}\n\n${prompt}\n${sysCommon}` },
       ...history,
       { role: "user", content: message },
     ];
@@ -649,6 +651,19 @@ Global rules:
     }
 
     return { text, quickActions: this.suggestActions("order"), botAction };
+  }
+
+  // Quick language/script detection so we can force the specialist to reply in kind.
+  // Returns one of: Hindi (Devanagari), Tamil, Chinese, Arabic, Hinglish, English.
+  private detectLanguage(message: string): string {
+    const s = message || "";
+    if (/[\u0900-\u097F]/.test(s)) return "Hindi (Devanagari script)";
+    if (/[\u0B80-\u0BFF]/.test(s)) return "Tamil";
+    if (/[\u4E00-\u9FFF]/.test(s)) return "Chinese";
+    if (/[\u0600-\u06FF]/.test(s)) return "Arabic";
+    // Hinglish = Latin script with common Hindi words
+    if (/\b(aaj|kal|kya|hai|nahi|nahin|kar|karo|chahiye|kitna|kitni|kitne|mera|mere|meri|tumhara|shop|dukaan|order|hain|theek|accha|ji|haan|dena|do|lena|lo|paisa|rupay|bhej|bhejo|batao|bataao|namaste)\b/i.test(s)) return "Hinglish (Hindi in Latin script)";
+    return "English";
   }
 
   // Flexible customer lookup by phone, email, or name (any one is enough).
