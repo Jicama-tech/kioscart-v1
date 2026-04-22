@@ -129,7 +129,7 @@ export class ChatbotService {
     dashboard: ["get_today_orders", "get_today_revenue", "get_analytics", "get_top_products", "get_product_count", "get_customers", "get_pending_orders"],
     kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr", "get_order_receipt", "get_order_detail"],
     orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "get_matched_payments", "get_unmatched_payments"],
-    crm: ["get_customers", "list_customers", "get_customer", "get_customer_orders", "create_customer", "update_customer", "get_crm_stats"],
+    crm: ["list_customers", "get_customer", "get_customer_orders", "create_customer", "update_customer", "get_crm_stats"],
     products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "update_product", "update_variant", "update_subcategory", "update_option", "add_variant", "remove_variant", "add_subcategory", "remove_subcategory", "add_option", "remove_option", "delete_product", "get_top_products"],
     storefront: [], // TODO phase 2: storefront config + branding tools
     settings: ["get_shop_info", "get_plan_info", "get_operators", "get_coupons"], // TODO phase 2: profile/coupon/operator edit tools
@@ -190,10 +190,10 @@ Focus: orders, order status, payment tracking (Gmail-matched payments).
 Focus: customer list, profiles, order history, and contact CRUD.
 
 Read:
-- **"show all customers" / "show customer list" / "list customers"** → call list_customers WITHOUT a search filter. Return the total count plus the customer list in a readable table (name, phone, email, orderCount, totalSpent, status).
-- **"customer <name>" / "show <name>" / "show customer <phone|email>"** → call get_customer with the identifier. Present: full contact info, join date, orderCount, totalSpent, avg order value, first/last order date, status badge (vip/active/inactive), and the FULL orderHistory from the tool response (don't truncate unless the list is very long — then show the most recent 20 and mention the rest).
-- "VIP customers" → list_customers(vip_only: true).
-- "how many customers" / "total customers" → get_customers (quick count). For richer dashboard use get_crm_stats.
+- **"show all customers" / "show customer list" / "list customers" / "how many customers"** → ALWAYS call list_customers with no filter. The tool response includes \`count\` (the total) AND \`customers\` (the array). Render a markdown table with columns: Name | Phone | Email | Orders | Spent | Status. Put the total count on top, e.g. "You have **11** customers:".
+- **"customer <name>" / "show <name>" / "show customer <phone|email>"** → call get_customer with the identifier. Present: full contact info, join date, orderCount, totalSpent, avg order value, first/last order date, status (vip/active/inactive), and the FULL orderHistory from the tool response (summarise to 20 most recent only if the list is very long).
+- "VIP customers" → list_customers with vip_only=true.
+- "CRM stats" / "dashboard" → get_crm_stats.
 - "orders for <customer>" / "what did <customer> order last" → get_customer_orders.
 
 Write:
