@@ -794,7 +794,30 @@ Global rules:
         for (const it of input.items) {
           if (!it?.product_name) return { error: "Each item needs a product_name" };
           const quantity = Number(it.quantity || 1);
-          const prodMatches = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: it.product_name, $options: "i" } }).lean();
+          // Primary lookup
+          let prodMatches = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: it.product_name, $options: "i" } }).lean();
+
+          // Forgiveness path: weaker LLMs sometimes lump the whole descriptor into
+          // product_name (e.g. "Clothes 9 XL" → 0 matches). If product_name has
+          // spaces and no match, try progressively shorter prefixes and push the
+          // remainder into variant_title for the resolver below.
+          if (prodMatches.length === 0 && typeof it.product_name === "string" && it.product_name.includes(" ")) {
+            const words = it.product_name.trim().split(/\s+/);
+            for (let n = words.length - 1; n >= 1; n--) {
+              const guess = words.slice(0, n).join(" ");
+              const rem = words.slice(n).join(" ");
+              const cand = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: `^${guess}$|^${guess}\\b`, $options: "i" } }).lean();
+              if (cand.length === 1) {
+                prodMatches = cand;
+                it.product_name = cand[0].name;
+                if (!it.variant_title) it.variant_title = rem;
+                else it.variant_title = `${rem} ${it.variant_title}`.trim();
+                this.logger.log(`[place_order] auto-split product_name → "${cand[0].name}" + variant "${it.variant_title}"`);
+                break;
+              }
+            }
+          }
+
           if (prodMatches.length === 0) return { error: `Product not found: "${it.product_name}"` };
           if (prodMatches.length > 1) return { error: `Multiple products matched "${it.product_name}"`, matches: prodMatches.slice(0, 5).map((p: any) => p.name) };
           const prod: any = prodMatches[0];
