@@ -65,7 +65,7 @@ export class ChatbotService {
     { type: "function", function: { name: "update_option", description: "Update a product option (e.g. Size/Quantity/Pack) by its title. Only for products that have productOptions.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "option_title"] } } },
     { type: "function", function: { name: "delete_product", description: "Soft-delete a product by name. Asks for confirmation implicitly — only call if user clearly said to delete/remove.", parameters: { type: "object", properties: { product_name: { type: "string" } }, required: ["product_name"] } } },
     { type: "function", function: { name: "confirm_payment_by_order_id", description: "Confirm a single matched payment for a specific order — moves that order from pending to processing. Only works when a payment email already matched that order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
-    { type: "function", function: { name: "place_order", description: "Create a new kiosk / walk-in order. Looks up each product by name, resolves variants if given, applies the shop's tax and discount percentages, then creates the order. Returns the new orderId and the final total (after tax/discount). If payment_method is 'qr', follow with get_payment_qr. If 'cash', the order is already marked paid — offer get_order_receipt.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Optional WhatsApp number (include country code)" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Optional: variant/size/subcategory name if the product has variants" }, quantity: { type: "number" } }, required: ["product_name", "quantity"] } }, payment_method: { type: "string", enum: ["qr", "cash"], description: "qr = generate a payment QR for customer; cash = already paid in cash. Defaults to qr." }, instructions: { type: "string", description: "Optional instructions / notes for this order" } }, required: ["customer_name", "items"] } } },
+    { type: "function", function: { name: "place_order", description: "Create a kiosk / walk-in order. Each item is resolved against the shopkeeper's catalog in this order: top-level variant → subcategory > variant → subcategory (by name) → productOption (Size/Quantity/Pack) → simple product. Applies the shop's discount% then tax% (matching Kiosk Mode). Returns orderId + breakdown. If payment_method='qr' the specialist should immediately call get_payment_qr; if 'cash' it should immediately call get_order_receipt. Require the customer's name + whatsapp + email before calling this tool — ask the shopkeeper for any missing field.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Customer WhatsApp number (include country code, e.g. +919876543210)" }, email: { type: "string", description: "Customer email" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Optional: variant title, subcategory name, or productOption title (e.g. 'Large', 'Pack of 3', 'Red')" }, quantity: { type: "number", description: "Defaults to 1 if omitted" } }, required: ["product_name"] } }, payment_method: { type: "string", enum: ["qr", "cash"], description: "qr = generate a payment QR; cash = already paid. Defaults to qr." }, instructions: { type: "string", description: "Optional notes / instructions for this order" } }, required: ["customer_name", "items"] } } },
     { type: "function", function: { name: "get_payment_qr", description: "Generate a payment QR for an existing order. Returns UPI payload for India or PayNow data for Singapore, based on shopkeeper's country setting. Call after a QR-payment place_order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
     { type: "function", function: { name: "get_order_receipt", description: "Return the URL of the PDF receipt for an order. Use after a cash order, or whenever the shopkeeper asks for a receipt.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
     { type: "function", function: { name: "get_analytics", description: "Get analytics for a period", parameters: { type: "object", properties: { period: { type: "string", enum: ["monthly", "lastmonth", "quarterly", "lastquarter", "yearly", "lastyear"] } }, required: ["period"] } } },
@@ -108,19 +108,27 @@ Focus: analytics, performance overview, revenue trends, top products, customer c
     kiosk: `You are the **Kiosk** specialist for "{SHOP}" on KiosCart. You act like an in-store POS over chat.
 Focus: placing walk-in orders, generating payment QRs, and producing receipts.
 
+REQUIRED before place_order: customer **name**, **WhatsApp number** (with country code), **email**. If any of these three is missing from the shopkeeper's message, ASK for the missing ones and DO NOT call place_order yet. Only skip a field if the shopkeeper explicitly says "skip whatsapp" or "no email".
+
+Item format (the shopkeeper separates items with commas):
+- Simple product:         "Mango Juice"                → { product_name: "Mango Juice" } (quantity defaults to 1)
+- With quantity:          "Mango Juice x2" or "2 Chai" → { product_name: "Mango Juice", quantity: 2 }
+- With variant:           "Pizza Large"                → { product_name: "Pizza", variant_title: "Large" }
+- With subcategory:       "T-shirt Summer collection"  → { product_name: "T-shirt", variant_title: "Summer collection" }
+- With productOption:     "Dal Pack of 3"              → { product_name: "Dal", variant_title: "Pack of 3" }
+Use the 'variant_title' field for ALL of: top-level variants, subcategory names, subcategory variants, and productOption titles — place_order will resolve the right one. If place_order returns "available" candidates, show them to the shopkeeper and ask which one they meant.
+
 Flow:
-1. Parse the shopkeeper's request into items. Each item needs a product_name and quantity; if they mention a size/variant/pack (Large, 500ml, Regular, Small box), pass it as variant_title.
-2. Detect the payment method from the message:
-   - Words like "cash", "paid in cash", "cash mein" → payment_method="cash"
-   - "qr", "scan", "upi", "paynow", or no mention → payment_method="qr" (default)
-3. Call place_order with all items + customer_name + payment_method + optional instructions.
-4. After place_order succeeds:
-   - If payment_method="qr" → IMMEDIATELY call get_payment_qr with the returned orderId.
-   - If payment_method="cash" → IMMEDIATELY call get_order_receipt to give the customer a PDF receipt.
-5. In your reply, show the breakdown (subtotal, discount, tax, total) from place_order's response, using the shop's currency style.
+1. Confirm name + whatsapp + email are present; ask for anything missing.
+2. Parse the comma-separated items.
+3. Detect payment method: words like "cash" → payment_method="cash". Otherwise default to "qr".
+4. Call place_order with customer_name, whatsapp, email, items, payment_method, optional instructions.
+5. After place_order succeeds:
+   - payment_method="qr" → IMMEDIATELY call get_payment_qr with the returned orderId.
+   - payment_method="cash" → IMMEDIATELY call get_order_receipt to give the customer a PDF receipt.
+6. In your reply, show the breakdown (subtotal, discount, tax, total) from place_order's response.
 
 Other rules:
-- place_order returns ambiguous matches → show the candidates and ask the shopkeeper which one.
 - "What products do we have?" / "show menu" → get_products.
 - "Show order X" / "what's in order X" → get_order_detail.
 - "Receipt for order X" → get_order_receipt.`,
@@ -526,45 +534,66 @@ Global rules:
         if (!Array.isArray(input.items) || input.items.length === 0) return { error: "No items provided" };
         const resolved: any[] = [];
         for (const it of input.items) {
-          if (!it?.product_name || !it?.quantity) return { error: "Each item needs product_name and quantity" };
+          if (!it?.product_name) return { error: "Each item needs a product_name" };
+          const quantity = Number(it.quantity || 1);
           const prodMatches = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: it.product_name, $options: "i" } }).lean();
           if (prodMatches.length === 0) return { error: `Product not found: "${it.product_name}"` };
           if (prodMatches.length > 1) return { error: `Multiple products matched "${it.product_name}"`, matches: prodMatches.slice(0, 5).map((p: any) => p.name) };
           const prod: any = prodMatches[0];
-          let price = prod.price;
+
+          // Resolve variant/subcategory/option. The same `variant_title` field handles
+          // all three because the shopkeeper writes free-form (e.g. "Large", "Pack of 3").
+          let price = prod.isDiscounted && prod.discountedPrice ? prod.discountedPrice : prod.price;
           let variantTitle: string | undefined;
           let subcategoryName: string | undefined;
+          let optionTitle: string | undefined;
+          let optionPrice: number | undefined;
           if (it.variant_title) {
             const q = String(it.variant_title).toLowerCase();
+            // 1. Top-level variants (match by title or SKU)
             const top = (prod.variants || []).find((v: any) => (v.title || "").toLowerCase().includes(q) || (v.sku || "").toLowerCase().includes(q));
             if (top) {
-              price = top.price;
+              price = top.isDiscounted && top.discountedPrice ? top.discountedPrice : top.price;
               variantTitle = top.title;
-            } else {
+            }
+            // 2. Subcategory > variants
+            if (!variantTitle) {
               for (const sc of (prod.subcategories || [])) {
                 const scv = (sc.variants || []).find((v: any) => (v.title || "").toLowerCase().includes(q) || (v.sku || "").toLowerCase().includes(q));
                 if (scv) {
-                  price = scv.price;
+                  price = scv.isDiscounted && scv.discountedPrice ? scv.discountedPrice : scv.price;
                   variantTitle = scv.title;
                   subcategoryName = sc.name;
                   break;
                 }
               }
-              if (!variantTitle) {
-                const sc = (prod.subcategories || []).find((s: any) => (s.name || "").toLowerCase().includes(q));
-                if (sc) {
-                  price = sc.basePrice ?? prod.price;
-                  subcategoryName = sc.name;
-                }
+            }
+            // 3. Subcategory by name
+            if (!variantTitle && !subcategoryName) {
+              const sc = (prod.subcategories || []).find((s: any) => (s.name || "").toLowerCase().includes(q));
+              if (sc) {
+                price = sc.basePrice ?? prod.price;
+                subcategoryName = sc.name;
               }
             }
+            // 4. productOptions (Size / Quantity / Pack)
             if (!variantTitle && !subcategoryName) {
+              const opt = (prod.productOptions || []).find((o: any) => (o.title || "").toLowerCase().includes(q));
+              if (opt) {
+                price = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
+                optionTitle = opt.title;
+                optionPrice = opt.price;
+              }
+            }
+            if (!variantTitle && !subcategoryName && !optionTitle) {
               return {
-                error: `Variant "${it.variant_title}" not found for ${prod.name}`,
-                availableVariants: [
-                  ...((prod.variants || []).map((v: any) => v.title)),
-                  ...((prod.subcategories || []).flatMap((sc: any) => [sc.name, ...((sc.variants || []).map((v: any) => `${sc.name} > ${v.title}`))])),
-                ],
+                error: `No variant/subcategory/option matching "${it.variant_title}" on ${prod.name}`,
+                available: {
+                  variants: (prod.variants || []).map((v: any) => v.title),
+                  subcategories: (prod.subcategories || []).map((sc: any) => sc.name),
+                  subcategoryVariants: (prod.subcategories || []).flatMap((sc: any) => (sc.variants || []).map((v: any) => `${sc.name} > ${v.title}`)),
+                  options: (prod.productOptions || []).map((o: any) => o.title),
+                },
               };
             }
           }
@@ -572,9 +601,11 @@ Global rules:
             productId: prod._id.toString(),
             productName: prod.name,
             price,
-            quantity: Number(it.quantity),
+            quantity,
             variantTitle,
             subcategoryName,
+            optionTitle,
+            optionPrice,
             image: prod.images?.[0],
             trackQuantity: !!prod.trackQuantity,
           });
@@ -601,16 +632,21 @@ Global rules:
           // Resolve user by WhatsApp number, same pattern as OrdersService.createOrder.
           // For walk-in kiosk orders without a whatsapp, we reuse a single placeholder
           // "kiosk-order" user per shopkeeper's system to satisfy the required userId.
+          const email = input.email ? String(input.email).trim().toLowerCase() : undefined;
           let user: any = await this.userModel.findOne({ whatsAppNumber }).lean();
           if (!user) {
             user = await this.userModel.create({
               name: input.customer_name || "Kiosk Customer",
-              email: null,
+              email: email || null,
               password: null,
               provider: "kiosk",
               providerId: null,
               whatsAppNumber,
             });
+          } else if (email && !user.email) {
+            // Backfill email on an existing phone-only user
+            await this.userModel.updateOne({ _id: user._id }, { $set: { email } });
+            user.email = email;
           }
           const order: any = await this.orderModel.create({
             orderId,
@@ -627,6 +663,7 @@ Global rules:
             lastName: nameParts.slice(1).join(" ") || "",
             customerName: input.customer_name,
             customerWhatsApp: whatsAppNumber !== "kiosk-order" ? whatsAppNumber : undefined,
+            customerEmail: email,
             status: isCash ? "processing" : "pending",
             paymentConfirmed: isCash,
             instructions: input.instructions || undefined,
