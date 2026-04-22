@@ -124,8 +124,13 @@ Item format (the shopkeeper separates items with commas). Each item maps to one 
 - productOption (Size/Pack):  "Dal Pack of 3"                 → { product_name: "Dal", variant_title: "Pack of 3" }
 - **Tree product** (subcategory → variant): "Pizza Veg Medium" → { product_name: "Pizza", subcategory_name: "Veg", variant_title: "Medium" }. Use BOTH fields when the shopkeeper names a subcategory AND a variant inside it (two levels deep).
 
-Rule of thumb: if the description after the product name has two distinct parts that could be "category + size", split them into subcategory_name + variant_title. If it's a single descriptor, put it in variant_title and the executor will try each layer.
-If place_order returns an "available" object with candidates, show the candidates to the shopkeeper and ask which one they meant.
+**When in doubt, call get_product_detail(product_name) FIRST** so you can see the real shape (variants / subcategories / options) and pick the right fields. This is much better than guessing and relying on place_order errors.
+
+Resolution order inside place_order (for reference — you don't need to replicate this):
+top-level variant → subcategory > variant → subcategory (by name) → productOption → auto-split "Subcat Variant" → error with candidates.
+
+Rule of thumb: if the description after the product name has two distinct parts that could be "subcategory + variant", ALWAYS split them into subcategory_name + variant_title. Free-form descriptors with spaces are also auto-split on the backend, but explicit is better.
+If place_order returns an "available" object with candidates, show the candidates to the shopkeeper in a short list and ask which one they meant.
 
 Flow:
 1. Confirm name + whatsapp + email are present; ask for anything missing.
@@ -757,6 +762,27 @@ Global rules:
                 price = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
                 optionTitle = opt.title;
                 optionPrice = opt.price;
+              }
+            }
+            // 5. Fallback: auto-split multi-word descriptors as subcategory + variant.
+            // Handles "Veg Medium", "Summer Red L", etc. where the LLM didn't use
+            // subcategory_name explicitly. Tries each subcategory whose name is a
+            // prefix of the descriptor, then looks for the remainder in its variants.
+            if (!variantTitle && !subcategoryName && !optionTitle && q.includes(" ")) {
+              outer: for (const sc of (prod.subcategories || [])) {
+                const scName = (sc.name || "").toLowerCase();
+                if (!scName || !q.startsWith(scName + " ")) continue;
+                const remainder = q.slice(scName.length).trim();
+                for (const v of (sc.variants || [])) {
+                  const vt = (v.title || "").toLowerCase();
+                  const vs = (v.sku || "").toLowerCase();
+                  if (vt === remainder || vt.includes(remainder) || vs === remainder) {
+                    price = v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price;
+                    variantTitle = v.title;
+                    subcategoryName = sc.name;
+                    break outer;
+                  }
+                }
               }
             }
             if (!variantTitle && !subcategoryName && !optionTitle) {
