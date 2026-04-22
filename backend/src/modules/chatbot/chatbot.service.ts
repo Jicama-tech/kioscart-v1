@@ -99,8 +99,9 @@ export class ChatbotService {
     dashboard: `You are the **Dashboard** specialist for "{SHOP}" on KiosCart.
 Focus: analytics, performance overview, revenue trends, top products, customer counts.
 - Always use tools — never guess numbers.
+- Period words map to tool periods: "today/aaj" → get_today_orders + get_today_revenue; "this month" → get_analytics(monthly); "last month/pichhla" → get_analytics(lastmonth); "this quarter" → get_analytics(quarterly); "last quarter" → get_analytics(lastquarter); "this year" → get_analytics(yearly); "last year" → get_analytics(lastyear).
 - Lead with the headline number in **bold**, then 1-2 supporting metrics.
-- For "how is my shop doing" questions, call get_analytics then get_today_revenue.
+- For generic "how is my shop doing" questions, call get_analytics(monthly) and format: revenue, orders, top products.
 - If the user asks for something that belongs to another tab (e.g. edit a product), briefly answer and suggest navigate_to.`,
     kiosk: `You are the **Kiosk** specialist for "{SHOP}" on KiosCart.
 Focus: placing walk-in / in-store orders and generating payment QR codes.
@@ -216,6 +217,8 @@ Return just the id.`,
 Global rules:
 - Be concise. Use **bold** for key numbers and order ids.
 - Always use tools to get real data — never make up numbers.
+- IMPORTANT: call tools via the structured tool-calling API only. NEVER write tool calls as text like "<function=name{...}>" or inside markdown — that is not a valid response.
+- If a tool returns an error, explain it to the shopkeeper in plain language and suggest what to do next.
 - Suggest 2-3 follow-up actions in your reply text.
 - Handle Hindi/Hinglish naturally.`;
 
@@ -224,13 +227,45 @@ Global rules:
       { role: "user", content: message },
     ];
 
-    const response = await this.ai.chat.completions.create({
-      model: this.model,
-      messages,
-      tools: tools.length > 0 ? tools : undefined,
-      tool_choice: tools.length > 0 ? "auto" : undefined,
-      max_tokens: 1024,
-    });
+    let response: any;
+    try {
+      response = await this.ai.chat.completions.create({
+        model: this.model,
+        messages,
+        tools: tools.length > 0 ? tools : undefined,
+        tool_choice: tools.length > 0 ? "auto" : undefined,
+        max_tokens: 1024,
+        temperature: 0,
+      });
+    } catch (err: any) {
+      // Groq llama-3.x sometimes emits <function=NAME{args}> as text instead of using
+      // the structured tool_calls API. The provider returns a 400 with the offending
+      // text in `failed_generation`. Parse and recover rather than fall through.
+      const failedGen =
+        err?.error?.failed_generation ||
+        err?.response?.data?.error?.failed_generation ||
+        "";
+      const parsed = this.parseMalformedToolCall(failedGen);
+      if (!parsed) throw err;
+      this.logger.warn(`Recovered malformed tool call: ${parsed.name}`);
+      response = {
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: null,
+              tool_calls: [
+                {
+                  id: `call_recovered_${Date.now()}`,
+                  type: "function",
+                  function: { name: parsed.name, arguments: JSON.stringify(parsed.args) },
+                },
+              ],
+            },
+          },
+        ],
+      };
+    }
 
     const assistantMsg = response.choices[0].message as any;
     let botAction: BotAction | undefined;
@@ -292,6 +327,20 @@ Global rules:
       { label: "Analytics", action: "this month report" },
       { label: "Payments", action: "payment summary" },
     ];
+  }
+
+  // Recover from Groq's llama-3.x text-wrapped tool calls, e.g.:
+  //   <function=get_analytics{"period":"lastmonth"}>
+  //   <function=navigate_to({"tab":"products"})>
+  private parseMalformedToolCall(text: string): { name: string; args: any } | null {
+    if (!text) return null;
+    const m = text.match(/<function\s*=\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(?\s*(\{[\s\S]*?\})\s*\)?\s*(?:\/?>|<\/function>)?/);
+    if (!m) return null;
+    try {
+      return { name: m[1], args: JSON.parse(m[2]) };
+    } catch {
+      return null;
+    }
   }
 
   private async findOneProduct(sid: string, query: string): Promise<{ product: any } | { error: string; matches?: string[] }> {
