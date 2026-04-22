@@ -677,6 +677,31 @@ Global rules:
     return "English";
   }
 
+  // Voice transcription spells things out: "at" for @, spaces in phone numbers,
+  // missing country codes, etc. Clean these up before storing.
+  private normalisePhone(raw: any, defaultCountryCode: string): string | null {
+    if (!raw) return null;
+    const s = String(raw).replace(/[\s\-()]+/g, "");
+    if (!s) return null;
+    if (s.startsWith("+")) return s; // already has country code
+    // 10+ digits starting with 0 → strip the 0 and prepend cc
+    if (/^0\d{10,}$/.test(s)) return defaultCountryCode + s.slice(1);
+    if (/^\d{10}$/.test(s)) return defaultCountryCode + s;
+    if (/^\d{8}$/.test(s) && defaultCountryCode === "+65") return defaultCountryCode + s;
+    if (/^\d{11,14}$/.test(s)) return "+" + s; // already has cc, missing plus
+    return /^\+?\d{6,15}$/.test(s) ? (s.startsWith("+") ? s : "+" + s) : null;
+  }
+
+  private normaliseEmail(raw: any): string | undefined {
+    if (!raw) return undefined;
+    let s = String(raw).trim().toLowerCase();
+    // "foo at bar.com" → "foo@bar.com", "foo at bar dot com" → "foo@bar.com"
+    s = s.replace(/\s+at\s+/g, "@").replace(/\s+dot\s+/g, ".");
+    // Remove stray spaces inside the email
+    s = s.replace(/\s+/g, "");
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : undefined;
+  }
+
   // Flexible customer lookup by phone, email, or name (any one is enough).
   private async findCustomer(input: { phone?: string; email?: string; name?: string }): Promise<any | null> {
     if (input.phone) {
@@ -1490,8 +1515,16 @@ Global rules:
         };
       }
       case "create_customer": {
-        const { first_name, last_name, whatsapp, email } = input;
-        if (!first_name || !last_name || !whatsapp) return { error: "first_name, last_name and whatsapp are required" };
+        const { first_name, last_name } = input;
+        if (!first_name || !last_name) return { error: "first_name and last_name are required" };
+        // Normalise voice-transcribed inputs: "8347 450600" → "+918347450600",
+        // "MK vartani at Gmail.com" → "mkvartani@gmail.com"
+        const sk: any = await this.shopkeeperModel.findById(sid).lean();
+        const country = (sk?.country || "IN").toString().trim().toUpperCase();
+        const defaultCC = country.startsWith("SG") || country.startsWith("SING") ? "+65" : "+91";
+        const whatsapp = this.normalisePhone(input.whatsapp, defaultCC);
+        if (!whatsapp) return { error: "A valid whatsapp number is required (include country code if possible)" };
+        const email = this.normaliseEmail(input.email);
         const existing: any = await this.userModel.findOne({ whatsAppNumber: whatsapp }).lean();
         if (existing) return { error: "A customer with that whatsapp already exists", existing: { id: existing._id.toString(), name: existing.name, email: existing.email } };
         const user = await this.userModel.create({
@@ -1513,8 +1546,14 @@ Global rules:
           const last = input.new_last_name ?? user.name?.split(" ")?.slice(1).join(" ") ?? "";
           updates.name = `${first} ${last}`.trim();
         }
-        if (input.new_whatsapp !== undefined) updates.whatsAppNumber = input.new_whatsapp;
-        if (input.new_email !== undefined) updates.email = input.new_email;
+        if (input.new_whatsapp !== undefined) {
+          const sk: any = await this.shopkeeperModel.findById(sid).lean();
+          const defaultCC = (sk?.country || "").toString().toUpperCase().startsWith("SG") ? "+65" : "+91";
+          const phone = this.normalisePhone(input.new_whatsapp, defaultCC);
+          if (!phone) return { error: "Invalid new_whatsapp" };
+          updates.whatsAppNumber = phone;
+        }
+        if (input.new_email !== undefined) updates.email = this.normaliseEmail(input.new_email);
         if (Object.keys(updates).length === 0) return { error: "No fields to update. Provide new_first_name / new_last_name / new_whatsapp / new_email." };
         await this.userModel.updateOne({ _id: user._id }, { $set: updates });
         return { success: true, customer: { id: user._id.toString(), ...updates } };
