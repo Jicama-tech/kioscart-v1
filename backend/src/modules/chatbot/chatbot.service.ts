@@ -1122,6 +1122,7 @@ Global rules:
 
           // Final unit price = (variant/sub base price OR product base price) + option add-on
           const unitPrice = (price || 0) + (optionPrice || 0);
+          this.logger.log(`[place_order] resolved ${prod.name} → option="${optionTitle}" (${optionPrice}) + subcat="${subcategoryName}" + variant="${variantTitle}" (${price}) = unit ${unitPrice} × qty ${quantity}`);
           resolved.push({
             productId: prod._id.toString(),
             productName: prod.name,
