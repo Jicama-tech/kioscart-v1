@@ -64,8 +64,9 @@ export class ChatbotService {
     { type: "function", function: { name: "update_option", description: "Update a product option (e.g. Size/Quantity/Pack) by its title. Only for products that have productOptions.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "option_title"] } } },
     { type: "function", function: { name: "delete_product", description: "Soft-delete a product by name. Asks for confirmation implicitly — only call if user clearly said to delete/remove.", parameters: { type: "object", properties: { product_name: { type: "string" } }, required: ["product_name"] } } },
     { type: "function", function: { name: "confirm_payment_by_order_id", description: "Confirm a single matched payment for a specific order — moves that order from pending to processing. Only works when a payment email already matched that order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
-    { type: "function", function: { name: "place_order", description: "Create a new order for a walk-in / phoned-in customer. Looks up each product by name, resolves variants if given, builds the cart, and creates a pending order. Returns the new orderId. Follow with get_payment_qr to show the customer a payment QR.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Optional WhatsApp number" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Optional: variant/size/subcategory name if the product has variants" }, quantity: { type: "number" } }, required: ["product_name", "quantity"] } } }, required: ["customer_name", "items"] } } },
-    { type: "function", function: { name: "get_payment_qr", description: "Generate a payment QR for an existing order. Returns UPI payload for India or PayNow data for Singapore, based on shopkeeper's country setting. Always call this AFTER place_order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
+    { type: "function", function: { name: "place_order", description: "Create a new kiosk / walk-in order. Looks up each product by name, resolves variants if given, applies the shop's tax and discount percentages, then creates the order. Returns the new orderId and the final total (after tax/discount). If payment_method is 'qr', follow with get_payment_qr. If 'cash', the order is already marked paid — offer get_order_receipt.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Optional WhatsApp number (include country code)" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Optional: variant/size/subcategory name if the product has variants" }, quantity: { type: "number" } }, required: ["product_name", "quantity"] } }, payment_method: { type: "string", enum: ["qr", "cash"], description: "qr = generate a payment QR for customer; cash = already paid in cash. Defaults to qr." }, instructions: { type: "string", description: "Optional instructions / notes for this order" } }, required: ["customer_name", "items"] } } },
+    { type: "function", function: { name: "get_payment_qr", description: "Generate a payment QR for an existing order. Returns UPI payload for India or PayNow data for Singapore, based on shopkeeper's country setting. Call after a QR-payment place_order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
+    { type: "function", function: { name: "get_order_receipt", description: "Return the URL of the PDF receipt for an order. Use after a cash order, or whenever the shopkeeper asks for a receipt.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
     { type: "function", function: { name: "get_analytics", description: "Get analytics for a period", parameters: { type: "object", properties: { period: { type: "string", enum: ["monthly", "lastmonth", "quarterly", "lastquarter", "yearly", "lastyear"] } }, required: ["period"] } } },
     { type: "function", function: { name: "get_today_revenue", description: "Get today's revenue", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_top_products", description: "Get top selling products", parameters: { type: "object", properties: {}, required: [] } } },
@@ -86,7 +87,7 @@ export class ChatbotService {
   // a tuned system prompt. Small focused tool lists = better tool-call accuracy.
   private static TAB_TOOLS: Record<string, string[]> = {
     dashboard: ["get_today_orders", "get_today_revenue", "get_analytics", "get_top_products", "get_product_count", "get_customers", "get_pending_orders"],
-    kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr"],
+    kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr", "get_order_receipt", "get_order_detail"],
     orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "get_matched_payments", "get_unmatched_payments"],
     crm: ["get_customers"], // TODO phase 2: customer detail + messaging tools
     products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "update_product", "update_variant", "update_subcategory", "update_option", "delete_product", "get_top_products"],
@@ -103,12 +104,25 @@ Focus: analytics, performance overview, revenue trends, top products, customer c
 - Lead with the headline number in **bold**, then 1-2 supporting metrics.
 - For generic "how is my shop doing" questions, call get_analytics(monthly) and format: revenue, orders, top products.
 - If the user asks for something that belongs to another tab (e.g. edit a product), briefly answer and suggest navigate_to.`,
-    kiosk: `You are the **Kiosk** specialist for "{SHOP}" on KiosCart.
-Focus: placing walk-in / in-store orders and generating payment QR codes.
-- To place an order: call place_order with the items. If an item mentions a size/variant (Large, 500ml, Pack of 2), include it as variant_title.
-- After place_order succeeds, IMMEDIATELY call get_payment_qr with the returned orderId so the customer sees a QR.
-- If place_order returns a product ambiguity, present the candidates and ask which one.
-- If the user just wants to browse products, use get_products.`,
+    kiosk: `You are the **Kiosk** specialist for "{SHOP}" on KiosCart. You act like an in-store POS over chat.
+Focus: placing walk-in orders, generating payment QRs, and producing receipts.
+
+Flow:
+1. Parse the shopkeeper's request into items. Each item needs a product_name and quantity; if they mention a size/variant/pack (Large, 500ml, Regular, Small box), pass it as variant_title.
+2. Detect the payment method from the message:
+   - Words like "cash", "paid in cash", "cash mein" → payment_method="cash"
+   - "qr", "scan", "upi", "paynow", or no mention → payment_method="qr" (default)
+3. Call place_order with all items + customer_name + payment_method + optional instructions.
+4. After place_order succeeds:
+   - If payment_method="qr" → IMMEDIATELY call get_payment_qr with the returned orderId.
+   - If payment_method="cash" → IMMEDIATELY call get_order_receipt to give the customer a PDF receipt.
+5. In your reply, show the breakdown (subtotal, discount, tax, total) from place_order's response, using the shop's currency style.
+
+Other rules:
+- place_order returns ambiguous matches → show the candidates and ask the shopkeeper which one.
+- "What products do we have?" / "show menu" → get_products.
+- "Show order X" / "what's in order X" → get_order_detail.
+- "Receipt for order X" → get_order_receipt.`,
     orders: `You are the **Orders & Payments** specialist for "{SHOP}" on KiosCart.
 Focus: orders, order status, payment tracking (Gmail-matched payments).
 - "pending orders" → get_pending_orders. "today" → get_today_orders.
@@ -564,9 +578,23 @@ Global rules:
             trackQuantity: !!prod.trackQuantity,
           });
         }
-        const totalAmount = resolved.reduce((s, r) => s + (r.price || 0) * (r.quantity || 0), 0);
+        // Match Kiosk UI's total calculation: subtotal → discount → + tax
+        const subtotal = resolved.reduce((s, r) => s + (r.price || 0) * (r.quantity || 0), 0);
+        const sk: any = await this.shopkeeperModel.findById(sid).lean();
+        const discountPct = Number(sk?.discountPercentage || 0);
+        const taxPct = Number(sk?.taxPercentage || 0);
+        const discount = (subtotal * discountPct) / 100;
+        const afterDiscount = subtotal - discount;
+        const tax = (afterDiscount * taxPct) / 100;
+        const totalAmount = Math.round((afterDiscount + tax) * 100) / 100;
+
+        const paymentMethod = String(input.payment_method || "qr").toLowerCase();
+        const isCash = paymentMethod === "cash";
         const orderId = `KIOSAI-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
         const nameParts = String(input.customer_name || "").trim().split(/\s+/);
+        const now = new Date();
+        const pickupDate = now.toISOString().split("T")[0];
+        const pickupTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
         try {
           const order: any = await this.orderModel.create({
             orderId,
@@ -574,13 +602,16 @@ Global rules:
             items: resolved,
             totalAmount,
             orderType: "pickup",
+            pickupDate,
+            pickupTime,
             whatsAppNumber: input.whatsapp || "kiosk-order",
             fullName: input.customer_name,
             firstName: nameParts[0] || input.customer_name,
             lastName: nameParts.slice(1).join(" ") || "",
-            status: "pending",
-            paymentConfirmed: false,
-            statusHistory: [{ status: "pending", changedAt: new Date(), changedBy: "KiosAI" }],
+            status: isCash ? "processing" : "pending",
+            paymentConfirmed: isCash,
+            instructions: input.instructions || undefined,
+            statusHistory: [{ status: isCash ? "processing" : "pending", changedAt: new Date(), changedBy: "KiosAI" }],
           });
           for (const r of resolved) {
             if (!r.trackQuantity) continue;
@@ -611,10 +642,21 @@ Global rules:
           return {
             success: true,
             orderId: order.orderId,
-            totalAmount,
             customer: input.customer_name,
+            paymentMethod,
+            paymentConfirmed: isCash,
+            breakdown: {
+              subtotal: Math.round(subtotal * 100) / 100,
+              discountPercentage: discountPct,
+              discount: Math.round(discount * 100) / 100,
+              taxPercentage: taxPct,
+              tax: Math.round(tax * 100) / 100,
+              total: totalAmount,
+            },
             items: resolved.map(r => ({ name: r.productName, variant: r.variantTitle, subcategory: r.subcategoryName, qty: r.quantity, price: r.price })),
-            nextStep: "Call get_payment_qr with this orderId to show the customer a QR code.",
+            nextStep: isCash
+              ? "Call get_order_receipt with this orderId to provide a PDF receipt."
+              : "Call get_payment_qr with this orderId to show the customer a QR code.",
           };
         } catch (err: any) {
           return { error: `Failed to create order: ${err.message}` };
@@ -634,6 +676,17 @@ Global rules:
           shopkeeperPhone: country === "SG" ? sk?.whatsappNumber : undefined,
           paymentURL: country === "IN" ? sk?.paymentURL : undefined,
           message: country === "SG" ? "PayNow QR will be shown." : "UPI QR will be shown.",
+        };
+      }
+      case "get_order_receipt": {
+        const order: any = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } }).lean();
+        if (!order) return { error: "Order not found" };
+        // Receipt endpoint returns the PDF; the frontend can embed or open in a new tab.
+        const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+        return {
+          orderId: order.orderId,
+          receiptUrl: `${baseUrl}/orders/${order._id}/receipt`,
+          message: "Share this URL with the customer, or open it to view/print the receipt.",
         };
       }
       case "get_analytics": {
