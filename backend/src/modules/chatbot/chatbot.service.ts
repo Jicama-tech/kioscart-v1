@@ -60,9 +60,15 @@ export class ChatbotService {
     { type: "function", function: { name: "get_low_stock", description: "Get products with low stock", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_product_detail", description: "Get full structure of a single product — including its variants, subcategories, and options. Use this before editing when the user mentions a variant, size, or pack.", parameters: { type: "object", properties: { product_name: { type: "string", description: "Name or partial name of the product" } }, required: ["product_name"] } } },
     { type: "function", function: { name: "update_product", description: "Update a product's top-level fields (name, price, inventory, status, etc). Works on any product regardless of variants. To edit a specific variant or subcategory, use update_variant or update_subcategory instead.", parameters: { type: "object", properties: { product_name: { type: "string" }, new_name: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, status: { type: "string", enum: ["active", "draft", "archived"] }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name"] } } },
-    { type: "function", function: { name: "update_variant", description: "Update a specific variant inside a product (matched by variant title or SKU). Works for product-level variants and variants nested inside a subcategory.", parameters: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Variant title or SKU to match" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "variant_title"] } } },
+    { type: "function", function: { name: "update_variant", description: "Update a variant inside a product by title or SKU. For tree-structured products with the same variant title under multiple subcategories (e.g. Veg>Medium and Non-Veg>Medium), pass subcategory_name to disambiguate.", parameters: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Variant title or SKU to match" }, subcategory_name: { type: "string", description: "Optional: restrict the match to a specific subcategory" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "variant_title"] } } },
     { type: "function", function: { name: "update_subcategory", description: "Update a subcategory inside a product (matched by name). Edits subcategory-level fields like basePrice and inventory.", parameters: { type: "object", properties: { product_name: { type: "string" }, subcategory_name: { type: "string" }, basePrice: { type: "number" }, additionalPrice: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" } }, required: ["product_name", "subcategory_name"] } } },
     { type: "function", function: { name: "update_option", description: "Update a product option (e.g. Size/Quantity/Pack) by its title. Only for products that have productOptions.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "option_title"] } } },
+    { type: "function", function: { name: "add_variant", description: "Add a NEW variant to a product. If subcategory_name is provided, the variant is added inside that subcategory (tree products). Otherwise added to the product's top-level variants array.", parameters: { type: "object", properties: { product_name: { type: "string" }, title: { type: "string" }, price: { type: "number" }, subcategory_name: { type: "string", description: "Optional: add the variant inside this subcategory" }, sku: { type: "string", description: "Optional: auto-generated if omitted" }, inventory: { type: "number" }, trackQuantity: { type: "boolean" }, lowstockThreshold: { type: "number" } }, required: ["product_name", "title", "price"] } } },
+    { type: "function", function: { name: "remove_variant", description: "Remove a variant from a product by title or SKU. Provide subcategory_name to remove a variant nested inside a specific subcategory; otherwise removes from the top-level variants array.", parameters: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string" }, subcategory_name: { type: "string", description: "Optional: the subcategory containing the variant" } }, required: ["product_name", "variant_title"] } } },
+    { type: "function", function: { name: "add_subcategory", description: "Add a NEW subcategory to a product (e.g. 'Veg', 'Non-Veg'). Starts with an empty variants array — use add_variant afterwards to populate it.", parameters: { type: "object", properties: { product_name: { type: "string" }, name: { type: "string" }, basePrice: { type: "number", description: "Defaults to 0" }, inventory: { type: "number" }, trackQuantity: { type: "boolean" }, lowstockThreshold: { type: "number" } }, required: ["product_name", "name"] } } },
+    { type: "function", function: { name: "remove_subcategory", description: "Remove a subcategory (and all its nested variants) from a product.", parameters: { type: "object", properties: { product_name: { type: "string" }, subcategory_name: { type: "string" } }, required: ["product_name", "subcategory_name"] } } },
+    { type: "function", function: { name: "add_option", description: "Add a NEW productOption (Size / Quantity / Pack) to a product.", parameters: { type: "object", properties: { product_name: { type: "string" }, title: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, trackQuantity: { type: "boolean" }, lowstockThreshold: { type: "number" } }, required: ["product_name", "title", "price"] } } },
+    { type: "function", function: { name: "remove_option", description: "Remove a productOption from a product by its title.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" } }, required: ["product_name", "option_title"] } } },
     { type: "function", function: { name: "delete_product", description: "Soft-delete a product by name. Asks for confirmation implicitly — only call if user clearly said to delete/remove.", parameters: { type: "object", properties: { product_name: { type: "string" } }, required: ["product_name"] } } },
     { type: "function", function: { name: "confirm_payment_by_order_id", description: "Confirm a single matched payment for a specific order — moves that order from pending to processing. Only works when a payment email already matched that order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
     { type: "function", function: { name: "place_order", description: "Create a kiosk / walk-in order. Each item is resolved against the shopkeeper's catalog. Supports tree-structured products: use `subcategory_name` + `variant_title` together to target a variant inside a subcategory (e.g. Pizza > Veg > Medium). If only `variant_title` is given, the tool tries top-level variants → subcategory variants → subcategory by name → productOption. Applies the shop's discount% then tax% (matching Kiosk Mode). Require the customer's name + whatsapp + email before calling this tool — ask the shopkeeper for any missing field.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Customer WhatsApp number with country code (e.g. +919876543210)" }, email: { type: "string", description: "Customer email" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, subcategory_name: { type: "string", description: "Only for tree-structured products. The outer subcategory name (e.g. 'Veg' in Pizza > Veg > Medium)." }, variant_title: { type: "string", description: "Variant title, subcategory name, or productOption title. For tree products, the inner variant (e.g. 'Medium')." }, quantity: { type: "number", description: "Defaults to 1 if omitted" } }, required: ["product_name"] } }, payment_method: { type: "string", enum: ["qr", "cash"], description: "qr = generate a payment QR; cash = already paid. Defaults to qr." }, instructions: { type: "string", description: "Optional notes / instructions for this order" } }, required: ["customer_name", "items"] } } },
@@ -91,7 +97,7 @@ export class ChatbotService {
     kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr", "get_order_receipt", "get_order_detail"],
     orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "get_matched_payments", "get_unmatched_payments"],
     crm: ["get_customers"], // TODO phase 2: customer detail + messaging tools
-    products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "update_product", "update_variant", "update_subcategory", "update_option", "delete_product", "get_top_products"],
+    products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "update_product", "update_variant", "update_subcategory", "update_option", "add_variant", "remove_variant", "add_subcategory", "remove_subcategory", "add_option", "remove_option", "delete_product", "get_top_products"],
     storefront: [], // TODO phase 2: storefront config + branding tools
     settings: ["get_shop_info", "get_plan_info", "get_operators", "get_coupons"], // TODO phase 2: profile/coupon/operator edit tools
     general: ["get_shop_info", "get_today_orders", "get_today_revenue", "get_products", "get_pending_orders"],
@@ -146,10 +152,36 @@ Focus: customer list and customer insights.
 - Today you can only call get_customers (total count). For customer-specific lookups, say so and suggest navigate_to crm so the shopkeeper can filter the UI.`,
     products: `You are the **Products / Catalog** specialist for "{SHOP}" on KiosCart.
 Focus: product catalog, inventory, prices, variants, subcategories, options.
-- "show products" → get_products. "how many products" → get_product_count. "low stock" → get_low_stock.
-- Edit flow: if the user mentions a variant/size/pack, call get_product_detail FIRST to see the structure, then use update_variant / update_subcategory / update_option. For top-level fields use update_product.
-- For CREATING new products or editing IMAGES, use navigate_to (the chat cannot upload files).
-- delete_product only when the user clearly says to delete.`,
+
+Read:
+- "show products" → get_products. "how many products" → get_product_count. "low stock" → get_low_stock. "best sellers" → get_top_products.
+- Before editing a variant/subcategory/option, call **get_product_detail** first so you know the exact titles and structure.
+
+Top-level product:
+- Update any simple field (price, inventory, status, name, lowstockThreshold, trackQuantity, isDiscounted, discountedPrice) → update_product.
+- Delete the whole product → delete_product.
+
+Variants (flat):
+- Add → add_variant { product_name, title, price, sku? }
+- Edit → update_variant { product_name, variant_title, <field> }
+- Remove → remove_variant { product_name, variant_title }
+
+Subcategories (e.g. Veg / Non-Veg, Summer / Winter):
+- Add → add_subcategory { product_name, name, basePrice? }
+- Edit → update_subcategory { product_name, subcategory_name, basePrice? / inventory? / ... }
+- Remove → remove_subcategory (also drops every variant inside it)
+
+Variants **inside** a subcategory (tree products, e.g. Pizza > Veg > Medium):
+- Add → add_variant { product_name, subcategory_name, title, price }
+- Edit → update_variant { product_name, variant_title, subcategory_name } (subcategory_name disambiguates)
+- Remove → remove_variant { product_name, variant_title, subcategory_name }
+
+Options (Size / Quantity / Pack):
+- Add → add_option { product_name, title, price }
+- Edit → update_option { product_name, option_title, <field> }
+- Remove → remove_option { product_name, option_title }
+
+Not supported in chat (use navigate_to instead): creating a brand-new product, uploading/changing images, editing tags in bulk.`,
     storefront: `You are the **Storefront / Branding** specialist for "{SHOP}" on KiosCart.
 Focus: store branding, banners, colors, logo, SEO, layout.
 - Storefront edits aren't wired to chat tools yet — always navigate_to the storefront tab and briefly say what the user should change there.`,
@@ -471,12 +503,22 @@ Global rules:
           return t === q || s === q || t.includes(q) || s.includes(q);
         };
         let path: string | null = null;
-        const topIdx = (product.variants || []).findIndex(match);
-        if (topIdx >= 0) path = `variants.${topIdx}`;
-        if (!path) {
-          for (let si = 0; si < (product.subcategories || []).length; si++) {
-            const vi = (product.subcategories[si].variants || []).findIndex(match);
-            if (vi >= 0) { path = `subcategories.${si}.variants.${vi}`; break; }
+        if (input.subcategory_name) {
+          // Disambiguated — match variant only inside the named subcategory
+          const sq = String(input.subcategory_name).toLowerCase();
+          const si = (product.subcategories || []).findIndex((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
+          if (si < 0) return { error: `Subcategory "${input.subcategory_name}" not found`, availableSubcategories: (product.subcategories || []).map((s: any) => s.name) };
+          const vi = (product.subcategories[si].variants || []).findIndex(match);
+          if (vi < 0) return { error: `Variant not found inside ${product.subcategories[si].name}`, availableVariants: (product.subcategories[si].variants || []).map((v: any) => v.title) };
+          path = `subcategories.${si}.variants.${vi}`;
+        } else {
+          const topIdx = (product.variants || []).findIndex(match);
+          if (topIdx >= 0) path = `variants.${topIdx}`;
+          if (!path) {
+            for (let si = 0; si < (product.subcategories || []).length; si++) {
+              const vi = (product.subcategories[si].variants || []).findIndex(match);
+              if (vi >= 0) { path = `subcategories.${si}.variants.${vi}`; break; }
+            }
           }
         }
         if (!path) return { error: "Variant not found", availableVariants: [...(product.variants || []).map((v: any) => v.title), ...((product.subcategories || []).flatMap((s: any) => (s.variants || []).map((v: any) => `${s.name} > ${v.title}`)))] };
@@ -514,6 +556,112 @@ Global rules:
         if (Object.keys(setDoc).length === 0) return { error: "No fields to update" };
         await this.productModel.findByIdAndUpdate(product._id, { $set: setDoc });
         return { success: true, product: product.name, option: product.productOptions[idx].title, updated: Object.keys(setDoc) };
+      }
+      case "add_variant": {
+        const p = await this.findOneProduct(sid, input.product_name);
+        if ("error" in p) return p;
+        const product: any = p.product;
+        if (!input.title || input.price === undefined) return { error: "title and price are required" };
+        const variant = {
+          id: Date.now(),
+          title: String(input.title),
+          price: Number(input.price),
+          sku: input.sku ? String(input.sku) : `${product.name.slice(0, 3).toUpperCase()}-${String(input.title).slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`,
+          inventory: input.inventory !== undefined ? Number(input.inventory) : 0,
+          trackQuantity: !!input.trackQuantity,
+          lowstockThreshold: input.lowstockThreshold !== undefined ? Number(input.lowstockThreshold) : 10,
+          options: {},
+        };
+        if (input.subcategory_name) {
+          const sq = String(input.subcategory_name).toLowerCase();
+          const si = (product.subcategories || []).findIndex((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
+          if (si < 0) return { error: `Subcategory "${input.subcategory_name}" not found`, availableSubcategories: (product.subcategories || []).map((s: any) => s.name) };
+          await this.productModel.findByIdAndUpdate(product._id, { $push: { [`subcategories.${si}.variants`]: variant } });
+          return { success: true, product: product.name, addedTo: `${product.subcategories[si].name} (subcategory)`, variant };
+        }
+        await this.productModel.findByIdAndUpdate(product._id, { $push: { variants: variant } });
+        return { success: true, product: product.name, addedTo: "top-level variants", variant };
+      }
+      case "remove_variant": {
+        const p = await this.findOneProduct(sid, input.product_name);
+        if ("error" in p) return p;
+        const product: any = p.product;
+        const vq = String(input.variant_title || "").toLowerCase();
+        const match = (v: any) => (v.title || "").toLowerCase() === vq || (v.title || "").toLowerCase().includes(vq) || (v.sku || "").toLowerCase() === vq;
+        if (input.subcategory_name) {
+          const sq = String(input.subcategory_name).toLowerCase();
+          const si = (product.subcategories || []).findIndex((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
+          if (si < 0) return { error: `Subcategory "${input.subcategory_name}" not found` };
+          const v = (product.subcategories[si].variants || []).find(match);
+          if (!v) return { error: `Variant "${input.variant_title}" not found in ${product.subcategories[si].name}`, availableVariants: (product.subcategories[si].variants || []).map((x: any) => x.title) };
+          await this.productModel.findByIdAndUpdate(product._id, { $pull: { [`subcategories.${si}.variants`]: { id: v.id } } });
+          return { success: true, product: product.name, removed: `${product.subcategories[si].name} > ${v.title}` };
+        }
+        const v = (product.variants || []).find(match);
+        if (!v) return { error: `Variant "${input.variant_title}" not found`, availableVariants: (product.variants || []).map((x: any) => x.title) };
+        await this.productModel.findByIdAndUpdate(product._id, { $pull: { variants: { id: v.id } } });
+        return { success: true, product: product.name, removed: v.title };
+      }
+      case "add_subcategory": {
+        const p = await this.findOneProduct(sid, input.product_name);
+        if ("error" in p) return p;
+        const product: any = p.product;
+        if (!input.name) return { error: "name is required" };
+        const exists = (product.subcategories || []).some((s: any) => (s.name || "").toLowerCase() === String(input.name).toLowerCase());
+        if (exists) return { error: `Subcategory "${input.name}" already exists on ${product.name}` };
+        const sub = {
+          id: Date.now(),
+          name: String(input.name),
+          basePrice: input.basePrice !== undefined ? Number(input.basePrice) : 0,
+          inventory: input.inventory !== undefined ? Number(input.inventory) : 0,
+          trackQuantity: !!input.trackQuantity,
+          lowstockThreshold: input.lowstockThreshold !== undefined ? Number(input.lowstockThreshold) : 10,
+          variants: [],
+        };
+        await this.productModel.findByIdAndUpdate(product._id, { $push: { subcategories: sub } });
+        return { success: true, product: product.name, added: sub.name };
+      }
+      case "remove_subcategory": {
+        const p = await this.findOneProduct(sid, input.product_name);
+        if ("error" in p) return p;
+        const product: any = p.product;
+        const sq = String(input.subcategory_name || "").toLowerCase();
+        const sc = (product.subcategories || []).find((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
+        if (!sc) return { error: `Subcategory "${input.subcategory_name}" not found`, availableSubcategories: (product.subcategories || []).map((s: any) => s.name) };
+        await this.productModel.findByIdAndUpdate(product._id, { $pull: { subcategories: { id: sc.id } } });
+        return { success: true, product: product.name, removed: sc.name, removedVariantCount: (sc.variants || []).length };
+      }
+      case "add_option": {
+        const p = await this.findOneProduct(sid, input.product_name);
+        if ("error" in p) return p;
+        const product: any = p.product;
+        if (!input.title || input.price === undefined) return { error: "title and price are required" };
+        const exists = (product.productOptions || []).some((o: any) => (o.title || "").toLowerCase() === String(input.title).toLowerCase());
+        if (exists) return { error: `Option "${input.title}" already exists on ${product.name}` };
+        const opt = {
+          id: Date.now(),
+          title: String(input.title),
+          price: Number(input.price),
+          inventory: input.inventory !== undefined ? Number(input.inventory) : 0,
+          trackQuantity: !!input.trackQuantity,
+          lowstockThreshold: input.lowstockThreshold !== undefined ? Number(input.lowstockThreshold) : 10,
+        };
+        await this.productModel.findByIdAndUpdate(product._id, { $push: { productOptions: opt }, $set: { hasOptions: true } });
+        return { success: true, product: product.name, added: opt.title };
+      }
+      case "remove_option": {
+        const p = await this.findOneProduct(sid, input.product_name);
+        if ("error" in p) return p;
+        const product: any = p.product;
+        const q = String(input.option_title || "").toLowerCase();
+        const opt = (product.productOptions || []).find((o: any) => (o.title || "").toLowerCase() === q || (o.title || "").toLowerCase().includes(q));
+        if (!opt) return { error: `Option "${input.option_title}" not found`, availableOptions: (product.productOptions || []).map((o: any) => o.title) };
+        const remaining = (product.productOptions || []).filter((o: any) => o.id !== opt.id);
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $pull: { productOptions: { id: opt.id } },
+          $set: { hasOptions: remaining.length > 0 },
+        });
+        return { success: true, product: product.name, removed: opt.title };
       }
       case "delete_product": {
         const p = await this.findOneProduct(sid, input.product_name);
