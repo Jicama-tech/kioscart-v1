@@ -98,7 +98,7 @@ export class ChatbotService {
     { type: "function", function: { name: "remove_option", description: "Remove a productOption from a product by its title.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" } }, required: ["product_name", "option_title"] } } },
     { type: "function", function: { name: "delete_product", description: "Soft-delete a product by name. Asks for confirmation implicitly — only call if user clearly said to delete/remove.", parameters: { type: "object", properties: { product_name: { type: "string" } }, required: ["product_name"] } } },
     { type: "function", function: { name: "confirm_payment_by_order_id", description: "Confirm a single matched payment for a specific order — moves that order from pending to processing. Only works when a payment email already matched that order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
-    { type: "function", function: { name: "place_order", description: "Create a kiosk / walk-in order. Each item is resolved against the shopkeeper's catalog. Supports tree-structured products: use `subcategory_name` + `variant_title` together to target a variant inside a subcategory (e.g. Pizza > Veg > Medium). If only `variant_title` is given, the tool tries top-level variants → subcategory variants → subcategory by name → productOption. Applies the shop's discount% then tax% (matching Kiosk Mode). Require the customer's name + whatsapp + email before calling this tool — ask the shopkeeper for any missing field.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Customer WhatsApp number with country code (e.g. +919876543210)" }, email: { type: "string", description: "Customer email" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, subcategory_name: { type: "string", description: "Only for tree-structured products. The outer subcategory name (e.g. 'Veg' in Pizza > Veg > Medium)." }, variant_title: { type: "string", description: "Variant title, subcategory name, or productOption title. For tree products, the inner variant (e.g. 'Medium')." }, quantity: { type: "number", description: "Defaults to 1 if omitted" } }, required: ["product_name"] } }, payment_method: { type: "string", enum: ["qr", "cash"], description: "qr = generate a payment QR; cash = already paid. Defaults to qr." }, instructions: { type: "string", description: "Optional notes / instructions for this order" } }, required: ["customer_name", "items"] } } },
+    { type: "function", function: { name: "place_order", description: "Create a kiosk / walk-in order. Each item is resolved against the shopkeeper's catalog. A product can have up to three independent layers: productOption (e.g. sizes 9/10), subcategory (e.g. T-shirt/Jeans), and variant (e.g. XL/XXL inside T-shirt). When a product exposes multiple layers, pass all relevant fields together — the final unit price is variant_price (or subcategory basePrice) PLUS option_price if set. If a required leaf is missing, the tool returns a list of candidates so you can ask the shopkeeper. Always require customer's name + whatsapp + email up front.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Customer WhatsApp number with country code (e.g. +919876543210)" }, email: { type: "string", description: "Customer email" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string", description: "productOption title when the product has one (e.g. '9' or 'Pack of 3')" }, subcategory_name: { type: "string", description: "Subcategory name (e.g. 'T-shirt' in Clothes > T-shirt > XL)" }, variant_title: { type: "string", description: "Variant title or SKU. For tree products this is the inner variant (e.g. 'XL')." }, quantity: { type: "number", description: "Defaults to 1 if omitted" } }, required: ["product_name"] } }, payment_method: { type: "string", enum: ["qr", "cash"], description: "qr = generate a payment QR; cash = already paid. Defaults to qr." }, instructions: { type: "string", description: "Optional notes / instructions for this order" } }, required: ["customer_name", "items"] } } },
     { type: "function", function: { name: "get_payment_qr", description: "Generate a payment QR for an existing order. Returns UPI payload for India or PayNow data for Singapore, based on shopkeeper's country setting. Call after a QR-payment place_order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
     { type: "function", function: { name: "get_order_receipt", description: "Return the URL of the PDF receipt for an order. Use after a cash order, or whenever the shopkeeper asks for a receipt.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
     { type: "function", function: { name: "get_analytics", description: "Get analytics for a period", parameters: { type: "object", properties: { period: { type: "string", enum: ["monthly", "lastmonth", "quarterly", "lastquarter", "yearly", "lastyear"] } }, required: ["period"] } } },
@@ -150,6 +150,7 @@ Item format (the shopkeeper separates items with commas). Each item maps to one 
 - Subcategory only:           "T-shirt Summer"                → { product_name: "T-shirt", variant_title: "Summer" }
 - productOption (Size/Pack):  "Dal Pack of 3"                 → { product_name: "Dal", variant_title: "Pack of 3" }
 - **Tree product** (subcategory → variant): "Pizza Veg Medium" → { product_name: "Pizza", subcategory_name: "Veg", variant_title: "Medium" }. Use BOTH fields when the shopkeeper names a subcategory AND a variant inside it (two levels deep).
+- **Three-layer product** (option + subcategory → variant): "Clothes size 9, T-shirt XL" → { product_name: "Clothes", option_title: "9", subcategory_name: "T-shirt", variant_title: "XL" }. If the product has productOptions AND subcategories, you MUST supply option_title AND subcategory_name AND (when the subcategory has its own variants) variant_title. Final price adds the option's price on top of the variant/subcategory base.
 
 **When in doubt, call get_product_detail(product_name) FIRST** so you can see the real shape (variants / subcategories / options) and pick the right fields. This is much better than guessing and relying on place_order errors.
 
@@ -942,20 +943,32 @@ Global rules:
           if (prodMatches.length > 1) return { error: `Multiple products matched "${it.product_name}"`, matches: prodMatches.slice(0, 5).map((p: any) => p.name) };
           const prod: any = prodMatches[0];
 
-          // Resolve variant/subcategory/option against the tree.
-          // Preferred: caller passes subcategory_name + variant_title together for tree products.
-          // Fallback: single variant_title string tries each layer in turn.
-          let price = prod.isDiscounted && prod.discountedPrice ? prod.discountedPrice : prod.price;
+          // Resolve up to three independent layers: productOption + subcategory + variant.
+          // Final unit price = (variant/subcat base price OR product base price) + option price.
+          let basePrice = prod.isDiscounted && prod.discountedPrice ? prod.discountedPrice : prod.price;
+          let price = basePrice;
           let variantTitle: string | undefined;
           let subcategoryName: string | undefined;
           let optionTitle: string | undefined;
           let optionPrice: number | undefined;
+          const hasOpts = (prod.productOptions || []).length > 0;
+          const hasSubs = (prod.subcategories || []).length > 0;
+          const hasVars = (prod.variants || []).length > 0;
           const avail = () => ({
             variants: (prod.variants || []).map((v: any) => v.title),
             subcategories: (prod.subcategories || []).map((sc: any) => sc.name),
             subcategoryVariants: (prod.subcategories || []).flatMap((sc: any) => (sc.variants || []).map((v: any) => `${sc.name} > ${v.title}`)),
             options: (prod.productOptions || []).map((o: any) => o.title),
           });
+
+          // A) Resolve option_title first if provided OR if product requires an option
+          if (it.option_title && hasOpts) {
+            const oq = String(it.option_title).toLowerCase();
+            const opt = (prod.productOptions || []).find((o: any) => (o.title || "").toLowerCase() === oq || (o.title || "").toLowerCase().includes(oq));
+            if (!opt) return { error: `Option "${it.option_title}" not found on ${prod.name}`, available: { options: (prod.productOptions || []).map((o: any) => o.title) } };
+            optionTitle = opt.title;
+            optionPrice = opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price;
+          }
 
           if (it.subcategory_name) {
             const sq = String(it.subcategory_name).toLowerCase();
@@ -1033,14 +1046,36 @@ Global rules:
             if (!variantTitle && !subcategoryName && !optionTitle) {
               return { error: `No variant/subcategory/option matching "${it.variant_title}" on ${prod.name}`, available: avail() };
             }
-          } else if ((prod.subcategories || []).length > 0 || (prod.variants || []).length > 0 || (prod.productOptions || []).length > 0) {
-            // Tree product but caller didn't pick a leaf — fail fast with candidates.
-            return { error: `"${prod.name}" has variants/subcategories/options — specify which one`, available: avail() };
           }
+
+          // Per-layer validation. A product that exposes a layer MUST have that
+          // layer resolved (otherwise we'd silently ring it up at the wrong price).
+          const missing: string[] = [];
+          if (hasOpts && !optionTitle) missing.push(`option (${(prod.productOptions || []).map((o: any) => o.title).join(" / ")})`);
+          if (hasSubs && !subcategoryName) missing.push(`subcategory (${(prod.subcategories || []).map((s: any) => s.name).join(" / ")})`);
+          // If the selected subcategory has variants of its own, require a variant
+          if (subcategoryName && !variantTitle) {
+            const sc = (prod.subcategories || []).find((s: any) => s.name === subcategoryName);
+            if (sc && (sc.variants || []).length > 0) {
+              missing.push(`variant for ${subcategoryName} (${(sc.variants || []).map((v: any) => v.title).join(" / ")})`);
+            }
+          }
+          if (hasVars && !subcategoryName && !variantTitle && !optionTitle) {
+            missing.push(`variant (${(prod.variants || []).map((v: any) => v.title).join(" / ")})`);
+          }
+          if (missing.length > 0) {
+            return {
+              error: `"${prod.name}" needs: ${missing.join(" AND ")}. Please specify all required leaves and try again.`,
+              available: avail(),
+            };
+          }
+
+          // Final unit price = (variant/sub base price OR product base price) + option add-on
+          const unitPrice = (price || 0) + (optionPrice || 0);
           resolved.push({
             productId: prod._id.toString(),
             productName: prod.name,
-            price,
+            price: unitPrice,
             quantity,
             variantTitle,
             subcategoryName,
