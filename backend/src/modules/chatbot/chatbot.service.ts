@@ -155,7 +155,12 @@ Focus: analytics, performance overview, revenue trends, top products, customer c
     kiosk: `You are the **Kiosk** specialist for "{SHOP}" on KiosCart. You act like an in-store POS over chat.
 Focus: placing walk-in orders, generating payment QRs, and producing receipts.
 
-REQUIRED before place_order: customer **name**, **WhatsApp number** (with country code), **email**. If any of these three is missing from the shopkeeper's message, ASK for the missing ones and DO NOT call place_order yet. Only skip a field if the shopkeeper explicitly says "skip whatsapp" or "no email".
+Before place_order, call it with whatever the shopkeeper gave you:
+- **If only a customer name is provided** → still call place_order with just the name + items. The tool will look the customer up in this shop's CRM and reuse their stored WhatsApp + email silently. If the tool's error says "<name> isn't in your CRM yet", ask the shopkeeper for their WhatsApp number and email and retry.
+- **If the tool returns multiple matches for that name** → show the candidates (name + whatsapp) and ask which one they meant.
+- **For a brand-new customer**, collect name, WhatsApp (with country code), and email before calling.
+
+Voice formats the tool already understands: "8347 450600" → +918347450600, "at the rate" or "at" → @, "dot" → ".", so don't re-parse; just forward what you heard.
 
 Item format (the shopkeeper separates items with commas). Each item maps to one object in place_order.items:
 - Simple product:             "Mango Juice"                   → { product_name: "Mango Juice" }  (quantity defaults to 1)
@@ -463,7 +468,9 @@ Global rules:
           args = {};
         }
         if (!args || typeof args !== "object") args = {};
+        this.logger.log(`[Tool] ${tc.function.name}(${JSON.stringify(args).slice(0, 200)})`);
         const result = await this.executeTool(shopkeeperId, tc.function.name, args);
+        this.logger.log(`[Tool] ${tc.function.name} → ${JSON.stringify(result).slice(0, 200)}`);
         toolMessages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         if (tc.function.name === "navigate_to") {
           botAction = { type: "navigate", tab: args.tab };
@@ -721,6 +728,28 @@ Global rules:
     // Remove stray spaces inside the email
     s = s.replace(/\s+/g, "");
     return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : undefined;
+  }
+
+  // Returns every customer in this shopkeeper's scope whose name matches the query —
+  // either created by the shopkeeper (provider "Shopkeeper" + providerId) OR who has
+  // placed at least one order at this shop. Used by place_order so the shopkeeper can
+  // say "place order for Vansh" and we silently reuse Vansh's stored phone/email.
+  private async findCustomersForShopkeeper(sid: string, nameQuery: string): Promise<any[]> {
+    const q = String(nameQuery || "").trim();
+    if (!q) return [];
+    const candidates = await this.userModel.find({ name: { $regex: q, $options: "i" } }).lean();
+    if (candidates.length === 0) return [];
+    const ids = candidates.map((u: any) => String(u._id));
+    const orderedIds: any[] = await this.orderModel.distinct("userId", {
+      shopkeeperId: sid,
+      userId: { $in: ids },
+      isSoftDeleted: { $ne: true },
+    });
+    const orderedSet = new Set(orderedIds.map((id: any) => String(id)));
+    return candidates.filter((u: any) =>
+      (u.provider === "Shopkeeper" && String(u.providerId || "") === sid) ||
+      orderedSet.has(String(u._id)),
+    );
   }
 
   // Flexible customer lookup by phone, email, or name (any one is enough).
@@ -1323,20 +1352,46 @@ Global rules:
         const now = new Date();
         const pickupDate = now.toISOString().split("T")[0];
         const pickupTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-        const whatsAppNumber = input.whatsapp || "kiosk-order";
+        // Resolve WhatsApp + email: if the shopkeeper only gave a name, try to
+        // look the customer up in their CRM (created or previously ordered). Only
+        // demand phone+email when the customer is brand new.
+        const shopDoc: any = await this.shopkeeperModel.findById(sid).lean();
+        const defaultCC = (shopDoc?.country || "").toString().toUpperCase().startsWith("SG") ? "+65" : "+91";
+        let whatsAppNumber = this.normalisePhone(input.whatsapp, defaultCC);
+        let email = this.normaliseEmail(input.email);
+        let existingUser: any = null;
+
+        if (!whatsAppNumber && input.customer_name) {
+          const matches = await this.findCustomersForShopkeeper(sid, input.customer_name);
+          if (matches.length === 1) {
+            existingUser = matches[0];
+            whatsAppNumber = existingUser.whatsAppNumber;
+            if (!email) email = existingUser.email || undefined;
+          } else if (matches.length > 1) {
+            return {
+              error: `Found ${matches.length} customers named "${input.customer_name}". Please include the WhatsApp number so I know which one.`,
+              matches: matches.slice(0, 5).map((m: any) => ({ name: m.name, whatsapp: m.whatsAppNumber, email: m.email })),
+            };
+          } else {
+            return {
+              error: `"${input.customer_name}" isn't in your CRM yet. Please share their WhatsApp number (and email if possible) and I'll place the order + add them as a customer.`,
+              missing: ["whatsapp", "email"],
+            };
+          }
+        }
+
+        if (!whatsAppNumber) return { error: "WhatsApp number is required for a new customer." };
+
         try {
-          // Resolve user by WhatsApp number, same pattern as OrdersService.createOrder.
-          // For walk-in kiosk orders without a whatsapp, we reuse a single placeholder
-          // "kiosk-order" user per shopkeeper's system to satisfy the required userId.
-          const email = input.email ? String(input.email).trim().toLowerCase() : undefined;
-          let user: any = await this.userModel.findOne({ whatsAppNumber }).lean();
+          // Upsert user by WhatsApp, matching OrdersService.createOrder.
+          let user: any = existingUser || await this.userModel.findOne({ whatsAppNumber }).lean();
           if (!user) {
             user = await this.userModel.create({
               name: input.customer_name || "Kiosk Customer",
               email: email || null,
               password: null,
-              provider: "kiosk",
-              providerId: null,
+              provider: "Shopkeeper",
+              providerId: sid,
               whatsAppNumber,
             });
           } else if (email && !user.email) {
