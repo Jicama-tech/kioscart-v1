@@ -30,6 +30,7 @@ export class ChatbotService {
     @InjectModel("Operator") private operatorModel: Model<any>,
     @InjectModel("Plan") private planModel: Model<any>,
     @InjectModel("PaymentEmail") private paymentEmailModel: Model<any>,
+    @InjectModel("User") private userModel: Model<any>,
   ) {
     // Provider: Groq (free, fast tool-calling). Override with QWEN_* env vars if needed.
     const apiKey = process.env.GROQ_API_KEY || process.env.QWEN_API_KEY || "";
@@ -595,19 +596,37 @@ Global rules:
         const now = new Date();
         const pickupDate = now.toISOString().split("T")[0];
         const pickupTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        const whatsAppNumber = input.whatsapp || "kiosk-order";
         try {
+          // Resolve user by WhatsApp number, same pattern as OrdersService.createOrder.
+          // For walk-in kiosk orders without a whatsapp, we reuse a single placeholder
+          // "kiosk-order" user per shopkeeper's system to satisfy the required userId.
+          let user: any = await this.userModel.findOne({ whatsAppNumber }).lean();
+          if (!user) {
+            user = await this.userModel.create({
+              name: input.customer_name || "Kiosk Customer",
+              email: null,
+              password: null,
+              provider: "kiosk",
+              providerId: null,
+              whatsAppNumber,
+            });
+          }
           const order: any = await this.orderModel.create({
             orderId,
+            userId: user._id.toString(),
             shopkeeperId: sid,
             items: resolved,
             totalAmount,
             orderType: "pickup",
             pickupDate,
             pickupTime,
-            whatsAppNumber: input.whatsapp || "kiosk-order",
+            whatsAppNumber,
             fullName: input.customer_name,
             firstName: nameParts[0] || input.customer_name,
             lastName: nameParts.slice(1).join(" ") || "",
+            customerName: input.customer_name,
+            customerWhatsApp: whatsAppNumber !== "kiosk-order" ? whatsAppNumber : undefined,
             status: isCash ? "processing" : "pending",
             paymentConfirmed: isCash,
             instructions: input.instructions || undefined,

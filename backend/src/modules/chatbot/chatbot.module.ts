@@ -9,6 +9,7 @@ import { CouponSchema } from "../coupon/entities/coupon.entity";
 import { OperatorSchema } from "../operators/entities/operator.entity";
 import { PlanSchema } from "../plans/entities/plan.entity";
 import { PaymentEmailSchema } from "../payment-emails/schemas/payment-email.schema";
+import { UserSchema } from "../users/schemas/user.schema";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PaymentEmailSchema } from "../payment-emails/schemas/payment-email.sche
       { name: "Operator", schema: OperatorSchema },
       { name: "Plan", schema: PlanSchema },
       { name: "PaymentEmail", schema: PaymentEmailSchema },
+      { name: "User", schema: UserSchema },
     ]),
   ],
   controllers: [ChatbotController],
