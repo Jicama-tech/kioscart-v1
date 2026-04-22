@@ -54,6 +54,24 @@ export class ChatbotService {
     return process.env.QWEN_MODEL || "qwen-plus";
   }
 
+  // Small/cheap model used for routing (doesn't need 70B). Falls back to the
+  // main model if the smaller one isn't configured.
+  private get routerModel() {
+    if (process.env.GROQ_API_KEY) return process.env.GROQ_ROUTER_MODEL || "llama-3.1-8b-instant";
+    return this.model;
+  }
+
+  // Fallback model used when the primary returns 429 (daily TPD exceeded).
+  private get fallbackModel() {
+    if (process.env.GROQ_API_KEY) return process.env.GROQ_FALLBACK_MODEL || "llama-3.1-8b-instant";
+    return this.model;
+  }
+
+  private isRateLimit(err: any): boolean {
+    const status = err?.status || err?.response?.status;
+    return status === 429 || /rate limit|TPD|tokens per day/i.test(err?.message || "");
+  }
+
   private hasApiKey() {
     return !!(process.env.GROQ_API_KEY || process.env.QWEN_API_KEY);
   }
@@ -243,7 +261,7 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
     const recent = this.historyAsMessages(shopkeeperId, 4);
     try {
       const res = await this.ai.chat.completions.create({
-        model: this.model,
+        model: this.routerModel,
         messages: [
           {
             role: "system",
@@ -310,43 +328,56 @@ Global rules:
     ];
 
     let response: any;
+    let currentModel = this.model;
+    const runCompletion = (modelId: string) => this.ai.chat.completions.create({
+      model: modelId,
+      messages,
+      tools: tools.length > 0 ? tools : undefined,
+      tool_choice: tools.length > 0 ? "auto" : undefined,
+      max_tokens: 1024,
+      temperature: 0,
+    });
     try {
-      response = await this.ai.chat.completions.create({
-        model: this.model,
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-        tool_choice: tools.length > 0 ? "auto" : undefined,
-        max_tokens: 1024,
-        temperature: 0,
-      });
+      response = await runCompletion(currentModel);
     } catch (err: any) {
-      // Groq llama-3.x sometimes emits <function=NAME{args}> as text instead of using
-      // the structured tool_calls API. The provider returns a 400 with the offending
-      // text in `failed_generation`. Parse and recover rather than fall through.
-      const failedGen =
-        err?.error?.failed_generation ||
-        err?.response?.data?.error?.failed_generation ||
-        "";
-      const parsed = this.parseMalformedToolCall(failedGen);
-      if (!parsed) throw err;
-      this.logger.warn(`Recovered malformed tool call: ${parsed.name}`);
-      response = {
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              content: null,
-              tool_calls: [
-                {
-                  id: `call_recovered_${Date.now()}`,
-                  type: "function",
-                  function: { name: parsed.name, arguments: JSON.stringify(parsed.args) },
-                },
-              ],
+      // 429 → retry once on the smaller fallback model so the bot stays live
+      // after the daily TPD cap is hit on the primary (e.g. Groq 70B).
+      if (this.isRateLimit(err) && this.fallbackModel && this.fallbackModel !== currentModel) {
+        this.logger.warn(`Primary model rate-limited; falling back to ${this.fallbackModel}`);
+        currentModel = this.fallbackModel;
+        try {
+          response = await runCompletion(currentModel);
+        } catch (err2: any) {
+          throw err2;
+        }
+      } else {
+        // Groq llama-3.x sometimes emits <function=NAME{args}> as text instead of
+        // using the structured tool_calls API. Parse and recover.
+        const failedGen =
+          err?.error?.failed_generation ||
+          err?.response?.data?.error?.failed_generation ||
+          "";
+        const parsed = this.parseMalformedToolCall(failedGen);
+        if (!parsed) throw err;
+        this.logger.warn(`Recovered malformed tool call: ${parsed.name}`);
+        response = {
+          choices: [
+            {
+              message: {
+                role: "assistant",
+                content: null,
+                tool_calls: [
+                  {
+                    id: `call_recovered_${Date.now()}`,
+                    type: "function",
+                    function: { name: parsed.name, arguments: JSON.stringify(parsed.args) },
+                  },
+                ],
+              },
             },
-          },
-        ],
-      };
+          ],
+        };
+      }
     }
 
     const assistantMsg = response.choices[0].message as any;
@@ -374,11 +405,25 @@ Global rules:
         }
       }
 
-      const followUp = await this.ai.chat.completions.create({
-        model: this.model,
-        messages: toolMessages,
-        max_tokens: 1024,
-      });
+      let followUp: any;
+      try {
+        followUp = await this.ai.chat.completions.create({
+          model: currentModel,
+          messages: toolMessages,
+          max_tokens: 1024,
+        });
+      } catch (fErr: any) {
+        if (this.isRateLimit(fErr) && this.fallbackModel !== currentModel) {
+          this.logger.warn(`Follow-up rate-limited; falling back to ${this.fallbackModel}`);
+          followUp = await this.ai.chat.completions.create({
+            model: this.fallbackModel,
+            messages: toolMessages,
+            max_tokens: 1024,
+          });
+        } else {
+          throw fErr;
+        }
+      }
       const text = (followUp.choices[0].message as any).content || "Done!";
       return { text, quickActions: this.suggestActions(message), botAction };
     }
