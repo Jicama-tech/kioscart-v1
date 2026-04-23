@@ -264,13 +264,12 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
 
   if (!isModuleEnabled("chatbot")) return null;
 
-  // Page-mode: lay out to fill the parent container, no floating button.
-  // Floating-mode: original bottom-right bubble.
+  // Page-mode: fill the parent fully (no card chrome). Floating-mode: original bubble.
   const isPage = mode === "page";
   const containerClass = isPage
-    ? "w-full h-[calc(100vh-8rem)] bg-white rounded-2xl shadow-sm border flex flex-col overflow-hidden"
+    ? "w-full h-[calc(100vh-6rem)] bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden"
     : "fixed bottom-6 right-6 z-50 w-[380px] h-[520px] bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden";
-  const messageMaxWidth = isPage ? "max-w-[80%]" : "max-w-[85%]";
+  const messageMaxWidth = isPage ? "max-w-[78%]" : "max-w-[85%]";
 
   return (
     <>
@@ -283,24 +282,38 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
 
       {(isPage || open) && (
         <div className={containerClass}>
-          <div className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                <Bot className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-bold text-sm">KiosAI</p>
-                <p className="text-[10px] opacity-80">Your smart store assistant</p>
+          {isPage ? (
+            <div className="flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur">
+              <div className="mx-auto max-w-4xl flex items-center gap-3 px-6 py-4">
+                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
+                  <Bot className="h-5 w-5 text-white" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 text-sm tracking-tight">KiosAI</p>
+                  <p className="text-xs text-slate-500">Your smart store assistant · Online</p>
+                </div>
               </div>
             </div>
-            {!isPage && (
+          ) : (
+            <div className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <Bot className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">KiosAI</p>
+                  <p className="text-[10px] opacity-80">Your smart store assistant</p>
+                </div>
+              </div>
               <button onClick={() => setOpen(false)} className="p-1 hover:bg-white/20 rounded-lg transition">
                 <X className="h-4 w-4" />
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className={`flex-1 overflow-y-auto ${isPage ? "px-6 py-6" : "p-3"}`}>
+            <div className={`${isPage ? "mx-auto max-w-4xl space-y-5" : "space-y-3"}`}>
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={messageMaxWidth}>
@@ -356,23 +369,46 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
               </div>
             )}
             <div ref={messagesEndRef} />
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-3 border-t flex gap-2 flex-shrink-0">
-            {hasVoice && (
-              <Button type="button" size="sm" variant={isListening ? "destructive" : "outline"}
-                onClick={toggleVoice} disabled={loading}
-                className={`rounded-full w-9 h-9 p-0 flex-shrink-0 ${isListening ? "animate-pulse" : ""}`}>
-                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-              </Button>
+          <form onSubmit={handleSubmit} className={isPage ? "flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur px-6 py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
+            {isPage ? (
+              <div className="mx-auto max-w-4xl flex items-end gap-2">
+                {hasVoice && (
+                  <Button type="button" size="icon" variant={isListening ? "destructive" : "outline"}
+                    onClick={toggleVoice} disabled={loading}
+                    className={`h-11 w-11 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-slate-300"}`}>
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+                )}
+                <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
+                  placeholder={isListening ? "Listening…" : "Message KiosAI — ask anything about your store"}
+                  className="flex-1 h-11 text-sm rounded-xl border-slate-300 bg-white focus-visible:ring-indigo-500"
+                  disabled={loading || isListening} />
+                <Button type="submit" size="icon" disabled={!input.trim() || loading}
+                  className="h-11 w-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 flex-shrink-0 shadow-sm">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                {hasVoice && (
+                  <Button type="button" size="sm" variant={isListening ? "destructive" : "outline"}
+                    onClick={toggleVoice} disabled={loading}
+                    className={`rounded-full w-9 h-9 p-0 flex-shrink-0 ${isListening ? "animate-pulse" : ""}`}>
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+                )}
+                <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
+                  placeholder={isListening ? "Listening..." : "Ask KiosAI anything..."}
+                  className="flex-1 text-sm rounded-full" disabled={loading || isListening} />
+                <Button type="submit" size="sm" disabled={!input.trim() || loading}
+                  className="rounded-full w-9 h-9 p-0 bg-indigo-600 hover:bg-indigo-700 flex-shrink-0">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </>
             )}
-            <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
-              placeholder={isListening ? "Listening..." : "Ask KiosAI anything..."}
-              className="flex-1 text-sm rounded-full" disabled={loading || isListening} />
-            <Button type="submit" size="sm" disabled={!input.trim() || loading}
-              className="rounded-full w-9 h-9 p-0 bg-indigo-600 hover:bg-indigo-700 flex-shrink-0">
-              <Send className="h-4 w-4" />
-            </Button>
           </form>
         </div>
       )}

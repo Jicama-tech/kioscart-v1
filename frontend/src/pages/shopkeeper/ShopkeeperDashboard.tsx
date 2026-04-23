@@ -1830,7 +1830,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                 ) : <NoAccessOverlay />}
               </TabsContent>
 
-              <TabsContent value="chat" className="mt-0">
+              <TabsContent value="chat" className="mt-0 p-0 -mx-4 -my-4 md:-mx-6 md:-my-6">
                 <ChatbotWidget mode="page" onNavigate={(tab) => setActiveTab(tab)} />
               </TabsContent>
 
