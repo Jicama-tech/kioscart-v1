@@ -484,7 +484,42 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
           )}
 
           <div className={`flex-1 overflow-y-auto ${isPage ? "pl-6 pr-8 py-6" : "p-3"}`}>
-            <div className={`${isPage ? "space-y-5 max-w-[1100px]" : "space-y-3"}`}>
+            {/* Welcome / empty state — shown only until the shopkeeper sends their first message. */}
+            {isPage && !messages.some((m) => m.role === "user") && (
+              <div className="max-w-[900px] mx-auto pt-6 pb-10">
+                <div className="flex flex-col items-center text-center gap-4 mb-8">
+                  <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-lg">
+                    <Bot className="h-7 w-7 text-white" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-semibold text-slate-900 tracking-tight">
+                      {messages[0]?.role === "bot" ? (messages[0].text.split("\n")[0].replace(/\*\*/g, "").replace(/[!.].*/, "")) : "How can I help?"}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1">Click a suggestion below or type your own message</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {SUGGESTED_CARDS.map((c) => (
+                    <button
+                      key={c.title}
+                      type="button"
+                      onClick={() => {
+                        setInput(c.prompt);
+                        inputRef.current?.focus();
+                      }}
+                      className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
+                    >
+                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}>
+                        <c.Icon className="h-3 w-3" strokeWidth={2.25} />
+                      </span>
+                      {c.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className={`${isPage ? "space-y-5 max-w-[1100px]" : "space-y-3"} ${isPage && !messages.some((m) => m.role === "user") ? "hidden" : ""}`}>
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={messageMaxWidth}>
@@ -542,26 +577,6 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                     <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                   </div>
                 </div>
-              </div>
-            )}
-            {isPage && messages.length > 0 && !messages.some((m) => m.role === "user") && (
-              <div className="-mt-2 ml-10 flex flex-wrap gap-2">
-                {SUGGESTED_CARDS.map((c) => (
-                  <button
-                    key={c.title}
-                    type="button"
-                    onClick={() => {
-                      setInput(c.prompt);
-                      inputRef.current?.focus();
-                    }}
-                    className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
-                  >
-                    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}>
-                      <c.Icon className="h-3 w-3" strokeWidth={2.25} />
-                    </span>
-                    {c.title}
-                  </button>
-                ))}
               </div>
             )}
             <div ref={messagesEndRef} />
