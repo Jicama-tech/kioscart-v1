@@ -77,6 +77,64 @@ interface ChatbotWidgetProps {
   mode?: "floating" | "page";
 }
 
+// Quick-start prompt pills shown in page mode. Grouped by capability so the
+// shopkeeper can see at a glance what KiosAI can do and pick a starter.
+const SUGGESTED_PROMPTS: { group: string; items: string[] }[] = [
+  {
+    group: "Dashboard",
+    items: [
+      "Show today's revenue",
+      "This month analytics",
+      "Top selling products",
+      "How many customers",
+    ],
+  },
+  {
+    group: "Kiosk / Place order",
+    items: [
+      "Place order for <name>: <items>",
+      "Show menu",
+      "Receipt for order <orderId>",
+    ],
+  },
+  {
+    group: "Orders & Payments",
+    items: [
+      "Show pending orders",
+      "Show today's orders",
+      "Confirm all matched payments",
+      "Payment summary",
+    ],
+  },
+  {
+    group: "Customers (CRM)",
+    items: [
+      "Show all my customers",
+      "VIP customers",
+      "Add customer <name>, <phone>, <email>",
+      "Show customer <name>",
+    ],
+  },
+  {
+    group: "Products",
+    items: [
+      "Show all products",
+      "Low stock products",
+      "Add a new product called <name>, price <price>, category <category>",
+      "Show <product name>",
+    ],
+  },
+  {
+    group: "Settings",
+    items: [
+      "Show shop info",
+      "Show my plan",
+      "List operators",
+      "List coupons",
+    ],
+  },
+];
+
 // Lightweight markdown-to-HTML for chat replies. Supports:
 // - **bold** -> <strong>
 // - GFM-style tables (lines of `| col | col |`) -> styled <table>
@@ -315,6 +373,33 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
 
           <div className={`flex-1 overflow-y-auto ${isPage ? "pl-6 pr-8 py-6" : "p-3"}`}>
             <div className={`${isPage ? "space-y-5 max-w-[1100px]" : "space-y-3"}`}>
+              {isPage && (
+                <div className="mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick start — click a prompt to begin</p>
+                  <div className="space-y-3">
+                    {SUGGESTED_PROMPTS.map((group) => (
+                      <div key={group.group}>
+                        <p className="text-[11px] font-medium text-slate-500 mb-1.5">{group.group}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {group.items.map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => {
+                                setInput(p);
+                                inputRef.current?.focus();
+                              }}
+                              className="text-[13px] px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition shadow-sm"
+                            >
+                              {p}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={messageMaxWidth}>
