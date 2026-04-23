@@ -15,7 +15,22 @@ export type BotAction =
       shopkeeperPhone?: string;
       paymentURL?: string;
     };
-export interface BotResponse { text: string; quickActions?: QuickAction[]; botAction?: BotAction; }
+export interface ProductTreeItem {
+  name: string;
+  price: number;
+  status?: string;
+  inventory?: number;
+  category?: string;
+  variants?: { title: string; price: number; inventory?: number }[];
+  subcategories?: { name: string; basePrice?: number; variants?: { title: string; price: number; inventory?: number }[] }[];
+  options?: { title: string; price: number; inventory?: number }[];
+}
+export interface BotResponse {
+  text: string;
+  quickActions?: QuickAction[];
+  botAction?: BotAction;
+  productTree?: ProductTreeItem[];
+}
 
 interface ConvEntry { role: "user" | "assistant"; content: string; ts: number }
 
@@ -221,7 +236,7 @@ Focus: product catalog, inventory, prices, variants, subcategories, options.
 
 Read:
 - "show products" → get_products. "how many products" → get_product_count. "low stock" → get_low_stock. "best sellers" → get_top_products.
-- When rendering get_products results, ALWAYS expose the subtree if a product has one. Render as a markdown table with columns: Product | Variant / Subcategory / Option | Price | Stock | Status. Each child variant / subcategory-variant / option becomes its OWN row (indent with "└" or " · " for nested rows like "Pizza · Veg · Medium"). Simple products are one row each. Don't hide the tree behind text like "(has 3 variants)" — list every leaf so the shopkeeper can see prices/stock at a glance.
+- When get_products runs, the widget renders an interactive expandable tree automatically (products with variants/subcategories/options can be expanded like a file tree). Your reply text should be SHORT: a one-line summary like "Here are your **12** products — click any row with a chevron to expand its variants." DO NOT also render a markdown table of the products; the tree UI already shows name, price, stock, and every leaf.
 - Before editing a variant/subcategory/option, call **get_product_detail** first so you know the exact titles and structure.
 
 Top-level product:
@@ -458,6 +473,7 @@ Global rules:
 
     const assistantMsg = response.choices[0].message as any;
     let botAction: BotAction | undefined;
+    let productTree: ProductTreeItem[] | undefined;
 
     if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
       const toolMessages: any[] = [...messages, assistantMsg];
@@ -490,6 +506,10 @@ Global rules:
             shopkeeperPhone: result.shopkeeperPhone,
             paymentURL: result.paymentURL,
           };
+        } else if (tc.function.name === "get_products" && Array.isArray(result?.products)) {
+          // Surface the structured product list so the widget can render an
+          // expandable tree (matching the Products tab UI).
+          productTree = result.products;
         }
       }
 
@@ -513,13 +533,14 @@ Global rules:
         }
       }
       const text = (followUp.choices[0].message as any).content || "Done!";
-      return { text, quickActions: this.suggestActions(message), botAction };
+      return { text, quickActions: this.suggestActions(message), botAction, productTree };
     }
 
     return {
       text: assistantMsg.content || "How can I help you?",
       quickActions: this.suggestActions(message),
       botAction,
+      productTree,
     };
   }
 
