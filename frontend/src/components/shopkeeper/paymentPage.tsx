@@ -1348,16 +1348,30 @@ Thank you!`,
                   </p>
                 </div>
                 {!paymentSubmitted ? (
-                  <Button
-                    onClick={handlePaymentCompletion}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    size="lg"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting
-                      ? "Submitting..."
-                      : "I Have Completed Payment"}
-                  </Button>
+                  <div className="space-y-3">
+                    {/* Attention banner — customers were paying and leaving without clicking,
+                        losing their order. Make it impossible to miss. */}
+                    <div className="flex items-start gap-3 p-3.5 rounded-lg border-2 border-amber-300 bg-amber-50">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-white text-base font-bold animate-pulse">!</span>
+                      </div>
+                      <div className="text-sm text-amber-900 leading-relaxed">
+                        <p className="font-semibold mb-0.5">One last step — tap the button below once you've paid.</p>
+                        <p className="text-[13px] text-amber-800">Your order won't reach the shopkeeper until you confirm here, even if the payment went through on your UPI / bank app.</p>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={handlePaymentCompletion}
+                      className="w-full h-14 text-base font-semibold bg-green-600 hover:bg-green-700 text-white shadow-lg ring-4 ring-green-200 ring-offset-2 transition-all"
+                      size="lg"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting
+                        ? "Submitting..."
+                        : "✓  I Have Completed Payment — Place My Order"}
+                    </Button>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center">
                     <div className="flex items-center justify-center gap-2 text-green-600 font-semibold mb-4">
