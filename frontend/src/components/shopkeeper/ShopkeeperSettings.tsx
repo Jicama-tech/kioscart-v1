@@ -1322,7 +1322,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       fd.append("pickupMessage", shopProfile.pickupMessage || "");
       fd.append("whatsappNumber", getFullWhatsappNumber() || "");
       fd.append("taxPercentage", shopProfile.taxPercentage.toString() || "");
-      fd.append("deliveryFee", (shopProfile.deliveryFee ?? 0).toString());
+      fd.append(
+        "deliveryFee",
+        (Number.isFinite(shopProfile.deliveryFee) ? shopProfile.deliveryFee : 0).toString(),
+      );
       fd.append(
         "discountPercentage",
         shopProfile.discountPercentage.toString() || "",
@@ -2253,14 +2256,17 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={shopProfile.deliveryFee ?? 0}
+                  value={Number.isFinite(shopProfile.deliveryFee) ? shopProfile.deliveryFee : ""}
                   onChange={(e) =>
                     setShopProfile((p) => ({
                       ...p,
-                      deliveryFee: parseFloat(e.target.value) || 0,
+                      // Empty / invalid → NaN (renders blank so the shopkeeper
+                      // can retype cleanly without a stale 0 prefix). Coerced
+                      // to 0 on save.
+                      deliveryFee: parseFloat(e.target.value),
                     }))
                   }
-                  placeholder="0 for free delivery"
+                  placeholder="e.g. 30 — use 0 for free delivery"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Charged to the customer on delivery orders. 0 = free delivery.
