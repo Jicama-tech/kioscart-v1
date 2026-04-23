@@ -584,7 +584,6 @@ Thank you!`,
     return `https://wa.me/${phone}?text=${text}`;
   }
 
-
   async function handlePaymentCompletion() {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -637,7 +636,6 @@ Thank you!`,
         description:
           "Orders are processed and receipts will be issued after payment verification",
       });
-
     } catch (error: any) {
       toast({
         duration: 5000,
@@ -747,7 +745,6 @@ Thank you!`,
     }
   }
 
-
   if (!state?.orderId) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -806,7 +803,10 @@ Thank you!`,
                         <h4 className="font-semibold">{item.productName}</h4>
                         <div className="flex gap-2 mt-1 flex-wrap">
                           {item.optionTitle && (
-                            <Badge variant="buttonOutline" className="text-xs bg-purple-50">
+                            <Badge
+                              variant="buttonOutline"
+                              className="text-xs bg-purple-50"
+                            >
                               {item.optionTitle}
                             </Badge>
                           )}
@@ -1334,7 +1334,8 @@ Thank you!`,
               <CardContent className="pt-6 space-y-4">
                 <div>
                   <Label className="text-sm text-slate-600">
-                    Transaction ID <span className="text-slate-400">(optional)</span>
+                    Transaction ID{" "}
+                    <span className="text-slate-400">(optional)</span>
                   </Label>
                   <Input
                     type="text"
@@ -1344,7 +1345,8 @@ Thank you!`,
                     className="mt-1"
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    Providing a transaction ID helps the shopkeeper verify your payment faster.
+                    Providing a transaction ID helps the shopkeeper verify your
+                    payment faster.
                   </p>
                 </div>
                 {!paymentSubmitted ? (
@@ -1353,11 +1355,19 @@ Thank you!`,
                         losing their order. Make it impossible to miss. */}
                     <div className="flex items-start gap-3 p-3.5 rounded-lg border-2 border-amber-300 bg-amber-50">
                       <div className="flex-shrink-0 mt-0.5">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-white text-base font-bold animate-pulse">!</span>
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-white text-base font-bold animate-pulse">
+                          !
+                        </span>
                       </div>
                       <div className="text-sm text-amber-900 leading-relaxed">
-                        <p className="font-semibold mb-0.5">One last step — tap the button below once you've paid.</p>
-                        <p className="text-[13px] text-amber-800">Your order won't reach the shopkeeper until you confirm here, even if the payment went through on your UPI / bank app.</p>
+                        <p className="font-semibold mb-0.5">
+                          One last step — tap the button below once you've paid.
+                        </p>
+                        <p className="text-[13px] text-amber-800">
+                          Your order won't reach the shopkeeper until you
+                          confirm here, even if the payment went through on your
+                          UPI / bank app.
+                        </p>
                       </div>
                     </div>
 
@@ -1369,7 +1379,7 @@ Thank you!`,
                     >
                       {isSubmitting
                         ? "Submitting..."
-                        : "✓  I Have Completed Payment — Place My Order"}
+                        : "I Have Completed Payment Place My Order"}
                     </Button>
                   </div>
                 ) : (
