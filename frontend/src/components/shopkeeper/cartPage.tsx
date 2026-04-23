@@ -214,6 +214,9 @@ export function CartPage() {
         if (data.data.discountPercentage) {
           setDiscountPercentage(data.data.discountPercentage);
         }
+        if (typeof data.data.deliveryFee === "number") {
+          setShopDeliveryFee(data.data.deliveryFee);
+        }
         if (data.data.shopName) {
           setShopName(data.data._id);
         }
@@ -578,6 +581,9 @@ export function CartPage() {
   const [pickupTime, setPickupTime] = useState("");
   const [taxPercentage, setTaxPercentage] = useState(0);
   const [discountPercentage, setDiscountPercentage] = useState(0);
+  // Per-shop delivery fee from the shopkeeper's profile (Settings → Profile).
+  // 0 = free delivery; any value > 0 is added on delivery orders.
+  const [shopDeliveryFee, setShopDeliveryFee] = useState(0);
   const [pickupAddress, setPickupAddress] = useState("");
   const [emailId, setEmailId] = useState("");
   const [slug, setSlug] = useState("");
@@ -587,7 +593,7 @@ export function CartPage() {
   const shopCart =
     shopkeeperId && cartItems[shopkeeperId] ? cartItems[shopkeeperId] : [];
   const subtotal = cartTotal(shopkeeperId || "");
-  const deliveryFee = orderType === "delivery" ? 30 : 0;
+  const deliveryFee = orderType === "delivery" ? (Number(shopDeliveryFee) || 0) : 0;
 
   // Kiosk/self-order mode: auto-set pickup date & time to now
   const isSelfOrder = orderFor === "self";

@@ -313,6 +313,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     paymentURL: "",
     taxPercentage: 0,
     discountPercentage: 0,
+    deliveryFee: 0,
     shopClosedFromDate: "",
     shopClosedToDate: "",
     termsAndConditions: "",
@@ -1321,6 +1322,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       fd.append("pickupMessage", shopProfile.pickupMessage || "");
       fd.append("whatsappNumber", getFullWhatsappNumber() || "");
       fd.append("taxPercentage", shopProfile.taxPercentage.toString() || "");
+      fd.append("deliveryFee", (shopProfile.deliveryFee ?? 0).toString());
       fd.append(
         "discountPercentage",
         shopProfile.discountPercentage.toString() || "",
@@ -1379,6 +1381,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         whatsappNumber: d?.whatsappNumber ?? p.whatsappNumber,
         taxPercentage: d?.taxPercentage ?? p.taxPercentage,
         discountPercentage: d?.discountPercentage ?? p.discountPercentage,
+        deliveryFee: d?.deliveryFee ?? p.deliveryFee ?? 0,
         whatsAppQR: d?.whatsAppQR ?? p.whatsAppQR,
         instagramQR: d?.instagramQR ?? p.instagramQR,
         dynamicQR: d?.dynamicQR ?? p.dynamicQR,
@@ -1557,6 +1560,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           whatsappNumber: d?.whatsappNumber ?? "",
           taxPercentage: d?.taxPercentage ?? 0,
           discountPercentage: d?.discountPercentage ?? 0,
+          deliveryFee: d?.deliveryFee ?? 0,
           whatsAppQR: d?.whatsAppQR ?? false,
           instagramQR: d?.instagramQR ?? false,
           dynamicQR: d?.dynamicQR ?? false,
@@ -2240,6 +2244,27 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   }
                   placeholder="e.g., 5.0"
                 />
+              </div>
+
+              {/* DELIVERY FEE */}
+              <div>
+                <Label>Delivery Fee</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={shopProfile.deliveryFee ?? 0}
+                  onChange={(e) =>
+                    setShopProfile((p) => ({
+                      ...p,
+                      deliveryFee: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  placeholder="0 for free delivery"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Charged to the customer on delivery orders. 0 = free delivery.
+                </p>
               </div>
 
               {/* PICKUP DATE SETTINGS */}

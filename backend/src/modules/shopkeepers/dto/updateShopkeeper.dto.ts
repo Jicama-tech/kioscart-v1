@@ -100,6 +100,10 @@ export class UpdateShopkeeperDto {
 
   @IsString()
   @IsOptional()
+  deliveryFee?: number;
+
+  @IsString()
+  @IsOptional()
   whatsAppQRNumber?: string;
 
   @IsBoolean()
