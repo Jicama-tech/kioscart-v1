@@ -717,6 +717,7 @@ export class ShopkeepersService {
       hasDocVerification?: boolean;
       taxPercentage?: string | number;
       discountPercentage?: string | number;
+      deliveryFee?: string | number;
       businessCategory?: string;
       receiptType?: ReceiptType | string;
       termsAndConditions?: string;
@@ -800,6 +801,15 @@ export class ShopkeepersService {
           ? parseFloat(body.discountPercentage)
           : body.discountPercentage;
       update.discountPercentage = isNaN(discountNum) ? 0 : discountNum;
+    }
+
+    // ✅ DELIVERY FEE (handle string/number — FormData sends everything as string)
+    if (body.deliveryFee !== undefined) {
+      const feeNum =
+        typeof body.deliveryFee === "string"
+          ? parseFloat(body.deliveryFee)
+          : body.deliveryFee;
+      update.deliveryFee = isNaN(feeNum) ? 0 : feeNum;
     }
 
     // ✅ DATES (handle string/Date from FormData)
