@@ -96,8 +96,8 @@ function renderTable(rows: string[]): string {
     .filter((cols, i) => !(i === 1 && cols.every((c) => /^:?-+:?$/.test(c))));
   if (cells.length === 0) return "";
   const [header, ...body] = cells;
-  const th = header.map((c) => `<th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-200 bg-gray-50">${inlineMd(c)}</th>`).join("");
-  const tr = body.map((row) => `<tr class="hover:bg-gray-50">${row.map((c) => `<td class="px-3 py-2 text-sm text-gray-800 border-b border-gray-100">${inlineMd(c)}</td>`).join("")}</tr>`).join("");
+  const th = header.map((c) => `<th class="px-3 py-2.5 text-left text-[13px] font-semibold text-gray-700 border-b border-gray-200 bg-gray-50">${inlineMd(c)}</th>`).join("");
+  const tr = body.map((row) => `<tr class="hover:bg-gray-50">${row.map((c) => `<td class="px-3 py-2.5 text-[14px] text-gray-800 border-b border-gray-100">${inlineMd(c)}</td>`).join("")}</tr>`).join("");
   return `<div class="my-2 overflow-x-auto rounded-lg border border-gray-200"><table class="w-full border-collapse"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;
 }
 function formatMessage(text: string): string {
@@ -284,13 +284,13 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
         <div className={containerClass}>
           {isPage ? (
             <div className="flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur">
-              <div className="mx-auto max-w-4xl flex items-center gap-3 px-6 py-4">
-                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
-                  <Bot className="h-5 w-5 text-white" />
+              <div className="flex items-center gap-3 pl-6 pr-8 py-4">
+                <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
+                  <Bot className="h-6 w-6 text-white" />
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900 text-sm tracking-tight">KiosAI</p>
+                  <p className="font-semibold text-slate-900 text-base tracking-tight">KiosAI</p>
                   <p className="text-xs text-slate-500">Your smart store assistant · Online</p>
                 </div>
               </div>
@@ -312,19 +312,19 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             </div>
           )}
 
-          <div className={`flex-1 overflow-y-auto ${isPage ? "px-6 py-6" : "p-3"}`}>
-            <div className={`${isPage ? "mx-auto max-w-4xl space-y-5" : "space-y-3"}`}>
+          <div className={`flex-1 overflow-y-auto ${isPage ? "pl-6 pr-8 py-6" : "p-3"}`}>
+            <div className={`${isPage ? "space-y-5 max-w-[1100px]" : "space-y-3"}`}>
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={messageMaxWidth}>
-                  <div className={`flex items-end gap-1.5 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  <div className={`flex items-end ${isPage ? "gap-2" : "gap-1.5"} ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                    <div className={`${isPage ? "w-8 h-8" : "w-6 h-6"} rounded-full flex items-center justify-center flex-shrink-0 ${
                       msg.role === "user" ? "bg-indigo-100" : "bg-gray-100"
                     }`}>
-                      {msg.role === "user" ? <User className="h-3 w-3 text-indigo-600" /> : <Bot className="h-3 w-3 text-gray-600" />}
+                      {msg.role === "user" ? <User className={`${isPage ? "h-4 w-4" : "h-3 w-3"} text-indigo-600`} /> : <Bot className={`${isPage ? "h-4 w-4" : "h-3 w-3"} text-gray-600`} />}
                     </div>
-                    <div className={`rounded-2xl px-3 py-2 text-sm ${
-                      msg.role === "user" ? "bg-indigo-600 text-white rounded-br-sm" : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                    <div className={`rounded-2xl ${isPage ? "px-4 py-3 text-[15px] leading-relaxed" : "px-3 py-2 text-sm"} ${
+                      msg.role === "user" ? "bg-indigo-600 text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-200 shadow-sm rounded-bl-sm"
                     }`}>
                       <div dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }} />
                     </div>
@@ -372,23 +372,23 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className={isPage ? "flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur px-6 py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
+          <form onSubmit={handleSubmit} className={isPage ? "flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur pl-6 pr-8 py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
             {isPage ? (
-              <div className="mx-auto max-w-4xl flex items-end gap-2">
+              <div className="flex items-end gap-2 max-w-[1100px]">
                 {hasVoice && (
                   <Button type="button" size="icon" variant={isListening ? "destructive" : "outline"}
                     onClick={toggleVoice} disabled={loading}
-                    className={`h-11 w-11 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-slate-300"}`}>
-                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    className={`h-12 w-12 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-slate-300"}`}>
+                    {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                   </Button>
                 )}
                 <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
                   placeholder={isListening ? "Listening…" : "Message KiosAI — ask anything about your store"}
-                  className="flex-1 h-11 text-sm rounded-xl border-slate-300 bg-white focus-visible:ring-indigo-500"
+                  className="flex-1 h-12 text-base rounded-xl border-slate-300 bg-white focus-visible:ring-indigo-500"
                   disabled={loading || isListening} />
                 <Button type="submit" size="icon" disabled={!input.trim() || loading}
-                  className="h-11 w-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 flex-shrink-0 shadow-sm">
-                  <Send className="h-4 w-4" />
+                  className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 flex-shrink-0 shadow-sm">
+                  <Send className="h-5 w-5" />
                 </Button>
               </div>
             ) : (
