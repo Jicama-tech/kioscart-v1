@@ -120,6 +120,11 @@ export class Shopkeeper {
   @Prop({ default: 0 })
   discountPercentage: number;
 
+  // Delivery fee applied on the storefront cart when orderType === "delivery".
+  // 0 = free delivery. Configurable per shop via Settings → Profile.
+  @Prop({ default: 0 })
+  deliveryFee: number;
+
   @Prop({ default: false })
   approved: boolean;
 
