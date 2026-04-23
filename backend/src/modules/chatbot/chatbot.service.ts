@@ -221,6 +221,7 @@ Focus: product catalog, inventory, prices, variants, subcategories, options.
 
 Read:
 - "show products" → get_products. "how many products" → get_product_count. "low stock" → get_low_stock. "best sellers" → get_top_products.
+- When rendering get_products results, ALWAYS expose the subtree if a product has one. Render as a markdown table with columns: Product | Variant / Subcategory / Option | Price | Stock | Status. Each child variant / subcategory-variant / option becomes its OWN row (indent with "└" or " · " for nested rows like "Pizza · Veg · Medium"). Simple products are one row each. Don't hide the tree behind text like "(has 3 variants)" — list every leaf so the shopkeeper can see prices/stock at a glance.
 - Before editing a variant/subcategory/option, call **get_product_detail** first so you know the exact titles and structure.
 
 Top-level product:
@@ -813,7 +814,34 @@ Global rules:
       case "get_products": {
         const products = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(15).lean();
         const total = await this.productModel.countDocuments({ shopkeeperId: sid, isSoftDeleted: { $ne: true } });
-        return { total, products: products.map((p: any) => ({ name: p.name, price: p.price, status: p.status, inventory: p.inventory })) };
+        return {
+          total,
+          products: products.map((p: any) => {
+            const variants = (p.variants || []).map((v: any) => ({ title: v.title, price: v.price, inventory: v.inventory }));
+            const subcategories = (p.subcategories || []).map((s: any) => ({
+              name: s.name,
+              basePrice: s.basePrice,
+              variants: (s.variants || []).map((v: any) => ({ title: v.title, price: v.price, inventory: v.inventory })),
+            }));
+            const options = (p.productOptions || []).map((o: any) => ({ title: o.title, price: o.price, inventory: o.inventory }));
+            const treeSummary: string[] = [];
+            if (variants.length) treeSummary.push(`${variants.length} variant${variants.length > 1 ? "s" : ""}`);
+            if (subcategories.length) treeSummary.push(`${subcategories.length} subcategor${subcategories.length > 1 ? "ies" : "y"}`);
+            if (options.length) treeSummary.push(`${options.length} option${options.length > 1 ? "s" : ""}`);
+            return {
+              name: p.name,
+              price: p.price,
+              status: p.status,
+              inventory: p.inventory,
+              category: p.category,
+              hasTree: variants.length + subcategories.length + options.length > 0,
+              treeSummary: treeSummary.join(", ") || undefined,
+              variants: variants.length ? variants : undefined,
+              subcategories: subcategories.length ? subcategories : undefined,
+              options: options.length ? options : undefined,
+            };
+          }),
+        };
       }
       case "get_product_count": {
         const [total, active, draft] = await Promise.all([
