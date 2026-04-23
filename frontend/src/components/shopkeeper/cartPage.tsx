@@ -582,8 +582,8 @@ export function CartPage() {
   const [taxPercentage, setTaxPercentage] = useState(0);
   const [discountPercentage, setDiscountPercentage] = useState(0);
   // Per-shop delivery fee from the shopkeeper's profile (Settings → Profile).
-  // 0 = free delivery; any value > 0 is added on delivery orders.
-  const [shopDeliveryFee, setShopDeliveryFee] = useState(0);
+  // Defaults to 30 until the profile fetch resolves; 0 = free delivery.
+  const [shopDeliveryFee, setShopDeliveryFee] = useState(30);
   const [pickupAddress, setPickupAddress] = useState("");
   const [emailId, setEmailId] = useState("");
   const [slug, setSlug] = useState("");

@@ -313,7 +313,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     paymentURL: "",
     taxPercentage: 0,
     discountPercentage: 0,
-    deliveryFee: 0,
+    deliveryFee: 30,
     shopClosedFromDate: "",
     shopClosedToDate: "",
     termsAndConditions: "",
@@ -1383,7 +1383,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         whatsappNumber: d?.whatsappNumber ?? p.whatsappNumber,
         taxPercentage: d?.taxPercentage ?? p.taxPercentage,
         discountPercentage: d?.discountPercentage ?? p.discountPercentage,
-        deliveryFee: d?.deliveryFee ?? p.deliveryFee ?? 0,
+        deliveryFee: d?.deliveryFee ?? p.deliveryFee ?? 30,
         whatsAppQR: d?.whatsAppQR ?? p.whatsAppQR,
         instagramQR: d?.instagramQR ?? p.instagramQR,
         dynamicQR: d?.dynamicQR ?? p.dynamicQR,
@@ -1563,7 +1563,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           whatsappNumber: d?.whatsappNumber ?? "",
           taxPercentage: d?.taxPercentage ?? 0,
           discountPercentage: d?.discountPercentage ?? 0,
-          deliveryFee: d?.deliveryFee ?? 0,
+          deliveryFee: d?.deliveryFee ?? 30,
           whatsAppQR: d?.whatsAppQR ?? false,
           instagramQR: d?.instagramQR ?? false,
           dynamicQR: d?.dynamicQR ?? false,
@@ -2264,7 +2264,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       deliveryFee: parseFloat(e.target.value) || 0,
                     }))
                   }
-                  placeholder="0 for free delivery"
+                  placeholder="e.g. 30 — use 0 for free delivery"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Charged to the customer on delivery orders. 0 = free delivery.
