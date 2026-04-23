@@ -219,6 +219,9 @@ export function CartPage() {
         }
         if (typeof data.data.deliveryEnabled === "boolean") {
           setDeliveryEnabled(data.data.deliveryEnabled);
+          // If the shop just turned delivery off and the customer had it selected,
+          // snap back to pickup so they don't end up stuck on a hidden option.
+          if (!data.data.deliveryEnabled) setOrderType("pickup");
         }
         if (Array.isArray(data.data.deliveryRules)) {
           setDeliveryRules(data.data.deliveryRules);
@@ -1079,22 +1082,24 @@ export function CartPage() {
                       </Label>
                     </div>
 
-                    {/* Delivery */}
-                    <div className="flex items-center space-x-3 p-4 border rounded-xl w-full sm:flex-1">
-                      <RadioGroupItem value="delivery" id="delivery" />
-                      <Label
-                        htmlFor="delivery"
-                        className="flex items-center gap-2 cursor-pointer w-full"
-                      >
-                        <Truck className="w-4 h-4 text-green-600 shrink-0" />
-                        <div>
-                          <p className="font-medium">Home Delivery</p>
-                          <p className="text-sm text-muted-foreground">
-                            Delivery charges
-                          </p>
-                        </div>
-                      </Label>
-                    </div>
+                    {/* Delivery — hidden when the shopkeeper has disabled delivery */}
+                    {deliveryEnabled && (
+                      <div className="flex items-center space-x-3 p-4 border rounded-xl w-full sm:flex-1">
+                        <RadioGroupItem value="delivery" id="delivery" />
+                        <Label
+                          htmlFor="delivery"
+                          className="flex items-center gap-2 cursor-pointer w-full"
+                        >
+                          <Truck className="w-4 h-4 text-green-600 shrink-0" />
+                          <div>
+                            <p className="font-medium">Home Delivery</p>
+                            <p className="text-sm text-muted-foreground">
+                              Delivery charges
+                            </p>
+                          </div>
+                        </Label>
+                      </div>
+                    )}
                   </RadioGroup>
 
                   {orderType === "delivery" && (
