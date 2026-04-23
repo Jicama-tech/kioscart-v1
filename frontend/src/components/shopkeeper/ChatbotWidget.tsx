@@ -250,7 +250,8 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
       setIsListening(false);
       if (text) {
         setInput(text);
-        sendMessage(text);
+        // Don't auto-send — let the shopkeeper review/edit first, then click Send.
+        setTimeout(() => inputRef.current?.focus(), 0);
       }
     };
     rec.onerror = () => setIsListening(false);
