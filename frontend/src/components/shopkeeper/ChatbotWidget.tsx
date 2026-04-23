@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Store, Monitor, ShoppingCart, Users, Package, Globe, Settings, ChevronRight, ChevronDown } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Store, Monitor, ShoppingCart, Users, Package, Globe, Settings, ChevronRight, ChevronDown, Sparkles } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import QRCode from "react-qr-code";
 import jsQR from "jsqr";
@@ -321,6 +321,7 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -602,9 +603,53 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className={isPage ? "flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur pl-6 pr-8 py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
+          <form onSubmit={handleSubmit} className={isPage ? "relative flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur pl-6 pr-8 py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
+            {/* Suggestions popover (page mode) — anchored above the composer. */}
+            {isPage && showSuggestions && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Close suggestions"
+                  onClick={() => setShowSuggestions(false)}
+                  className="fixed inset-0 z-40 cursor-default"
+                />
+                <div className="absolute z-50 left-6 right-8 bottom-[calc(100%+0.5rem)] bg-white border border-slate-200 rounded-2xl shadow-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[12px] font-semibold text-slate-700 uppercase tracking-wide">Suggestions</p>
+                    <button type="button" onClick={() => setShowSuggestions(false)} className="text-slate-400 hover:text-slate-600">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-[280px] overflow-y-auto">
+                    {SUGGESTED_CARDS.map((c) => (
+                      <button
+                        key={c.title}
+                        type="button"
+                        onClick={() => {
+                          setInput(c.prompt);
+                          setShowSuggestions(false);
+                          inputRef.current?.focus();
+                        }}
+                        className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
+                      >
+                        <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}>
+                          <c.Icon className="h-3 w-3" strokeWidth={2.25} />
+                        </span>
+                        {c.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
             {isPage ? (
               <div className="flex items-end gap-2 max-w-[1100px]">
+                <Button type="button" size="icon" variant={showSuggestions ? "default" : "outline"}
+                  onClick={() => setShowSuggestions((s) => !s)} disabled={loading}
+                  title="Suggestions"
+                  className={`h-12 w-12 rounded-xl flex-shrink-0 ${showSuggestions ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-slate-300"}`}>
+                  <Sparkles className="h-5 w-5" />
+                </Button>
                 {hasVoice && (
                   <Button type="button" size="icon" variant={isListening ? "destructive" : "outline"}
                     onClick={toggleVoice} disabled={loading}
