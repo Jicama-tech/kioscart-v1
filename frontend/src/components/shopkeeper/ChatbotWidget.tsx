@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Store, Monitor, ShoppingCart, Users, Package, Globe, Settings } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import QRCode from "react-qr-code";
 import jsQR from "jsqr";
@@ -76,6 +76,17 @@ interface ChatbotWidgetProps {
   /** "floating" = bottom-right bubble dialog (default). "page" = fills its parent container. */
   mode?: "floating" | "page";
 }
+
+// Tabs the chat can jump to (matches the sidebar order, minus the chat tab itself).
+const NAV_TABS: { id: string; label: string; Icon: any }[] = [
+  { id: "dashboard", label: "Dashboard", Icon: Store },
+  { id: "kiosk", label: "Kiosk", Icon: Monitor },
+  { id: "orders", label: "Orders", Icon: ShoppingCart },
+  { id: "crm", label: "CRM", Icon: Users },
+  { id: "products", label: "Products", Icon: Package },
+  { id: "storefront", label: "Storefront", Icon: Globe },
+  { id: "settings", label: "Settings", Icon: Settings },
+];
 
 // Quick-start prompt pills shown in page mode. Grouped by capability so the
 // shopkeeper can see at a glance what KiosAI can do and pick a starter.
@@ -373,33 +384,6 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
 
           <div className={`flex-1 overflow-y-auto ${isPage ? "pl-6 pr-8 py-6" : "p-3"}`}>
             <div className={`${isPage ? "space-y-5 max-w-[1100px]" : "space-y-3"}`}>
-              {isPage && (
-                <div className="mb-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick start — click a prompt to begin</p>
-                  <div className="space-y-3">
-                    {SUGGESTED_PROMPTS.map((group) => (
-                      <div key={group.group}>
-                        <p className="text-[11px] font-medium text-slate-500 mb-1.5">{group.group}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {group.items.map((p) => (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => {
-                                setInput(p);
-                                inputRef.current?.focus();
-                              }}
-                              className="text-[13px] px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition shadow-sm"
-                            >
-                              {p}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={messageMaxWidth}>
@@ -454,9 +438,55 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                 </div>
               </div>
             )}
+            {isPage && messages.length > 0 && !messages.some((m) => m.role === "user") && (
+              <div className="pt-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick start — click a prompt to begin</p>
+                <div className="space-y-3">
+                  {SUGGESTED_PROMPTS.map((group) => (
+                    <div key={group.group}>
+                      <p className="text-[11px] font-medium text-slate-500 mb-1.5">{group.group}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.items.map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => {
+                              setInput(p);
+                              inputRef.current?.focus();
+                            }}
+                            className="text-[13px] px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition shadow-sm"
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
             </div>
           </div>
+
+          {isPage && onNavigate && (
+            <div className="flex-shrink-0 border-t border-slate-200 bg-white/70 backdrop-blur pl-6 pr-8 py-2">
+              <div className="flex flex-wrap items-center gap-1.5 max-w-[1100px]">
+                <span className="text-[11px] font-medium text-slate-500 mr-1">Jump to:</span>
+                {NAV_TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => onNavigate(t.id)}
+                    className="inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-md border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition"
+                  >
+                    <t.Icon className="h-3.5 w-3.5" />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className={isPage ? "flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur pl-6 pr-8 py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
             {isPage ? (
