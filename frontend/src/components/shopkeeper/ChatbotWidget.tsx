@@ -73,11 +73,81 @@ async function buildQrValue(action: {
 
 interface ChatbotWidgetProps {
   onNavigate?: (tab: string) => void;
+  /** "floating" = bottom-right bubble dialog (default). "page" = fills its parent container. */
+  mode?: "floating" | "page";
 }
 
-export function ChatbotWidget({ onNavigate }: ChatbotWidgetProps) {
+// Lightweight markdown-to-HTML for chat replies. Supports:
+// - **bold** -> <strong>
+// - GFM-style tables (lines of `| col | col |`) -> styled <table>
+// - bullet items starting with `- ` or `* ` -> <ul>/<li>
+// - numbered items `1. ` -> <ol>/<li>
+// - blank lines and \n preserved as paragraph / line breaks
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
+}
+function inlineMd(s: string) {
+  return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+function renderTable(rows: string[]): string {
+  // Drop the markdown separator row (---|---|...)
+  const cells = rows
+    .map((r) => r.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()))
+    .filter((cols, i) => !(i === 1 && cols.every((c) => /^:?-+:?$/.test(c))));
+  if (cells.length === 0) return "";
+  const [header, ...body] = cells;
+  const th = header.map((c) => `<th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-200 bg-gray-50">${inlineMd(c)}</th>`).join("");
+  const tr = body.map((row) => `<tr class="hover:bg-gray-50">${row.map((c) => `<td class="px-3 py-2 text-sm text-gray-800 border-b border-gray-100">${inlineMd(c)}</td>`).join("")}</tr>`).join("");
+  return `<div class="my-2 overflow-x-auto rounded-lg border border-gray-200"><table class="w-full border-collapse"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;
+}
+function formatMessage(text: string): string {
+  if (!text) return "";
+  const lines = text.split(/\r?\n/);
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // Table block
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      const block: string[] = [];
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) {
+        block.push(lines[i].trim());
+        i++;
+      }
+      out.push(renderTable(block));
+      continue;
+    }
+    // Bullet list
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(`<li class="ml-4">${inlineMd(lines[i].replace(/^\s*[-*]\s+/, ""))}</li>`);
+        i++;
+      }
+      out.push(`<ul class="list-disc my-1">${items.join("")}</ul>`);
+      continue;
+    }
+    // Numbered list
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+        items.push(`<li class="ml-4">${inlineMd(lines[i].replace(/^\s*\d+\.\s+/, ""))}</li>`);
+        i++;
+      }
+      out.push(`<ol class="list-decimal my-1">${items.join("")}</ol>`);
+      continue;
+    }
+    // Regular line
+    out.push(line.length ? inlineMd(line) : "<br/>");
+    i++;
+  }
+  return out.join("<br/>");
+}
+
+export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetProps) {
   const { isModuleEnabled } = useSubscription();
-  const [open, setOpen] = useState(false);
+  // In page mode the chat is always "open".
+  const [open, setOpen] = useState(mode === "page");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -192,22 +262,27 @@ export function ChatbotWidget({ onNavigate }: ChatbotWidgetProps) {
   const hasVoice = typeof window !== "undefined" &&
     !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 
-  const formatText = (text: string) =>
-    text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
-
   if (!isModuleEnabled("chatbot")) return null;
+
+  // Page-mode: lay out to fill the parent container, no floating button.
+  // Floating-mode: original bottom-right bubble.
+  const isPage = mode === "page";
+  const containerClass = isPage
+    ? "w-full h-[calc(100vh-8rem)] bg-white rounded-2xl shadow-sm border flex flex-col overflow-hidden"
+    : "fixed bottom-6 right-6 z-50 w-[380px] h-[520px] bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden";
+  const messageMaxWidth = isPage ? "max-w-[80%]" : "max-w-[85%]";
 
   return (
     <>
-      {!open && (
+      {!isPage && !open && (
         <button onClick={() => setOpen(true)}
           className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-105">
           <MessageCircle className="h-6 w-6" />
         </button>
       )}
 
-      {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] h-[520px] bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden">
+      {(isPage || open) && (
+        <div className={containerClass}>
           <div className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -218,15 +293,17 @@ export function ChatbotWidget({ onNavigate }: ChatbotWidgetProps) {
                 <p className="text-[10px] opacity-80">Your smart store assistant</p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="p-1 hover:bg-white/20 rounded-lg transition">
-              <X className="h-4 w-4" />
-            </button>
+            {!isPage && (
+              <button onClick={() => setOpen(false)} className="p-1 hover:bg-white/20 rounded-lg transition">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className="max-w-[85%]">
+                <div className={messageMaxWidth}>
                   <div className={`flex items-end gap-1.5 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
                       msg.role === "user" ? "bg-indigo-100" : "bg-gray-100"
@@ -236,7 +313,7 @@ export function ChatbotWidget({ onNavigate }: ChatbotWidgetProps) {
                     <div className={`rounded-2xl px-3 py-2 text-sm ${
                       msg.role === "user" ? "bg-indigo-600 text-white rounded-br-sm" : "bg-gray-100 text-gray-800 rounded-bl-sm"
                     }`}>
-                      <div dangerouslySetInnerHTML={{ __html: formatText(msg.text) }} />
+                      <div dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }} />
                     </div>
                   </div>
                   {msg.qr && (

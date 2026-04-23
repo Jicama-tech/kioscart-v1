@@ -382,6 +382,11 @@ Return just the id.`,
     const sysCommon = `
 Global rules:
 - Be concise. Use **bold** for key numbers and order ids.
+- For any list/table-like answer (customers, products, orders, payments, variants), output a GitHub-flavored markdown table:
+    | Col1 | Col2 |
+    |------|------|
+    | a    | b    |
+  The chat UI renders this as a proper styled HTML table — don't fall back to plain bullet lines for tabular data.
 - Always use tools to get real data — never make up numbers.
 - IMPORTANT: call tools via the structured tool-calling API only. NEVER write tool calls as text like "<function=name{...}>" or inside markdown — that is not a valid response.
 - If a tool returns an error, explain it to the shopkeeper in plain language and suggest what to do next.

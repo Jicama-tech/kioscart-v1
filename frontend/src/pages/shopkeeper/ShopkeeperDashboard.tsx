@@ -167,6 +167,7 @@ const NAVIGATION_ITEMS = [
   { id: 'crm', label: 'CRM', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'storefront', label: 'Storefront', icon: Globe, isAction: true },
+  { id: 'chat', label: 'Chat', icon: MessageCircle },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -1829,6 +1830,10 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                 ) : <NoAccessOverlay />}
               </TabsContent>
 
+              <TabsContent value="chat" className="mt-0">
+                <ChatbotWidget mode="page" onNavigate={(tab) => setActiveTab(tab)} />
+              </TabsContent>
+
               <TabsContent value="settings" className="mt-0">
                 {hasTabAccess('settings') ? (
                   <Suspense fallback={<TabLoadingFallback />}>
@@ -1882,8 +1887,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Chatbot */}
-      <ChatbotWidget onNavigate={(tab) => { setActiveTab(tab); setSidebarOpen(false); }} />
+      {/* Chatbot is now a sidebar tab (mode="page") rendered inside the Tabs above. */}
     </div>
   );
 }
