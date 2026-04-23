@@ -546,12 +546,12 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             )}
             {isPage && messages.length > 0 && !messages.some((m) => m.role === "user") && (
               <div className="pt-3">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                   <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-200" />
                   <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Try one of these</p>
                   <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-200" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="flex flex-wrap gap-2">
                   {SUGGESTED_CARDS.map((c) => (
                     <button
                       key={c.title}
@@ -560,21 +560,12 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                         setInput(c.prompt);
                         inputRef.current?.focus();
                       }}
-                      className="group text-left p-4 rounded-xl border border-slate-200 bg-white hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150"
+                      className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
                     >
-                      <div className="flex items-start gap-3">
-                        <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${c.tint}`}>
-                          <c.Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[14px] font-semibold text-slate-900 group-hover:text-blue-700 transition-colors leading-tight mb-1">
-                            {c.title}
-                          </p>
-                          <p className="text-[12.5px] text-slate-500 leading-snug truncate">
-                            {c.sub}
-                          </p>
-                        </div>
-                      </div>
+                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}>
+                        <c.Icon className="h-3 w-3" strokeWidth={2.25} />
+                      </span>
+                      {c.title}
                     </button>
                   ))}
                 </div>
