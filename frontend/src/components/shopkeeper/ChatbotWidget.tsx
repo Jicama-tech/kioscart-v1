@@ -545,30 +545,23 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
               </div>
             )}
             {isPage && messages.length > 0 && !messages.some((m) => m.role === "user") && (
-              <div className="pt-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-200" />
-                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Try one of these</p>
-                  <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-200" />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {SUGGESTED_CARDS.map((c) => (
-                    <button
-                      key={c.title}
-                      type="button"
-                      onClick={() => {
-                        setInput(c.prompt);
-                        inputRef.current?.focus();
-                      }}
-                      className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
-                    >
-                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}>
-                        <c.Icon className="h-3 w-3" strokeWidth={2.25} />
-                      </span>
-                      {c.title}
-                    </button>
-                  ))}
-                </div>
+              <div className="-mt-2 ml-10 flex flex-wrap gap-2">
+                {SUGGESTED_CARDS.map((c) => (
+                  <button
+                    key={c.title}
+                    type="button"
+                    onClick={() => {
+                      setInput(c.prompt);
+                      inputRef.current?.focus();
+                    }}
+                    className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
+                  >
+                    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}>
+                      <c.Icon className="h-3 w-3" strokeWidth={2.25} />
+                    </span>
+                    {c.title}
+                  </button>
+                ))}
               </div>
             )}
             <div ref={messagesEndRef} />
