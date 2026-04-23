@@ -314,6 +314,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     taxPercentage: 0,
     discountPercentage: 0,
     deliveryFee: 0,
+    deliveryEnabled: true,
+    deliveryRules: [] as { minSubtotal: number; fee: number }[],
     shopClosedFromDate: "",
     shopClosedToDate: "",
     termsAndConditions: "",
@@ -1326,6 +1328,15 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         "deliveryFee",
         (Number.isFinite(shopProfile.deliveryFee) ? shopProfile.deliveryFee : 0).toString(),
       );
+      fd.append("deliveryEnabled", String(shopProfile.deliveryEnabled));
+      fd.append(
+        "deliveryRules",
+        JSON.stringify(
+          (shopProfile.deliveryRules || [])
+            .filter((r: any) => Number.isFinite(r.minSubtotal) && Number.isFinite(r.fee))
+            .map((r: any) => ({ minSubtotal: Number(r.minSubtotal) || 0, fee: Number(r.fee) || 0 })),
+        ),
+      );
       fd.append(
         "discountPercentage",
         shopProfile.discountPercentage.toString() || "",
@@ -1385,6 +1396,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         taxPercentage: d?.taxPercentage ?? p.taxPercentage,
         discountPercentage: d?.discountPercentage ?? p.discountPercentage,
         deliveryFee: d?.deliveryFee ?? p.deliveryFee ?? 0,
+        deliveryEnabled: d?.deliveryEnabled ?? p.deliveryEnabled ?? true,
+        deliveryRules: Array.isArray(d?.deliveryRules) ? d.deliveryRules : (p.deliveryRules || []),
         whatsAppQR: d?.whatsAppQR ?? p.whatsAppQR,
         instagramQR: d?.instagramQR ?? p.instagramQR,
         dynamicQR: d?.dynamicQR ?? p.dynamicQR,
@@ -1564,6 +1577,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           taxPercentage: d?.taxPercentage ?? 0,
           discountPercentage: d?.discountPercentage ?? 0,
           deliveryFee: d?.deliveryFee ?? 0,
+          deliveryEnabled: d?.deliveryEnabled ?? true,
+          deliveryRules: Array.isArray(d?.deliveryRules) ? d.deliveryRules : [],
           whatsAppQR: d?.whatsAppQR ?? false,
           instagramQR: d?.instagramQR ?? false,
           dynamicQR: d?.dynamicQR ?? false,
@@ -2249,28 +2264,111 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 />
               </div>
 
-              {/* DELIVERY FEE */}
-              <div>
-                <Label>Delivery Fee</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={Number.isFinite(shopProfile.deliveryFee) ? shopProfile.deliveryFee : ""}
-                  onChange={(e) =>
-                    setShopProfile((p) => ({
-                      ...p,
-                      // Empty / invalid → NaN (renders blank so the shopkeeper
-                      // can retype cleanly without a stale 0 prefix). Coerced
-                      // to 0 on save.
-                      deliveryFee: parseFloat(e.target.value),
-                    }))
-                  }
-                  placeholder="e.g. 30 — use 0 for free delivery"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Charged to the customer on delivery orders. 0 = free delivery.
-                </p>
+              {/* DELIVERY CHARGES — own card so it stands apart from the scalar fields. */}
+              <div className="md:col-span-2 space-y-4 border rounded-lg p-4 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="font-medium">Offer delivery</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Turn off to make every delivery order free (no fee applied).
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!shopProfile.deliveryEnabled}
+                    onCheckedChange={(checked) =>
+                      setShopProfile((p) => ({ ...p, deliveryEnabled: checked }))
+                    }
+                  />
+                </div>
+
+                {shopProfile.deliveryEnabled && (
+                  <div className="space-y-3 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Delivery fee by subtotal</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setShopProfile((p) => ({
+                            ...p,
+                            deliveryRules: [
+                              ...(p.deliveryRules || []),
+                              { minSubtotal: 0, fee: 0 },
+                            ],
+                          }))
+                        }
+                      >
+                        + Add condition
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Each row: "if order subtotal is at least <b>min</b>, charge <b>fee</b>". The rule with the
+                      highest matching min wins, so you can do things like "₹50 up to 300, ₹20 from 300, free from 500".
+                    </p>
+                    {(shopProfile.deliveryRules || []).length === 0 ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                        No conditions yet — delivery is free by default until you add one.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(shopProfile.deliveryRules || []).map((rule, idx) => (
+                          <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                            <div>
+                              <Label className="text-xs text-slate-500">Min subtotal</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={Number.isFinite(rule.minSubtotal) ? rule.minSubtotal : ""}
+                                onChange={(e) =>
+                                  setShopProfile((p) => {
+                                    const rules = [...(p.deliveryRules || [])];
+                                    rules[idx] = { ...rules[idx], minSubtotal: parseFloat(e.target.value) };
+                                    return { ...p, deliveryRules: rules };
+                                  })
+                                }
+                                placeholder="0"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-slate-500">Fee</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={Number.isFinite(rule.fee) ? rule.fee : ""}
+                                onChange={(e) =>
+                                  setShopProfile((p) => {
+                                    const rules = [...(p.deliveryRules || [])];
+                                    rules[idx] = { ...rules[idx], fee: parseFloat(e.target.value) };
+                                    return { ...p, deliveryRules: rules };
+                                  })
+                                }
+                                placeholder="30"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                              onClick={() =>
+                                setShopProfile((p) => {
+                                  const rules = [...(p.deliveryRules || [])];
+                                  rules.splice(idx, 1);
+                                  return { ...p, deliveryRules: rules };
+                                })
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* PICKUP DATE SETTINGS */}

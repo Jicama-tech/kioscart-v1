@@ -102,6 +102,13 @@ export class UpdateShopkeeperDto {
   @IsOptional()
   deliveryFee?: number;
 
+  @IsOptional()
+  deliveryEnabled?: boolean | string;
+
+  // FormData sends arrays as JSON strings; service parses on read.
+  @IsOptional()
+  deliveryRules?: { minSubtotal: number; fee: number }[] | string;
+
   @IsString()
   @IsOptional()
   whatsAppQRNumber?: string;

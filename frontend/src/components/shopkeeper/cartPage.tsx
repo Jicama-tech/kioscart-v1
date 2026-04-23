@@ -217,6 +217,12 @@ export function CartPage() {
         if (typeof data.data.deliveryFee === "number") {
           setShopDeliveryFee(data.data.deliveryFee);
         }
+        if (typeof data.data.deliveryEnabled === "boolean") {
+          setDeliveryEnabled(data.data.deliveryEnabled);
+        }
+        if (Array.isArray(data.data.deliveryRules)) {
+          setDeliveryRules(data.data.deliveryRules);
+        }
         if (data.data.shopName) {
           setShopName(data.data._id);
         }
@@ -581,9 +587,13 @@ export function CartPage() {
   const [pickupTime, setPickupTime] = useState("");
   const [taxPercentage, setTaxPercentage] = useState(0);
   const [discountPercentage, setDiscountPercentage] = useState(0);
-  // Per-shop delivery fee from the shopkeeper's profile (Settings → Profile).
-  // 0 = free delivery; any value > 0 is added on delivery orders.
+  // Per-shop delivery config (Settings → Profile → Delivery charges).
+  // deliveryEnabled = master switch. deliveryRules = subtotal→fee brackets
+  // (the rule with the highest matching minSubtotal wins). The legacy flat
+  // fee is kept as a fallback for shops that haven't migrated.
   const [shopDeliveryFee, setShopDeliveryFee] = useState(0);
+  const [deliveryEnabled, setDeliveryEnabled] = useState(true);
+  const [deliveryRules, setDeliveryRules] = useState<{ minSubtotal: number; fee: number }[]>([]);
   const [pickupAddress, setPickupAddress] = useState("");
   const [emailId, setEmailId] = useState("");
   const [slug, setSlug] = useState("");
@@ -593,7 +603,21 @@ export function CartPage() {
   const shopCart =
     shopkeeperId && cartItems[shopkeeperId] ? cartItems[shopkeeperId] : [];
   const subtotal = cartTotal(shopkeeperId || "");
-  const deliveryFee = orderType === "delivery" ? (Number(shopDeliveryFee) || 0) : 0;
+  // Resolve the applicable delivery fee from the shop's rules. Disabled →
+  // always free. Rules present → pick the one with the highest minSubtotal
+  // the cart qualifies for. No rules → fall back to the legacy flat fee.
+  const computeDeliveryFee = (cartSubtotal: number): number => {
+    if (!deliveryEnabled) return 0;
+    if (deliveryRules && deliveryRules.length > 0) {
+      const applicable = deliveryRules
+        .map((r) => ({ min: Number(r.minSubtotal) || 0, fee: Number(r.fee) || 0 }))
+        .filter((r) => cartSubtotal >= r.min)
+        .sort((a, b) => b.min - a.min);
+      return applicable[0] ? applicable[0].fee : 0;
+    }
+    return Number(shopDeliveryFee) || 0;
+  };
+  const deliveryFee = orderType === "delivery" ? computeDeliveryFee(subtotal) : 0;
 
   // Kiosk/self-order mode: auto-set pickup date & time to now
   const isSelfOrder = orderFor === "self";
