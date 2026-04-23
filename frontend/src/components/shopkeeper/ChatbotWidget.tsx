@@ -88,62 +88,27 @@ const NAV_TABS: { id: string; label: string; Icon: any }[] = [
   { id: "settings", label: "Settings", Icon: Settings },
 ];
 
-// Quick-start prompt pills shown in page mode. Grouped by capability so the
-// shopkeeper can see at a glance what KiosAI can do and pick a starter.
-const SUGGESTED_PROMPTS: { group: string; items: string[] }[] = [
-  {
-    group: "Dashboard",
-    items: [
-      "Show today's revenue",
-      "This month analytics",
-      "Top selling products",
-      "How many customers",
-    ],
-  },
-  {
-    group: "Kiosk / Place order",
-    items: [
-      "Place order for <name>: <items>",
-      "Show menu",
-      "Receipt for order <orderId>",
-    ],
-  },
-  {
-    group: "Orders & Payments",
-    items: [
-      "Show pending orders",
-      "Show today's orders",
-      "Confirm all matched payments",
-      "Payment summary",
-    ],
-  },
-  {
-    group: "Customers (CRM)",
-    items: [
-      "Show all my customers",
-      "VIP customers",
-      "Add customer <name>, <phone>, <email>",
-      "Show customer <name>",
-    ],
-  },
-  {
-    group: "Products",
-    items: [
-      "Show all products",
-      "Low stock products",
-      "Add a new product called <name>, price <price>, category <category>",
-      "Show <product name>",
-    ],
-  },
-  {
-    group: "Settings",
-    items: [
-      "Show shop info",
-      "Show my plan",
-      "List operators",
-      "List coupons",
-    ],
-  },
+// Quick-start cards shown in page mode. Designed like ChatGPT / Claude / Gemini
+// suggestion cards: icon badge, short title, example phrasing underneath.
+const SUGGESTED_CARDS: { Icon: any; tint: string; title: string; sub: string; prompt: string }[] = [
+  // Dashboard
+  { Icon: Store, tint: "text-indigo-600 bg-indigo-50", title: "Today's revenue", sub: "Quick snapshot of today's sales", prompt: "Show today's revenue" },
+  { Icon: Store, tint: "text-indigo-600 bg-indigo-50", title: "This month analytics", sub: "Revenue, orders & top products", prompt: "This month analytics" },
+  // Kiosk
+  { Icon: Monitor, tint: "text-emerald-600 bg-emerald-50", title: "Place a kiosk order", sub: "e.g. \"Place order for Vansh: 2 Mixed Nuts\"", prompt: "Place order for <name>: <items>" },
+  { Icon: Monitor, tint: "text-emerald-600 bg-emerald-50", title: "Get a receipt", sub: "Generate the PDF for any order", prompt: "Receipt for order <orderId>" },
+  // Orders
+  { Icon: ShoppingCart, tint: "text-amber-600 bg-amber-50", title: "Pending orders", sub: "See what still needs your action", prompt: "Show pending orders" },
+  { Icon: ShoppingCart, tint: "text-amber-600 bg-amber-50", title: "Confirm all payments", sub: "Mark every matched payment as paid", prompt: "Confirm all matched payments" },
+  // CRM
+  { Icon: Users, tint: "text-rose-600 bg-rose-50", title: "All customers", sub: "Full customer list with stats", prompt: "Show all my customers" },
+  { Icon: Users, tint: "text-rose-600 bg-rose-50", title: "Add a customer", sub: "Voice or text — phone, email", prompt: "Add customer <name>, <phone>, <email>" },
+  // Products
+  { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "All products", sub: "Browse your catalog", prompt: "Show all products" },
+  { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "Low stock alerts", sub: "Items below threshold", prompt: "Low stock products" },
+  { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "Add a new product", sub: "Quick catalog entry", prompt: "Add a new product called <name>, price <price>, category <category>" },
+  // Settings
+  { Icon: Settings, tint: "text-slate-600 bg-slate-100", title: "Shop info", sub: "Your store profile", prompt: "Show shop info" },
 ];
 
 // Lightweight markdown-to-HTML for chat replies. Supports:
@@ -439,28 +404,37 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
               </div>
             )}
             {isPage && messages.length > 0 && !messages.some((m) => m.role === "user") && (
-              <div className="pt-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick start — click a prompt to begin</p>
-                <div className="space-y-3">
-                  {SUGGESTED_PROMPTS.map((group) => (
-                    <div key={group.group}>
-                      <p className="text-[11px] font-medium text-slate-500 mb-1.5">{group.group}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {group.items.map((p) => (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => {
-                              setInput(p);
-                              inputRef.current?.focus();
-                            }}
-                            className="text-[13px] px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition shadow-sm"
-                          >
-                            {p}
-                          </button>
-                        ))}
+              <div className="pt-3">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-200" />
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Try one of these</p>
+                  <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-200" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {SUGGESTED_CARDS.map((c) => (
+                    <button
+                      key={c.title}
+                      type="button"
+                      onClick={() => {
+                        setInput(c.prompt);
+                        inputRef.current?.focus();
+                      }}
+                      className="group text-left p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${c.tint}`}>
+                          <c.Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[14px] font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors leading-tight mb-1">
+                            {c.title}
+                          </p>
+                          <p className="text-[12.5px] text-slate-500 leading-snug truncate">
+                            {c.sub}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
