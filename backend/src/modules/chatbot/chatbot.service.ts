@@ -277,19 +277,39 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
 - "list operators" → get_operators. "list coupons" → get_coupons. "shop details" → get_shop_info.
 - Edit operations (create/update/delete coupons, add/remove operators, change pickup settings) aren't chat tools yet — navigate_to settings and tell the shopkeeper which section to open.`,
     general: `You are KiosAI for "{SHOP}" on KiosCart. The user's request didn't clearly match a specific tab, so keep things short and guide them.
-- Brief greeting / help.
-- Offer 3-5 quick action chips for common tasks.
-- If the user asks a concrete question, answer it using the few read-only tools available (shop info, today's orders/revenue, products).`,
+- For "hi" / "hello" / "hey" or any greeting → respond EXACTLY in this shape and nothing more:
+    "Hello {PERSON}! 👋 I'm KiosAI, your store assistant for **{SHOP}**. What can I do for you today?"
+  Replace {PERSON} with the actual name passed in. If the name is "there", say "Hello there!" instead.
+- For concrete questions, answer briefly using the few read-only tools available (shop info, today's orders/revenue, products).
+- Don't volunteer long lists or features unless asked — keep the greeting short and inviting.`,
   };
 
-  async processMessage(shopkeeperId: string, message: string): Promise<BotResponse> {
+  async processMessage(shopkeeperIdIn: string, message: string): Promise<BotResponse> {
+    let shopkeeperId = shopkeeperIdIn;
     try {
       if (!this.hasApiKey()) {
         return this.fallbackKeyword(shopkeeperId, message);
       }
 
-      const shopkeeper: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
+      // Resolve the caller's identity. The JWT may belong to either a shopkeeper
+      // OR an operator working on behalf of one, so try both and fall back to
+      // generic "there" if neither matches.
+      let shopkeeper: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
+      let personName = shopkeeper?.name;
+      let scopedShopId = shopkeeperId;
+      if (!shopkeeper) {
+        const op: any = await this.operatorModel.findById(shopkeeperId).lean();
+        if (op?.shopkeeperId) {
+          scopedShopId = String(op.shopkeeperId);
+          shopkeeper = await this.shopkeeperModel.findById(scopedShopId).lean();
+          personName = op.name || personName;
+        }
+      }
+      // From here on, use scopedShopId for data queries so operator calls hit the
+      // right shop.
+      shopkeeperId = scopedShopId;
       const shopName = shopkeeper?.shopName || "Store";
+      const firstName = (personName || "").split(/\s+/)[0] || "there";
 
       // Stage 1 — router: classify the message into a tab. Give it the last
       // few turns so mid-flow follow-ups ("use T-shirt XL") stay on the same tab.
@@ -310,7 +330,7 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
       }
 
       // Stage 2 — specialist for that tab runs the tool-calling loop.
-      const reply = await this.runSpecialist(shopkeeperId, message, tab, shopName);
+      const reply = await this.runSpecialist(shopkeeperId, message, tab, shopName, firstName);
       this.appendHistory(shopkeeperId, message, reply.text);
       return reply;
     } catch (error) {
@@ -389,11 +409,13 @@ Return just the id.`,
     message: string,
     tab: string,
     shopName: string,
+    personFirstName: string = "there",
   ): Promise<BotResponse> {
     const allowed = new Set([...(ChatbotService.TAB_TOOLS[tab] || []), "navigate_to"]);
     const tools = this.tools.filter(t => t.type === "function" && allowed.has(t.function.name));
     const prompt = (ChatbotService.SPECIALIST_PROMPTS[tab] || ChatbotService.SPECIALIST_PROMPTS.general)
-      .replace("{SHOP}", shopName);
+      .replace("{SHOP}", shopName)
+      .replace("{PERSON}", personFirstName);
 
     const sysCommon = `
 Global rules:
@@ -1811,8 +1833,15 @@ Global rules:
   private async fallbackKeyword(sid: string, msg: string): Promise<BotResponse> {
     const m = msg.toLowerCase();
     if (m.includes("hi") || m.includes("hello") || m.includes("help")) {
+      // Same identity resolution as processMessage so the greeting is personal
+      // even when the AI provider is unreachable.
+      let person: any = await this.shopkeeperModel.findById(sid).lean();
+      if (!person) person = await this.operatorModel.findById(sid).lean();
+      const first = (person?.name || "").split(/\s+/)[0] || "there";
+      const shop: any = person?.shopName ? person : await this.shopkeeperModel.findById(person?.shopkeeperId || sid).lean();
+      const shopName = shop?.shopName || "your store";
       return {
-        text: "Hi! I'm **KiosAI** — your store assistant. I can help with orders, products, analytics, payments, and more!",
+        text: `Hello ${first}! 👋 I'm **KiosAI**, your assistant for **${shopName}**. What can I do for you today?`,
         quickActions: [
           { label: "Today's Orders", action: "show today's orders" },
           { label: "Revenue", action: "today's revenue" },
