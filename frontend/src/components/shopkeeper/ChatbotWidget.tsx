@@ -79,7 +79,7 @@ interface ChatbotWidgetProps {
 
 // Tabs the chat can jump to (matches the sidebar order, minus the chat tab itself).
 const NAV_TABS: { id: string; label: string; Icon: any }[] = [
-  { id: "dashboard", label: "Dashboard", Icon: Store },
+  { id: "dashboard", label: "Analytics", Icon: Store },
   { id: "kiosk", label: "Kiosk", Icon: Monitor },
   { id: "orders", label: "Orders", Icon: ShoppingCart },
   { id: "crm", label: "CRM", Icon: Users },

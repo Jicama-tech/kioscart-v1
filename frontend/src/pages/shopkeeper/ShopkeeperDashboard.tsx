@@ -161,7 +161,7 @@ function NoAccessOverlay() {
 
 // Static data moved outside component to prevent re-creation on every render
 const NAVIGATION_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: Store },
+  { id: 'dashboard', label: 'Analytics', icon: Store },
   { id: 'kiosk', label: 'Kiosk Mode', icon: Monitor },
   { id: 'orders', label: 'Orders & Payments', icon: ShoppingCart },
   { id: 'crm', label: 'CRM', icon: Users },
@@ -243,7 +243,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   const apiUrl = __API_URL__;
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('chat');
 
   // Check if current user has access to a tab
   const hasTabAccess = (tabId: string) => {
