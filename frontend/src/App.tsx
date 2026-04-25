@@ -16,14 +16,30 @@ import { useEffect, lazy, Suspense, Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
 import { useLocation } from 'react-router-dom';
 
-// Keep lightweight auth components as eager imports
-import { EShopLogin } from './components/auth/E-ShopLogin';
-import { AdminLogs } from './components/auth/loginAdmin';
-import { ShopkeeperLogin } from './components/auth/shopKeeperLogin';
-import { CartAuthReturn } from './components/auth/CartAuthReturn';
-import { ShopKeeperRegister } from './components/auth/shopKeeperRegistration';
-import { AgentLogin } from './components/auth/AgentLogin';
-import { AgentDashboard } from './pages/agent/AgentDashboard';
+// Auth components are now lazy too — none of them are needed for the initial
+// "/" landing route, and ShopKeeperRegister alone is ~3k lines, which used to
+// drag the entry chunk way past what Chrome can parse before first paint.
+const EShopLogin = lazy(() =>
+  import('./components/auth/E-ShopLogin').then((m) => ({ default: m.EShopLogin })),
+);
+const AdminLogs = lazy(() =>
+  import('./components/auth/loginAdmin').then((m) => ({ default: m.AdminLogs })),
+);
+const ShopkeeperLogin = lazy(() =>
+  import('./components/auth/shopKeeperLogin').then((m) => ({ default: m.ShopkeeperLogin })),
+);
+const CartAuthReturn = lazy(() =>
+  import('./components/auth/CartAuthReturn').then((m) => ({ default: m.CartAuthReturn })),
+);
+const ShopKeeperRegister = lazy(() =>
+  import('./components/auth/shopKeeperRegistration').then((m) => ({ default: m.ShopKeeperRegister })),
+);
+const AgentLogin = lazy(() =>
+  import('./components/auth/AgentLogin').then((m) => ({ default: m.AgentLogin })),
+);
+const AgentDashboard = lazy(() =>
+  import('./pages/agent/AgentDashboard').then((m) => ({ default: m.AgentDashboard })),
+);
 const AgentsPage = lazy(() => import('./pages/admin/AgentsPage'));
 const ShopkeepersPage = lazy(() => import('./pages/admin/ShopkeepersPage'));
 

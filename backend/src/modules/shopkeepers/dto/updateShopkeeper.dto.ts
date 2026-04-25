@@ -98,10 +98,6 @@ export class UpdateShopkeeperDto {
   @IsOptional()
   discountPercentage?: number;
 
-  @IsString()
-  @IsOptional()
-  deliveryFee?: number;
-
   @IsOptional()
   deliveryEnabled?: boolean | string;
 

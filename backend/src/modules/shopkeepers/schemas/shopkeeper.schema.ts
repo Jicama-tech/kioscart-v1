@@ -120,11 +120,6 @@ export class Shopkeeper {
   @Prop({ default: 0 })
   discountPercentage: number;
 
-  // Legacy flat delivery fee — kept for back-compat but superseded by
-  // deliveryRules when deliveryEnabled is true and rules are defined.
-  @Prop({ default: 0 })
-  deliveryFee: number;
-
   // Master switch for delivery. When false, the storefront cart charges 0
   // regardless of any rules and can suppress the "delivery" option.
   @Prop({ default: true })

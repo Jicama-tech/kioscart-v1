@@ -35,6 +35,7 @@ import { jwtDecode } from "jwt-decode";
 import { FaInfoCircle, FaWhatsapp, FaGoogle } from "react-icons/fa";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrency } from "@/hooks/useCurrencyhook";
+import { COUNTRY_CODES } from "@/data/countryCodes";
 
 export interface Country {
   name: string;
@@ -110,39 +111,14 @@ export function CartPage() {
 
   useEffect(() => {
     async function fetchCountries() {
-      try {
-        setLoadingCountries(true);
-        const response = await fetch(
-          "https://restcountries.com/v3.1/all?fields=name,cca2,idd",
-        );
-        const data = await response.json();
-
-        const fetchedCountries: Country[] = data
-          .map((country: any) => {
-            const root = country.idd?.root ?? "";
-            const suffixes = country.idd?.suffixes ?? [];
-            let dial = "";
-            if (root && suffixes.length === 1) dial = root + suffixes[0];
-            else if (root) dial = root;
-            return {
-              name: country.name?.common || "",
-              code: country.cca2 || "",
-              dialCode: dial,
-            };
-          })
-          .filter((c) => c.dialCode)
-          .sort((a, b) => a.name.localeCompare(b.name));
-        setCountries(fetchedCountries);
-      } catch (e) {
-        toast({
-          duration: 5000,
-          title: "Error loading countries",
-          description: "Failed to fetch country codes",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingCountries(false);
-      }
+      setCountries(
+        COUNTRY_CODES.map((c) => ({
+          name: c.name,
+          code: c.code,
+          dialCode: c.dial_code,
+        })),
+      );
+      setLoadingCountries(false);
     }
 
     async function fetchWhatsAppNumber() {
@@ -213,9 +189,6 @@ export function CartPage() {
         }
         if (data.data.discountPercentage) {
           setDiscountPercentage(data.data.discountPercentage);
-        }
-        if (typeof data.data.deliveryFee === "number") {
-          setShopDeliveryFee(data.data.deliveryFee);
         }
         if (typeof data.data.deliveryEnabled === "boolean") {
           setDeliveryEnabled(data.data.deliveryEnabled);
@@ -592,9 +565,7 @@ export function CartPage() {
   const [discountPercentage, setDiscountPercentage] = useState(0);
   // Per-shop delivery config (Settings → Profile → Delivery charges).
   // deliveryEnabled = master switch. deliveryRules = subtotal→fee brackets
-  // (the rule with the highest matching minSubtotal wins). The legacy flat
-  // fee is kept as a fallback for shops that haven't migrated.
-  const [shopDeliveryFee, setShopDeliveryFee] = useState(0);
+  // (the rule with the highest matching minSubtotal wins).
   const [deliveryEnabled, setDeliveryEnabled] = useState(true);
   const [deliveryRules, setDeliveryRules] = useState<{ minSubtotal: number; fee: number }[]>([]);
   const [pickupAddress, setPickupAddress] = useState("");
@@ -606,19 +577,17 @@ export function CartPage() {
   const shopCart =
     shopkeeperId && cartItems[shopkeeperId] ? cartItems[shopkeeperId] : [];
   const subtotal = cartTotal(shopkeeperId || "");
-  // Resolve the applicable delivery fee from the shop's rules. Disabled →
-  // always free. Rules present → pick the one with the highest minSubtotal
-  // the cart qualifies for. No rules → fall back to the legacy flat fee.
+  // Resolve the applicable delivery fee from the shop's rules. Disabled or
+  // no rules defined → free. Otherwise pick the rule with the highest
+  // minSubtotal the cart qualifies for.
   const computeDeliveryFee = (cartSubtotal: number): number => {
     if (!deliveryEnabled) return 0;
-    if (deliveryRules && deliveryRules.length > 0) {
-      const applicable = deliveryRules
-        .map((r) => ({ min: Number(r.minSubtotal) || 0, fee: Number(r.fee) || 0 }))
-        .filter((r) => cartSubtotal >= r.min)
-        .sort((a, b) => b.min - a.min);
-      return applicable[0] ? applicable[0].fee : 0;
-    }
-    return Number(shopDeliveryFee) || 0;
+    if (!deliveryRules || deliveryRules.length === 0) return 0;
+    const applicable = deliveryRules
+      .map((r) => ({ min: Number(r.minSubtotal) || 0, fee: Number(r.fee) || 0 }))
+      .filter((r) => cartSubtotal >= r.min)
+      .sort((a, b) => b.min - a.min);
+    return applicable[0] ? applicable[0].fee : 0;
   };
   const deliveryFee = orderType === "delivery" ? computeDeliveryFee(subtotal) : 0;
 
@@ -1757,7 +1726,9 @@ export function CartPage() {
                   onValueChange={(val: "delivery" | "pickup") =>
                     setOrderType(val)
                   }
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full"
+                  className={`grid grid-cols-1 ${
+                    deliveryEnabled ? "sm:grid-cols-2" : ""
+                  } gap-3 w-full`}
                 >
                   {/* Pickup */}
                   <Label
@@ -1774,22 +1745,24 @@ export function CartPage() {
                     </div>
                   </Label>
 
-                  {/* Delivery */}
-                  <Label
-                    htmlFor="delivery"
-                    className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer w-full
+                  {/* Delivery — hidden when the shopkeeper has disabled delivery */}
+                  {deliveryEnabled && (
+                    <Label
+                      htmlFor="delivery"
+                      className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer w-full
       ${orderType === "delivery" ? "border-primary bg-primary/5" : ""}
     `}
-                  >
-                    <RadioGroupItem value="delivery" id="delivery" />
-                    <Truck className="w-4 h-4 text-green-600 shrink-0" />
-                    <div>
-                      <p className="font-medium">Home Delivery</p>
-                      <p className="text-sm text-muted-foreground">
-                        Delivery charges may apply
-                      </p>
-                    </div>
-                  </Label>
+                    >
+                      <RadioGroupItem value="delivery" id="delivery" />
+                      <Truck className="w-4 h-4 text-green-600 shrink-0" />
+                      <div>
+                        <p className="font-medium">Home Delivery</p>
+                        <p className="text-sm text-muted-foreground">
+                          Delivery charges may apply
+                        </p>
+                      </div>
+                    </Label>
+                  )}
                 </RadioGroup>
 
                 {orderType === "delivery" && (

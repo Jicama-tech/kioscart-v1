@@ -95,6 +95,7 @@ const modules = {
 };
 
 import { useSubscription } from "@/context/SubscriptionContext";
+import { COUNTRY_CODES } from "@/data/countryCodes";
 
 interface ShopkeeperSettingsProps {
   onSave?: (settings: any) => void;
@@ -313,7 +314,6 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     paymentURL: "",
     taxPercentage: 0,
     discountPercentage: 0,
-    deliveryFee: 0,
     deliveryEnabled: true,
     deliveryRules: [] as { minSubtotal: number; fee: number }[],
     shopClosedFromDate: "",
@@ -431,57 +431,15 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     return d;
   };
 
-  // Fetch countries from REST Countries API
-  // Update the fetchCountries function
   useEffect(() => {
-    async function fetchCountries() {
-      try {
-        setLoadingCountries(true);
-        const response = await fetch(
-          "https://restcountries.com/v3.1/all?fields=name,cca2,idd",
-        );
-        const data = await response.json();
-        const mapped = data
-          .map((country: any) => {
-            const root = country.idd?.root ?? "";
-            const suffixes = country.idd?.suffixes ?? [];
-            const dialCode = suffixes.length === 1 ? root + suffixes[0] : root;
-            return {
-              name: country.name?.common || "",
-              code: country.cca2 || "",
-              dialCode: dialCode,
-            };
-          })
-          .filter(
-            (c: Country) =>
-              c.dialCode &&
-              c.dialCode.trim() !== "" &&
-              c.name &&
-              c.name.trim() !== "" &&
-              c.code &&
-              c.code.trim() !== "",
-          ) // More robust filtering
-          .sort((a: Country, b: Country) => a.name.localeCompare(b.name));
-        setCountries(mapped);
-      } catch (error) {
-        console.error("Failed to fetch countries:", error);
-        toast({
-          duration: 5000,
-          title: "Error",
-          description: "Failed to load country codes",
-          variant: "destructive",
-        });
-        // Set fallback countries if API fails
-        setCountries([
-          { name: "India", code: "IN", dialCode: "+91" },
-          { name: "United States", code: "US", dialCode: "+1" },
-          { name: "United Kingdom", code: "GB", dialCode: "+44" },
-        ]);
-      } finally {
-        setLoadingCountries(false);
-      }
-    }
-    fetchCountries();
+    setCountries(
+      COUNTRY_CODES.map((c) => ({
+        name: c.name,
+        code: c.code,
+        dialCode: c.dial_code,
+      })),
+    );
+    setLoadingCountries(false);
   }, []);
 
   const handleVerifyGST = async (GSTnumber: string) => {
@@ -1324,10 +1282,6 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       fd.append("pickupMessage", shopProfile.pickupMessage || "");
       fd.append("whatsappNumber", getFullWhatsappNumber() || "");
       fd.append("taxPercentage", shopProfile.taxPercentage.toString() || "");
-      fd.append(
-        "deliveryFee",
-        (Number.isFinite(shopProfile.deliveryFee) ? shopProfile.deliveryFee : 0).toString(),
-      );
       fd.append("deliveryEnabled", String(shopProfile.deliveryEnabled));
       fd.append(
         "deliveryRules",
@@ -1395,7 +1349,6 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         whatsappNumber: d?.whatsappNumber ?? p.whatsappNumber,
         taxPercentage: d?.taxPercentage ?? p.taxPercentage,
         discountPercentage: d?.discountPercentage ?? p.discountPercentage,
-        deliveryFee: d?.deliveryFee ?? p.deliveryFee ?? 0,
         deliveryEnabled: d?.deliveryEnabled ?? p.deliveryEnabled ?? true,
         deliveryRules: Array.isArray(d?.deliveryRules) ? d.deliveryRules : (p.deliveryRules || []),
         whatsAppQR: d?.whatsAppQR ?? p.whatsAppQR,
@@ -1576,7 +1529,6 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           whatsappNumber: d?.whatsappNumber ?? "",
           taxPercentage: d?.taxPercentage ?? 0,
           discountPercentage: d?.discountPercentage ?? 0,
-          deliveryFee: d?.deliveryFee ?? 0,
           deliveryEnabled: d?.deliveryEnabled ?? true,
           deliveryRules: Array.isArray(d?.deliveryRules) ? d.deliveryRules : [],
           whatsAppQR: d?.whatsAppQR ?? false,
