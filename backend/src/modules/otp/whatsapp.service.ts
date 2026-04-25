@@ -36,7 +36,7 @@ export class WhatsAppService implements OnModuleInit {
       this.sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // Show QR in terminal clearly
+        // Show QR in terminal + save as image for easy scanning
         if (qr) {
           try {
             const termQR = await qrcode.toString(qr, {
@@ -49,6 +49,11 @@ export class WhatsAppService implements OnModuleInit {
             this.logger.log(
               "Open WhatsApp > Linked Devices > Link a device, then scan within ~20s."
             );
+
+            // Save QR as image file for easy viewing
+            const qrPath = "whatsapp-qr.png";
+            await qrcode.toFile(qrPath, qr, { scale: 8 });
+            this.logger.log(`QR code saved to: ${qrPath} — open this file to scan`);
           } catch (e) {
             this.logger.error(
               "Failed to render QR. Raw head: " + qr.slice(0, 40) + "..."

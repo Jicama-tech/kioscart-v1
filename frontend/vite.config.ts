@@ -19,6 +19,51 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port: 8080,
+      // Pre-transform the most likely first-load files on dev start so Chrome
+      // doesn't have to discover them lazily on first navigation. Keeps cold
+      // dev opens snappy without forcing a full reload mid-load.
+      warmup: {
+        clientFiles: [
+          "./index.html",
+          "./src/main.tsx",
+          "./src/App.tsx",
+          "./src/index.css",
+          "./src/pages/LandingPage.tsx",
+          "./src/components/auth/shopKeeperLogin.tsx",
+          "./src/components/user/shopkeeperStoreFront.tsx",
+        ],
+      },
+    },
+    // Pre-bundle the heaviest third-party deps. In dev, Vite normally discovers
+    // these on first import then triggers a full reload to optimise them, which
+    // Chrome surfaces as a long blank-page stall. Listing them here makes the
+    // first dev open ~one big bundle instead of hundreds of round-trips.
+    optimizeDeps: {
+      include: [
+        "react",
+        "react-dom",
+        "react-router-dom",
+        "react-helmet-async",
+        "@tanstack/react-query",
+        "framer-motion",
+        "recharts",
+        "lucide-react",
+        "react-icons/fa",
+        "qrcode",
+        "qrcode.react",
+        "react-qr-code",
+        "html5-qrcode",
+        "jsqr",
+        "jspdf",
+        "react-hook-form",
+        "@hookform/resolvers",
+        "zod",
+        "date-fns",
+        "jwt-decode",
+        "clsx",
+        "tailwind-merge",
+        "class-variance-authority",
+      ],
     },
     plugins: [
       react(),
@@ -27,9 +72,16 @@ export default defineConfig(({ mode }) => {
       mode === "production" && viteCompression({ algorithm: "brotliCompress", ext: ".br", threshold: 1024 }),
       VitePWA({
         registerType: "autoUpdate",
+        // Service worker only runs in the production build — keep dev fast.
+        devOptions: { enabled: false },
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
           navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
+          // Don't precache giant chunks (charts/editor/pdf) — let them stream
+          // on demand and only cache after first use. Chrome was blocking the
+          // initial page on a SW install that downloaded everything.
+          maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+          cleanupOutdatedCaches: true,
           skipWaiting: true,
           clientsClaim: true,
           runtimeCaching: [
@@ -86,17 +138,27 @@ export default defineConfig(({ mode }) => {
       minify: "esbuild",
       sourcemap: false,
       cssCodeSplit: true,
+      // Modern browsers all support modulepreload — the polyfill ships ~1KB of
+      // inline script on every page; not worth it for our target.
+      modulePreload: { polyfill: false },
       rollupOptions: {
         output: {
+          // Split the heaviest libs into their own chunks so they're cached
+          // long-term and don't bloat the entry bundle. Anything not matched
+          // here goes into Rollup's automatic per-route chunks.
           manualChunks(id) {
-            if (id.includes("node_modules")) {
-              if (id.includes("react-dom") || id.includes("react-router") || id.includes("/react/")) {
-                return "vendor";
-              }
-              if (id.includes("@radix-ui")) {
-                return "ui";
-              }
+            if (!id.includes("node_modules")) return;
+            if (id.includes("react-dom") || id.includes("react-router") || id.includes("/react/") || id.includes("react-helmet-async")) {
+              return "vendor";
             }
+            if (id.includes("@radix-ui")) return "ui";
+            if (id.includes("recharts") || id.includes("d3-")) return "charts";
+            if (id.includes("framer-motion")) return "motion";
+            if (id.includes("react-quill") || id.includes("quill")) return "editor";
+            if (id.includes("jspdf") || id.includes("pdfkit")) return "pdf";
+            if (id.includes("qrcode") || id.includes("jsqr") || id.includes("html5-qrcode") || id.includes("paynowqr")) return "qr";
+            if (id.includes("lucide-react") || id.includes("react-icons")) return "icons";
+            if (id.includes("@capacitor")) return "capacitor";
           },
         },
       },

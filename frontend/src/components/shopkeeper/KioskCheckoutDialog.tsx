@@ -31,6 +31,7 @@ import { KioskCart } from "@/hooks/useKioskCarts";
 import { jwtDecode } from "jwt-decode";
 import QRCode from "react-qr-code";
 import jsQR from "jsqr";
+import { COUNTRY_CODES } from "@/data/countryCodes";
 
 const apiURL = __API_URL__;
 
@@ -98,33 +99,14 @@ export function KioskCheckoutDialog({
   const [countries, setCountries] = useState<Country[]>([]);
   const [validating, setValidating] = useState(false);
 
-  // Fetch countries on mount
   useEffect(() => {
-    async function fetchCountries() {
-      try {
-        const res = await fetch(
-          "https://restcountries.com/v3.1/all?fields=name,cca2,idd",
-        );
-        const data = await res.json();
-        const list: Country[] = data
-          .map((c: any) => {
-            const root = c.idd?.root ?? "";
-            const suffixes = c.idd?.suffixes ?? [];
-            let dial = "";
-            if (root && suffixes.length === 1) dial = root + suffixes[0];
-            else if (root) dial = root;
-            return {
-              name: c.name?.common || "",
-              code: c.cca2 || "",
-              dialCode: dial,
-            };
-          })
-          .filter((c: Country) => c.dialCode)
-          .sort((a: Country, b: Country) => a.name.localeCompare(b.name));
-        setCountries(list);
-      } catch {}
-    }
-    fetchCountries();
+    setCountries(
+      COUNTRY_CODES.map((c) => ({
+        name: c.name,
+        code: c.code,
+        dialCode: c.dial_code,
+      })),
+    );
   }, []);
 
   // Fetch shopkeeper info when dialog opens

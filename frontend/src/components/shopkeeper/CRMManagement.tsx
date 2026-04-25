@@ -82,6 +82,7 @@ import {
 } from "react-icons/fa";
 import { Separator } from "@radix-ui/react-separator";
 import { useCurrency } from "@/hooks/useCurrencyhook";
+import { COUNTRY_CODES } from "@/data/countryCodes";
 
 // Mock WhatsApp icon
 // const FaWhatsapp = ({ className = "" }) => (
@@ -977,48 +978,17 @@ export function AddCustomerDialog({
   const [submitting, setSubmitting] = useState(false);
   const [loadingCountries, setLoadingCountries] = useState(true);
 
-  // Fetch countries from API (unchanged)
   useEffect(() => {
-    async function fetchCountries() {
-      try {
-        setLoadingCountries(true);
-        const response = await fetch(
-          "https://restcountries.com/v3.1/all?fields=name,cca2,idd",
-        );
-        const data = await response.json();
-
-        const fetchedCountries: Country[] = data
-          .map((country: any) => {
-            const root = country.idd?.root ?? "";
-            const suffixes = country.idd?.suffixes ?? [];
-            let dial = "";
-            if (root && suffixes.length === 1) dial = root + suffixes[0];
-            else if (root) dial = root;
-            return {
-              name: country.name?.common || "",
-              code: country.cca2 || "",
-              dialCode: dial,
-            };
-          })
-          .filter((c) => c.dialCode)
-          .sort((a, b) => a.name.localeCompare(b.name));
-        setCountries(fetchedCountries);
-      } catch (e) {
-        toast({
-          duration: 5000,
-          title: "Error loading countries",
-          description: "Failed to fetch country codes",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingCountries(false);
-      }
-    }
-
-    if (isOpen) {
-      fetchCountries();
-    }
-  }, [isOpen, toast]);
+    if (!isOpen) return;
+    setCountries(
+      COUNTRY_CODES.map((c) => ({
+        name: c.name,
+        code: c.code,
+        dialCode: c.dial_code,
+      })),
+    );
+    setLoadingCountries(false);
+  }, [isOpen]);
 
   // NEW: Pre-fill form for edit mode
   useEffect(() => {

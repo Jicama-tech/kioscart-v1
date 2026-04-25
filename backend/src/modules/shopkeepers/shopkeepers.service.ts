@@ -717,6 +717,8 @@ export class ShopkeepersService {
       hasDocVerification?: boolean;
       taxPercentage?: string | number;
       discountPercentage?: string | number;
+      deliveryEnabled?: boolean | string;
+      deliveryRules?: { minSubtotal: number; fee: number }[] | string;
       businessCategory?: string;
       receiptType?: ReceiptType | string;
       termsAndConditions?: string;
@@ -801,6 +803,36 @@ export class ShopkeepersService {
           ? parseFloat(body.discountPercentage)
           : body.discountPercentage;
       update.discountPercentage = isNaN(discountNum) ? 0 : discountNum;
+    }
+
+    // ✅ DELIVERY TOGGLE (FormData → string "true"/"false")
+    if (body.deliveryEnabled !== undefined) {
+      update.deliveryEnabled =
+        typeof body.deliveryEnabled === "boolean"
+          ? body.deliveryEnabled
+          : String(body.deliveryEnabled).toLowerCase() === "true";
+      // eslint-disable-next-line no-console
+      console.log(`[updateProfile] deliveryEnabled incoming=${JSON.stringify(body.deliveryEnabled)} → persisting=${update.deliveryEnabled}`);
+    }
+
+    // ✅ DELIVERY RULES (FormData → JSON string). Normalise + drop invalid rows.
+    if (body.deliveryRules !== undefined) {
+      let rules: any[] = [];
+      try {
+        rules = typeof body.deliveryRules === "string"
+          ? JSON.parse(body.deliveryRules)
+          : body.deliveryRules;
+      } catch {
+        rules = [];
+      }
+      if (!Array.isArray(rules)) rules = [];
+      update.deliveryRules = rules
+        .map((r: any) => ({
+          minSubtotal: Number(r?.minSubtotal) || 0,
+          fee: Number(r?.fee) || 0,
+        }))
+        .filter((r) => r.minSubtotal >= 0 && r.fee >= 0)
+        .sort((a, b) => a.minSubtotal - b.minSubtotal);
     }
 
     // ✅ DATES (handle string/Date from FormData)
