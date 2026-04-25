@@ -6,29 +6,29 @@ import {
   useRef,
   lazy,
   Suspense,
-} from 'react';
-import { Button } from '@/components/ui/button';
+} from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
+} from "@/components/ui/card";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
+} from "@/components/ui/accordion";
 import {
   Store,
   Package,
@@ -50,39 +50,39 @@ import {
   Mail,
   MessageCircle,
   HelpCircle,
-} from 'lucide-react';
+} from "lucide-react";
 // Lazy load heavy tab components - only loaded when tab is active
 const ProductManagement = lazy(() =>
-  import('@/components/shopkeeper/ProductManagement').then((m) => ({
+  import("@/components/shopkeeper/ProductManagement").then((m) => ({
     default: m.ProductManagement,
   })),
 );
 const CRMManagement = lazy(() =>
-  import('@/components/shopkeeper/CRMManagement').then((m) => ({
+  import("@/components/shopkeeper/CRMManagement").then((m) => ({
     default: m.CRMManagement,
   })),
 );
 const CartManagement = lazy(() =>
-  import('@/components/shopkeeper/CartManagement').then((m) => ({
+  import("@/components/shopkeeper/CartManagement").then((m) => ({
     default: m.CartManagement,
   })),
 );
 const ShopkeeperSettings = lazy(() =>
-  import('@/components/shopkeeper/ShopkeeperSettings').then((m) => ({
+  import("@/components/shopkeeper/ShopkeeperSettings").then((m) => ({
     default: m.ShopkeeperSettings,
   })),
 );
 const KioskMode = lazy(() =>
-  import('@/components/shopkeeper/KioskMode').then((m) => ({
+  import("@/components/shopkeeper/KioskMode").then((m) => ({
     default: m.KioskMode,
   })),
 );
-import { StorefrontTemplate } from './StorefrontTemplate';
-import { useToast } from '@/hooks/use-toast';
-import { jwtDecode } from 'jwt-decode';
-import { create } from 'qrcode';
-import { useCurrency } from '@/hooks/useCurrencyhook';
-import { FaRupeeSign } from 'react-icons/fa';
+import { StorefrontTemplate } from "./StorefrontTemplate";
+import { useToast } from "@/hooks/use-toast";
+import { jwtDecode } from "jwt-decode";
+import { create } from "qrcode";
+import { useCurrency } from "@/hooks/useCurrencyhook";
+import { FaRupeeSign } from "react-icons/fa";
 import {
   LineChart,
   Line,
@@ -97,13 +97,16 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-} from 'recharts';
-import { useNavigate } from 'react-router-dom';
-import { StorefrontCustomizer } from '@/components/shopkeeper/StorefrontCustomizer';
-import { SubscriptionProvider, useSubscription } from '@/context/SubscriptionContext';
-import { ModuleGate } from '@/components/ui/ModuleGate';
-import { ChatbotWidget } from '@/components/shopkeeper/ChatbotWidget';
-import { Lock } from 'lucide-react';
+} from "recharts";
+import { useNavigate } from "react-router-dom";
+import { StorefrontCustomizer } from "@/components/shopkeeper/StorefrontCustomizer";
+import {
+  SubscriptionProvider,
+  useSubscription,
+} from "@/context/SubscriptionContext";
+import { ModuleGate } from "@/components/ui/ModuleGate";
+import { ChatbotWidget } from "@/components/shopkeeper/ChatbotWidget";
+import { Lock } from "lucide-react";
 
 interface ShopkeeperDashboardProps {
   onLogout: () => void;
@@ -131,14 +134,14 @@ interface AnalyticsData {
 }
 
 const COLORS = [
-  '#3B82F6', // Blue
-  '#8B5CF6', // Purple
-  '#EC4899', // Pink
-  '#F59E0B', // Amber
-  '#10B981', // Emerald
-  '#06B6D4', // Cyan
-  '#EF4444', // Red
-  '#F97316', // Orange
+  "#3B82F6", // Blue
+  "#8B5CF6", // Purple
+  "#EC4899", // Pink
+  "#F59E0B", // Amber
+  "#10B981", // Emerald
+  "#06B6D4", // Cyan
+  "#EF4444", // Red
+  "#F97316", // Orange
 ];
 
 // No Access overlay for restricted operator tabs
@@ -150,9 +153,12 @@ function NoAccessOverlay() {
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
           <AlertCircle className="h-8 w-8 text-red-500" />
         </div>
-        <h3 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h3>
+        <h3 className="text-xl font-bold text-slate-900 mb-2">
+          Access Restricted
+        </h3>
         <p className="text-sm text-muted-foreground max-w-sm">
-          You don't have permission to access this section. Contact the store owner to update your access.
+          You don't have permission to access this section. Contact the store
+          owner to update your access.
         </p>
       </div>
     </div>
@@ -161,66 +167,66 @@ function NoAccessOverlay() {
 
 // Static data moved outside component to prevent re-creation on every render
 const NAVIGATION_ITEMS = [
-  { id: 'dashboard', label: 'Analytics', icon: Store },
-  { id: 'kiosk', label: 'Kiosk Mode', icon: Monitor },
-  { id: 'orders', label: 'Orders & Payments', icon: ShoppingCart },
-  { id: 'crm', label: 'CRM', icon: Users },
-  { id: 'products', label: 'Products', icon: Package },
-  { id: 'storefront', label: 'Storefront', icon: Globe, isAction: true },
-  { id: 'chat', label: 'Chat', icon: MessageCircle },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: "chat", label: "Chat", icon: MessageCircle },
+  { id: "dashboard", label: "Analytics", icon: Store },
+  { id: "kiosk", label: "Kiosk Mode", icon: Monitor },
+  { id: "orders", label: "Orders & Payments", icon: ShoppingCart },
+  { id: "crm", label: "CRM", icon: Users },
+  { id: "products", label: "Products", icon: Package },
+  { id: "storefront", label: "Storefront", icon: Globe, isAction: true },
+  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 const SHOPKEEPER_FAQS = [
   {
-    question: 'How do I add products to my store?',
+    question: "How do I add products to my store?",
     answer:
       "Go to the Products tab and click 'Add Product'. Fill in the product details like name, price, description, and images. You can also bulk import products using an Excel template.",
   },
   {
-    question: 'How do I manage orders?',
+    question: "How do I manage orders?",
     answer:
-      'Navigate to the Orders & Cart tab to view all incoming orders. You can update order status, view order details, and manage your cart settings from there.',
+      "Navigate to the Orders & Cart tab to view all incoming orders. You can update order status, view order details, and manage your cart settings from there.",
   },
   {
-    question: 'How do I customize my storefront?',
+    question: "How do I customize my storefront?",
     answer:
       "Go to the Storefront tab to customize your store's appearance. You can change the theme, layout, colors, hero banner, and other visual elements to match your brand.",
   },
   {
-    question: 'How do I set up payments?',
+    question: "How do I set up payments?",
     answer:
-      'Go to Settings and navigate to the Payment section. You can configure your payment QR code, bank details, and preferred payment methods for your customers.',
+      "Go to Settings and navigate to the Payment section. You can configure your payment QR code, bank details, and preferred payment methods for your customers.",
   },
   {
-    question: 'How do I view my store analytics?',
+    question: "How do I view my store analytics?",
     answer:
-      'The Dashboard tab shows your key metrics including revenue trends, top products, category performance, and customer insights. You can filter by different time periods.',
+      "The Dashboard tab shows your key metrics including revenue trends, top products, category performance, and customer insights. You can filter by different time periods.",
   },
   {
-    question: 'How do I manage my customers?',
+    question: "How do I manage my customers?",
     answer:
-      'Use the CRM tab to view and manage your customer relationships. You can see customer order history, send messages, and track customer engagement.',
+      "Use the CRM tab to view and manage your customer relationships. You can see customer order history, send messages, and track customer engagement.",
   },
   {
-    question: 'How do I share my store link?',
+    question: "How do I share my store link?",
     answer:
-      'Your store has a unique URL based on your store slug. You can find and copy your store link from the Storefront tab or Settings. Share it with customers via WhatsApp, social media, or QR code.',
+      "Your store has a unique URL based on your store slug. You can find and copy your store link from the Storefront tab or Settings. Share it with customers via WhatsApp, social media, or QR code.",
   },
   {
-    question: 'Can I add operators to manage my store?',
+    question: "Can I add operators to manage my store?",
     answer:
-      'Yes! Go to Settings and look for the Operators section. You can invite team members and assign them specific roles and permissions to help manage your store.',
+      "Yes! Go to Settings and look for the Operators section. You can invite team members and assign them specific roles and permissions to help manage your store.",
   },
 ];
 
 const PERIOD_LABELS: Record<string, string> = {
-  monthly: 'Current Month',
-  lastmonth: 'Last Month',
-  lastquarter: 'Last Quarter',
-  quarterly: 'Current Quarter',
-  yearly: 'Current Year',
-  lastyear: 'Last Year',
+  monthly: "Current Month",
+  lastmonth: "Last Month",
+  lastquarter: "Last Quarter",
+  quarterly: "Current Quarter",
+  yearly: "Current Year",
+  lastyear: "Last Year",
 };
 
 function TabLoadingFallback() {
@@ -243,7 +249,14 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   const apiUrl = __API_URL__;
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState("chat");
+  // Bot-driven sub-UI request consumed by the target tab on arrival
+  // (e.g. "open Add Product form"). Cleared after the tab reads it.
+  const [productPendingAction, setProductPendingAction] = useState<{
+    action: "add" | "edit";
+    productName?: string;
+    key: number;
+  } | null>(null);
 
   // Check if current user has access to a tab
   const hasTabAccess = (tabId: string) => {
@@ -254,21 +267,21 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   const [showStorefront, setShowStorefront] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [shopName, setShopName] = useState('KiosCart Store');
-  const [slug, setSlug] = useState('');
+  const [shopName, setShopName] = useState("KiosCart Store");
+  const [slug, setSlug] = useState("");
   const [totalProducts, setTotalProducts] = useState(0);
   const [ordersToday, setOrdersToday] = useState(0);
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
   const [shopkeeperInfo, setShopkeeperInfo] = useState<any>(null);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const { formatPrice, getSymbol } = useCurrency(
-    shopkeeperInfo?.country || 'IN',
+    shopkeeperInfo?.country || "IN",
   );
 
   // Derive shopkeeperId, operatorId, accessTabs from JWT
   const { shopkeeperId, isOperator, accessTabs } = useMemo(() => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = sessionStorage.getItem("token");
       if (token) {
         const decoded: any = jwtDecode(token);
         return {
@@ -278,14 +291,14 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
         };
       }
     } catch {}
-    return { shopkeeperId: '', isOperator: false, accessTabs: undefined };
+    return { shopkeeperId: "", isOperator: false, accessTabs: undefined };
   }, []);
 
   // Payment email notification polling
   const knownPaymentIdsRef = useRef<Set<string>>(new Set());
   const paymentPollInitRef = useRef(false);
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
+    const token = sessionStorage.getItem("token");
     if (!token) return;
 
     async function pollPaymentEmails() {
@@ -306,7 +319,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
         // Check for new payment emails
         const newPayments = emails.filter(
-          (e: any) => !knownPaymentIdsRef.current.has(e._id)
+          (e: any) => !knownPaymentIdsRef.current.has(e._id),
         );
 
         if (newPayments.length > 0) {
@@ -315,7 +328,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
             toast({
               duration: 10000,
               title: `💰 Payment Received: ${payment.currency} ${payment.amount}`,
-              description: `${payment.senderName || payment.from || 'Unknown sender'}${payment.bankOrProvider ? ` via ${payment.bankOrProvider}` : ''}${payment.matchedOrderId ? ` — Matched to Order #${payment.matchedOrderId}` : ''}`,
+              description: `${payment.senderName || payment.from || "Unknown sender"}${payment.bankOrProvider ? ` via ${payment.bankOrProvider}` : ""}${payment.matchedOrderId ? ` — Matched to Order #${payment.matchedOrderId}` : ""}`,
             });
           });
         }
@@ -331,7 +344,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const orderPollInitRef = useRef(false);
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
+    const token = sessionStorage.getItem("token");
     if (!token) return;
 
     async function pollNewOrders() {
@@ -352,17 +365,20 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
         }
 
         const newOrders = orders.filter(
-          (o: any) => !knownOrderIdsRef.current.has(o._id)
+          (o: any) => !knownOrderIdsRef.current.has(o._id),
         );
 
         if (newOrders.length > 0) {
           newOrders.forEach((o: any) => knownOrderIdsRef.current.add(o._id));
           toast({
             duration: 8000,
-            title: `🔔 ${newOrders.length} New Order${newOrders.length > 1 ? 's' : ''}!`,
+            title: `🔔 ${newOrders.length} New Order${newOrders.length > 1 ? "s" : ""}!`,
             description: newOrders
-              .map((o: any) => `${o.userId?.name || 'Customer'} — ${formatPrice(o.totalAmount)}`)
-              .join(', '),
+              .map(
+                (o: any) =>
+                  `${o.userId?.name || "Customer"} — ${formatPrice(o.totalAmount)}`,
+              )
+              .join(", "),
           });
         }
       } catch {}
@@ -380,7 +396,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       toast({
         duration: 15000,
         title: `Your plan has expired!`,
-        description: `You have ${subData.graceDaysLeft} day${subData.graceDaysLeft === 1 ? '' : 's'} left to renew before you're downgraded to the Starter plan. Go to Settings > Profile to change your plan.`,
+        description: `You have ${subData.graceDaysLeft} day${subData.graceDaysLeft === 1 ? "" : "s"} left to renew before you're downgraded to the Starter plan. Go to Settings > Profile to change your plan.`,
       });
     }
   }, [subData?.inGracePeriod]);
@@ -389,20 +405,20 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     null,
   );
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-  const [period, setPeriod] = useState('Current Month');
+  const [selectedPeriod, setSelectedPeriod] = useState("monthly");
+  const [period, setPeriod] = useState("Current Month");
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showFaqDialog, setShowFaqDialog] = useState(false);
 
   const changeTimePeriod = useCallback((timePeriod: string) => {
     setSelectedPeriod(timePeriod);
-    setPeriod(PERIOD_LABELS[timePeriod] || 'Current Month');
+    setPeriod(PERIOD_LABELS[timePeriod] || "Current Month");
     fetchAnalyticsReport(timePeriod);
   }, []);
 
   async function fetchAnalyticsReport(timePeriod: string) {
-    const token = sessionStorage.getItem('token');
+    const token = sessionStorage.getItem("token");
     if (!token) return;
 
     setAnalyticsLoading(true);
@@ -413,7 +429,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       const response = await fetch(
         `${apiUrl}/shopkeeper/analytics/${shopkeeperId}/report/${timePeriod}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         },
       );
@@ -423,25 +439,25 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
         setAnalyticsData(result.data);
       } else {
-        console.error('Failed to fetch analytics');
+        console.error("Failed to fetch analytics");
       }
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      console.error("Error fetching analytics:", error);
     } finally {
       setAnalyticsLoading(false);
     }
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   async function logout() {
-    sessionStorage.removeItem('token');
+    sessionStorage.removeItem("token");
     navigate(`/${slug}`);
   }
 
@@ -451,7 +467,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     const { signal } = abortController;
 
     async function fetchAllDashboardData() {
-      const token = sessionStorage.getItem('token');
+      const token = sessionStorage.getItem("token");
       if (!token) return;
 
       let shopkeeperId: string;
@@ -487,7 +503,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
         ]);
 
       // Process shopkeeper info — shop name comes from here (settings profile)
-      if (shopkeeperRes.status === 'fulfilled' && shopkeeperRes.value.ok) {
+      if (shopkeeperRes.status === "fulfilled" && shopkeeperRes.value.ok) {
         const data = await shopkeeperRes.value.json();
         setShopkeeperInfo(data.data);
         if (data?.data?.shopName) {
@@ -496,7 +512,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       }
 
       // Process store details — only for slug (storefront URL)
-      if (storeRes.status === 'fulfilled' && storeRes.value.ok) {
+      if (storeRes.status === "fulfilled" && storeRes.value.ok) {
         const shopData = await storeRes.value.json();
         if (shopData?.data?.slug) {
           setSlug(shopData.data.slug);
@@ -504,13 +520,13 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       }
 
       // Process products count
-      if (prodRes.status === 'fulfilled' && prodRes.value.ok) {
+      if (prodRes.status === "fulfilled" && prodRes.value.ok) {
         const prodData = await prodRes.value.json();
         setTotalProducts(prodData.data.length);
       }
 
       // Process orders & revenue
-      if (orderRes.status === 'fulfilled' && orderRes.value.ok) {
+      if (orderRes.status === "fulfilled" && orderRes.value.ok) {
         const orders = await orderRes.value.json();
 
         const startOfToday = new Date();
@@ -539,7 +555,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       }
 
       // Process customers count
-      if (custRes.status === 'fulfilled' && custRes.value.ok) {
+      if (custRes.status === "fulfilled" && custRes.value.ok) {
         const custData = await custRes.value.json();
         setTotalCustomers(custData.customerCount);
       }
@@ -552,9 +568,9 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   }, [apiUrl]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
       minimumFractionDigits: 0,
     }).format(amount);
   };
@@ -564,20 +580,20 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   const downloadCSV = () => {
     window.open(
       `${apiUrl}/shopkeeper/analytics/${shopkeeperInfo._id}/export/excel/${selectedPeriod}`,
-      '_blank',
+      "_blank",
     );
   };
 
   const stats = useMemo(
     () => [
-      { title: 'Total Products', value: totalProducts, icon: Package },
-      { title: 'Orders Today', value: ordersToday, icon: ShoppingCart },
+      { title: "Total Products", value: totalProducts, icon: Package },
+      { title: "Orders Today", value: ordersToday, icon: ShoppingCart },
       {
-        title: 'Revenue This Month',
+        title: "Revenue This Month",
         value: formatPrice(monthlyRevenue),
-        icon: shopkeeperInfo?.country === 'IN' ? FaRupeeSign : DollarSign,
+        icon: shopkeeperInfo?.country === "IN" ? FaRupeeSign : DollarSign,
       },
-      { title: 'Active Customers', value: totalCustomers, icon: Users },
+      { title: "Active Customers", value: totalCustomers, icon: Users },
     ],
     [
       totalProducts,
@@ -591,55 +607,55 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
   // Default settings for new shopkeepers
   const defaultSettings = {
-    slug: shopkeeperInfo?.shopName || 'My Store',
+    slug: shopkeeperInfo?.shopName || "My Store",
     general: {
-      storeName: shopkeeperInfo?.shopName || 'My Store',
-      tagline: 'Welcome to my amazing store',
-      description: 'Discover our wonderful products and services',
-      logo: '',
-      favicon: '',
+      storeName: shopkeeperInfo?.shopName || "My Store",
+      tagline: "Welcome to my amazing store",
+      description: "Discover our wonderful products and services",
+      logo: "",
+      favicon: "",
       contactInfo: {
-        phone: '',
-        email: '',
-        address: '',
-        hours: 'Mon-Fri: 9AM-6PM',
-        website: '',
+        phone: "",
+        email: "",
+        address: "",
+        hours: "Mon-Fri: 9AM-6PM",
+        website: "",
         showInstagram: false,
         showFacebook: false,
         showTwitter: false,
         showTiktok: false,
-        instagramLink: '',
-        facebookLink: '',
-        twitterLink: '',
-        tiktokLink: '',
+        instagramLink: "",
+        facebookLink: "",
+        twitterLink: "",
+        tiktokLink: "",
       },
     },
     design: {
-      theme: 'light',
-      primaryColor: '#6366f1',
-      secondaryColor: '#8b5cf6',
-      fontFamily: 'Inter',
+      theme: "light",
+      primaryColor: "#6366f1",
+      secondaryColor: "#8b5cf6",
+      fontFamily: "Inter",
       layout: {
-        header: 'modern',
-        allProducts: 'modern',
+        header: "modern",
+        allProducts: "modern",
         visibleAdvertismentBar: false,
-        advertiseText: 'Flat 10% Off',
+        advertiseText: "Flat 10% Off",
         visibleFeaturedProducts: true,
         visibleProductCarausel: false,
-        adBarBgcolor: '#000000',
-        adBarTextColor: '#ffffff',
+        adBarBgcolor: "#000000",
+        adBarTextColor: "#ffffff",
         visibleQuickPicks: true,
-        featuredProducts: 'modern',
-        quickPicks: 'modern',
-        banner: 'modern',
-        footer: 'modern',
+        featuredProducts: "modern",
+        quickPicks: "modern",
+        banner: "modern",
+        footer: "modern",
       },
       bannerImage:
-        'https://images.unsplash.com/photo-1441986300917-64674bd600d8',
+        "https://images.unsplash.com/photo-1441986300917-64674bd600d8",
       heroBannerImage:
-        'https://images.unsplash.com/photo-1441986300917-64674bd600d8',
+        "https://images.unsplash.com/photo-1441986300917-64674bd600d8",
       showBanner: true,
-      bannerHeight: 'large',
+      bannerHeight: "large",
     },
     features: {
       showSearch: true,
@@ -652,11 +668,11 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       showNewsletter: false,
     },
     seo: {
-      metaTitle: 'My Store - Quality Products',
+      metaTitle: "My Store - Quality Products",
       metaDescription:
-        'Discover quality products at My Store. Best prices and service guaranteed.',
-      keywords: 'store, shop, products, quality',
-      customCode: '',
+        "Discover quality products at My Store. Best prices and service guaranteed.",
+      keywords: "store, shop, products, quality",
+      customCode: "",
     },
   };
 
@@ -676,9 +692,9 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     const createResponse = await fetch(
       `${apiUrl}/shopkeeper-stores/add-store-settings`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(createData),
@@ -689,15 +705,15 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       const result = await createResponse.json();
       toast({
         duration: 5000,
-        title: 'Store Initialized',
+        title: "Store Initialized",
         description:
-          'Your store has been created with default settings. You can customize it anytime!',
+          "Your store has been created with default settings. You can customize it anytime!",
       });
 
       return result;
     } else {
       const errorData = await createResponse.json();
-      throw new Error(errorData.message || 'Failed to create store settings');
+      throw new Error(errorData.message || "Failed to create store settings");
     }
   };
 
@@ -706,13 +722,13 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     setSidebarOpen(false);
 
     try {
-      const token = sessionStorage.getItem('token');
+      const token = sessionStorage.getItem("token");
       if (!token) {
         toast({
           duration: 5000,
-          title: 'Authorization Error',
-          description: 'Please login first.',
-          variant: 'destructive',
+          title: "Authorization Error",
+          description: "Please login first.",
+          variant: "destructive",
         });
         return;
       }
@@ -723,7 +739,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       const checkResponse = await fetch(
         `${apiUrl}/shopkeeper-stores/shopkeeper-store-detail`,
         {
-          method: 'GET',
+          method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         },
       );
@@ -732,18 +748,18 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       if (checkResponse.ok) {
         const existingData = await checkResponse.json();
         if (existingData?.data?.settings) {
-          setActiveTab('storefront'); // <--- CHANGED THIS
+          setActiveTab("storefront"); // <--- CHANGED THIS
           return;
         } else {
           await createDefaultSettings(shopkeeperId, token);
-          setActiveTab('storefront'); // <--- CHANGED THIS
+          setActiveTab("storefront"); // <--- CHANGED THIS
           return;
         }
       }
 
       if (checkResponse.status === 404) {
         await createDefaultSettings(shopkeeperId, token);
-        setActiveTab('storefront'); // <--- CHANGED THIS
+        setActiveTab("storefront"); // <--- CHANGED THIS
       } else {
         const errorData = await checkResponse.json().catch(() => ({}));
         throw new Error(
@@ -753,9 +769,9 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: 'Error',
-        description: error.message || 'Failed to initialize storefront.',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to initialize storefront.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -845,8 +861,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
             flex-shrink-0
             ${
               sidebarOpen
-                ? 'translate-x-0'
-                : '-translate-x-full lg:translate-x-0'
+                ? "translate-x-0"
+                : "-translate-x-full lg:translate-x-0"
             }
           `}
         >
@@ -854,35 +870,39 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
             <nav className="p-3 sm:p-4 space-y-1 sm:space-y-2 flex-1 overflow-y-auto">
               {NAVIGATION_ITEMS.map((item) => {
                 const navToModule: Record<string, string> = {
-                  orders: 'orders',
-                  products: 'products',
-                  crm: 'crm',
-                  storefront: 'storefront',
-                  kiosk: 'kiosk',
+                  orders: "orders",
+                  products: "products",
+                  crm: "crm",
+                  storefront: "storefront",
+                  kiosk: "kiosk",
                 };
                 const moduleKey = navToModule[item.id];
                 const locked = moduleKey ? !isModuleEnabled(moduleKey) : false;
                 return (
                   <Button
                     key={item.id}
-                    variant={activeTab === item.id ? 'default' : 'buttonOutline'}
-                    className={`w-full justify-start text-sm ${locked ? 'opacity-60' : ''}`}
+                    variant={
+                      activeTab === item.id ? "default" : "buttonOutline"
+                    }
+                    className={`w-full justify-start text-sm ${locked ? "opacity-60" : ""}`}
                     onClick={() => {
-                      if (item.id === 'storefront' && !locked) {
+                      if (item.id === "storefront" && !locked) {
                         handleViewStorefront();
                       } else {
                         handleTabChange(item.id);
                       }
                     }}
-                    disabled={item.id === 'storefront' && loading}
+                    disabled={item.id === "storefront" && loading}
                   >
                     <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
                     <span className="truncate flex-1 text-left">
-                      {item.id === 'storefront' && loading
-                        ? 'Loading...'
+                      {item.id === "storefront" && loading
+                        ? "Loading..."
                         : item.label}
                     </span>
-                    {locked && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
+                    {locked && (
+                      <Lock className="h-3 w-3 ml-auto text-muted-foreground" />
+                    )}
                   </Button>
                 );
               })}
@@ -901,518 +921,264 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
               className="w-full"
             >
               <TabsContent value="dashboard" className="mt-0">
-                {hasTabAccess('dashboard') ? (
-                <div className="space-y-4 sm:space-y-6">
-                  <h2 className="text-2xl sm:text-3xl font-bold">Dashboard</h2>
+                {hasTabAccess("dashboard") ? (
+                  <div className="space-y-4 sm:space-y-6">
+                    <h2 className="text-2xl sm:text-3xl font-bold">
+                      Dashboard
+                    </h2>
 
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-                    {stats.map((stat, index) => (
-                      <Card key={index}>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-xs sm:text-sm font-medium truncate">
-                            {stat.title}
-                          </CardTitle>
-                          <stat.icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="text-lg sm:text-2xl font-bold">
-                            {stat.value}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                      {stats.map((stat, index) => (
+                        <Card key={index}>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-xs sm:text-sm font-medium truncate">
+                              {stat.title}
+                            </CardTitle>
+                            <stat.icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="text-lg sm:text-2xl font-bold">
+                              {stat.value}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
 
-                  {/* Quick Actions */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg sm:text-xl">
-                        Quick Actions
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        Manage your shop efficiently
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                        <Button
-                          onClick={() => handleTabChange('products')}
-                          variant="buttonOutline"
-                          className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
-                        >
-                          <Package className="h-4 w-4 sm:h-5 sm:w-5" />
-                          Products
-                        </Button>
-                        <Button
-                          onClick={() => handleTabChange('orders')}
-                          variant="buttonOutline"
-                          className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
-                        >
-                          <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
-                          Orders
-                        </Button>
-                        <Button
-                          onClick={() => handleTabChange('crm')}
-                          variant="buttonOutline"
-                          className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
-                        >
-                          <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-                          Customers
-                        </Button>
-                        <Button
-                          onClick={() => handleTabChange('settings')}
-                          variant="buttonOutline"
-                          className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
-                        >
-                          <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
-                          Settings
-                        </Button>
-                        <Button
-                          onClick={handleViewStorefront}
-                          disabled={loading}
-                          variant="buttonOutline"
-                          className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm col-span-2 sm:col-span-1"
-                        >
-                          <Globe className="h-4 w-4 sm:h-5 sm:w-5" />
-                          <span className="truncate">
-                            {loading ? 'Loading...' : 'Storefront'}
-                          </span>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle>Analytics Dashboard</CardTitle>
-                        <CardDescription>
-                          Detailed performance metrics and insights
+                    {/* Quick Actions */}
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg sm:text-xl">
+                          Quick Actions
+                        </CardTitle>
+                        <CardDescription className="text-sm">
+                          Manage your shop efficiently
                         </CardDescription>
-                      </div>
-                      <div className="flex gap-2">
-                        <select
-                          value={selectedPeriod}
-                          onChange={(e) => changeTimePeriod(e.target.value)}
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                        >
-                          <option value="monthly">Current Month</option>
-                          <option value="lastmonth">Last Month</option>
-                          <option value="lastquarter">Last Quarter</option>
-                          <option value="quarterly">Current Quarter</option>
-                          <option value="yearly">Current Year</option>
-                          <option value="lastyear">Last Year</option>
-                        </select>
-                        <Button
-                          onClick={downloadCSV}
-                          size="sm"
-                          variant="outline"
-                        >
-                          <Download size={18} />
-                          Export
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {analyticsLoading ? (
-                        <div className="flex justify-center py-10">
-                          <p className="text-gray-500">Loading analytics...</p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                          <Button
+                            onClick={() => handleTabChange("products")}
+                            variant="buttonOutline"
+                            className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
+                          >
+                            <Package className="h-4 w-4 sm:h-5 sm:w-5" />
+                            Products
+                          </Button>
+                          <Button
+                            onClick={() => handleTabChange("orders")}
+                            variant="buttonOutline"
+                            className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
+                          >
+                            <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
+                            Orders
+                          </Button>
+                          <Button
+                            onClick={() => handleTabChange("crm")}
+                            variant="buttonOutline"
+                            className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
+                          >
+                            <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                            Customers
+                          </Button>
+                          <Button
+                            onClick={() => handleTabChange("settings")}
+                            variant="buttonOutline"
+                            className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
+                          >
+                            <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
+                            Settings
+                          </Button>
+                          <Button
+                            onClick={handleViewStorefront}
+                            disabled={loading}
+                            variant="buttonOutline"
+                            className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm col-span-2 sm:col-span-1"
+                          >
+                            <Globe className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <span className="truncate">
+                              {loading ? "Loading..." : "Storefront"}
+                            </span>
+                          </Button>
                         </div>
-                      ) : analyticsData?.totalOrders > 0 ? (
-                        <div className="space-y-8">
-                          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                  Total Revenue
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">
-                                  {analyticsData.currencySymbol}
-                                  {analyticsData.totalRevenue.toLocaleString()}
-                                </div>
-                              </CardContent>
-                            </Card>
+                      </CardContent>
+                    </Card>
 
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                  Total Orders
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">
-                                  {analyticsData.totalOrders}
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                  Avg Order Value
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">
-                                  {analyticsData.currencySymbol}
-                                  {analyticsData.avgOrderValue.toLocaleString()}
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                  Total Customers
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">
-                                  {analyticsData.totalCustomers}
-                                </div>
-                              </CardContent>
-                            </Card>
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                          <CardTitle>Analytics Dashboard</CardTitle>
+                          <CardDescription>
+                            Detailed performance metrics and insights
+                          </CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                          <select
+                            value={selectedPeriod}
+                            onChange={(e) => changeTimePeriod(e.target.value)}
+                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          >
+                            <option value="monthly">Current Month</option>
+                            <option value="lastmonth">Last Month</option>
+                            <option value="lastquarter">Last Quarter</option>
+                            <option value="quarterly">Current Quarter</option>
+                            <option value="yearly">Current Year</option>
+                            <option value="lastyear">Last Year</option>
+                          </select>
+                          <Button
+                            onClick={downloadCSV}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <Download size={18} />
+                            Export
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {analyticsLoading ? (
+                          <div className="flex justify-center py-10">
+                            <p className="text-gray-500">
+                              Loading analytics...
+                            </p>
                           </div>
-                          {/* Revenue Trend Chart */}
-                          {analyticsData.revenueTrend &&
-                            analyticsData?.revenueTrend.length > 0 && (
-                              <div>
-                                <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
-                                  <TrendingUp
-                                    size={20}
-                                    className="text-indigo-600"
-                                  />
-                                  Revenue Trend ({period})
-                                </h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                  <LineChart data={analyticsData.revenueTrend}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="date" />
-                                    <YAxis />
-                                    <Tooltip
-                                      contentStyle={{
-                                        backgroundColor: '#fff',
-                                        border: '1px solid #ccc',
-                                        borderRadius: '8px',
-                                        padding: '10px',
-                                      }}
-                                      formatter={(value: number) =>
-                                        `${
-                                          analyticsData.currencySymbol
-                                        }${value.toLocaleString()}`
-                                      }
-                                    />
-                                    <Legend />
-                                    <Line
-                                      type="monotone"
-                                      dataKey="revenue"
-                                      stroke="#3B82F6"
-                                      strokeWidth={2}
-                                      dot={{ fill: '#3B82F6' }}
-                                      name="Revenue"
-                                    />
-                                  </LineChart>
-                                </ResponsiveContainer>
-                              </div>
-                            )}
+                        ) : analyticsData?.totalOrders > 0 ? (
+                          <div className="space-y-8">
+                            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                              <Card>
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-sm font-medium text-gray-600">
+                                    Total Revenue
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                  <div className="text-2xl font-bold">
+                                    {analyticsData.currencySymbol}
+                                    {analyticsData.totalRevenue.toLocaleString()}
+                                  </div>
+                                </CardContent>
+                              </Card>
 
-                          {/* Product Performance - Pie Chart */}
-                          {analyticsData.topProducts &&
-                            analyticsData.topProducts.length > 0 && (
-                              <div>
-                                <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
-                                  <PieChartIcon
-                                    size={20}
-                                    className="text-indigo-600"
-                                  />
-                                  Top Products Performance ({period})
-                                </h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                  <PieChart>
-                                    <Pie
-                                      data={analyticsData.topProducts}
-                                      cx="50%"
-                                      cy="50%"
-                                      labelLine={false}
-                                      label={({ productName, percentage }) =>
-                                        `${productName}: ${percentage.toFixed(
-                                          1,
-                                        )}%`
-                                      }
-                                      outerRadius={100}
-                                      fill="#8884d8"
-                                      dataKey="totalRevenue"
-                                    >
-                                      {analyticsData.topProducts.map(
-                                        (entry: any, index: number) => (
-                                          <Cell
-                                            key={`cell-${index}`}
-                                            fill={COLORS[index % COLORS.length]}
-                                          />
-                                        ),
-                                      )}
-                                    </Pie>
-                                    <Tooltip
-                                      contentStyle={{
-                                        backgroundColor: '#fff',
-                                        border: '1px solid #ccc',
-                                        borderRadius: '8px',
-                                        padding: '10px',
-                                      }}
-                                      formatter={(value: number) =>
-                                        `${
-                                          analyticsData.currencySymbol
-                                        }${value.toLocaleString()}`
-                                      }
-                                    />
-                                  </PieChart>
-                                </ResponsiveContainer>
+                              <Card>
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-sm font-medium text-gray-600">
+                                    Total Orders
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                  <div className="text-2xl font-bold">
+                                    {analyticsData.totalOrders}
+                                  </div>
+                                </CardContent>
+                              </Card>
 
-                                {/* Product Details Table */}
-                                <div className="mt-6 overflow-x-auto">
-                                  <table className="w-full text-sm">
-                                    <thead>
-                                      <tr className="border-b border-gray-200">
-                                        <th className="px-4 py-2 text-left font-semibold">
-                                          Product
-                                        </th>
-                                        <th className="px-4 py-2 text-left font-semibold">
-                                          Category
-                                        </th>
-                                        <th className="px-4 py-2 text-right font-semibold">
-                                          Quantity
-                                        </th>
-                                        <th className="px-4 py-2 text-right font-semibold">
-                                          Revenue
-                                        </th>
-                                        <th className="px-4 py-2 text-right font-semibold">
-                                          %
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {analyticsData.topProducts.map(
-                                        (product: any, idx: number) => (
-                                          <tr
-                                            key={idx}
-                                            className="border-b border-gray-100 hover:bg-gray-50"
-                                          >
-                                            <td className="px-4 py-3">
-                                              <div className="flex items-center gap-2">
-                                                <div
-                                                  className="h-3 w-3 rounded-full"
-                                                  style={{
-                                                    backgroundColor:
-                                                      COLORS[
-                                                        idx % COLORS.length
-                                                      ],
-                                                  }}
-                                                />
-                                                {product.productName}
-                                              </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                              {product.category}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                              {product.totalQuantity}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-semibold">
-                                              {analyticsData.currencySymbol}
-                                              {product.totalRevenue.toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                              {product.percentage.toFixed(1)}%
-                                            </td>
-                                          </tr>
-                                        ),
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
+                              <Card>
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-sm font-medium text-gray-600">
+                                    Avg Order Value
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                  <div className="text-2xl font-bold">
+                                    {analyticsData.currencySymbol}
+                                    {analyticsData.avgOrderValue.toLocaleString()}
+                                  </div>
+                                </CardContent>
+                              </Card>
 
-                          {/* Category Performance - Pie Chart */}
-                          {analyticsData.categoryPerformance &&
-                            analyticsData.categoryPerformance.length > 0 && (
-                              <div>
-                                <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
-                                  <PieChartIcon
-                                    size={20}
-                                    className="text-indigo-600"
-                                  />
-                                  Category Breakdown ({period})
-                                </h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                  <PieChart>
-                                    <Pie
-                                      data={analyticsData.categoryPerformance}
-                                      cx="50%"
-                                      cy="50%"
-                                      labelLine={false}
-                                      label={({ category, percentage }) =>
-                                        `${category}: ${percentage.toFixed(1)}%`
-                                      }
-                                      outerRadius={100}
-                                      fill="#8884d8"
-                                      dataKey="revenue"
-                                    >
-                                      {analyticsData.categoryPerformance.map(
-                                        (entry: any, index: number) => (
-                                          <Cell
-                                            key={`cell-${index}`}
-                                            fill={COLORS[index % COLORS.length]}
-                                          />
-                                        ),
-                                      )}
-                                    </Pie>
-                                    <Tooltip
-                                      contentStyle={{
-                                        backgroundColor: '#fff',
-                                        border: '1px solid #ccc',
-                                        borderRadius: '8px',
-                                        padding: '10px',
-                                      }}
-                                      formatter={(value: number) =>
-                                        `${
-                                          analyticsData.currencySymbol
-                                        }${value.toLocaleString()}`
-                                      }
-                                    />
-                                  </PieChart>
-                                </ResponsiveContainer>
-
-                                {/* Category Details Table */}
-                                <div className="mt-6 overflow-x-auto">
-                                  <table className="w-full text-sm">
-                                    <thead>
-                                      <tr className="border-b border-gray-200">
-                                        <th className="px-4 py-2 text-left font-semibold">
-                                          Category
-                                        </th>
-                                        <th className="px-4 py-2 text-right font-semibold">
-                                          Items Sold
-                                        </th>
-                                        <th className="px-4 py-2 text-right font-semibold">
-                                          Revenue
-                                        </th>
-                                        <th className="px-4 py-2 text-right font-semibold">
-                                          %
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {analyticsData.categoryPerformance.map(
-                                        (category: any, idx: number) => (
-                                          <tr
-                                            key={idx}
-                                            className="border-b border-gray-100 hover:bg-gray-50"
-                                          >
-                                            <td className="px-4 py-3">
-                                              <div className="flex items-center gap-2">
-                                                <div
-                                                  className="h-3 w-3 rounded-full"
-                                                  style={{
-                                                    backgroundColor:
-                                                      COLORS[
-                                                        idx % COLORS.length
-                                                      ],
-                                                  }}
-                                                />
-                                                {category.category}
-                                              </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                              {category.count}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-semibold">
-                                              {analyticsData.currencySymbol}
-                                              {category.revenue.toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                              {category.percentage.toFixed(1)}%
-                                            </td>
-                                          </tr>
-                                        ),
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
-
-                          {/* Order Type & Status Breakdown */}
-                          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                            {/* Order Type Breakdown */}
-                            {analyticsData.orderTypeBreakdown &&
-                              analyticsData.orderTypeBreakdown.length > 0 && (
+                              <Card>
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-sm font-medium text-gray-600">
+                                    Total Customers
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                  <div className="text-2xl font-bold">
+                                    {analyticsData.totalCustomers}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </div>
+                            {/* Revenue Trend Chart */}
+                            {analyticsData.revenueTrend &&
+                              analyticsData?.revenueTrend.length > 0 && (
                                 <div>
-                                  <h3 className="mb-4 text-lg font-semibold">
-                                    Order Type Breakdown ({period})
+                                  <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
+                                    <TrendingUp
+                                      size={20}
+                                      className="text-indigo-600"
+                                    />
+                                    Revenue Trend ({period})
                                   </h3>
                                   <ResponsiveContainer
                                     width="100%"
-                                    height={250}
+                                    height={300}
                                   >
-                                    <BarChart
-                                      data={analyticsData.orderTypeBreakdown}
+                                    <LineChart
+                                      data={analyticsData.revenueTrend}
                                     >
                                       <CartesianGrid strokeDasharray="3 3" />
-                                      <XAxis dataKey="type" />
+                                      <XAxis dataKey="date" />
                                       <YAxis />
                                       <Tooltip
                                         contentStyle={{
-                                          backgroundColor: '#fff',
-                                          border: '1px solid #ccc',
-                                          borderRadius: '8px',
+                                          backgroundColor: "#fff",
+                                          border: "1px solid #ccc",
+                                          borderRadius: "8px",
+                                          padding: "10px",
                                         }}
+                                        formatter={(value: number) =>
+                                          `${
+                                            analyticsData.currencySymbol
+                                          }${value.toLocaleString()}`
+                                        }
                                       />
-                                      <Bar
-                                        dataKey="count"
-                                        fill="#3B82F6"
-                                        name="Orders"
-                                      />
-                                      <Bar
+                                      <Legend />
+                                      <Line
+                                        type="monotone"
                                         dataKey="revenue"
-                                        fill="#10B981"
+                                        stroke="#3B82F6"
+                                        strokeWidth={2}
+                                        dot={{ fill: "#3B82F6" }}
                                         name="Revenue"
                                       />
-                                    </BarChart>
+                                    </LineChart>
                                   </ResponsiveContainer>
                                 </div>
                               )}
 
-                            {/* Order Status Breakdown */}
-                            {analyticsData.orderStatusBreakdown &&
-                              analyticsData.orderStatusBreakdown.length > 0 && (
+                            {/* Product Performance - Pie Chart */}
+                            {analyticsData.topProducts &&
+                              analyticsData.topProducts.length > 0 && (
                                 <div>
-                                  <h3 className="mb-4 text-lg font-semibold">
-                                    Order Status Breakdown ({period})
+                                  <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
+                                    <PieChartIcon
+                                      size={20}
+                                      className="text-indigo-600"
+                                    />
+                                    Top Products Performance ({period})
                                   </h3>
                                   <ResponsiveContainer
                                     width="100%"
-                                    height={250}
+                                    height={300}
                                   >
                                     <PieChart>
                                       <Pie
-                                        data={
-                                          analyticsData.orderStatusBreakdown
-                                        }
+                                        data={analyticsData.topProducts}
                                         cx="50%"
                                         cy="50%"
                                         labelLine={false}
-                                        label={({ status, percentage }) =>
-                                          `${status}: ${percentage.toFixed(1)}%`
+                                        label={({ productName, percentage }) =>
+                                          `${productName}: ${percentage.toFixed(
+                                            1,
+                                          )}%`
                                         }
-                                        outerRadius={80}
+                                        outerRadius={100}
                                         fill="#8884d8"
-                                        dataKey="count"
+                                        dataKey="totalRevenue"
                                       >
-                                        {analyticsData.orderStatusBreakdown.map(
+                                        {analyticsData.topProducts.map(
                                           (entry: any, index: number) => (
                                             <Cell
                                               key={`cell-${index}`}
@@ -1423,28 +1189,303 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                           ),
                                         )}
                                       </Pie>
-                                      <Tooltip />
+                                      <Tooltip
+                                        contentStyle={{
+                                          backgroundColor: "#fff",
+                                          border: "1px solid #ccc",
+                                          borderRadius: "8px",
+                                          padding: "10px",
+                                        }}
+                                        formatter={(value: number) =>
+                                          `${
+                                            analyticsData.currencySymbol
+                                          }${value.toLocaleString()}`
+                                        }
+                                      />
                                     </PieChart>
                                   </ResponsiveContainer>
+
+                                  {/* Product Details Table */}
+                                  <div className="mt-6 overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b border-gray-200">
+                                          <th className="px-4 py-2 text-left font-semibold">
+                                            Product
+                                          </th>
+                                          <th className="px-4 py-2 text-left font-semibold">
+                                            Category
+                                          </th>
+                                          <th className="px-4 py-2 text-right font-semibold">
+                                            Quantity
+                                          </th>
+                                          <th className="px-4 py-2 text-right font-semibold">
+                                            Revenue
+                                          </th>
+                                          <th className="px-4 py-2 text-right font-semibold">
+                                            %
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {analyticsData.topProducts.map(
+                                          (product: any, idx: number) => (
+                                            <tr
+                                              key={idx}
+                                              className="border-b border-gray-100 hover:bg-gray-50"
+                                            >
+                                              <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                  <div
+                                                    className="h-3 w-3 rounded-full"
+                                                    style={{
+                                                      backgroundColor:
+                                                        COLORS[
+                                                          idx % COLORS.length
+                                                        ],
+                                                    }}
+                                                  />
+                                                  {product.productName}
+                                                </div>
+                                              </td>
+                                              <td className="px-4 py-3">
+                                                {product.category}
+                                              </td>
+                                              <td className="px-4 py-3 text-right">
+                                                {product.totalQuantity}
+                                              </td>
+                                              <td className="px-4 py-3 text-right font-semibold">
+                                                {analyticsData.currencySymbol}
+                                                {product.totalRevenue.toLocaleString()}
+                                              </td>
+                                              <td className="px-4 py-3 text-right">
+                                                {product.percentage.toFixed(1)}%
+                                              </td>
+                                            </tr>
+                                          ),
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
                               )}
+
+                            {/* Category Performance - Pie Chart */}
+                            {analyticsData.categoryPerformance &&
+                              analyticsData.categoryPerformance.length > 0 && (
+                                <div>
+                                  <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
+                                    <PieChartIcon
+                                      size={20}
+                                      className="text-indigo-600"
+                                    />
+                                    Category Breakdown ({period})
+                                  </h3>
+                                  <ResponsiveContainer
+                                    width="100%"
+                                    height={300}
+                                  >
+                                    <PieChart>
+                                      <Pie
+                                        data={analyticsData.categoryPerformance}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ category, percentage }) =>
+                                          `${category}: ${percentage.toFixed(1)}%`
+                                        }
+                                        outerRadius={100}
+                                        fill="#8884d8"
+                                        dataKey="revenue"
+                                      >
+                                        {analyticsData.categoryPerformance.map(
+                                          (entry: any, index: number) => (
+                                            <Cell
+                                              key={`cell-${index}`}
+                                              fill={
+                                                COLORS[index % COLORS.length]
+                                              }
+                                            />
+                                          ),
+                                        )}
+                                      </Pie>
+                                      <Tooltip
+                                        contentStyle={{
+                                          backgroundColor: "#fff",
+                                          border: "1px solid #ccc",
+                                          borderRadius: "8px",
+                                          padding: "10px",
+                                        }}
+                                        formatter={(value: number) =>
+                                          `${
+                                            analyticsData.currencySymbol
+                                          }${value.toLocaleString()}`
+                                        }
+                                      />
+                                    </PieChart>
+                                  </ResponsiveContainer>
+
+                                  {/* Category Details Table */}
+                                  <div className="mt-6 overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b border-gray-200">
+                                          <th className="px-4 py-2 text-left font-semibold">
+                                            Category
+                                          </th>
+                                          <th className="px-4 py-2 text-right font-semibold">
+                                            Items Sold
+                                          </th>
+                                          <th className="px-4 py-2 text-right font-semibold">
+                                            Revenue
+                                          </th>
+                                          <th className="px-4 py-2 text-right font-semibold">
+                                            %
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {analyticsData.categoryPerformance.map(
+                                          (category: any, idx: number) => (
+                                            <tr
+                                              key={idx}
+                                              className="border-b border-gray-100 hover:bg-gray-50"
+                                            >
+                                              <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                  <div
+                                                    className="h-3 w-3 rounded-full"
+                                                    style={{
+                                                      backgroundColor:
+                                                        COLORS[
+                                                          idx % COLORS.length
+                                                        ],
+                                                    }}
+                                                  />
+                                                  {category.category}
+                                                </div>
+                                              </td>
+                                              <td className="px-4 py-3 text-right">
+                                                {category.count}
+                                              </td>
+                                              <td className="px-4 py-3 text-right font-semibold">
+                                                {analyticsData.currencySymbol}
+                                                {category.revenue.toLocaleString()}
+                                              </td>
+                                              <td className="px-4 py-3 text-right">
+                                                {category.percentage.toFixed(1)}
+                                                %
+                                              </td>
+                                            </tr>
+                                          ),
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+
+                            {/* Order Type & Status Breakdown */}
+                            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                              {/* Order Type Breakdown */}
+                              {analyticsData.orderTypeBreakdown &&
+                                analyticsData.orderTypeBreakdown.length > 0 && (
+                                  <div>
+                                    <h3 className="mb-4 text-lg font-semibold">
+                                      Order Type Breakdown ({period})
+                                    </h3>
+                                    <ResponsiveContainer
+                                      width="100%"
+                                      height={250}
+                                    >
+                                      <BarChart
+                                        data={analyticsData.orderTypeBreakdown}
+                                      >
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="type" />
+                                        <YAxis />
+                                        <Tooltip
+                                          contentStyle={{
+                                            backgroundColor: "#fff",
+                                            border: "1px solid #ccc",
+                                            borderRadius: "8px",
+                                          }}
+                                        />
+                                        <Bar
+                                          dataKey="count"
+                                          fill="#3B82F6"
+                                          name="Orders"
+                                        />
+                                        <Bar
+                                          dataKey="revenue"
+                                          fill="#10B981"
+                                          name="Revenue"
+                                        />
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                )}
+
+                              {/* Order Status Breakdown */}
+                              {analyticsData.orderStatusBreakdown &&
+                                analyticsData.orderStatusBreakdown.length >
+                                  0 && (
+                                  <div>
+                                    <h3 className="mb-4 text-lg font-semibold">
+                                      Order Status Breakdown ({period})
+                                    </h3>
+                                    <ResponsiveContainer
+                                      width="100%"
+                                      height={250}
+                                    >
+                                      <PieChart>
+                                        <Pie
+                                          data={
+                                            analyticsData.orderStatusBreakdown
+                                          }
+                                          cx="50%"
+                                          cy="50%"
+                                          labelLine={false}
+                                          label={({ status, percentage }) =>
+                                            `${status}: ${percentage.toFixed(1)}%`
+                                          }
+                                          outerRadius={80}
+                                          fill="#8884d8"
+                                          dataKey="count"
+                                        >
+                                          {analyticsData.orderStatusBreakdown.map(
+                                            (entry: any, index: number) => (
+                                              <Cell
+                                                key={`cell-${index}`}
+                                                fill={
+                                                  COLORS[index % COLORS.length]
+                                                }
+                                              />
+                                            ),
+                                          )}
+                                        </Pie>
+                                        <Tooltip />
+                                      </PieChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                )}
+                            </div>
+
+                            {/* Summary Metrics */}
                           </div>
+                        ) : (
+                          <div className="flex justify-center py-10">
+                            <p className="text-gray-500">
+                              No analytics data available
+                            </p>
+                          </div>
+                        )}
 
-                          {/* Summary Metrics */}
-                        </div>
-                      ) : (
-                        <div className="flex justify-center py-10">
-                          <p className="text-gray-500">
-                            No analytics data available
-                          </p>
-                        </div>
-                      )}
-
-                      {analyticsData?.topCustomers &&
-                        analyticsData.topCustomers.length > 0 && (
-                          <div className="mt-6">
-                            {/* Top Customers Grid */}
-                            {/* <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 mb-6">
+                        {analyticsData?.topCustomers &&
+                          analyticsData.topCustomers.length > 0 && (
+                            <div className="mt-6">
+                              {/* Top Customers Grid */}
+                              {/* <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 mb-6">
                               <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg p-6 shadow-sm">
                                 <div className="flex items-center gap-2 mb-4">
                                   <Crown
@@ -1620,228 +1661,275 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                 )}
                             </div> */}
 
-                            {/* Detailed Customer Table */}
-                            <div className="mt-8">
-                              <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
-                                <Users size={20} className="text-indigo-600" />
-                                Top Performing Customers ({period})
-                              </h3>
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="border-b-2 border-gray-300 bg-gray-50">
-                                      <th className="px-4 py-3 text-left font-semibold">
-                                        Customer Name
-                                      </th>
-                                      <th className="px-4 py-3 text-left font-semibold">
-                                        Contact
-                                      </th>
-                                      <th className="px-4 py-3 text-right font-semibold">
-                                        Total Orders
-                                      </th>
-                                      <th className="px-4 py-3 text-right font-semibold">
-                                        Total Spent
-                                      </th>
-                                      <th className="px-4 py-3 text-right font-semibold">
-                                        Avg Order Value
-                                      </th>
+                              {/* Detailed Customer Table */}
+                              <div className="mt-8">
+                                <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
+                                  <Users
+                                    size={20}
+                                    className="text-indigo-600"
+                                  />
+                                  Top Performing Customers ({period})
+                                </h3>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b-2 border-gray-300 bg-gray-50">
+                                        <th className="px-4 py-3 text-left font-semibold">
+                                          Customer Name
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-semibold">
+                                          Contact
+                                        </th>
+                                        <th className="px-4 py-3 text-right font-semibold">
+                                          Total Orders
+                                        </th>
+                                        <th className="px-4 py-3 text-right font-semibold">
+                                          Total Spent
+                                        </th>
+                                        <th className="px-4 py-3 text-right font-semibold">
+                                          Avg Order Value
+                                        </th>
 
-                                      {/* <th className="px-4 py-3 text-center font-semibold">
+                                        {/* <th className="px-4 py-3 text-center font-semibold">
                                         Last Order
                                       </th> */}
-                                      <th className="px-4 py-3 text-center font-semibold">
-                                        Last Order Date
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {analyticsData.topCustomers.map(
-                                      (customer: any, idx: number) => {
-                                        const isInactive =
-                                          analyticsData.inactiveCustomers?.some(
-                                            (ic: any) =>
-                                              ic.customerId ===
-                                              customer.customerId,
-                                          );
+                                        <th className="px-4 py-3 text-center font-semibold">
+                                          Last Order Date
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {analyticsData.topCustomers.map(
+                                        (customer: any, idx: number) => {
+                                          const isInactive =
+                                            analyticsData.inactiveCustomers?.some(
+                                              (ic: any) =>
+                                                ic.customerId ===
+                                                customer.customerId,
+                                            );
 
-                                        return (
-                                          <tr
-                                            key={idx}
-                                            className={`border-b border-gray-100 hover:bg-blue-50 transition-colors ${
-                                              isInactive ? 'bg-red-50' : ''
-                                            }`}
-                                          >
-                                            <td className="px-4 py-3">
-                                              <div className="flex items-center gap-2">
-                                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
-                                                  {idx + 1}
-                                                </span>
-                                                <span className="font-medium text-gray-900">
-                                                  {customer.customerName}
-                                                </span>
-                                              </div>
-                                            </td>
-                                            <td className="px-2 py-3 w-10">
-                                              <div className="space-y-1 text-m">
-                                                {/* WhatsApp Link - 1st Line */}
-                                                {customer.whatsappNumber && (
-                                                  <a
-                                                    href={`https://wa.me/${customer.whatsappNumber.replace(
-                                                      /[^0-9]/g,
-                                                      '',
-                                                    )}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 font-medium transition-colors"
-                                                    title="Message on WhatsApp"
-                                                  >
-                                                    <MessageCircle
-                                                      size={12}
-                                                      className="text-green-600"
-                                                    />
-                                                    {customer.whatsappNumber}
-                                                  </a>
-                                                )}
-
-                                                {/* Email Link - 2nd Line */}
-                                                {customer.email && (
-                                                  <a
-                                                    href={`mailto:${customer.email}`}
-                                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium transition-colors block"
-                                                    title={`Email ${customer.email}`}
-                                                  >
-                                                    <Mail
-                                                      size={12}
-                                                      className="text-blue-600"
-                                                    />
-                                                    {customer.email}
-                                                  </a>
-                                                )}
-
-                                                {/* No Contact Fallback */}
-                                                {!customer.whatsappNumber &&
-                                                  !customer.email && (
-                                                    <span className="text-gray-500 italic">
-                                                      No contact info
-                                                    </span>
+                                          return (
+                                            <tr
+                                              key={idx}
+                                              className={`border-b border-gray-100 hover:bg-blue-50 transition-colors ${
+                                                isInactive ? "bg-red-50" : ""
+                                              }`}
+                                            >
+                                              <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
+                                                    {idx + 1}
+                                                  </span>
+                                                  <span className="font-medium text-gray-900">
+                                                    {customer.customerName}
+                                                  </span>
+                                                </div>
+                                              </td>
+                                              <td className="px-2 py-3 w-10">
+                                                <div className="space-y-1 text-m">
+                                                  {/* WhatsApp Link - 1st Line */}
+                                                  {customer.whatsappNumber && (
+                                                    <a
+                                                      href={`https://wa.me/${customer.whatsappNumber.replace(
+                                                        /[^0-9]/g,
+                                                        "",
+                                                      )}`}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 font-medium transition-colors"
+                                                      title="Message on WhatsApp"
+                                                    >
+                                                      <MessageCircle
+                                                        size={12}
+                                                        className="text-green-600"
+                                                      />
+                                                      {customer.whatsappNumber}
+                                                    </a>
                                                   )}
-                                              </div>
-                                            </td>
 
-                                            <td className="px-4 py-3 text-right font-semibold">
-                                              {customer.totalOrders}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-bold text-emerald-600">
-                                              {analyticsData.currencySymbol}
-                                              {customer.totalSpent.toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-semibold">
-                                              {analyticsData.currencySymbol}
-                                              {customer.avgOrderValue.toLocaleString()}
-                                            </td>
+                                                  {/* Email Link - 2nd Line */}
+                                                  {customer.email && (
+                                                    <a
+                                                      href={`mailto:${customer.email}`}
+                                                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium transition-colors block"
+                                                      title={`Email ${customer.email}`}
+                                                    >
+                                                      <Mail
+                                                        size={12}
+                                                        className="text-blue-600"
+                                                      />
+                                                      {customer.email}
+                                                    </a>
+                                                  )}
 
-                                            {/* <td className="px-4 py-3 text-center text-gray-600">
+                                                  {/* No Contact Fallback */}
+                                                  {!customer.whatsappNumber &&
+                                                    !customer.email && (
+                                                      <span className="text-gray-500 italic">
+                                                        No contact info
+                                                      </span>
+                                                    )}
+                                                </div>
+                                              </td>
+
+                                              <td className="px-4 py-3 text-right font-semibold">
+                                                {customer.totalOrders}
+                                              </td>
+                                              <td className="px-4 py-3 text-right font-bold text-emerald-600">
+                                                {analyticsData.currencySymbol}
+                                                {customer.totalSpent.toLocaleString()}
+                                              </td>
+                                              <td className="px-4 py-3 text-right font-semibold">
+                                                {analyticsData.currencySymbol}
+                                                {customer.avgOrderValue.toLocaleString()}
+                                              </td>
+
+                                              {/* <td className="px-4 py-3 text-center text-gray-600">
                                               {customer.daysSinceLastOrder}d ago
                                             </td> */}
-                                            <td className="px-4 py-3 text-center">
-                                              {formatDate(
-                                                customer.lastOrderDate,
-                                              )}
-                                            </td>
-                                          </tr>
-                                        );
-                                      },
-                                    )}
-                                  </tbody>
-                                </table>
+                                              <td className="px-4 py-3 text-center">
+                                                {formatDate(
+                                                  customer.lastOrderDate,
+                                                )}
+                                              </td>
+                                            </tr>
+                                          );
+                                        },
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                    </CardContent>
-                  </Card>
-                </div>
-                ) : <NoAccessOverlay />}
+                          )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <NoAccessOverlay />
+                )}
               </TabsContent>
 
               <TabsContent value="products" className="mt-0">
-                {hasTabAccess('products') ? (
+                {hasTabAccess("products") ? (
                   <ModuleGate moduleKey="products">
                     <Suspense fallback={<TabLoadingFallback />}>
                       <div className="space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                          <h2 className="text-2xl sm:text-3xl font-bold">Products</h2>
+                          <h2 className="text-2xl sm:text-3xl font-bold">
+                            Products
+                          </h2>
                         </div>
-                        <ProductManagement />
+                        <ProductManagement
+                          pendingAction={productPendingAction}
+                          onPendingActionConsumed={() =>
+                            setProductPendingAction(null)
+                          }
+                        />
                       </div>
                     </Suspense>
                   </ModuleGate>
-                ) : <NoAccessOverlay />}
+                ) : (
+                  <NoAccessOverlay />
+                )}
               </TabsContent>
 
               <TabsContent value="kiosk" className="mt-0">
-                {hasTabAccess('kiosk') ? (
+                {hasTabAccess("kiosk") ? (
                   <ModuleGate moduleKey="kiosk">
                     <Suspense fallback={<TabLoadingFallback />}>
-                      {shopkeeperId && <KioskMode shopkeeperId={shopkeeperId} />}
+                      {shopkeeperId && (
+                        <KioskMode shopkeeperId={shopkeeperId} />
+                      )}
                     </Suspense>
                   </ModuleGate>
-                ) : <NoAccessOverlay />}
+                ) : (
+                  <NoAccessOverlay />
+                )}
               </TabsContent>
 
               <TabsContent value="orders" className="mt-0">
-                {hasTabAccess('orders') ? (
+                {hasTabAccess("orders") ? (
                   <ModuleGate moduleKey="orders">
                     <Suspense fallback={<TabLoadingFallback />}>
                       <div className="space-y-4">
-                        <h2 className="text-2xl sm:text-3xl font-bold">Orders & Payments</h2>
+                        <h2 className="text-2xl sm:text-3xl font-bold">
+                          Orders & Payments
+                        </h2>
                         <CartManagement />
                       </div>
                     </Suspense>
                   </ModuleGate>
-                ) : <NoAccessOverlay />}
+                ) : (
+                  <NoAccessOverlay />
+                )}
               </TabsContent>
 
               <TabsContent value="crm" className="mt-0">
-                {hasTabAccess('crm') ? (
+                {hasTabAccess("crm") ? (
                   <ModuleGate moduleKey="crm">
                     <Suspense fallback={<TabLoadingFallback />}>
                       <div className="space-y-4">
-                        <h2 className="text-2xl sm:text-3xl font-bold">Management Dashboard</h2>
+                        <h2 className="text-2xl sm:text-3xl font-bold">
+                          Management Dashboard
+                        </h2>
                         <CRMManagement />
                       </div>
                     </Suspense>
                   </ModuleGate>
-                ) : <NoAccessOverlay />}
+                ) : (
+                  <NoAccessOverlay />
+                )}
               </TabsContent>
 
               <TabsContent value="storefront" className="mt-0 outline-none">
-                {hasTabAccess('storefront') ? (
+                {hasTabAccess("storefront") ? (
                   <ModuleGate moduleKey="storefront">
                     <Suspense fallback={<TabLoadingFallback />}>
                       <div className="space-y-4">
                         <StorefrontCustomizer
-                          onBack={() => setActiveTab('storefront')}
+                          onBack={() => setActiveTab("storefront")}
                           onSave={() => setShowPreview(true)}
                         />
                       </div>
                     </Suspense>
                   </ModuleGate>
-                ) : <NoAccessOverlay />}
+                ) : (
+                  <NoAccessOverlay />
+                )}
               </TabsContent>
 
-              <TabsContent value="chat" className="mt-0 p-0 -mx-4 -my-4 md:-mx-6 md:-my-6">
-                <ChatbotWidget mode="page" onNavigate={(tab) => setActiveTab(tab)} />
+              <TabsContent
+                value="chat"
+                className="mt-0 p-0 -mx-4 -my-4 md:-mx-6 md:-my-6"
+              >
+                <ChatbotWidget
+                  mode="page"
+                  onNavigate={(tab, extras) => {
+                    if (tab === "products" && extras?.action) {
+                      // `key` forces ProductManagement to re-run the pending-action
+                      // effect even when the same bot intent fires twice in a row.
+                      setProductPendingAction({
+                        action: extras.action,
+                        productName: extras.productName,
+                        key: Date.now(),
+                      });
+                    }
+                    setActiveTab(tab);
+                  }}
+                />
               </TabsContent>
 
               <TabsContent value="settings" className="mt-0">
-                {hasTabAccess('settings') ? (
+                {hasTabAccess("settings") ? (
                   <Suspense fallback={<TabLoadingFallback />}>
                     <div className="space-y-4">
                       <ShopkeeperSettings onSave={handleSaveSettings} />
                     </div>
                   </Suspense>
-                ) : <NoAccessOverlay />}
+                ) : (
+                  <NoAccessOverlay />
+                )}
               </TabsContent>
             </Tabs>
           </div>
@@ -1875,7 +1963,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
           </Accordion>
           <div className="mt-4 p-3 rounded-lg bg-muted/50 text-center">
             <p className="text-sm text-muted-foreground">
-              Still need help? Contact us at{' '}
+              Still need help? Contact us at{" "}
               <a
                 href="mailto:support@kioscart.com"
                 className="text-primary font-medium hover:underline"

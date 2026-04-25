@@ -72,6 +72,11 @@ export class ShopkeeperAnalyticsService {
     let end: moment.Moment;
 
     switch (period) {
+      case ReportPeriod.TODAY:
+        start = now.clone().startOf("day");
+        end = now.clone().endOf("day");
+        break;
+
       case ReportPeriod.MONTHLY:
         start = now.clone().startOf("month");
         end = now.clone().endOf("month");

@@ -10,6 +10,9 @@ export class ChatbotController {
   @UseGuards(AuthGuard("jwt"))
   async handleMessage(@Req() req: any, @Body("message") message: string) {
     const shopkeeperId = req.user.userId;
-    return this.chatbotService.processMessage(shopkeeperId, message);
+    // Pass the JWT-resolved display name through so greetings can use it
+    // without an extra DB hit. Falls back to DB lookup inside the service
+    // when the token doesn't carry one.
+    return this.chatbotService.processMessage(shopkeeperId, message, req.user.name);
   }
 }

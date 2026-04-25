@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Store, Monitor, ShoppingCart, Users, Package, Globe, Settings, ChevronRight, ChevronDown, Sparkles } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Store, Monitor, ShoppingCart, Users, Package, Globe, Settings, ChevronRight, ChevronDown, Sparkles, Download, BarChart3 } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import QRCode from "react-qr-code";
 import jsQR from "jsqr";
+import { jwtDecode } from "jwt-decode";
 
 const apiURL = __API_URL__;
 
 interface QuickAction { label: string; action: string; }
 interface QRPayload {
   orderId: string;
+  // Mongo _id, needed to hit /orders/:id/receipt for download.
+  orderMongoId?: string;
   amount: number;
   country: string;
   shopName?: string;
@@ -26,6 +29,15 @@ interface ProductTreeItem {
   subcategories?: { name: string; basePrice?: number; variants?: { title: string; price: number; inventory?: number }[] }[];
   options?: { title: string; price: number; inventory?: number }[];
 }
+interface AnalyticsSummary {
+  revenue: number;
+  orders: number;
+  avgOrder: number;
+  customers: number;
+  currency: string;
+  period?: string;
+  topProducts?: { name: string; sold?: number; revenue?: number }[];
+}
 interface Message {
   id: string;
   role: "user" | "bot";
@@ -33,6 +45,7 @@ interface Message {
   quickActions?: QuickAction[];
   qr?: QRPayload;
   productTree?: ProductTreeItem[];
+  analytics?: AnalyticsSummary;
   timestamp: Date;
 }
 
@@ -83,7 +96,15 @@ async function buildQrValue(action: {
 }
 
 interface ChatbotWidgetProps {
-  onNavigate?: (tab: string) => void;
+  /**
+   * Switch dashboard tab. Optional `extras` let the bot request a sub-UI
+   * inside the target tab — e.g. open the Add Product form on arrival, or
+   * open the Edit form for a specific product.
+   */
+  onNavigate?: (
+    tab: string,
+    extras?: { action?: "add" | "edit"; productName?: string },
+  ) => void;
   /** "floating" = bottom-right bubble dialog (default). "page" = fills its parent container. */
   mode?: "floating" | "page";
 }
@@ -105,7 +126,7 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
   };
   return (
     <div className="mt-2 border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
-      <div className="grid grid-cols-[1fr_120px_100px_100px] bg-slate-50 border-b border-slate-200 text-[12px] font-semibold text-slate-600 uppercase tracking-wide">
+      <div className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] bg-slate-50 border-b border-slate-200 text-[12px] font-semibold text-slate-600 uppercase tracking-wide">
         <div className="px-4 py-2.5">Product</div>
         <div className="px-3 py-2.5">Price</div>
         <div className="px-3 py-2.5">Stock</div>
@@ -118,7 +139,7 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
           <div key={i}>
             <div
               onClick={() => hasChildren && toggleP(i)}
-              className={`grid grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[14px] ${hasChildren ? "cursor-pointer hover:bg-blue-50" : ""}`}
+              className={`grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[14px] ${hasChildren ? "cursor-pointer hover:bg-blue-50" : ""}`}
             >
               <div className="px-4 py-3 flex items-center gap-2 min-w-0">
                 {hasChildren ? (
@@ -142,7 +163,7 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
               <div className="bg-slate-50/60">
                 {/* Top-level variants */}
                 {(p.variants || []).map((v, vi) => (
-                  <div key={`v-${vi}`} className="grid grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]">
+                  <div key={`v-${vi}`} className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]">
                     <div className="px-4 py-2 pl-10 flex items-center gap-2 text-slate-700">
                       <span className="text-slate-400">·</span>
                       <span className="font-medium">{v.title}</span>
@@ -162,7 +183,7 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
                     <div key={`sc-${si}`}>
                       <div
                         onClick={() => hasScVariants && toggleSC(k)}
-                        className={`grid grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px] ${hasScVariants ? "cursor-pointer hover:bg-blue-50" : ""}`}
+                        className={`grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px] ${hasScVariants ? "cursor-pointer hover:bg-blue-50" : ""}`}
                       >
                         <div className="px-4 py-2 pl-8 flex items-center gap-2 text-slate-800">
                           {hasScVariants ? (
@@ -176,7 +197,7 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
                         <div className="px-3 py-2" />
                       </div>
                       {scOpen && (sc.variants || []).map((v, vi) => (
-                        <div key={`scv-${si}-${vi}`} className="grid grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px] bg-white">
+                        <div key={`scv-${si}-${vi}`} className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px] bg-white">
                           <div className="px-4 py-2 pl-14 flex items-center gap-2 text-slate-700">
                             <span className="text-slate-400">·</span>
                             <span>{v.title}</span>
@@ -191,7 +212,7 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
                 })}
                 {/* Product options */}
                 {(p.options || []).map((o, oi) => (
-                  <div key={`o-${oi}`} className="grid grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]">
+                  <div key={`o-${oi}`} className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]">
                     <div className="px-4 py-2 pl-10 flex items-center gap-2 text-slate-700">
                       <span className="text-slate-400">·</span>
                       <span className="font-medium">{o.title}</span>
@@ -207,6 +228,66 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// KPI cards mirroring the Analytics page (Total Revenue / Orders / Avg / Customers).
+// 2 cols on mobile, 4 cols ≥sm so it works inside narrow chat bubbles too.
+// `compact` skips topProducts + the period label — used by the always-on header strip.
+function AnalyticsCards({ data, compact = false }: { data: AnalyticsSummary; compact?: boolean }) {
+  const fmt = (n: number) => (Number.isFinite(n) ? n.toLocaleString() : "0");
+  const periodLabel = (p?: string) => {
+    if (!p) return "";
+    const map: Record<string, string> = {
+      monthly: "this month", lastmonth: "last month",
+      quarterly: "this quarter", lastquarter: "last quarter",
+      yearly: "this year", lastyear: "last year",
+    };
+    return map[p] || p;
+  };
+  const cards = [
+    { label: "Total Revenue", value: `${data.currency || ""}${fmt(data.revenue)}`, tint: "from-blue-50 to-blue-100/60 text-blue-700" },
+    { label: "Total Orders", value: fmt(data.orders), tint: "from-emerald-50 to-emerald-100/60 text-emerald-700" },
+    { label: "Avg Order Value", value: `${data.currency || ""}${fmt(data.avgOrder)}`, tint: "from-amber-50 to-amber-100/60 text-amber-700" },
+    { label: "Total Customers", value: fmt(data.customers), tint: "from-rose-50 to-rose-100/60 text-rose-700" },
+  ];
+  return (
+    <div className={compact ? "" : "mt-2"}>
+      {!compact && data.period && (
+        <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1.5">
+          Analytics — {periodLabel(data.period)}
+        </p>
+      )}
+      <div className={`grid grid-cols-2 ${compact ? "gap-1.5 sm:gap-2" : "gap-2 sm:gap-3"} sm:grid-cols-4`}>
+        {cards.map((c) => (
+          <div
+            key={c.label}
+            className={`rounded-xl border border-slate-200 bg-gradient-to-br ${c.tint} ${compact ? "px-2.5 py-1.5" : "px-3 py-2.5"} shadow-sm`}
+          >
+            <div className={compact ? "text-[10px] font-medium text-slate-600 truncate" : "text-[11px] font-medium text-slate-600"}>{c.label}</div>
+            <div className={`mt-0.5 ${compact ? "text-sm sm:text-base" : "text-base sm:text-lg"} font-bold text-slate-900 break-all`}>{c.value}</div>
+          </div>
+        ))}
+      </div>
+      {!compact && Array.isArray(data.topProducts) && data.topProducts.length > 0 && (
+        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1.5">
+            Top products
+          </p>
+          <ul className="space-y-1">
+            {data.topProducts.slice(0, 5).map((p, i) => (
+              <li key={i} className="flex items-center justify-between text-[13px]">
+                <span className="text-slate-700 truncate mr-2">{i + 1}. {p.name}</span>
+                <span className="text-slate-500 flex-shrink-0">
+                  {p.revenue !== undefined ? `${data.currency || ""}${fmt(p.revenue)}` : ""}
+                  {p.sold !== undefined ? ` · ${p.sold} sold` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -322,14 +403,91 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
   const [initialized, setInitialized] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Per-message QR receipt state: messageId → "idle" | "choosing" | "downloading"
+  const [receiptUI, setReceiptUI] = useState<Record<string, "idle" | "choosing" | "downloading">>({});
+  // Always-on analytics strip in the header. Mirrors the Analytics page's KPI cards
+  // so the shopkeeper sees their snapshot the moment the chatbot opens.
+  const [headerAnalytics, setHeaderAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [analyticsCollapsed, setAnalyticsCollapsed] = useState(false);
+  const [headerPeriod, setHeaderPeriod] = useState<string>("monthly");
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const downloadReceipt = useCallback(async (msgId: string, mongoId: string, type: "A4" | "58MM") => {
+    setReceiptUI((p) => ({ ...p, [msgId]: "downloading" }));
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(
+        `${apiURL}/orders/${mongoId}/receipt?type=${type}&disposition=attachment`,
+        { method: "GET", headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+      if (!res.ok) throw new Error("Receipt fetch failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt-${mongoId.slice(-8)}-${type}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Surface as a chat bubble so it doesn't fail silently.
+      setMessages((prev) => [...prev, {
+        id: (Date.now() + 1).toString(), role: "bot",
+        text: "Couldn't download the receipt. Please try again.", timestamp: new Date(),
+      }]);
+    } finally {
+      setReceiptUI((p) => ({ ...p, [msgId]: "idle" }));
+    }
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
+
+  // Fetch the analytics snapshot for the header strip — same endpoint the
+  // Dashboard page hits, so the shopkeeper sees identical numbers in both places.
+  // Re-fires whenever the chat opens or the chosen period changes.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      try {
+        const decoded: any = jwtDecode(token);
+        const shopkeeperId = decoded?.sub;
+        if (!shopkeeperId) return;
+        setAnalyticsLoading(true);
+        const res = await fetch(
+          `${apiURL}/shopkeeper/analytics/${shopkeeperId}/report/${headerPeriod}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!res.ok) return;
+        const json = await res.json();
+        const d = json?.data;
+        if (!d || cancelled) return;
+        setHeaderAnalytics({
+          revenue: Number(d.totalRevenue) || 0,
+          orders: Number(d.totalOrders) || 0,
+          avgOrder: Number(d.avgOrderValue) || 0,
+          customers: Number(d.totalCustomers) || 0,
+          currency: d.currencySymbol || "Rs.",
+          period: headerPeriod,
+          topProducts: Array.isArray(d.topProducts) ? d.topProducts.slice(0, 5) : undefined,
+        });
+      } catch {
+        // Silent — the chat still works without the strip.
+      } finally {
+        if (!cancelled) setAnalyticsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, headerPeriod]);
 
   const sendMessage = useCallback(async (text: string, isGreeting = false) => {
     if (!isGreeting) {
@@ -354,6 +512,7 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
           if (qrValue) {
             qr = {
               orderId: data.botAction.orderId,
+              orderMongoId: data.botAction.orderMongoId,
               amount: data.botAction.amount,
               country: data.botAction.country,
               shopName: data.botAction.shopName,
@@ -365,11 +524,16 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
           id: (Date.now() + 1).toString(), role: "bot", text: data.text,
           quickActions: data.quickActions, qr,
           productTree: Array.isArray(data.productTree) ? data.productTree : undefined,
+          analytics: data.analytics && typeof data.analytics === "object" ? data.analytics : undefined,
           timestamp: new Date(),
         }]);
         if (data.botAction?.type === "navigate" && data.botAction.tab && onNavigate) {
+          const extras: { action?: "add" | "edit"; productName?: string } = {};
+          if (data.botAction.action) extras.action = data.botAction.action;
+          if (data.botAction.productName)
+            extras.productName = data.botAction.productName;
           setTimeout(() => {
-            onNavigate(data.botAction.tab);
+            onNavigate(data.botAction.tab, extras);
             setOpen(false);
           }, 1500);
         }
@@ -437,18 +601,19 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
   if (!isModuleEnabled("chatbot")) return null;
 
   // Page-mode: fill the parent fully (no card chrome). Floating-mode: original bubble.
+  // On phones the floating bubble fills the viewport (with margins) instead of clipping.
   const isPage = mode === "page";
   const containerClass = isPage
     ? "w-full h-[calc(100vh-6rem)] bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden"
-    : "fixed bottom-6 right-6 z-50 w-[380px] h-[520px] bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden";
-  const messageMaxWidth = isPage ? "max-w-[78%]" : "max-w-[85%]";
+    : "fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-1.5rem)] h-[calc(100vh-6rem)] sm:w-[380px] sm:h-[520px] max-w-[400px] max-h-[640px] bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden";
+  const messageMaxWidth = isPage ? "max-w-[88%] sm:max-w-[78%]" : "max-w-[88%]";
 
   return (
     <>
       {!isPage && !open && (
         <button onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-105">
-          <MessageCircle className="h-6 w-6" />
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-105">
+          <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
         </button>
       )}
 
@@ -456,14 +621,14 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
         <div className={containerClass}>
           {isPage ? (
             <div className="flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur">
-              <div className="flex items-center gap-3 pl-6 pr-8 py-4">
-                <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-md">
-                  <Bot className="h-6 w-6 text-white" />
+              <div className="flex items-center gap-3 px-3 sm:pl-6 sm:pr-8 py-3 sm:py-4">
+                <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-md">
+                  <Bot className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
                 </div>
-                <div>
-                  <p className="font-semibold text-slate-900 text-base tracking-tight">KiosAI</p>
-                  <p className="text-xs text-slate-500">Your smart store assistant · Online</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900 text-sm sm:text-base tracking-tight">KiosAI</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500 truncate">Your smart store assistant · Online</p>
                 </div>
               </div>
             </div>
@@ -484,23 +649,61 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             </div>
           )}
 
-          <div className={`flex-1 overflow-y-auto ${isPage ? "pl-6 pr-8 py-6" : "p-3"}`}>
+          {/* Always-on analytics strip — same KPIs as the Analytics page. */}
+          {(headerAnalytics || analyticsLoading) && (
+            <div className={`flex-shrink-0 border-b border-slate-200 bg-slate-50/60 ${isPage ? "px-3 sm:pl-6 sm:pr-8" : "px-3"} py-2`}>
+              <div className="flex items-center justify-between mb-1.5 gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <BarChart3 className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                  <select
+                    value={headerPeriod}
+                    onChange={(e) => setHeaderPeriod(e.target.value)}
+                    aria-label="Analytics period"
+                    className="text-[11px] font-semibold uppercase tracking-wide text-slate-700 bg-transparent border-0 focus:outline-none focus:ring-0 cursor-pointer hover:text-blue-700 pr-1"
+                  >
+                    <option value="today">Today</option>
+                    <option value="monthly">This Month</option>
+                    <option value="lastmonth">Last Month</option>
+                    <option value="quarterly">This Quarter</option>
+                    <option value="lastquarter">Last Quarter</option>
+                    <option value="yearly">This Year</option>
+                    <option value="lastyear">Last Year</option>
+                  </select>
+                  {analyticsLoading && <Loader2 className="h-3 w-3 animate-spin text-slate-400 flex-shrink-0" />}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAnalyticsCollapsed((c) => !c)}
+                  className="text-[11px] text-slate-500 hover:text-slate-700 flex-shrink-0"
+                >
+                  {analyticsCollapsed ? "Show" : "Hide"}
+                </button>
+              </div>
+              {!analyticsCollapsed && headerAnalytics && (
+                <div className="max-w-[1100px]">
+                  <AnalyticsCards data={headerAnalytics} compact />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className={`flex-1 overflow-y-auto ${isPage ? "px-3 py-4 sm:pl-6 sm:pr-8 sm:py-6" : "p-3"}`}>
             {/* Welcome / empty state — shown only until the shopkeeper sends their first message. */}
             {isPage && !messages.some((m) => m.role === "user") && (
-              <div className="max-w-[900px] mx-auto pt-6 pb-10">
-                <div className="flex flex-col items-center text-center gap-4 mb-8">
-                  <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-lg">
-                    <Bot className="h-7 w-7 text-white" />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+              <div className="max-w-[900px] mx-auto pt-4 sm:pt-6 pb-6 sm:pb-10">
+                <div className="flex flex-col items-center text-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-lg">
+                    <Bot className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                   </div>
                   <div>
-                    <p className="text-xl font-semibold text-slate-900 tracking-tight">
+                    <p className="text-lg sm:text-xl font-semibold text-slate-900 tracking-tight">
                       {messages[0]?.role === "bot" ? (messages[0].text.split("\n")[0].replace(/\*\*/g, "").replace(/[!.].*/, "")) : "How can I help?"}
                     </p>
-                    <p className="text-sm text-slate-500 mt-1">Click a suggestion below or type your own message</p>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Tap a suggestion or type your own message</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap justify-center gap-2">
+                <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
                   {SUGGESTED_CARDS.map((c) => (
                     <button
                       key={c.title}
@@ -541,6 +744,11 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                       <ProductTree products={msg.productTree} />
                     </div>
                   )}
+                  {msg.analytics && (
+                    <div className={isPage ? "mt-2 ml-10" : "mt-2 ml-8"}>
+                      <AnalyticsCards data={msg.analytics} />
+                    </div>
+                  )}
                   {msg.qr && (
                     <div className="mt-2 ml-8 inline-block bg-white border rounded-xl p-3 shadow-sm">
                       <div className="text-xs font-semibold text-gray-700 mb-1">
@@ -553,6 +761,55 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                         <QRCode value={msg.qr.qrValue} size={160} />
                       </div>
                       <div className="text-[10px] text-gray-400 mt-1">Customer scans to pay</div>
+                      {msg.qr.orderMongoId && (() => {
+                        const state = receiptUI[msg.id] || "idle";
+                        const mongoId = msg.qr.orderMongoId;
+                        if (state === "downloading") {
+                          return (
+                            <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-blue-700">
+                              <Loader2 className="h-3 w-3 animate-spin" /> Preparing receipt…
+                            </div>
+                          );
+                        }
+                        if (state === "choosing") {
+                          return (
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] text-gray-500">Format:</span>
+                              <button
+                                type="button"
+                                onClick={() => downloadReceipt(msg.id, mongoId, "A4")}
+                                className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                              >
+                                A4
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => downloadReceipt(msg.id, mongoId, "58MM")}
+                                className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                              >
+                                58mm (Thermal)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setReceiptUI((p) => ({ ...p, [msg.id]: "idle" }))}
+                                className="text-[11px] px-2 py-1 rounded-full text-gray-500 hover:text-gray-700"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => setReceiptUI((p) => ({ ...p, [msg.id]: "choosing" }))}
+                            className="mt-2 inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download receipt
+                          </button>
+                        );
+                      })()}
                     </div>
                   )}
                   {msg.quickActions && msg.quickActions.length > 0 && (
@@ -585,15 +842,15 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
           </div>
 
           {isPage && onNavigate && (
-            <div className="flex-shrink-0 border-t border-slate-200 bg-white/70 backdrop-blur pl-6 pr-8 py-2">
-              <div className="flex flex-wrap items-center gap-1.5 max-w-[1100px]">
-                <span className="text-[11px] font-medium text-slate-500 mr-1">Jump to:</span>
+            <div className="flex-shrink-0 border-t border-slate-200 bg-white/70 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-2 overflow-x-auto">
+              <div className="flex sm:flex-wrap items-center gap-1.5 max-w-[1100px] min-w-max sm:min-w-0">
+                <span className="text-[11px] font-medium text-slate-500 mr-1 flex-shrink-0">Jump to:</span>
                 {NAV_TABS.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => onNavigate(t.id)}
-                    className="inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-md border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition"
+                    className="inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-md border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition flex-shrink-0"
                   >
                     <t.Icon className="h-3.5 w-3.5" />
                     {t.label}
@@ -603,7 +860,7 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className={isPage ? "relative flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur pl-6 pr-8 py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
+          <form onSubmit={handleSubmit} className={isPage ? "relative flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-3 sm:py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
             {/* Suggestions popover (page mode) — anchored above the composer. */}
             {isPage && showSuggestions && (
               <>
@@ -613,7 +870,7 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                   onClick={() => setShowSuggestions(false)}
                   className="fixed inset-0 z-40 cursor-default"
                 />
-                <div className="absolute z-50 left-6 right-8 bottom-[calc(100%+0.5rem)] bg-white border border-slate-200 rounded-2xl shadow-xl p-4">
+                <div className="absolute z-50 left-3 right-3 sm:left-6 sm:right-8 bottom-[calc(100%+0.5rem)] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[12px] font-semibold text-slate-700 uppercase tracking-wide">Suggestions</p>
                     <button type="button" onClick={() => setShowSuggestions(false)} className="text-slate-400 hover:text-slate-600">
@@ -643,27 +900,27 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
               </>
             )}
             {isPage ? (
-              <div className="flex items-end gap-2 max-w-[1100px]">
+              <div className="flex items-end gap-1.5 sm:gap-2 max-w-[1100px]">
                 <Button type="button" size="icon" variant={showSuggestions ? "default" : "outline"}
                   onClick={() => setShowSuggestions((s) => !s)} disabled={loading}
                   title="Suggestions"
-                  className={`h-12 w-12 rounded-xl flex-shrink-0 ${showSuggestions ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-slate-300"}`}>
-                  <Sparkles className="h-5 w-5" />
+                  className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${showSuggestions ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-slate-300"}`}>
+                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
                 {hasVoice && (
                   <Button type="button" size="icon" variant={isListening ? "destructive" : "outline"}
                     onClick={toggleVoice} disabled={loading}
-                    className={`h-12 w-12 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-slate-300"}`}>
-                    {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-slate-300"}`}>
+                    {isListening ? <MicOff className="h-4 w-4 sm:h-5 sm:w-5" /> : <Mic className="h-4 w-4 sm:h-5 sm:w-5" />}
                   </Button>
                 )}
                 <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
-                  placeholder={isListening ? "Listening…" : "Message KiosAI — ask anything about your store"}
-                  className="flex-1 h-12 text-base rounded-xl border-slate-300 bg-white focus-visible:ring-blue-500"
+                  placeholder={isListening ? "Listening…" : "Message KiosAI"}
+                  className="flex-1 h-10 sm:h-12 text-sm sm:text-base rounded-xl border-slate-300 bg-white focus-visible:ring-blue-500"
                   disabled={loading || isListening} />
                 <Button type="submit" size="icon" disabled={!input.trim() || loading}
-                  className="h-12 w-12 rounded-xl bg-blue-600 hover:bg-blue-700 flex-shrink-0 shadow-sm">
-                  <Send className="h-5 w-5" />
+                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-blue-600 hover:bg-blue-700 flex-shrink-0 shadow-sm">
+                  <Send className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               </div>
             ) : (

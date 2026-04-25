@@ -5,10 +5,22 @@ import OpenAI from "openai";
 
 export interface QuickAction { label: string; action: string; }
 export type BotAction =
-  | { type: "navigate"; tab: string }
+  | {
+      type: "navigate";
+      tab: string;
+      // When present, the target tab should open a specific sub-UI on mount.
+      // "add" → open the empty Add form. "edit" → open the Edit form for
+      // productName (products tab only for now).
+      action?: "add" | "edit";
+      productName?: string;
+    }
   | {
       type: "showQR";
       orderId: string;
+      // Mongo _id of the order, used by the widget to hit /orders/:id/receipt
+      // for download. The human-readable orderId field doesn't work as that
+      // endpoint's :id param.
+      orderMongoId?: string;
       amount: number;
       country: string;
       shopName?: string;
@@ -25,11 +37,22 @@ export interface ProductTreeItem {
   subcategories?: { name: string; basePrice?: number; variants?: { title: string; price: number; inventory?: number }[] }[];
   options?: { title: string; price: number; inventory?: number }[];
 }
+export interface AnalyticsSummary {
+  // Mirrors the cards on the Analytics page: revenue / orders / avg / customers.
+  revenue: number;
+  orders: number;
+  avgOrder: number;
+  customers: number;
+  currency: string;
+  period?: string; // monthly / lastmonth / today / etc.
+  topProducts?: { name: string; sold?: number; revenue?: number }[];
+}
 export interface BotResponse {
   text: string;
   quickActions?: QuickAction[];
   botAction?: BotAction;
   productTree?: ProductTreeItem[];
+  analytics?: AnalyticsSummary;
 }
 
 interface ConvEntry { role: "user" | "assistant"; content: string; ts: number }
@@ -142,7 +165,7 @@ export class ChatbotService {
     { type: "function", function: { name: "get_plan_info", description: "Get subscription plan info", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_operators", description: "Get list of operators", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_shop_info", description: "Get shop details", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "navigate_to", description: "Navigate user to a dashboard tab", parameters: { type: "object", properties: { tab: { type: "string", enum: ["dashboard", "products", "orders", "crm", "kiosk", "storefront", "settings"] } }, required: ["tab"] } } },
+    { type: "function", function: { name: "navigate_to", description: "Navigate user to a dashboard tab. For the products tab, optionally pass action='add' to open the blank Add Product form, or action='edit' with productName to open the Edit form for that specific product.", parameters: { type: "object", properties: { tab: { type: "string", enum: ["dashboard", "products", "orders", "crm", "kiosk", "storefront", "settings"] }, action: { type: "string", enum: ["add", "edit"], description: "Only valid when tab='products'. 'add' opens the empty Add Product form. 'edit' opens the Edit form for productName." }, productName: { type: "string", description: "Required when action='edit'. The product to open for editing (case-insensitive match against the shopkeeper's product list)." } }, required: ["tab"] } } },
   ];
 
   // Agentic pipeline — router classifies the message into a tab,
@@ -170,10 +193,11 @@ Focus: analytics, performance overview, revenue trends, top products, customer c
     kiosk: `You are the **Kiosk** specialist for "{SHOP}" on KiosCart. You act like an in-store POS over chat.
 Focus: placing walk-in orders, generating payment QRs, and producing receipts.
 
-Before place_order, call it with whatever the shopkeeper gave you:
-- **If only a customer name is provided** → still call place_order with just the name + items. The tool will look the customer up in this shop's CRM and reuse their stored WhatsApp + email silently. If the tool's error says "<name> isn't in your CRM yet", ask the shopkeeper for their WhatsApp number and email and retry.
-- **If the tool returns multiple matches for that name** → show the candidates (name + whatsapp) and ask which one they meant.
-- **For a brand-new customer**, collect name, WhatsApp (with country code), and email before calling.
+**Customer details rule** — call place_order FIRST, ask later. The tool auto-fetches WhatsApp + email from the CRM whenever the shopkeeper gives only a name. NEVER ask the shopkeeper for phone or email upfront; the tool will tell you (via its error message) only if the customer truly isn't in the CRM.
+- Only a name is given → call place_order with { customer_name, items }. Do NOT prompt for phone/email first.
+- Tool error "<name> isn't in your CRM yet" → ONLY THEN ask for WhatsApp (+ optional email) and retry.
+- Tool error "Found N customers named X" → show the candidates (name + whatsapp) and ask which one.
+- Shopkeeper volunteered phone/email up front → forward those values, don't re-confirm.
 
 Voice formats the tool already understands: "8347 450600" → +918347450600, "at the rate" or "at" → @, "dot" → ".", so don't re-parse; just forward what you heard.
 
@@ -195,10 +219,10 @@ Rule of thumb: if the description after the product name has two distinct parts 
 If place_order returns an "available" object with candidates, show the candidates to the shopkeeper in a short list and ask which one they meant.
 
 Flow:
-1. Confirm name + whatsapp + email are present; ask for anything missing.
+1. Identify the customer name. Pass through any phone/email the shopkeeper gave; do NOT ask for them.
 2. Parse the comma-separated items.
 3. Detect payment method: words like "cash" → payment_method="cash". Otherwise default to "qr".
-4. Call place_order with customer_name, whatsapp, email, items, payment_method, optional instructions.
+4. Call place_order with customer_name, items, payment_method (+ whatsapp/email only if the shopkeeper supplied them, + optional instructions). Phone/email are looked up from CRM by the tool when omitted.
 5. After place_order succeeds:
    - payment_method="qr" → IMMEDIATELY call get_payment_qr with the returned orderId.
    - payment_method="cash" → IMMEDIATELY call get_order_receipt to give the customer a PDF receipt.
@@ -267,7 +291,12 @@ Options (Size / Quantity / Pack):
 - Edit → update_option { product_name, option_title, <field> }
 - Remove → remove_option { product_name, option_title }
 
-Not supported in chat (use navigate_to instead): creating a brand-new product, uploading/changing images, editing tags in bulk.`,
+Prompt-driven navigation (IMPORTANT — skip other tools and jump straight to the form):
+- "add product" / "add a new product" / "create product" with no other details → call navigate_to({ tab: "products", action: "add" }). The Products tab will open and the blank Add Product form pops up. Short reply text like "Opening the Add Product form…".
+- "edit product <name>" / "update product <name>" / "change <name>" (when the shopkeeper clearly wants to open the full form, not edit a single field) → call navigate_to({ tab: "products", action: "edit", productName: "<name>" }). Short reply text like "Opening <name> for editing…".
+- For narrow one-field edits ("change Mango price to 50"), keep using update_product instead — navigate only when the shopkeeper wants the form itself.
+
+Not supported in chat (use navigate_to instead): uploading/changing images, editing tags in bulk.`,
     storefront: `You are the **Storefront / Branding** specialist for "{SHOP}" on KiosCart.
 Focus: store branding, banners, colors, logo, SEO, layout.
 - Storefront edits aren't wired to chat tools yet — always navigate_to the storefront tab and briefly say what the user should change there.`,
@@ -278,31 +307,32 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
 - Edit operations (create/update/delete coupons, add/remove operators, change pickup settings) aren't chat tools yet — navigate_to settings and tell the shopkeeper which section to open.`,
     general: `You are KiosAI for "{SHOP}" on KiosCart. The user's request didn't clearly match a specific tab, so keep things short and guide them.
 - For "hi" / "hello" / "hey" or any greeting → respond EXACTLY in this shape and nothing more:
-    "Hello {PERSON}! 👋 I'm KiosAI, your store assistant for **{SHOP}**. What can I do for you today?"
-  Replace {PERSON} with the actual name passed in. If the name is "there", say "Hello there!" instead.
+    "{GREETING_LINE} 👋 I'm KiosAI, your store assistant for **{SHOP}**. What can I do for you today?"
+  {GREETING_LINE} is already personalised (e.g. "Good morning, Vansh!" or "Good afternoon!" if no name) — use it verbatim, do NOT change "Good morning" to "Hello" or rewrite the wording.
 - For concrete questions, answer briefly using the few read-only tools available (shop info, today's orders/revenue, products).
 - Don't volunteer long lists or features unless asked — keep the greeting short and inviting.`,
   };
 
-  async processMessage(shopkeeperIdIn: string, message: string): Promise<BotResponse> {
+  async processMessage(shopkeeperIdIn: string, message: string, jwtName?: string): Promise<BotResponse> {
     let shopkeeperId = shopkeeperIdIn;
     try {
       if (!this.hasApiKey()) {
-        return this.fallbackKeyword(shopkeeperId, message);
+        return this.fallbackKeyword(shopkeeperId, message, jwtName);
       }
 
       // Resolve the caller's identity. The JWT may belong to either a shopkeeper
-      // OR an operator working on behalf of one, so try both and fall back to
-      // generic "there" if neither matches.
+      // OR an operator working on behalf of one, so try both. The display name
+      // comes from the JWT first (no DB hit needed), falling back to the DB
+      // record when the token didn't carry one.
       let shopkeeper: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
-      let personName = shopkeeper?.name;
+      let personName = jwtName || shopkeeper?.name;
       let scopedShopId = shopkeeperId;
       if (!shopkeeper) {
         const op: any = await this.operatorModel.findById(shopkeeperId).lean();
         if (op?.shopkeeperId) {
           scopedShopId = String(op.shopkeeperId);
           shopkeeper = await this.shopkeeperModel.findById(scopedShopId).lean();
-          personName = op.name || personName;
+          personName = jwtName || op.name || personName;
         }
       }
       // From here on, use scopedShopId for data queries so operator calls hit the
@@ -329,14 +359,95 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
         }
       }
 
+      // Deterministic fast path for analytics intents. The LLM sometimes calls
+      // get_today_orders / get_today_revenue (which don't surface as cards) for
+      // "today" instead of get_analytics, or returns text only — so we always
+      // run the tool ourselves and build an analytics card payload.
+      if (tab === "dashboard") {
+        const period = this.detectAnalyticsPeriod(message);
+        if (period) {
+          const sk: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
+          const country = (sk?.country || "IN").toString().trim().toUpperCase();
+          const currency = country.startsWith("SG") || country.startsWith("SING") ? "S$" : "Rs.";
+          let analytics: AnalyticsSummary | undefined;
+          let periodLabel = "";
+
+          if (period === "today") {
+            const todayResult: any = await this.executeTool(shopkeeperId, "get_today_orders", {});
+            const custResult: any = await this.executeTool(shopkeeperId, "get_customers", {});
+            const top: any = await this.executeTool(shopkeeperId, "get_top_products", {});
+            const orders = Number(todayResult?.total) || 0;
+            const revenue = Number(todayResult?.revenue) || 0;
+            analytics = {
+              revenue,
+              orders,
+              avgOrder: orders > 0 ? Math.round((revenue / orders) * 100) / 100 : 0,
+              customers: Number(custResult?.totalCustomers) || 0,
+              currency,
+              period: "today",
+              topProducts: Array.isArray(top) ? top.slice(0, 5) : undefined,
+            };
+            periodLabel = "today";
+          } else {
+            const result: any = await this.executeTool(shopkeeperId, "get_analytics", { period });
+            if (!result?.error) {
+              analytics = {
+                revenue: Number(result.revenue) || 0,
+                orders: Number(result.orders) || 0,
+                avgOrder: Number(result.avgOrder) || 0,
+                customers: Number(result.customers) || 0,
+                currency: result.currency || currency,
+                period,
+                topProducts: Array.isArray(result.topProducts) ? result.topProducts : undefined,
+              };
+              periodLabel = ({
+                monthly: "this month", lastmonth: "last month",
+                quarterly: "this quarter", lastquarter: "last quarter",
+                yearly: "this year", lastyear: "last year",
+              } as Record<string, string>)[period] || period;
+            }
+          }
+
+          if (analytics) {
+            const reply: BotResponse = {
+              text: analytics.orders > 0
+                ? `Here's your snapshot for ${periodLabel}:`
+                : `No orders ${periodLabel} yet — your dashboard will fill up once sales come in.`,
+              analytics,
+              quickActions: this.suggestActions("revenue"),
+            };
+            this.appendHistory(shopkeeperId, message, reply.text);
+            return reply;
+          }
+        }
+      }
+
+      // Deterministic fast path for "show / list products" intents. The LLM
+      // sometimes responds in plain text instead of calling get_products, so
+      // we always run the tool ourselves to guarantee the tree renders.
+      if (tab === "products" && this.isListProductsIntent(message)) {
+        const result = await this.executeTool(shopkeeperId, "get_products", {});
+        const total = result?.total ?? 0;
+        const products = Array.isArray(result?.products) ? result.products : [];
+        const reply: BotResponse = {
+          text: total > 0
+            ? `Here are your **${total}** products — click any row with a chevron to expand its variants.`
+            : "You don't have any products yet. Try \"add a new product\" to create your first one.",
+          productTree: products,
+          quickActions: this.suggestActions("product"),
+        };
+        this.appendHistory(shopkeeperId, message, reply.text);
+        return reply;
+      }
+
       // Stage 2 — specialist for that tab runs the tool-calling loop.
-      const reply = await this.runSpecialist(shopkeeperId, message, tab, shopName, firstName);
+      const reply = await this.runSpecialist(shopkeeperId, message, tab, shopName, firstName, shopkeeper?.country);
       this.appendHistory(shopkeeperId, message, reply.text);
       return reply;
     } catch (error) {
       const detail = error?.response?.data?.error?.failed_generation || error?.error?.failed_generation || "";
       this.logger.error(`AI Error: ${error.message}${detail ? ` | failed_generation: ${JSON.stringify(detail).slice(0, 500)}` : ""}`);
-      return this.fallbackKeyword(shopkeeperId, message);
+      return this.fallbackKeyword(shopkeeperId, message, jwtName);
     }
   }
 
@@ -355,9 +466,11 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
     if (/\b(place|create|new|take|ring up|ringup)\s+(an?\s+)?order\b/.test(m)) return "kiosk";
     if (/\b(checkout|kiosk mode)\b/.test(m)) return "kiosk";
     if (/\b(pending orders|order status|mark order|confirm payment|update order|cancel order)\b/.test(m)) return "orders";
-    if (/\b(revenue|analytics|stats|performance|how is my shop)\b/.test(m)) return "dashboard";
+    if (/\b(revenue|analytics|stats|performance|how is my shop|earnings|earning|income|report)\b/.test(m)) return "dashboard";
+    if (this.detectAnalyticsPeriod(m)) return "dashboard";
     if (/\b(add|edit|delete|remove|update)\s+(a\s+)?(product|variant|subcategory|option)\b/.test(m)) return "products";
-    if (/\b(low stock|top products|show products|show menu|list products)\b/.test(m)) return "products";
+    if (/\b(low stock|top products|show menu|view menu|catalog|catalogue|inventory)\b/.test(m)) return "products";
+    if (this.isListProductsIntent(m)) return "products";
 
     // Last 2 turns keep the router anchored when the user writes a follow-up.
     const recent = this.historyAsMessages(shopkeeperId, 4);
@@ -410,12 +523,15 @@ Return just the id.`,
     tab: string,
     shopName: string,
     personFirstName: string = "there",
+    country?: string,
   ): Promise<BotResponse> {
     const allowed = new Set([...(ChatbotService.TAB_TOOLS[tab] || []), "navigate_to"]);
     const tools = this.tools.filter(t => t.type === "function" && allowed.has(t.function.name));
+    const greetingLine = this.buildGreetingLine(personFirstName, country);
     const prompt = (ChatbotService.SPECIALIST_PROMPTS[tab] || ChatbotService.SPECIALIST_PROMPTS.general)
       .replace("{SHOP}", shopName)
-      .replace("{PERSON}", personFirstName);
+      .replace("{PERSON}", personFirstName)
+      .replace("{GREETING_LINE}", greetingLine);
 
     const sysCommon = `
 Global rules:
@@ -496,6 +612,7 @@ Global rules:
     const assistantMsg = response.choices[0].message as any;
     let botAction: BotAction | undefined;
     let productTree: ProductTreeItem[] | undefined;
+    let analytics: AnalyticsSummary | undefined;
 
     if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
       const toolMessages: any[] = [...messages, assistantMsg];
@@ -517,11 +634,17 @@ Global rules:
         this.logger.log(`[Tool] ${tc.function.name} → ${JSON.stringify(result).slice(0, 200)}`);
         toolMessages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         if (tc.function.name === "navigate_to") {
-          botAction = { type: "navigate", tab: args.tab };
+          botAction = {
+            type: "navigate",
+            tab: args.tab,
+            ...(args.action ? { action: args.action } : {}),
+            ...(args.productName ? { productName: args.productName } : {}),
+          };
         } else if (tc.function.name === "get_payment_qr" && result && !result.error) {
           botAction = {
             type: "showQR",
             orderId: result.orderId,
+            orderMongoId: result.orderMongoId,
             amount: result.amount,
             country: result.country,
             shopName: result.shopName,
@@ -532,6 +655,18 @@ Global rules:
           // Surface the structured product list so the widget can render an
           // expandable tree (matching the Products tab UI).
           productTree = result.products;
+        } else if (tc.function.name === "get_analytics" && result && !result.error) {
+          // Surface the analytics summary so the widget can render the same
+          // four KPI cards used on the Analytics page.
+          analytics = {
+            revenue: Number(result.revenue) || 0,
+            orders: Number(result.orders) || 0,
+            avgOrder: Number(result.avgOrder) || 0,
+            customers: Number(result.customers) || 0,
+            currency: result.currency || "Rs.",
+            period: args?.period,
+            topProducts: Array.isArray(result.topProducts) ? result.topProducts : undefined,
+          };
         }
       }
 
@@ -555,7 +690,7 @@ Global rules:
         }
       }
       const text = (followUp.choices[0].message as any).content || "Done!";
-      return { text, quickActions: this.suggestActions(message), botAction, productTree };
+      return { text, quickActions: this.suggestActions(message), botAction, productTree, analytics };
     }
 
     return {
@@ -563,6 +698,7 @@ Global rules:
       quickActions: this.suggestActions(message),
       botAction,
       productTree,
+      analytics,
     };
   }
 
@@ -626,23 +762,49 @@ Global rules:
     }
   }
 
-  // Deterministic parser for the "Place order for NAME, PHONE, EMAIL: items [cash|qr]" format.
+  // Deterministic parser for kiosk orders. Accepts both:
+  //   "Place order for NAME[, PHONE, EMAIL]: items [cash|qr]"   (colon form)
+  //   "Place order for NAME[, PHONE, EMAIL], items [cash|qr]"   (no colon — natural)
   // Returns null if the format doesn't match, in which case the LLM path runs.
+  // When only a name is given, place_order will look up phone/email from the CRM.
   private tryParseKioskOrder(message: string): null | { customer_name: string; whatsapp?: string; email?: string; items: { product_name: string; variant_title?: string; quantity: number }[]; payment_method?: "cash" | "qr" } {
-    const m = message.match(/^\s*(?:please\s+)?(?:place|create|new|take|ring\s*up)\s+(?:an?\s+|the\s+)?order\s+(?:for\s+)?([^:]+?)\s*:\s*(.+?)\s*$/i);
-    if (!m) return null;
+    const prefix = message.match(/^\s*(?:please\s+)?(?:place|create|new|take|ring\s*up)\s+(?:an?\s+|the\s+)?order\s+(?:for\s+)?(.+?)\s*$/i);
+    if (!prefix) return null;
+    let tail = prefix[1].trim();
 
-    const header = m[1].trim();
-    let body = m[2].trim();
-
-    // Pull out "cash" / "qr" / "upi" / "paynow" if present at the end of body
+    // Strip trailing payment method off the tail before splitting.
     let payment_method: "cash" | "qr" | undefined;
-    const payMatch = body.match(/(?:,\s*|\s+)(cash|qr|upi|paynow)\s*$/i);
+    const payMatch = tail.match(/(?:,\s*|\s+)(cash|qr|upi|paynow)\s*$/i);
     if (payMatch) {
       const p = payMatch[1].toLowerCase();
       payment_method = p === "cash" ? "cash" : "qr";
-      body = body.slice(0, body.length - payMatch[0].length).trim();
+      tail = tail.slice(0, tail.length - payMatch[0].length).trim();
     }
+
+    // Decide where header (name + contact) ends and body (items) begins.
+    let header: string;
+    let body: string;
+    const colonIdx = tail.indexOf(":");
+    if (colonIdx !== -1) {
+      header = tail.slice(0, colonIdx).trim();
+      body = tail.slice(colonIdx + 1).trim();
+    } else {
+      // No colon: walk comma-separated parts. The first part that looks
+      // item-like ("2 Mango", "Chai x2") marks the start of the body.
+      const parts = tail.split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+      if (parts.length < 2) return null;
+      const isContactish = (p: string) => /@/.test(p) || /^\+?[\d\s\-()]{6,}$/.test(p);
+      const isItemish = (p: string) => /^\d/.test(p) || /\s+x\s*\d+\s*$/i.test(p);
+      let splitIdx = -1;
+      for (let i = 1; i < parts.length; i++) {
+        if (isContactish(parts[i])) continue;
+        if (isItemish(parts[i])) { splitIdx = i; break; }
+      }
+      if (splitIdx === -1) return null;
+      header = parts.slice(0, splitIdx).join(", ");
+      body = parts.slice(splitIdx).join(", ");
+    }
+    if (!header || !body) return null;
 
     // Split header by comma: name, whatsapp, email (in any order; whatsapp starts with + or digits, email has @)
     const parts = header.split(",").map(s => s.trim()).filter(Boolean);
@@ -724,6 +886,7 @@ Global rules:
         botAction = {
           type: "showQR",
           orderId: qr.orderId,
+          orderMongoId: qr.orderMongoId,
           amount: qr.amount,
           country: qr.country,
           shopName: qr.shopName,
@@ -734,6 +897,85 @@ Global rules:
     }
 
     return { text, quickActions: this.suggestActions("order"), botAction };
+  }
+
+  // Maps a shopkeeper's analytics-style request to a get_analytics period
+  // ("today" / "monthly" / "lastmonth" / ...). Returns null for messages that
+  // aren't analytics queries, so the dashboard fast-path leaves them alone.
+  private detectAnalyticsPeriod(message: string): string | null {
+    const m = (message || "").toLowerCase().trim();
+    // Must be analytics-shaped: revenue / sales / analytics / report / stats /
+    // performance / dashboard / "how is my shop" / today summary.
+    const isAnalyticsish =
+      /\b(revenue|sales|analytics|report|stats|performance|dashboard|earnings|earning|income)\b/.test(m) ||
+      /\bhow\s+is\s+my\s+shop\b/.test(m) ||
+      // Accepts both straight and curly apostrophes ('today's orders', 'today's orders')
+      /\btoday(['‘’]s)?\s+(orders?|sales?|revenue|summary|stats?)\b/.test(m) ||
+      /\bthis\s+(month|year|quarter)\s+(orders?|sales?|revenue|summary|stats?|report|analytics)\b/.test(m);
+    if (!isAnalyticsish) return null;
+
+    if (/\blast\s+month\b/.test(m)) return "lastmonth";
+    if (/\blast\s+quarter\b/.test(m)) return "lastquarter";
+    if (/\blast\s+year\b/.test(m)) return "lastyear";
+    if (/\bthis\s+month\b|\bmonthly\b|\bthis\s+mo\b/.test(m)) return "monthly";
+    if (/\bthis\s+quarter\b|\bquarterly\b/.test(m)) return "quarterly";
+    if (/\bthis\s+year\b|\byearly\b|\bannual\b/.test(m)) return "yearly";
+    if (/\btoday\b|\baaj\b/.test(m)) return "today";
+    // Generic "show analytics" / "revenue" with no period → default to monthly.
+    return "monthly";
+  }
+
+  // "show all products", "product list", "list my products", "show menu", etc.
+  // Excludes single-product / detail / edit intents so we don't render a full
+  // catalog when the shopkeeper meant "show product Mango".
+  private isListProductsIntent(message: string): boolean {
+    const m = (message || "").toLowerCase().trim();
+    if (/\b(add|edit|update|delete|remove|create|change|low\s*stock|top|best)\b/.test(m)) return false;
+    if (/\bshow\s+product\s+\S/.test(m)) return false; // "show product Mango"
+    if (/\b(show|list|view|display|see|browse)\s+(me\s+)?(all\s+)?(my\s+|the\s+)?products?\b/.test(m)) return true;
+    if (/\bproducts?\s+list\b/.test(m)) return true;
+    if (/\b(show|view)\s+(menu|catalog|catalogue|inventory)\b/.test(m)) return true;
+    if (/\b(all|my)\s+products?\b/.test(m)) return true;
+    if (/\bproducts?\s*\?$/.test(m)) return true; // "products?"
+    return false;
+  }
+
+  // Time-of-day greeting based on the shopkeeper's local time. Falls back to
+  // server time when the country isn't recognised. Common countries get an
+  // explicit IANA timezone so a shop in India sees "Good morning" even when
+  // the server runs in UTC.
+  private timeOfDayGreeting(country?: string): string {
+    const tzMap: Record<string, string> = {
+      IN: "Asia/Kolkata", IND: "Asia/Kolkata", INDIA: "Asia/Kolkata",
+      SG: "Asia/Singapore", SGP: "Asia/Singapore", SING: "Asia/Singapore", SINGAPORE: "Asia/Singapore",
+      US: "America/New_York", USA: "America/New_York",
+      GB: "Europe/London", UK: "Europe/London",
+      AE: "Asia/Dubai", UAE: "Asia/Dubai",
+      AU: "Australia/Sydney",
+    };
+    const tz = country ? tzMap[country.toString().trim().toUpperCase()] : undefined;
+    let hour: number;
+    try {
+      const formatter = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: tz });
+      hour = parseInt(formatter.format(new Date()), 10);
+      if (!Number.isFinite(hour)) hour = new Date().getHours();
+    } catch {
+      hour = new Date().getHours();
+    }
+    if (hour >= 5 && hour < 12) return "Good morning";
+    if (hour >= 12 && hour < 17) return "Good afternoon";
+    return "Good evening";
+  }
+
+  // Builds the personalised greeting line used in the general specialist prompt
+  // and the keyword fallback. Falls back to "Kiosker" (the on-brand noun for
+  // a KiosCart user) when no real name is available, so the bot never says
+  // a flat "Good evening!" with no addressee.
+  private buildGreetingLine(firstName?: string, country?: string): string {
+    const greeting = this.timeOfDayGreeting(country);
+    const name = (firstName || "").trim();
+    const display = !name || name.toLowerCase() === "there" ? "Kiosker" : name;
+    return `${greeting}, ${display}!`;
   }
 
   // Quick language/script detection so we can force the specialist to reply in kind.
@@ -1561,6 +1803,7 @@ Global rules:
         const country = rawCountry.startsWith("SG") || rawCountry.startsWith("SING") ? "SG" : "IN";
         return {
           orderId: order.orderId,
+          orderMongoId: order._id.toString(),
           amount: order.totalAmount,
           country,
           shopName: sk?.shopName,
@@ -1830,18 +2073,19 @@ Global rules:
     }
   }
 
-  private async fallbackKeyword(sid: string, msg: string): Promise<BotResponse> {
+  private async fallbackKeyword(sid: string, msg: string, jwtName?: string): Promise<BotResponse> {
     const m = msg.toLowerCase();
     if (m.includes("hi") || m.includes("hello") || m.includes("help")) {
       // Same identity resolution as processMessage so the greeting is personal
       // even when the AI provider is unreachable.
       let person: any = await this.shopkeeperModel.findById(sid).lean();
       if (!person) person = await this.operatorModel.findById(sid).lean();
-      const first = (person?.name || "").split(/\s+/)[0] || "there";
+      const first = ((jwtName || person?.name) || "").split(/\s+/)[0] || "there";
       const shop: any = person?.shopName ? person : await this.shopkeeperModel.findById(person?.shopkeeperId || sid).lean();
       const shopName = shop?.shopName || "your store";
+      const greetingLine = this.buildGreetingLine(first, shop?.country);
       return {
-        text: `Hello ${first}! 👋 I'm **KiosAI**, your assistant for **${shopName}**. What can I do for you today?`,
+        text: `${greetingLine} 👋 I'm **KiosAI**, your assistant for **${shopName}**. What can I do for you today?`,
         quickActions: [
           { label: "Today's Orders", action: "show today's orders" },
           { label: "Revenue", action: "today's revenue" },
@@ -1863,6 +2107,20 @@ Global rules:
       return { text: `💰 Today: **$${orders.reduce((a: number, o: any) => a + (o.totalAmount || 0), 0).toFixed(2)}** from ${orders.length} orders` };
     }
     if (m.includes("product")) {
+      // Render the same expandable tree the LLM path would produce, so the UX
+      // doesn't degrade when the AI provider is unreachable.
+      if (this.isListProductsIntent(msg)) {
+        const result = await this.executeTool(sid, "get_products", {});
+        const total = result?.total ?? 0;
+        const products = Array.isArray(result?.products) ? result.products : [];
+        return {
+          text: total > 0
+            ? `📦 You have **${total}** products — click any row with a chevron to expand its variants.`
+            : "📦 You don't have any products yet.",
+          productTree: products,
+          quickActions: [{ label: "Add Product", action: "add product" }],
+        };
+      }
       const total = await this.productModel.countDocuments({ shopkeeperId: sid, isSoftDeleted: { $ne: true } });
       return { text: `📦 You have **${total}** products.`, quickActions: [{ label: "Show All", action: "show all products" }, { label: "Add Product", action: "add product" }] };
     }

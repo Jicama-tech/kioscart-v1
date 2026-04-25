@@ -158,6 +158,7 @@ const MODULE_GROUPS = [
     color: "green",
     items: [
       { key: "whatsappQR", label: "WhatsApp QR", hasLimit: false },
+      { key: "chatbot", label: "Smart Assistant", hasLimit: false },
     ],
   },
 ];

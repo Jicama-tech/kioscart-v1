@@ -136,7 +136,24 @@ const categories = [
   "Other",
 ];
 
-export function ProductManagement() {
+interface ProductManagementProps {
+  /**
+   * Optional request from the chat bot / dashboard to open a specific sub-UI
+   * on mount (Add form, or Edit form for a named product). The `key` makes
+   * repeated identical requests re-fire the effect.
+   */
+  pendingAction?: {
+    action: "add" | "edit";
+    productName?: string;
+    key: number;
+  } | null;
+  onPendingActionConsumed?: () => void;
+}
+
+export function ProductManagement({
+  pendingAction,
+  onPendingActionConsumed,
+}: ProductManagementProps = {}) {
   const { subscription } = useSubscription();
   const productLimit = subscription?.modules?.products?.limit || 0;
   const apiURL = __API_URL__;
@@ -438,6 +455,45 @@ export function ProductManagement() {
     setShowDialog(false);
     setEditingProduct(null);
   };
+
+  // Chat-driven entry point: when the bot says "open Add Product form" or
+  // "edit product <name>", the dashboard feeds a pendingAction down. We wait
+  // until products have loaded for the "edit" case so we can resolve the name
+  // to an actual Product record.
+  useEffect(() => {
+    if (!pendingAction) return;
+
+    if (pendingAction.action === "add") {
+      openAddDialog();
+      onPendingActionConsumed?.();
+      return;
+    }
+
+    if (pendingAction.action === "edit") {
+      if (loading) return; // wait for products to load, re-run when loading flips
+      const target = pendingAction.productName?.trim().toLowerCase();
+      const match = target
+        ? products.find((p) => p.name?.toLowerCase() === target) ||
+          products.find((p) => p.name?.toLowerCase().includes(target))
+        : null;
+      if (match) {
+        openEditDialog(match);
+      } else {
+        toast({
+          duration: 5000,
+          title: "Product not found",
+          description: pendingAction.productName
+            ? `No product matching "${pendingAction.productName}".`
+            : "Tell me which product to edit.",
+          variant: "destructive",
+        });
+      }
+      onPendingActionConsumed?.();
+    }
+    // pendingAction.key changes on each new request so repeated identical
+    // bot intents still trigger this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAction?.key, loading, products.length]);
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) setSelectedProducts(filteredProducts.map((p) => p._id));

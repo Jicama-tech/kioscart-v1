@@ -14,6 +14,7 @@ import {
 } from "class-validator";
 
 export enum ReportPeriod {
+  TODAY = "today",
   MONTHLY = "monthly",
   QUARTERLY = "quarterly",
   LASTQUARTER = "lastquarter",

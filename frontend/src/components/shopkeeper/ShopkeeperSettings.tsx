@@ -134,6 +134,43 @@ function BlurWrapper({
   );
 }
 
+// Wraps a section that's not in the active subscription. Renders the content
+// blurred + non-interactive with an "Upgrade" pill overlay so the shopkeeper
+// can see what they're missing instead of having it hidden entirely.
+function LockedSection({
+  locked,
+  label,
+  onUpgrade,
+  children,
+}: {
+  locked: boolean;
+  label: string;
+  onUpgrade: () => void;
+  children: React.ReactNode;
+}) {
+  if (!locked) return <>{children}</>;
+  return (
+    <div className="relative space-y-4">
+      <div aria-hidden className="opacity-40 blur-[2px] pointer-events-none select-none space-y-4">
+        {children}
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-md border border-slate-200">
+          <Lock className="w-4 h-4 text-slate-500" />
+          <span className="text-sm font-medium text-slate-700">{label}</span>
+          <button
+            type="button"
+            onClick={onUpgrade}
+            className="text-xs font-semibold text-indigo-600 hover:underline"
+          >
+            Upgrade
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const COUNTRIES = [
   {
     code: "IN",
@@ -1686,6 +1723,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             <Store className="w-4 h-4" />
             Profile
           </TabsTrigger>
+          <TabsTrigger value="subscription" className="flex-1 flex items-center justify-center gap-2">
+            <ShieldCheck className="w-4 h-4" />
+            Subscription
+          </TabsTrigger>
           <TabsTrigger value="operator" className={`flex-1 flex items-center justify-center gap-2 ${!isModuleEnabled("operators") ? "opacity-50" : ""}`}>
             <UserPlus2 className="w-4 h-4" />
             Operator
@@ -2562,7 +2603,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </div> */}
             </CardContent>
           </Card>
+        </TabsContent>
 
+        <TabsContent value="subscription" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Subscription Plan</CardTitle>
@@ -3112,7 +3155,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
         <TabsContent value="payments" className="space-y-4">
           {/* STATIC QR TOGGLE */}
-          {(!isModuleEnabled || isModuleEnabled("staticQR")) && (<>
+          <LockedSection
+            locked={!!isModuleEnabled && !isModuleEnabled("staticQR")}
+            label="Static QR — not in your plan"
+            onUpgrade={openChangePlan}
+          ><>
           <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
             <div className="flex items-center gap-3">
               <QrCode className="w-5 h-5 text-blue-600" />
@@ -3224,10 +3271,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           )}
-          </>)}
+          </></LockedSection>
 
           {/* DYNAMIC QR TOGGLE */}
-          {(!isModuleEnabled || isModuleEnabled("dynamicQR")) && (<>
+          <LockedSection
+            locked={!!isModuleEnabled && !isModuleEnabled("dynamicQR")}
+            label="Dynamic QR — not in your plan"
+            onUpgrade={openChangePlan}
+          ><>
           <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
             <div className="flex items-center gap-3">
               <Zap className="w-5 h-5 text-amber-600" />
@@ -3296,7 +3347,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           )}
-          </>)}
+          </></LockedSection>
 
           {/* CARD PAYMENTS TOGGLE */}
           {/* <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
@@ -3323,7 +3374,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           </div> */}
 
           {/* CARD PAYMENTS SECTION - APPEARS RIGHT BELOW TOGGLE */}
-          {(!isModuleEnabled || isModuleEnabled("razorpay")) && (<>
+          <LockedSection
+            locked={!!isModuleEnabled && !isModuleEnabled("razorpay")}
+            label="Card Payments — not in your plan"
+            onUpgrade={openChangePlan}
+          ><>
           {/* 🔘 RAZORPAY CARD PAYMENTS TOGGLE */}
           <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
             <div className="flex items-center gap-3">
@@ -3860,7 +3915,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           )}
-          </>)}
+          </></LockedSection>
 
           {/* 💾 SAVE BUTTON - BOTTOM */}
           {/* <Button
@@ -3885,9 +3940,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           </Button> */}
 
           {/* Gmail Payment Email Tracking */}
-          {(!isModuleEnabled || isModuleEnabled("paymentTracking")) && (
+          <LockedSection
+            locked={!!isModuleEnabled && !isModuleEnabled("paymentTracking")}
+            label="Payment Tracking — not in your plan"
+            onUpgrade={openChangePlan}
+          >
             <GmailPaymentSection />
-          )}
+          </LockedSection>
         </TabsContent>
 
         <TabsContent value="shipping">
