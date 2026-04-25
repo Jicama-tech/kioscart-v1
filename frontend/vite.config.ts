@@ -152,9 +152,7 @@ export default defineConfig(({ mode }) => {
               return "vendor";
             }
             if (id.includes("@radix-ui")) return "ui";
-            if (id.includes("recharts") || id.includes("d3-")) return "charts";
             if (id.includes("framer-motion")) return "motion";
-            if (id.includes("react-quill") || id.includes("quill")) return "editor";
             if (id.includes("jspdf") || id.includes("pdfkit")) return "pdf";
             if (id.includes("qrcode") || id.includes("jsqr") || id.includes("html5-qrcode") || id.includes("paynowqr")) return "qr";
             if (id.includes("lucide-react") || id.includes("react-icons")) return "icons";

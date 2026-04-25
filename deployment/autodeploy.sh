@@ -2,7 +2,7 @@
 # Auto-deploy script for KiosCart
 # Triggered by GitHub webhook or manually: bash autodeploy.sh [frontend|backend|both]
 
-set -e
+set -eo pipefail
 
 PROJ="/home/eventshadmin/kioscart/kioscart-v1"
 LOG="/home/eventshadmin/kioscart/deploy.log"
@@ -11,10 +11,19 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG"
 }
 
+sync_repo() {
+  # Hard-reset to origin/main so runtime-generated files (e.g. backend/whatsapp-qr.png)
+  # never block the pull. Anything not committed will be discarded — this server is a
+  # deployment target, not a workspace.
+  git fetch origin main 2>&1 | tee -a "$LOG"
+  git reset --hard origin/main 2>&1 | tee -a "$LOG"
+  git clean -fd 2>&1 | tee -a "$LOG"
+}
+
 deploy_frontend() {
   log "=== Deploying Frontend ==="
   cd "$PROJ/frontend"
-  git pull origin main 2>&1 | tee -a "$LOG"
+  sync_repo
   npm install --legacy-peer-deps 2>&1 | tee -a "$LOG"
   rm -rf dist
   npm run build 2>&1 | tee -a "$LOG"
@@ -24,8 +33,8 @@ deploy_frontend() {
 deploy_backend() {
   log "=== Deploying Backend ==="
   cd "$PROJ/backend"
-  git pull origin main 2>&1 | tee -a "$LOG"
-  npm install 2>&1 | tee -a "$LOG"
+  sync_repo
+  npm install --legacy-peer-deps 2>&1 | tee -a "$LOG"
   npm run build 2>&1 | tee -a "$LOG"
   pm2 restart kioscart-backend 2>&1 | tee -a "$LOG"
   log "Backend deployed!"
