@@ -152,7 +152,6 @@ export default defineConfig(({ mode }) => {
               return "vendor";
             }
             if (id.includes("@radix-ui")) return "ui";
-            if (id.includes("recharts") || id.includes("d3-")) return "charts";
             if (id.includes("framer-motion")) return "motion";
             if (id.includes("react-quill") || id.includes("quill")) return "editor";
             if (id.includes("jspdf") || id.includes("pdfkit")) return "pdf";
