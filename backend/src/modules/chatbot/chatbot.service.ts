@@ -1828,7 +1828,18 @@ Global rules:
           const r = await fetch(`http://localhost:${process.env.PORT || 3000}/shopkeeper/analytics/${sid}/report/${input.period}`);
           if (!r.ok) return { error: "Failed" };
           const d = (await r.json()).data;
-          return { revenue: d.totalRevenue, orders: d.totalOrders, customers: d.totalCustomers, avgOrder: d.avgOrderValue, items: d.totalItems, currency: d.currencySymbol, topProducts: d.topProducts?.slice(0, 5) };
+          // Normalise topProducts to the shape the chatbot widget renders
+          // ({ name, sold, revenue }). The analytics report itself uses
+          // { productName, totalQuantity, totalRevenue }, which would otherwise
+          // render as blank rows.
+          const topProducts = Array.isArray(d.topProducts)
+            ? d.topProducts.slice(0, 5).map((p: any) => ({
+                name: p.productName ?? p.name,
+                sold: p.totalQuantity ?? p.sold,
+                revenue: p.totalRevenue ?? p.revenue,
+              }))
+            : undefined;
+          return { revenue: d.totalRevenue, orders: d.totalOrders, customers: d.totalCustomers, avgOrder: d.avgOrderValue, items: d.totalItems, currency: d.currencySymbol, topProducts };
         } catch { return { error: "Unavailable" }; }
       }
       case "get_today_revenue": {
@@ -1893,8 +1904,10 @@ Global rules:
         const userIds = stats.map((s: any) => s._id).filter(Boolean);
         const users = await this.userModel.find({ _id: { $in: userIds } }).lean();
         const userById = new Map(users.map((u: any) => [u._id.toString(), u]));
-        // Also include shopkeeper-created users that have no orders yet
-        const createdUsers = await this.userModel.find({ provider: { $in: ["shopkeeper", "kiosk", "chatbot"] } }).lean();
+        // Also include shopkeeper-created users that have no orders yet, scoped
+        // to THIS shopkeeper. The previous query was global (no providerId
+        // filter) and case-mismatched, so it returned other shops' customers.
+        const createdUsers = await this.userModel.find({ providerId: sid }).lean();
         for (const u of createdUsers) {
           const id = u._id.toString();
           if (!userById.has(id)) userById.set(id, u);

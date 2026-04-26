@@ -478,7 +478,15 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
           customers: Number(d.totalCustomers) || 0,
           currency: d.currencySymbol || "Rs.",
           period: headerPeriod,
-          topProducts: Array.isArray(d.topProducts) ? d.topProducts.slice(0, 5) : undefined,
+          // Report endpoint uses { productName, totalQuantity, totalRevenue };
+          // map to the { name, sold, revenue } shape the cards render.
+          topProducts: Array.isArray(d.topProducts)
+            ? d.topProducts.slice(0, 5).map((p: any) => ({
+                name: p.productName ?? p.name,
+                sold: p.totalQuantity ?? p.sold,
+                revenue: p.totalRevenue ?? p.revenue,
+              }))
+            : undefined,
         });
       } catch {
         // Silent — the chat still works without the strip.
