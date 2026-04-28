@@ -19,6 +19,7 @@ import { UsersService } from "../users/users.service";
 import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
 import { RoleService } from "../roles/roles.service";
+import { ShopkeepersService } from "../shopkeepers/shopkeepers.service";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 
 @Controller("auth")
@@ -39,6 +40,7 @@ export class AuthController {
   constructor(
     private authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly shopkeepersService: ShopkeepersService,
     private readonly jwtService: JwtService,
     private readonly rolesService: RoleService,
   ) {
@@ -153,9 +155,40 @@ export class AuthController {
         return res.redirect(`${FRONTEND}/estore/login?error=auth_failed`);
       }
 
-      // Find or create user record
-      let user = await this.usersService.findByEmail(userFromGoogle.email);
+      // SHOPKEEPER-SCOPED LOGIN.
+      //
+      // Some accounts have BOTH a User document (created the first time the
+      // person authenticated) AND a Shopkeeper document (created at
+      // registration) sharing the same email. Previously this handler always
+      // signed a JWT for the User record, so the dashboard guards kept seeing
+      // a buyer-shaped token. Look up the Shopkeeper first; if it exists,
+      // sign a token whose `sub` is the shopkeeper id and whose `roles`
+      // include "shopkeeper" so downstream guards (chatbot, dashboard, etc.)
+      // resolve to the correct shop.
+      const shopkeeper = await this.shopkeepersService.findOneByAnyEmail(
+        userFromGoogle.email,
+      );
 
+      if (shopkeeper) {
+        const payload = {
+          name: shopkeeper.name,
+          email: shopkeeper.email,
+          sub: shopkeeper._id,
+          roles: ["shopkeeper"],
+        };
+        const token = this.jwtService.sign(payload, {
+          secret: process.env.JWT_ACCESS_SECRET,
+          expiresIn: "1h",
+        });
+        return res.redirect(
+          `${FRONTEND}/estore/login?token=${encodeURIComponent(token)}&email=${encodeURIComponent(shopkeeper.email)}&name=${encodeURIComponent(shopkeeper.name)}`,
+        );
+      }
+
+      // No shopkeeper for this Google email yet — fall back to the user
+      // record (creating one if needed) so the registration page can pick
+      // up a JWT and let them complete shopkeeper signup.
+      let user = await this.usersService.findByEmail(userFromGoogle.email);
       if (!user) {
         const createUserDto: CreateUserDto = {
           name: userFromGoogle.name,
@@ -173,13 +206,10 @@ export class AuthController {
         sub: user._id,
         roles: user.roles,
       };
-
       const token = this.jwtService.sign(payload, {
         secret: process.env.JWT_ACCESS_SECRET,
         expiresIn: "1h",
       });
-
-      // Redirect to estore login — frontend checks shopkeeper role and routes accordingly
       return res.redirect(
         `${FRONTEND}/estore/login?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}`,
       );

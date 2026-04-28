@@ -95,25 +95,16 @@ export class RoleService {
     } else if (role === "shopkeeper") {
       const shopkeeper = await this.shopkeeperService.getByEmail(email);
       if (shopkeeper) {
-        // Shopkeeper found - send OTP for login
-        try {
-          return {
-            found: true,
-            message: "Shopkeeper found. OTP sent to your registered email.",
-            data: {
-              email,
-              role: "shopkeeper",
-            },
-          };
-        } catch (error) {
-          return {
-            found: true,
-            message:
-              "Shopkeeper found but failed to send OTP. Please try again.",
-            error: error.message,
-            data: { email, role: "shopkeeper" },
-          };
-        }
+        // Shopkeeper found — Google identity is the login, no OTP step.
+        // The frontend signs the user in with the JWT it already has.
+        return {
+          found: true,
+          message: "Shopkeeper found. Signing you in.",
+          data: {
+            email,
+            role: "shopkeeper",
+          },
+        };
       }
     }
 

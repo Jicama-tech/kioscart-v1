@@ -141,12 +141,9 @@ export function ShopKeeperRegister() {
   const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   // WhatsApp OTP state
-  const [waOtpSent, setWaOtpSent] = useState(false);
-  const [waOtp, setWaOtp] = useState("");
-  const [waVerified, setWaVerified] = useState(false);
-  const [waOtpError, setWaOtpError] = useState("");
-  const [sendingWaOtp, setSendingWaOtp] = useState(false);
-  const [verifyingWaOtp, setVerifyingWaOtp] = useState(false);
+  // WhatsApp OTP removed — phone number is captured but no longer verified.
+  // Login uses Google OAuth; the WhatsApp number is only stored for outbound
+  // notifications.
 
   // Skip verification dialog
   const [showSkipDialog, setShowSkipDialog] = useState(false);
@@ -467,97 +464,6 @@ export function ShopKeeperRegister() {
     }
   };
 
-  // WhatsApp OTP handlers
-  const sendOtpToWhatsApp = async () => {
-    if (!profile.whatsappNumber || profile.whatsappNumber.length < 8) {
-      toast({
-        duration: 5000,
-        title: "Error",
-        description: "Please enter a valid WhatsApp number with country code.",
-      });
-      return;
-    }
-
-    try {
-      setSendingWaOtp(true);
-      const token = sessionStorage.getItem("token");
-      const response = await fetch(`${apiURL}/otp/send-whatsapp-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ whatsappNumber: profile.whatsappNumber }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to send WhatsApp OTP");
-      }
-
-      setWaOtpSent(true);
-      setWaOtpError("");
-      toast({
-        duration: 5000,
-        title: "OTP Sent",
-        description: "OTP sent to WhatsApp",
-      });
-    } catch (error: any) {
-      toast({
-        duration: 5000,
-        title: "Failed to send OTP",
-        description: error.message || "Failed to send WhatsApp OTP",
-      });
-    } finally {
-      setSendingWaOtp(false);
-    }
-  };
-
-  const verifyOtpForWhatsApp = async () => {
-    if (!waOtp || waOtp.length < 4) {
-      setWaOtpError("Please enter a valid OTP");
-      return;
-    }
-
-    try {
-      setVerifyingWaOtp(true);
-      const token = sessionStorage.getItem("token");
-      const response = await fetch(`${apiURL}/otp/verify-whatsapp-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          whatsappNumber: profile.whatsappNumber,
-          otp: waOtp,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Invalid WhatsApp OTP");
-      }
-
-      setWaVerified(true);
-      setWaOtpError("");
-      toast({
-        duration: 5000,
-        title: "Verified",
-        description: "WhatsApp number verified",
-      });
-    } catch (error: any) {
-      setWaOtpError(error.message);
-      toast({
-        duration: 5000,
-        title: "Error",
-        description: error.message || "Invalid OTP",
-      });
-    } finally {
-      setVerifyingWaOtp(false);
-    }
-  };
-
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -571,11 +477,11 @@ export function ShopKeeperRegister() {
       return;
     }
 
-    if (!waVerified) {
+    if (!profile.whatsappNumber || profile.whatsappNumber.length < 8) {
       toast({
         duration: 5000,
         title: "Error",
-        description: "Please verify your WhatsApp number",
+        description: "Please enter a valid WhatsApp number.",
       });
       return;
     }
@@ -649,7 +555,7 @@ export function ShopKeeperRegister() {
 
   // Determine if form is blurred
   const isFormBlurred = !selectedCountry;
-  const shouldDisableFollowingFields = !emailVerified && !waVerified;
+  const shouldDisableFollowingFields = !emailVerified;
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
@@ -864,77 +770,33 @@ export function ShopKeeperRegister() {
               {otpError && <p className="text-sm text-red-600">{otpError}</p>}
             </div>
 
-            {/* WhatsApp Number with OTP */}
+            {/* WhatsApp Number — captured for outbound notifications, no OTP */}
             <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label
-                  htmlFor="whatsappNumber"
-                  className="flex items-center gap-2"
-                >
-                  <MessageCircle className="w-4 h-4 text-green-600" />
-                  WhatsApp Number ({currentCountry?.countryCode}){" "}
-                  <span className="text-red-600">*</span>
-                  <p className="text-s">
-                    (This will be needed at the time of login in to the
-                    dashboard).
-                  </p>
-                </Label>
-                {waVerified && (
-                  <Badge className="bg-green-600">
-                    <CheckCircle className="w-4 h-4 mr-1" /> Verified
-                  </Badge>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <PhoneInput
-                  country={selectedCountry?.toLowerCase() || "in"}
-                  value={profile.whatsappNumber}
-                  onChange={(value) => handleChange("whatsappNumber", value)}
-                  disabled={waVerified || !emailVerified}
-                  // This locks the dropdown to ONLY the selected country
-                  onlyCountries={
-                    selectedCountry
-                      ? [selectedCountry.toLowerCase()]
-                      : ["in", "sg"]
-                  }
-                  // Optional: Prevents the user from deleting the country code manually
-                  countryCodeEditable={false}
-                  inputStyle={{ width: "100%" }}
-                  dropdownStyle={{ zIndex: 100 }}
-                />
-                <Button
-                  type="button"
-                  onClick={sendOtpToWhatsApp}
-                  disabled={
-                    sendingWaOtp || !profile.whatsappNumber || waVerified
-                  }
-                >
-                  {sendingWaOtp
-                    ? "Sending..."
-                    : waVerified
-                      ? "Verified"
-                      : "Send OTP"}
-                </Button>
-              </div>
-              {waOtpSent && !waVerified && (
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={waOtp}
-                    onChange={(e) => setWaOtp(e.target.value)}
-                    placeholder="Enter WhatsApp OTP"
-                  />
-                  <Button
-                    type="button"
-                    onClick={verifyOtpForWhatsApp}
-                    disabled={verifyingWaOtp}
-                  >
-                    {verifyingWaOtp ? "Verifying..." : "Verify"}
-                  </Button>
-                </div>
-              )}
-              {waOtpError && (
-                <p className="text-sm text-red-600">{waOtpError}</p>
-              )}
+              <Label
+                htmlFor="whatsappNumber"
+                className="flex items-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4 text-green-600" />
+                WhatsApp Number ({currentCountry?.countryCode}){" "}
+                <span className="text-red-600">*</span>
+                <p className="text-s">
+                  (Used to send order &amp; system notifications.)
+                </p>
+              </Label>
+              <PhoneInput
+                country={selectedCountry?.toLowerCase() || "in"}
+                value={profile.whatsappNumber}
+                onChange={(value) => handleChange("whatsappNumber", value)}
+                disabled={!emailVerified}
+                onlyCountries={
+                  selectedCountry
+                    ? [selectedCountry.toLowerCase()]
+                    : ["in", "sg"]
+                }
+                countryCodeEditable={false}
+                inputStyle={{ width: "100%" }}
+                dropdownStyle={{ zIndex: 100 }}
+              />
             </div>
 
             {/* Owner Name */}
@@ -1087,7 +949,6 @@ export function ShopKeeperRegister() {
                   !profile.businessEmail ||
                   !emailVerified ||
                   !profile.whatsappNumber ||
-                  !waVerified ||
                   !profile.businessCategory
                 }
               >

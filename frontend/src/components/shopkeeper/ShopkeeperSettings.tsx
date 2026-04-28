@@ -205,11 +205,6 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   const [loadingCountries, setLoadingCountries] = useState(true);
   const [countryCode, setCountryCode] = useState("+91");
   const [whatsappNumber, setWhatsappNumber] = useState("");
-  const [whatsappVerified, setWhatsappVerified] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [couponToDelete, setCouponToDelete] = useState<string | null>(null);
 
@@ -613,23 +608,19 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     }
   };
 
-  // Parse existing whatsapp number into country code and local number
+  // Parse existing whatsapp number into country code and local number.
   useEffect(() => {
     if (shopProfile.whatsappNumber) {
-      // Try to match country code from existing number
       for (const country of countries) {
         if (shopProfile.whatsappNumber.startsWith(country.dialCode)) {
           setCountryCode(country.dialCode);
           setWhatsappNumber(
             shopProfile.whatsappNumber.slice(country.dialCode.length),
           );
-          setWhatsappVerified(true); // Assume existing number is verified
           return;
         }
       }
-      // Fallback: assume it's a full number with default country code
       setWhatsappNumber(shopProfile.whatsappNumber);
-      setWhatsappVerified(true);
     }
   }, [shopProfile.whatsappNumber, countries]);
 
@@ -638,151 +629,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     return countryCode + whatsappNumber;
   };
 
-  // Send OTP
-  const handleSendOtp = async () => {
-    if (!whatsappNumber) {
-      toast({
-        duration: 5000,
-        title: "Please enter WhatsApp number",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSendingOtp(true);
-    try {
-      const token = sessionStorage.getItem("token");
-      if (!token) {
-        toast({
-          duration: 5000,
-          title: "Please login first",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const decoded = jwtDecode<{ sub: string }>(token);
-      const userId = decoded.sub;
-
-      const res = await fetch(`${apiURL}/otp/send-whatsapp-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          whatsappNumber: getFullWhatsappNumber(),
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to send WhatsApp OTP");
-
-      const data = await res.json();
-      if (data.success) {
-        setOtpSent(true);
-        toast({
-          duration: 5000,
-          title: "OTP Sent",
-          description: "Please check WhatsApp for OTP",
-        });
-      } else if (data.alreadyVerified) {
-        setWhatsappVerified(true);
-        toast({
-          duration: 5000,
-          title: "Already Verified",
-          description: data.message,
-        });
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (err: any) {
-      toast({
-        duration: 5000,
-        title: "Error",
-        description: err.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  // Verify OTP
-  const handleVerifyOtp = async () => {
-    if (!otp) {
-      toast({
-        duration: 5000,
-        title: "Please enter OTP",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setVerifyingOtp(true);
-    try {
-      const token = sessionStorage.getItem("token");
-      if (!token) {
-        toast({
-          duration: 5000,
-          title: "Please login first",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const decoded = jwtDecode<{ sub: string }>(token);
-      const userId = decoded.sub;
-
-      const res = await fetch(`${apiURL}/users/verify-whatsapp-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId,
-          whatsAppNumber: getFullWhatsappNumber(),
-          otp,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to verify WhatsApp OTP");
-
-      const data = await res.json();
-      if (data.success) {
-        setWhatsappVerified(true);
-        setOtpSent(false);
-        setOtp("");
-        // Update profile with verified number
-        setShopProfile((prev) => ({
-          ...prev,
-          whatsappNumber: getFullWhatsappNumber(),
-        }));
-        toast({
-          duration: 5000,
-          title: "WhatsApp Verified",
-          description: "Number verified successfully",
-        });
-      } else if (data.alreadyVerified) {
-        setWhatsappVerified(true);
-        toast({
-          duration: 5000,
-          title: "Already Verified",
-          description: data.message,
-        });
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (err: any) {
-      toast({
-        duration: 5000,
-        title: "Error",
-        description: err.message,
-        variant: "destructive",
-      });
-    } finally {
-      setVerifyingOtp(false);
-    }
-  };
+  // WhatsApp OTP send/verify removed — the number is saved as-is.
 
   const onPaymentQrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2123,15 +1970,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 />
               </div>
 
-              {/* WhatsApp Number with Country Code and Verification */}
+              {/* WhatsApp Number (no OTP — saved as entered) */}
               <div>
-                <Label className="flex items-center justify-between mb-2">
+                <Label className="mb-2">
                   <span>WhatsApp Number *</span>
-                  {whatsappVerified && (
-                    <Badge variant="default" className="ml-2">
-                      Verified
-                    </Badge>
-                  )}
                 </Label>
                 <div className="flex items-center space-x-2">
                   <div className="w-32">

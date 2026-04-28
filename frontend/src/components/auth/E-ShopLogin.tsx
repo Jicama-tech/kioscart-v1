@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FaGoogle, FaInstagram } from "react-icons/fa";
 import {
   Calendar,
@@ -30,19 +30,23 @@ export function EShopLogin() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const apiURL = __API_URL__;
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState({
     google: false,
     instagram: false,
   });
-  const [isChecking, setIsChecking] = useState(false); // ← ADD THIS
+  const [isChecking, setIsChecking] = useState(false);
   const [searchParams] = useSearchParams();
 
+  // After Google OAuth completes, the backend redirects here with the JWT in
+  // the URL. We no longer trigger an email OTP — the Google identity itself
+  // is the login. Look up the shopkeeper by email; if found, drop them
+  // straight into the dashboard. If not, send them to registration.
   useEffect(() => {
     const token = searchParams.get("token");
     const email = searchParams.get("email");
     const name = searchParams.get("name") || "";
 
-    // If no token/email in URL, show normal login UI
     if (!token || !email) {
       setIsChecking(false);
       return;
@@ -59,58 +63,41 @@ export function EShopLogin() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            email,
-            name,
-            role: "shopkeeper",
-          }),
+          body: JSON.stringify({ email, name, role: "shopkeeper" }),
         });
 
-        if (!res.ok) {
-          throw new Error("Failed to check role");
-        }
-
+        if (!res.ok) throw new Error("Failed to check role");
         const data = await res.json();
 
-        console.log(data, "Data");
-
-        // CASE 1: Shopkeeper found, OTP sent
+        // Shopkeeper exists → log straight in. The JWT in the URL was already
+        // signed for this user by the backend, so it IS the session.
         if (data.found && data.data?.role === "shopkeeper") {
+          if (login) {
+            try { await login(token); } catch { /* fall through */ }
+          }
           toast({
             duration: 5000,
-            title: "Shopkeeper Found",
-            description: data.message,
+            title: "Welcome back",
+            description: "Signed in with Google.",
           });
-          navigate("/login", {
-            replace: true,
-            state: { email },
-          });
+          navigate("/estore-dashboard", { replace: true });
           return;
         }
 
-        // CASE 2: Shopkeeper found but OTP failed
-        if (data.found && data.data?.role === "shopkeeper") {
-          toast({
-            duration: 5000,
-            title: "New Shopkeeper",
-            description: data.message,
-          });
-          setIsChecking(false);
-          return;
-        }
-
-        // CASE 3: No shopkeeper yet -> go to registration
+        // No shopkeeper for this Google account → go register one.
         if (!data.found) {
           toast({
             duration: 5000,
             title: "Complete Registration",
-            description: data.message,
+            description:
+              data.message || "Finish setting up your shop to continue.",
           });
-          navigate("/register", {
-            replace: true,
-            state: { email, name },
-          });
+          navigate("/register", { replace: true, state: { email, name } });
+          return;
         }
+
+        // Any other shape → bail to the login page so the user can retry.
+        setIsChecking(false);
       } catch (error: any) {
         console.error("Check role error:", error);
         toast({
@@ -122,7 +109,7 @@ export function EShopLogin() {
         setIsChecking(false);
       }
     })();
-  }, [searchParams, apiURL, navigate, toast]);
+  }, [searchParams, apiURL, navigate, toast, login]);
 
   const handleGoogleLogin = async () => {
     setIsLoading({ ...isLoading, google: true });

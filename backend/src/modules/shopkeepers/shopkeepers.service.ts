@@ -319,6 +319,24 @@ export class ShopkeepersService {
     }
   }
 
+  // Used by the Google login flow — resolves a shopkeeper by either their
+  // login email or businessEmail, regardless of approval status, so we can
+  // mint a shopkeeper-scoped JWT instead of a plain user token. Returns the
+  // raw lean document or null.
+  async findOneByAnyEmail(email: string) {
+    if (!email) return null;
+    const normalizedEmail = this.normalizeEmail(email);
+    return this.shopModel
+      .findOne({
+        $or: [
+          { email: normalizedEmail },
+          { businessEmail: normalizedEmail },
+        ],
+      })
+      .lean()
+      .exec();
+  }
+
   async get(id: string) {
     try {
       const shopkeeper = await this.shopModel.findOne({ _id: id });

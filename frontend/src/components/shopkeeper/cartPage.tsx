@@ -92,12 +92,11 @@ export function CartPage() {
   const [lastName, setLastName] = useState("");
   const [customerWhatsAppNumber, setCustomerWhatsAppNumber] = useState("");
 
-  // State for shopkeeper verification
-  const [shopkeeperWhatsAppNumber, setShopkeeperWhatsAppNumber] = useState("");
-  const [shopkeeperOtp, setShopkeeperOtp] = useState("");
-  const [isShopkeeperOtpSent, setIsShopkeeperOtpSent] = useState(false);
-  const [isShopkeeperVerified, setIsShopkeeperVerified] = useState(false);
-  const [isShopkeeperVerifying, setIsShopkeeperVerifying] = useState(false);
+  // Shopkeeper-OTP flow has been retired — kiosk orders are placed from the
+  // dashboard now, and orderFor is hard-coded to "customer" (line above). The
+  // `false` placeholder keeps the dead JSX branches type-safe without
+  // resurrecting the WhatsApp dependency.
+  const isShopkeeperVerified = false;
   const [countdown, setCountdown] = useState(60);
   const [completeWhatsAppNumber, setCompleteWhatsAppNumber] = useState("");
   const [country, setCountry] = useState<"IN" | "SG">("IN");
@@ -332,15 +331,7 @@ export function CartPage() {
   }
 
   async function getShopkeeper() {
-    const token = sessionStorage.getItem("token");
-    if (token) {
-      const decode = jwtDecode<ShopkeeperToken>(token);
-      const role = decode.roles[0];
-      if (role === "shopkeeper") {
-        setIsShopkeeperVerified(true);
-        setOrderFor("self"); // <--- Add this to force the switch
-      }
-    }
+    // Shopkeeper kiosk path moved to the dashboard; cart is customer-only now.
   }
 
   async function handleVerifyEmail() {
@@ -447,109 +438,9 @@ export function CartPage() {
   }
 
   // Shopkeeper OTP functions
-  const handleRequestShopkeeperOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!shopkeeperWhatsAppNumber || shopkeeperWhatsAppNumber.length < 6) {
-      toast({
-        duration: 5000,
-        title: "Invalid Number",
-        description: "Please enter a valid WhatsApp number",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsShopkeeperVerifying(true);
-    try {
-      const fullNumber = `${countryCode}${shopkeeperWhatsAppNumber}`;
-      const response = await fetch(`${apiURL}/otp/send-whatsapp-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          whatsappNumber: fullNumber,
-          role: "shopkeeper",
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to send OTP");
-      }
-
-      toast({
-        duration: 5000,
-        title: "OTP Sent Successfully",
-        description: `OTP sent to WhatsApp number ${fullNumber}`,
-      });
-
-      setIsShopkeeperOtpSent(true);
-      setCountdown(60);
-    } catch (err: any) {
-      toast({
-        duration: 5000,
-        title: "Error",
-        description: err.message || "Failed to send OTP. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsShopkeeperVerifying(false);
-    }
-  };
-
-  const handleVerifyShopkeeperOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const otpString = shopkeeperOtp;
-    if (otpString.length !== 6) {
-      toast({
-        duration: 5000,
-        title: "Invalid OTP",
-        description: "Please enter all 6 digits",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsShopkeeperVerifying(true);
-    try {
-      const fullNumber = `${countryCode}${shopkeeperWhatsAppNumber}`;
-      const response = await fetch(`${apiURL}/otp/verify-chat-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          whatsappNumber: fullNumber,
-          otp: otpString,
-          role: "shopkeeper",
-          shopId: shopName,
-          emailId: emailId,
-        }),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "OTP verification failed");
-      }
-      const data = await response.json();
-      if (data.data) {
-        sessionStorage.setItem("token", data.data);
-        sessionStorage.removeItem("userToken");
-        setIsShopkeeperVerified(true);
-        toast({
-          duration: 5000,
-          title: "Shopkeeper Verified",
-          description: "You can now place the order for the customer.",
-        });
-      } else {
-        throw new Error("No token received");
-      }
-    } catch (err: any) {
-      toast({
-        duration: 5000,
-        title: "Verification Failed",
-        description: err.message || "Invalid OTP. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsShopkeeperVerifying(false);
-    }
-  };
+  // Shopkeeper WhatsApp-OTP handlers removed — kiosk orders are placed from
+  // the dashboard now, not the cart. The shopkeeper verification path no
+  // longer runs in the cart.
 
   // Order options state
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("pickup");
