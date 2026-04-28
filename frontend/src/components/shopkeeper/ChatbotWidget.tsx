@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Store, Monitor, ShoppingCart, Users, Package, Globe, Settings, ChevronRight, ChevronDown, Sparkles, Download, BarChart3 } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Store, Monitor, ShoppingCart, Users, Package, Globe, Settings, ChevronRight, ChevronDown, Sparkles, Download, BarChart3, HelpCircle, BookOpen } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import QRCode from "react-qr-code";
 import jsQR from "jsqr";
@@ -38,14 +38,54 @@ interface AnalyticsSummary {
   period?: string;
   topProducts?: { name: string; sold?: number; revenue?: number }[];
 }
+interface CustomerFormPayload {
+  firstName?: string;
+  lastName?: string;
+  whatsapp?: string;
+  email?: string;
+}
+interface OrderFormCatalogItem {
+  name: string;
+  price: number;
+  category?: string;
+  productOptions?: { title: string; price: number }[];
+  variants?: { title: string; price: number }[];
+  subcategories?: {
+    name: string;
+    basePrice?: number;
+    variants?: { title: string; price: number }[];
+  }[];
+}
+interface OrderFormPayload {
+  country: "IN" | "SG";
+  catalog: OrderFormCatalogItem[];
+  qrReady: boolean;
+  qrSetupHint?: string;
+}
+interface ReceiptPayload {
+  orderId: string;
+  orderMongoId: string;
+  amount?: number;
+  country?: "IN" | "SG";
+}
 interface Message {
   id: string;
   role: "user" | "bot";
   text: string;
   quickActions?: QuickAction[];
   qr?: QRPayload;
+  // Cash-order receipt download pill (mirrors the picker inside the QR card).
+  receipt?: ReceiptPayload;
   productTree?: ProductTreeItem[];
   analytics?: AnalyticsSummary;
+  customerForm?: CustomerFormPayload;
+  // Per-message form state: the create call status, so the form renders
+  // disabled / a confirmation once the shopkeeper has clicked Create.
+  customerFormStatus?: "idle" | "submitting" | "done";
+  orderForm?: OrderFormPayload;
+  // Per-message order-form lifecycle state. "submitted" hides the form so
+  // the bot's reply (with QR / confirmation) takes over visually.
+  orderFormStatus?: "idle" | "submitting" | "submitted";
   timestamp: Date;
 }
 
@@ -103,7 +143,16 @@ interface ChatbotWidgetProps {
    */
   onNavigate?: (
     tab: string,
-    extras?: { action?: "add" | "edit"; productName?: string },
+    extras?: {
+      action?: "add" | "edit";
+      productName?: string;
+      customerPrefill?: {
+        firstName?: string;
+        lastName?: string;
+        whatsapp?: string;
+        email?: string;
+      };
+    },
   ) => void;
   /** "floating" = bottom-right bubble dialog (default). "page" = fills its parent container. */
   mode?: "floating" | "page";
@@ -292,6 +341,714 @@ function AnalyticsCards({ data, compact = false }: { data: AnalyticsSummary; com
   );
 }
 
+// Inline Add Customer form rendered inside a chat bubble. Uses the existing
+// `users/create-user-by-shopkeeper/:sid` endpoint that the CRM tab uses, so
+// customers created here show up in the CRM list without any extra wiring.
+function InlineCustomerForm({
+  initial,
+  status,
+  onSubmit,
+}: {
+  initial: CustomerFormPayload;
+  status: "idle" | "submitting" | "done";
+  onSubmit: (form: { firstName: string; lastName: string; whatsAppNumber: string; email?: string }) => Promise<void>;
+}) {
+  // Split a "+9198…" number into a dial code (best effort) and local digits
+  // so the shopkeeper sees the same shape they typed.
+  const parsed = (() => {
+    const raw = (initial.whatsapp || "").trim();
+    const m = raw.match(/^(\+\d{1,3})(.*)$/);
+    return m ? { code: m[1], local: m[2].replace(/\s/g, "") } : { code: "+91", local: raw.replace(/^\+/, "") };
+  })();
+
+  const [firstName, setFirstName] = useState(initial.firstName || "");
+  const [lastName, setLastName] = useState(initial.lastName || "");
+  const [code, setCode] = useState(parsed.code);
+  const [local, setLocal] = useState(parsed.local);
+  const [email, setEmail] = useState(initial.email || "");
+  const [error, setError] = useState<string | null>(null);
+
+  const disabled = status !== "idle";
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!firstName.trim()) return setError("First name is required.");
+    if (!lastName.trim()) return setError("Last name is required.");
+    const digits = local.replace(/\D/g, "");
+    if (!/^\d{6,15}$/.test(digits)) return setError("WhatsApp number must be 6–15 digits.");
+    if (!/^\+\d{1,3}$/.test(code)) return setError("Country code must look like +91 or +65.");
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return setError("Email is not valid.");
+    }
+    await onSubmit({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      whatsAppNumber: `${code}${digits}`,
+      email: email.trim() || undefined,
+    });
+  };
+
+  if (status === "done") {
+    return (
+      <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-800">
+        Customer created. They will appear in your CRM list.
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[11px] font-medium text-slate-600">First name</label>
+          <input
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            disabled={disabled}
+            placeholder="Vansh"
+            className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+        <div>
+          <label className="text-[11px] font-medium text-slate-600">Last name</label>
+          <input
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            disabled={disabled}
+            placeholder="Sharma"
+            className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="text-[11px] font-medium text-slate-600">WhatsApp number</label>
+        <div className="mt-0.5 flex gap-1.5">
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            disabled={disabled}
+            placeholder="+91"
+            className="w-16 rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+          <input
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            disabled={disabled}
+            placeholder="9876543210"
+            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="text-[11px] font-medium text-slate-600">Email (optional)</label>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={disabled}
+          placeholder="vansh@example.com"
+          className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+        />
+      </div>
+      {error && <p className="text-[12px] text-red-600">{error}</p>}
+      <div className="flex justify-end pt-1">
+        <button
+          type="submit"
+          disabled={disabled}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 transition disabled:opacity-60"
+        >
+          {status === "submitting" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          {status === "submitting" ? "Creating…" : "Create"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Inline kiosk-order form rendered inside a chat bubble. Multi-step state
+// machine — customer search → contact (if new) → items (cascading) → payment
+// → submit. On submit the form synthesises a natural-language "Place order
+// for …" message and sends it through the regular chat pipeline so the LLM
+// + place_order tool execute the order (fuzzy product matching, multi-layer
+// resolution, inventory decrement, QR generation are all owned by the AI
+// path; the UI only collects clean inputs to feed it).
+function InlineOrderForm({
+  payload,
+  status,
+  onSubmit,
+}: {
+  payload: OrderFormPayload;
+  status: "idle" | "submitting" | "submitted";
+  onSubmit: (synthMessage: string) => void;
+}) {
+  type CartItem = {
+    productName: string;
+    optionTitle?: string;
+    subcategoryName?: string;
+    variantTitle?: string;
+    quantity: number;
+    unitPrice: number;
+  };
+  type Step = "customer" | "items" | "payment";
+
+  const { country, catalog, qrReady, qrSetupHint } = payload;
+  const defaultDial = country === "SG" ? "+65" : "+91";
+
+  const [step, setStep] = useState<Step>("customer");
+
+  // Customer state
+  const [name, setName] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchTried, setSearchTried] = useState(false);
+  const [matches, setMatches] = useState<{ id: string; name: string; whatsapp: string; email: string }[]>([]);
+  const [chosen, setChosen] = useState<{ name: string; whatsapp: string; email: string } | null>(null);
+  // Manual contact for new customers
+  const [dial, setDial] = useState(defaultDial);
+  const [local, setLocal] = useState("");
+  const [email, setEmail] = useState("");
+
+  // Items state
+  const [productName, setProductName] = useState("");
+  const [optionTitle, setOptionTitle] = useState("");
+  const [subcategoryName, setSubcategoryName] = useState("");
+  const [variantTitle, setVariantTitle] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [cart, setCart] = useState<CartItem[]>([]);
+
+  // Payment state — defaults to QR only when the shopkeeper has the QR
+  // setup completed; otherwise falls back to Cash so the form can't submit
+  // a QR order that the QR pipeline can't render.
+  const [payment, setPayment] = useState<"qr" | "cash">(qrReady ? "qr" : "cash");
+  const [error, setError] = useState<string | null>(null);
+
+  const product = useMemo(
+    () => catalog.find((p) => p.name === productName),
+    [catalog, productName],
+  );
+  const hasOptions = (product?.productOptions?.length ?? 0) > 0;
+  const hasTopVariants = (product?.variants?.length ?? 0) > 0;
+  const hasSubcategories = (product?.subcategories?.length ?? 0) > 0;
+  const selectedSub = useMemo(
+    () => product?.subcategories?.find((s) => s.name === subcategoryName),
+    [product, subcategoryName],
+  );
+  const subVariants = selectedSub?.variants ?? [];
+
+  const computeUnitPrice = (): number => {
+    if (!product) return 0;
+    let base = product.price;
+    let opt = 0;
+    if (subcategoryName && selectedSub) {
+      if (variantTitle) {
+        const v = selectedSub.variants?.find((x) => x.title === variantTitle);
+        if (v) base = v.price;
+      } else {
+        base = selectedSub.basePrice ?? product.price;
+      }
+    } else if (variantTitle) {
+      const top = product.variants?.find((v) => v.title === variantTitle);
+      if (top) base = top.price;
+    }
+    if (optionTitle) {
+      const o = product.productOptions?.find((x) => x.title === optionTitle);
+      if (o) {
+        // If option is the only leaf, it replaces the base; otherwise adds on top
+        // (mirrors backend place_order resolution).
+        if (!variantTitle && !subcategoryName) base = o.price;
+        else opt = o.price;
+      }
+    }
+    return base + opt;
+  };
+
+  const subtotal = cart.reduce((s, c) => s + c.unitPrice * c.quantity, 0);
+  const fmtMoney = (n: number) => `${country === "SG" ? "S$" : "₹"}${n.toFixed(2)}`;
+
+  const searchCustomer = async () => {
+    if (!name.trim()) {
+      setError("Please enter the customer's name.");
+      return;
+    }
+    setError(null);
+    setSearching(true);
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(`${apiURL}/chatbot/customer-search?q=${encodeURIComponent(name.trim())}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const list = Array.isArray(data?.customers) ? data.customers : [];
+      setMatches(list);
+      setSearchTried(true);
+      if (list.length === 1) {
+        const c = list[0];
+        setChosen({ name: c.name || name.trim(), whatsapp: c.whatsapp, email: c.email });
+      } else if (list.length === 0) {
+        setChosen(null);
+      }
+    } catch (e: any) {
+      setError(`Couldn't search customers: ${e?.message || "unknown error"}`);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const continueFromCustomer = () => {
+    setError(null);
+    if (!chosen) {
+      // New customer — require WhatsApp
+      if (!name.trim()) return setError("Customer name is required.");
+      const digits = local.replace(/\D/g, "");
+      if (!/^\d{6,15}$/.test(digits)) return setError("WhatsApp must be 6–15 digits.");
+      if (!/^\+\d{1,3}$/.test(dial)) return setError("Country code must look like +91 or +65.");
+      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        return setError("Email is not valid.");
+      }
+      setChosen({ name: name.trim(), whatsapp: `${dial}${digits}`, email: email.trim() });
+    }
+    setStep("items");
+  };
+
+  const resetItemSelection = () => {
+    setOptionTitle("");
+    setSubcategoryName("");
+    setVariantTitle("");
+    setQuantity(1);
+  };
+
+  const addItem = () => {
+    setError(null);
+    if (!product) return setError("Select a product.");
+    if (hasOptions && !optionTitle) return setError(`Select an option for ${product.name}.`);
+    if (hasSubcategories && !subcategoryName) return setError(`Select a subcategory for ${product.name}.`);
+    if (subcategoryName && (selectedSub?.variants?.length ?? 0) > 0 && !variantTitle) {
+      return setError(`Select a variant for ${subcategoryName}.`);
+    }
+    if (hasTopVariants && !subcategoryName && !variantTitle && !optionTitle) {
+      return setError(`Select a variant for ${product.name}.`);
+    }
+    if (quantity < 1) return setError("Quantity must be at least 1.");
+    const unitPrice = computeUnitPrice();
+    setCart((prev) => [
+      ...prev,
+      {
+        productName: product.name,
+        optionTitle: optionTitle || undefined,
+        subcategoryName: subcategoryName || undefined,
+        variantTitle: variantTitle || undefined,
+        quantity,
+        unitPrice,
+      },
+    ]);
+    setProductName("");
+    resetItemSelection();
+  };
+
+  const removeItem = (idx: number) => {
+    setCart((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const submit = () => {
+    setError(null);
+    if (!chosen) return setError("Customer details are missing.");
+    if (cart.length === 0) return setError("Add at least one item.");
+    // Synthesise the natural-language message the existing chat pipeline already
+    // handles. Comma-separates header (name, phone, email) and items.
+    const header = [chosen.name, chosen.whatsapp, chosen.email].filter(Boolean).join(", ");
+    const itemPhrases = cart.map((c) => {
+      const parts = [c.productName];
+      if (c.subcategoryName) parts.push(c.subcategoryName);
+      if (c.variantTitle) parts.push(c.variantTitle);
+      if (c.optionTitle) parts.push(c.optionTitle);
+      const phrase = parts.join(" ");
+      return c.quantity > 1 ? `${c.quantity} ${phrase}` : phrase;
+    });
+    const body = itemPhrases.join(", ");
+    const message = `Place order for ${header}: ${body}, ${payment}`;
+    onSubmit(message);
+  };
+
+  if (status === "submitted") {
+    return (
+      <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-800">
+        Order submitted. See the next message for the QR / confirmation.
+      </div>
+    );
+  }
+
+  const stepBadge = (s: Step, label: string, n: number) => (
+    <div
+      className={`flex items-center gap-1.5 text-[11px] font-medium ${
+        step === s ? "text-blue-700" : cart.length || chosen ? "text-slate-500" : "text-slate-400"
+      }`}
+    >
+      <span
+        className={`w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] ${
+          step === s ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
+        }`}
+      >
+        {n}
+      </span>
+      {label}
+    </div>
+  );
+
+  return (
+    <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-3 max-w-md">
+      <div className="flex items-center gap-3">
+        {stepBadge("customer", "Customer", 1)}
+        <span className="flex-1 h-px bg-slate-200" />
+        {stepBadge("items", "Items", 2)}
+        <span className="flex-1 h-px bg-slate-200" />
+        {stepBadge("payment", "Payment", 3)}
+      </div>
+
+      {/* STEP 1 — Customer */}
+      {step === "customer" && (
+        <div className="space-y-2">
+          <div>
+            <label className="text-[11px] font-medium text-slate-600">Customer name</label>
+            <div className="mt-0.5 flex gap-1.5">
+              <input
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setSearchTried(false);
+                  setMatches([]);
+                  setChosen(null);
+                }}
+                placeholder="e.g. Vansh Sharma"
+                className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <button
+                type="button"
+                onClick={searchCustomer}
+                disabled={searching || !name.trim()}
+                className="px-3 py-1.5 rounded-md bg-slate-100 text-[13px] hover:bg-slate-200 disabled:opacity-50"
+              >
+                {searching ? "Searching…" : "Search"}
+              </button>
+            </div>
+          </div>
+
+          {chosen && matches.length === 1 && (
+            <div className="rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-2 text-[12px]">
+              <div className="font-semibold text-emerald-900">Matched in CRM</div>
+              <div className="mt-0.5 text-emerald-800">
+                <div><span className="font-medium">Name:</span> {chosen.name}</div>
+                {chosen.whatsapp && <div><span className="font-medium">WhatsApp:</span> {chosen.whatsapp}</div>}
+                {chosen.email && <div><span className="font-medium">Email:</span> {chosen.email}</div>}
+              </div>
+            </div>
+          )}
+
+          {matches.length > 1 && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-2 space-y-1">
+              <div className="text-[12px] font-medium text-amber-900">Multiple matches — pick one:</div>
+              {matches.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setChosen({ name: m.name, whatsapp: m.whatsapp, email: m.email })}
+                  className={`block w-full text-left text-[12px] px-2 py-1 rounded ${
+                    chosen?.whatsapp === m.whatsapp ? "bg-amber-200" : "bg-white hover:bg-amber-100"
+                  }`}
+                >
+                  <span className="font-medium">{m.name}</span>{" "}
+                  <span className="text-slate-600">— {m.whatsapp || "no phone"}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {searchTried && matches.length === 0 && (
+            <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+              <div className="text-[12px] text-slate-600">
+                Not in CRM yet — enter contact details for a new customer.
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-slate-600">WhatsApp number</label>
+                <div className="mt-0.5 flex gap-1.5">
+                  <input
+                    value={dial}
+                    onChange={(e) => setDial(e.target.value)}
+                    placeholder="+91"
+                    className="w-16 rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
+                  />
+                  <input
+                    value={local}
+                    onChange={(e) => setLocal(e.target.value)}
+                    placeholder="9876543210"
+                    className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-slate-600">Email (optional)</label>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="customer@example.com"
+                  className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
+                />
+              </div>
+            </div>
+          )}
+
+          {error && <p className="text-[12px] text-red-600">{error}</p>}
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={continueFromCustomer}
+              disabled={!searchTried && !chosen}
+              className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 disabled:opacity-60"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2 — Items */}
+      {step === "items" && (
+        <div className="space-y-2">
+          {chosen && (
+            <div className="text-[11px] text-slate-500">
+              Customer: <span className="font-medium text-slate-700">{chosen.name}</span>
+              {chosen.whatsapp ? ` · ${chosen.whatsapp}` : ""}
+            </div>
+          )}
+
+          <div>
+            <label className="text-[11px] font-medium text-slate-600">Product</label>
+            <select
+              value={productName}
+              onChange={(e) => {
+                setProductName(e.target.value);
+                resetItemSelection();
+              }}
+              className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
+            >
+              <option value="">Select a product…</option>
+              {catalog.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name} — {fmtMoney(p.price)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {hasSubcategories && (
+            <div>
+              <label className="text-[11px] font-medium text-slate-600">Subcategory</label>
+              <select
+                value={subcategoryName}
+                onChange={(e) => {
+                  setSubcategoryName(e.target.value);
+                  setVariantTitle("");
+                }}
+                className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
+              >
+                <option value="">Select…</option>
+                {product!.subcategories!.map((s) => (
+                  <option key={s.name} value={s.name}>
+                    {s.name}{s.basePrice ? ` — base ${fmtMoney(s.basePrice)}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {(subcategoryName ? subVariants.length > 0 : hasTopVariants) && (
+            <div>
+              <label className="text-[11px] font-medium text-slate-600">Variant</label>
+              <select
+                value={variantTitle}
+                onChange={(e) => setVariantTitle(e.target.value)}
+                className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
+              >
+                <option value="">Select…</option>
+                {(subcategoryName ? subVariants : product!.variants!).map((v) => (
+                  <option key={v.title} value={v.title}>
+                    {v.title} — {fmtMoney(v.price)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {hasOptions && (
+            <div>
+              <label className="text-[11px] font-medium text-slate-600">Option</label>
+              <select
+                value={optionTitle}
+                onChange={(e) => setOptionTitle(e.target.value)}
+                className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
+              >
+                <option value="">Select…</option>
+                {product!.productOptions!.map((o) => (
+                  <option key={o.title} value={o.title}>
+                    {o.title} — {fmtMoney(o.price)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {product && (
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-medium text-slate-600">Quantity</label>
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+                className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
+              />
+              <button
+                type="button"
+                onClick={addItem}
+                className="ml-auto px-3 py-1.5 rounded-full bg-slate-100 text-[13px] hover:bg-slate-200"
+              >
+                Add to order
+              </button>
+            </div>
+          )}
+
+          {cart.length > 0 && (
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-2 space-y-1">
+              <div className="text-[11px] font-semibold text-slate-600 uppercase">Cart</div>
+              {cart.map((c, i) => {
+                const detail = [c.subcategoryName, c.variantTitle].filter(Boolean).join(" > ");
+                const opt = c.optionTitle ? ` [opt ${c.optionTitle}]` : "";
+                return (
+                  <div key={i} className="flex items-center justify-between text-[12px]">
+                    <span className="truncate mr-2">
+                      {c.quantity}× <span className="font-medium">{c.productName}</span>
+                      {detail ? ` (${detail})` : ""}{opt}
+                    </span>
+                    <span className="text-slate-600 mr-2">{fmtMoney(c.unitPrice * c.quantity)}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(i)}
+                      className="text-[11px] text-red-600 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+              <div className="flex justify-between pt-1 border-t border-slate-200 text-[12px] font-medium">
+                <span>Subtotal</span>
+                <span>{fmtMoney(subtotal)}</span>
+              </div>
+            </div>
+          )}
+
+          {error && <p className="text-[12px] text-red-600">{error}</p>}
+          <div className="flex justify-between pt-1">
+            <button
+              type="button"
+              onClick={() => setStep("customer")}
+              className="px-3 py-1.5 rounded-full text-[13px] text-slate-600 hover:text-slate-900"
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (cart.length === 0) return setError("Add at least one item.");
+                setError(null);
+                setStep("payment");
+              }}
+              className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3 — Payment */}
+      {step === "payment" && (
+        <div className="space-y-2">
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-[12px] space-y-0.5">
+            <div className="font-semibold text-slate-600 uppercase text-[11px]">Summary</div>
+            <div>Customer: <span className="font-medium">{chosen?.name}</span></div>
+            <div>Items: {cart.length}</div>
+            <div>Subtotal: <span className="font-medium">{fmtMoney(subtotal)}</span></div>
+            <div className="text-[11px] text-slate-500">Discount/tax (if any) applied by the system on submit.</div>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-600">Payment method</label>
+            <div className="mt-0.5 flex gap-2">
+              <label
+                className={`flex-1 rounded-md border px-3 py-2 text-[13px] ${
+                  !qrReady
+                    ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+                    : payment === "qr"
+                    ? "border-blue-500 bg-blue-50 text-blue-700 cursor-pointer"
+                    : "border-slate-300 bg-white cursor-pointer"
+                }`}
+                title={!qrReady ? qrSetupHint : undefined}
+              >
+                <input
+                  type="radio"
+                  name="payment"
+                  value="qr"
+                  checked={payment === "qr"}
+                  onChange={() => setPayment("qr")}
+                  disabled={!qrReady}
+                  className="mr-1.5"
+                />
+                {country === "SG" ? "PayNow QR" : "UPI QR"}
+              </label>
+              <label className={`flex-1 cursor-pointer rounded-md border px-3 py-2 text-[13px] ${
+                payment === "cash" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-300 bg-white"
+              }`}>
+                <input
+                  type="radio"
+                  name="payment"
+                  value="cash"
+                  checked={payment === "cash"}
+                  onChange={() => setPayment("cash")}
+                  className="mr-1.5"
+                />
+                Cash
+              </label>
+            </div>
+            {!qrReady && qrSetupHint && (
+              <p className="mt-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                {qrSetupHint}
+              </p>
+            )}
+          </div>
+          {error && <p className="text-[12px] text-red-600">{error}</p>}
+          <div className="flex justify-between pt-1">
+            <button
+              type="button"
+              onClick={() => setStep("items")}
+              className="px-3 py-1.5 rounded-full text-[13px] text-slate-600 hover:text-slate-900"
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={status === "submitting"}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 disabled:opacity-60"
+            >
+              {status === "submitting" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              {status === "submitting" ? "Placing…" : payment === "qr" ? "Place order & show QR" : "Place order"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Tabs the chat can jump to (matches the sidebar order, minus the chat tab itself).
 const NAV_TABS: { id: string; label: string; Icon: any }[] = [
   { id: "dashboard", label: "Analytics", Icon: Store },
@@ -310,20 +1067,30 @@ const SUGGESTED_CARDS: { Icon: any; tint: string; title: string; sub: string; pr
   { Icon: Store, tint: "text-blue-600 bg-blue-50", title: "Today's revenue", sub: "Quick snapshot of today's sales", prompt: "Show today's revenue" },
   { Icon: Store, tint: "text-blue-600 bg-blue-50", title: "This month analytics", sub: "Revenue, orders & top products", prompt: "This month analytics" },
   // Kiosk
-  { Icon: Monitor, tint: "text-emerald-600 bg-emerald-50", title: "Place a kiosk order", sub: "e.g. \"Place order for Vansh: 2 Mixed Nuts\"", prompt: "Place order for <name>: <items>" },
+  { Icon: Monitor, tint: "text-emerald-600 bg-emerald-50", title: "Place a kiosk order", sub: "Opens the inline order form", prompt: "Place an order" },
   { Icon: Monitor, tint: "text-emerald-600 bg-emerald-50", title: "Get a receipt", sub: "Generate the PDF for any order", prompt: "Receipt for order <orderId>" },
   // Orders
   { Icon: ShoppingCart, tint: "text-amber-600 bg-amber-50", title: "Pending orders", sub: "See what still needs your action", prompt: "Show pending orders" },
   { Icon: ShoppingCart, tint: "text-amber-600 bg-amber-50", title: "Confirm all payments", sub: "Mark every matched payment as paid", prompt: "Confirm all matched payments" },
+  { Icon: ShoppingCart, tint: "text-amber-600 bg-amber-50", title: "Confirm today's orders", sub: "Move today's pending → processing", prompt: "Confirm all today's orders" },
   // CRM
   { Icon: Users, tint: "text-rose-600 bg-rose-50", title: "All customers", sub: "Full customer list with stats", prompt: "Show all my customers" },
-  { Icon: Users, tint: "text-rose-600 bg-rose-50", title: "Add a customer", sub: "Voice or text — phone, email", prompt: "Add customer <name>, <phone>, <email>" },
+  { Icon: Users, tint: "text-rose-600 bg-rose-50", title: "Add a customer", sub: "Opens the Add Customer form pre-filled", prompt: "Add customer <name>, <phone>, <email>" },
   // Products
   { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "All products", sub: "Browse your catalog", prompt: "Show all products" },
   { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "Low stock alerts", sub: "Items below threshold", prompt: "Low stock products" },
-  { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "Add a new product", sub: "Quick catalog entry", prompt: "Add a new product called <name>, price <price>, category <category>" },
+  { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "Add a new product", sub: "Opens the Add Product form", prompt: "Add a new Product" },
   // Settings
   { Icon: Settings, tint: "text-slate-600 bg-slate-100", title: "Shop info", sub: "Your store profile", prompt: "Show shop info" },
+  // Learn KiosCart — explainer questions answered from the platform knowledge base.
+  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "How do I enable delivery?", sub: "Set up the delivery toggle and fees", prompt: "How do I enable delivery?" },
+  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "How do payments work?", sub: "UPI, PayNow, Gmail matching", prompt: "How do payments work in KiosCart?" },
+  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "How do I add an operator?", sub: "Team members with role-based access", prompt: "How do I add an operator?" },
+  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "What does Kiosk mode do?", sub: "Walk-in / in-store ordering", prompt: "What does Kiosk mode do?" },
+  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "How do I create a coupon?", sub: "Percentage or flat discounts", prompt: "How do I create a coupon?" },
+  { Icon: HelpCircle, tint: "text-violet-600 bg-violet-50", title: "What hardware do I need?", sub: "Tablets, terminals, printers", prompt: "What hardware do I need to run KiosCart?" },
+  { Icon: HelpCircle, tint: "text-violet-600 bg-violet-50", title: "Can I bulk import products?", sub: "Excel / CSV upload", prompt: "Can I bulk import products?" },
+  { Icon: HelpCircle, tint: "text-violet-600 bg-violet-50", title: "What plans are available?", sub: "Starter vs Enterprise", prompt: "What plans does KiosCart offer?" },
 ];
 
 // Lightweight markdown-to-HTML for chat replies. Supports:
@@ -413,6 +1180,73 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Forward-declare a ref for sendMessage so InlineOrderForm's onSubmit can
+  // call it before its definition. Filled in below once sendMessage exists.
+  const sendMessageRef = useRef<(text: string, isGreeting?: boolean) => void>(() => {});
+
+  const submitOrderForm = useCallback((msgId: string, synth: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, orderFormStatus: "submitted" as const } : m)),
+    );
+    sendMessageRef.current(synth);
+  }, []);
+
+  const submitCustomerForm = useCallback(async (
+    msgId: string,
+    form: { firstName: string; lastName: string; whatsAppNumber: string; email?: string },
+  ) => {
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
+    let shopkeeperId: string;
+    try {
+      const decoded: any = jwtDecode(token);
+      shopkeeperId = decoded?.sub;
+    } catch {
+      return;
+    }
+    if (!shopkeeperId) return;
+
+    setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, customerFormStatus: "submitting" } : m));
+
+    try {
+      const payload = {
+        name: `${form.firstName} ${form.lastName}`.trim(),
+        firstName: form.firstName,
+        lastName: form.lastName,
+        whatsAppNumber: form.whatsAppNumber,
+        ...(form.email ? { email: form.email } : {}),
+      };
+      const res = await fetch(`${apiURL}/users/create-user-by-shopkeeper/${shopkeeperId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(errText || `HTTP ${res.status}`);
+      }
+      setMessages((prev) => [
+        ...prev.map((m) => m.id === msgId ? { ...m, customerFormStatus: "done" as const } : m),
+        {
+          id: (Date.now() + 1).toString(),
+          role: "bot",
+          text: `Customer **${form.firstName} ${form.lastName}** created with WhatsApp **${form.whatsAppNumber}**.`,
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev.map((m) => m.id === msgId ? { ...m, customerFormStatus: "idle" as const } : m),
+        {
+          id: (Date.now() + 1).toString(),
+          role: "bot",
+          text: `Could not create customer: ${err?.message || "unknown error"}.`,
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  }, []);
 
   const downloadReceipt = useCallback(async (msgId: string, mongoId: string, type: "A4" | "58MM") => {
     setReceiptUI((p) => ({ ...p, [msgId]: "downloading" }));
@@ -515,6 +1349,16 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
       if (res.ok) {
         const data = await res.json();
         let qr: QRPayload | undefined;
+        let receipt: ReceiptPayload | undefined;
+        let qrSetupError: string | null = null;
+        if (data.botAction?.type === "showReceipt" && data.botAction.orderMongoId) {
+          receipt = {
+            orderId: data.botAction.orderId,
+            orderMongoId: data.botAction.orderMongoId,
+            amount: data.botAction.amount,
+            country: data.botAction.country,
+          };
+        }
         if (data.botAction?.type === "showQR") {
           const qrValue = await buildQrValue(data.botAction);
           if (qrValue) {
@@ -526,20 +1370,52 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
               shopName: data.botAction.shopName,
               qrValue,
             };
+          } else {
+            // Order placed but QR can't be rendered — likely missing UPI image
+            // (India) or PayNow phone (Singapore). Surface a clear hint instead
+            // of silently dropping the QR card.
+            qrSetupError =
+              data.botAction.country === "SG"
+                ? "Order placed, but no PayNow QR could be generated. Save your PayNow WhatsApp number in Settings → Profile, then try again."
+                : "Order placed, but no UPI QR could be generated. Upload your UPI QR image in Settings → Payment Tracking, then try again.";
           }
         }
-        setMessages((prev) => [...prev, {
-          id: (Date.now() + 1).toString(), role: "bot", text: data.text,
-          quickActions: data.quickActions, qr,
-          productTree: Array.isArray(data.productTree) ? data.productTree : undefined,
-          analytics: data.analytics && typeof data.analytics === "object" ? data.analytics : undefined,
-          timestamp: new Date(),
-        }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(), role: "bot", text: data.text,
+            quickActions: data.quickActions, qr, receipt,
+            productTree: Array.isArray(data.productTree) ? data.productTree : undefined,
+            analytics: data.analytics && typeof data.analytics === "object" ? data.analytics : undefined,
+            customerForm: data.customerForm && typeof data.customerForm === "object" ? data.customerForm : undefined,
+            customerFormStatus: data.customerForm ? "idle" : undefined,
+            orderForm: data.orderForm && typeof data.orderForm === "object" ? data.orderForm : undefined,
+            orderFormStatus: data.orderForm ? "idle" : undefined,
+            timestamp: new Date(),
+          },
+          ...(qrSetupError
+            ? [{
+                id: (Date.now() + 2).toString(),
+                role: "bot" as const,
+                text: qrSetupError,
+                timestamp: new Date(),
+              }]
+            : []),
+        ]);
         if (data.botAction?.type === "navigate" && data.botAction.tab && onNavigate) {
-          const extras: { action?: "add" | "edit"; productName?: string } = {};
+          const extras: {
+            action?: "add" | "edit";
+            productName?: string;
+            customerPrefill?: {
+              firstName?: string;
+              lastName?: string;
+              whatsapp?: string;
+              email?: string;
+            };
+          } = {};
           if (data.botAction.action) extras.action = data.botAction.action;
-          if (data.botAction.productName)
-            extras.productName = data.botAction.productName;
+          if (data.botAction.productName) extras.productName = data.botAction.productName;
+          if (data.botAction.customerPrefill) extras.customerPrefill = data.botAction.customerPrefill;
           setTimeout(() => {
             onNavigate(data.botAction.tab, extras);
             setOpen(false);
@@ -560,6 +1436,11 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
       setLoading(false);
     }
   }, []);
+
+  // Keep the order-form's send-back ref pointed at the latest sendMessage.
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
 
   useEffect(() => {
     if (open && !initialized) {
@@ -757,6 +1638,79 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                       <AnalyticsCards data={msg.analytics} />
                     </div>
                   )}
+                  {msg.customerForm && (
+                    <div className={isPage ? "ml-10 max-w-md" : "ml-8 max-w-sm"}>
+                      <InlineCustomerForm
+                        initial={msg.customerForm}
+                        status={msg.customerFormStatus || "idle"}
+                        onSubmit={(form) => submitCustomerForm(msg.id, form)}
+                      />
+                    </div>
+                  )}
+                  {msg.orderForm && (
+                    <div className={isPage ? "ml-10" : "ml-8"}>
+                      <InlineOrderForm
+                        payload={msg.orderForm}
+                        status={msg.orderFormStatus || "idle"}
+                        onSubmit={(synth) => submitOrderForm(msg.id, synth)}
+                      />
+                    </div>
+                  )}
+                  {msg.receipt && (() => {
+                    const state = receiptUI[msg.id] || "idle";
+                    const mongoId = msg.receipt.orderMongoId;
+                    return (
+                      <div className="mt-2 ml-8 inline-block bg-white border border-emerald-200 rounded-xl px-3 py-2 shadow-sm">
+                        <div className="text-[12px] font-semibold text-emerald-900 mb-0.5">
+                          Order #{msg.receipt.orderId} placed
+                        </div>
+                        <div className="text-[11px] text-slate-500 mb-1.5">
+                          Cash received{msg.receipt.amount
+                            ? ` · Total ${msg.receipt.country === "SG" ? "S$" : "₹"}${msg.receipt.amount.toFixed(2)}`
+                            : ""}
+                        </div>
+                        {state === "downloading" ? (
+                          <div className="inline-flex items-center gap-1.5 text-[11px] text-blue-700">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Preparing receipt…
+                          </div>
+                        ) : state === "choosing" ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] text-gray-500">Format:</span>
+                            <button
+                              type="button"
+                              onClick={() => downloadReceipt(msg.id, mongoId, "A4")}
+                              className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                            >
+                              A4
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => downloadReceipt(msg.id, mongoId, "58MM")}
+                              className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                            >
+                              58mm (Thermal)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setReceiptUI((p) => ({ ...p, [msg.id]: "idle" }))}
+                              className="text-[11px] px-2 py-1 rounded-full text-gray-500 hover:text-gray-700"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setReceiptUI((p) => ({ ...p, [msg.id]: "choosing" }))}
+                            className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download receipt
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {msg.qr && (
                     <div className="mt-2 ml-8 inline-block bg-white border rounded-xl p-3 shadow-sm">
                       <div className="text-xs font-semibold text-gray-700 mb-1">

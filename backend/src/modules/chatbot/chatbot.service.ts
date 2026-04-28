@@ -13,6 +13,13 @@ export type BotAction =
       // productName (products tab only for now).
       action?: "add" | "edit";
       productName?: string;
+      // CRM-tab only: pre-fill the Add Customer form with these fields.
+      customerPrefill?: {
+        firstName?: string;
+        lastName?: string;
+        whatsapp?: string;
+        email?: string;
+      };
     }
   | {
       type: "showQR";
@@ -26,6 +33,18 @@ export type BotAction =
       shopName?: string;
       shopkeeperPhone?: string;
       paymentURL?: string;
+    }
+  | {
+      // Cash-order confirmation. The widget renders a standalone Download
+      // Receipt pill (A4 / 58mm) keyed on the order's Mongo _id, mirroring
+      // the receipt picker that lives inside the QR card for QR orders.
+      type: "showReceipt";
+      orderId: string;
+      orderMongoId: string;
+      amount: number;
+      // Country drives the currency symbol the pill displays next to the
+      // amount ("₹" for India, "S$" for Singapore).
+      country?: "IN" | "SG";
     };
 export interface ProductTreeItem {
   name: string;
@@ -47,12 +66,53 @@ export interface AnalyticsSummary {
   period?: string; // monthly / lastmonth / today / etc.
   topProducts?: { name: string; sold?: number; revenue?: number }[];
 }
+export interface CustomerFormPayload {
+  // Pre-fill values for the inline Add Customer form rendered in the chat.
+  // The chat widget POSTs the submitted form to
+  // /users/create-user-by-shopkeeper/:sid using the JWT in sessionStorage.
+  firstName?: string;
+  lastName?: string;
+  whatsapp?: string;
+  email?: string;
+}
+// Inline kiosk-order form rendered inside the chat. The form is purely a
+// data collector: when the shopkeeper clicks Submit, the widget synthesises
+// a natural-language "Place order for …" message and sends it through the
+// regular chat pipeline, so the LLM-driven kiosk specialist + place_order
+// tool do the heavy lifting (fuzzy product matching, multi-layer resolution,
+// inventory decrement, QR generation). That way the structured UI eliminates
+// freeform-typing errors but the AI still owns execution.
+export interface OrderFormCatalogItem {
+  name: string;
+  price: number;
+  category?: string;
+  // Tree fields — frontend uses these to drive cascading dropdowns.
+  productOptions?: { title: string; price: number }[];
+  variants?: { title: string; price: number }[];
+  subcategories?: {
+    name: string;
+    basePrice?: number;
+    variants?: { title: string; price: number }[];
+  }[];
+}
+export interface OrderFormPayload {
+  country: "IN" | "SG";
+  catalog: OrderFormCatalogItem[];
+  // Whether QR payment can actually render a working QR for this shopkeeper.
+  // India needs a paymentURL (uploaded UPI QR image). Singapore needs a
+  // whatsappNumber (PayNow). When false, the inline form forces Cash and
+  // shows a setup hint linking the shopkeeper to Settings.
+  qrReady: boolean;
+  qrSetupHint?: string;
+}
 export interface BotResponse {
   text: string;
   quickActions?: QuickAction[];
   botAction?: BotAction;
   productTree?: ProductTreeItem[];
   analytics?: AnalyticsSummary;
+  customerForm?: CustomerFormPayload;
+  orderForm?: OrderFormPayload;
 }
 
 interface ConvEntry { role: "user" | "assistant"; content: string; ts: number }
@@ -152,6 +212,7 @@ export class ChatbotService {
     { type: "function", function: { name: "get_top_products", description: "Get top selling products", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_payment_summary", description: "Get payment tracking summary", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "confirm_matched_payments", description: "Confirm all matched payments and move orders to processing", parameters: { type: "object", properties: {}, required: [] } } },
+    { type: "function", function: { name: "confirm_today_orders", description: "Bulk-move ALL of today's pending orders to processing. Orders already in processing / completed / cancelled are left untouched. Use when the shopkeeper says 'confirm all today's orders' / 'process today's orders' / 'start the day' etc.", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_matched_payments", description: "Get matched payments awaiting confirmation", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_unmatched_payments", description: "Get unmatched payments", parameters: { type: "object", properties: {}, required: [] } } },
     { type: "function", function: { name: "get_customers", description: "Get total customer count", parameters: { type: "object", properties: {}, required: [] } } },
@@ -174,7 +235,7 @@ export class ChatbotService {
   private static TAB_TOOLS: Record<string, string[]> = {
     dashboard: ["get_today_orders", "get_today_revenue", "get_analytics", "get_top_products", "get_product_count", "get_customers", "get_pending_orders"],
     kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr", "get_order_receipt", "get_order_detail"],
-    orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "get_matched_payments", "get_unmatched_payments"],
+    orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "confirm_today_orders", "get_matched_payments", "get_unmatched_payments"],
     crm: ["list_customers", "get_customer", "get_customer_orders", "create_customer", "update_customer", "get_crm_stats"],
     products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "create_product", "update_product", "update_variant", "update_subcategory", "update_option", "add_variant", "remove_variant", "add_subcategory", "remove_subcategory", "add_option", "remove_option", "delete_product", "bulk_update_products_status", "bulk_delete_products", "get_top_products"],
     storefront: [], // TODO phase 2: storefront config + branding tools
@@ -234,9 +295,10 @@ Other rules:
 - "Receipt for order X" → get_order_receipt.`,
     orders: `You are the **Orders & Payments** specialist for "{SHOP}" on KiosCart.
 Focus: orders, order status, payment tracking (Gmail-matched payments).
-- "pending orders" → get_pending_orders. "today" → get_today_orders.
+- "pending orders" → get_pending_orders. "today" / "today's orders" → get_today_orders (returns counts AND the order list — render the list as a markdown table).
 - "order X details" → get_order_detail. "mark order X as ready/completed" → update_order_status.
-- "confirm payment for order X" → confirm_payment_by_order_id. "confirm all matched" → confirm_matched_payments.
+- "confirm payment for order X" → confirm_payment_by_order_id. "confirm all matched (payments)" → confirm_matched_payments.
+- "confirm today's orders" / "process all today's orders" / "move today's pending orders to processing" / "start the day" → confirm_today_orders. This is a BULK action that flips today's pending orders → processing in one call. Orders already in processing/completed/cancelled are left alone.
 - Always reference the orderId in responses.`,
     crm: `You are the **CRM / Customers** specialist for "{SHOP}" on KiosCart.
 Focus: customer list, profiles, order history, and contact CRUD.
@@ -309,9 +371,53 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
 - For "hi" / "hello" / "hey" or any greeting → respond EXACTLY in this shape and nothing more:
     "{GREETING_LINE} 👋 I'm KiosAI, your store assistant for **{SHOP}**. What can I do for you today?"
   {GREETING_LINE} is already personalised (e.g. "Good morning, Vansh!" or "Good afternoon!" if no name) — use it verbatim, do NOT change "Good morning" to "Hello" or rewrite the wording.
-- For concrete questions, answer briefly using the few read-only tools available (shop info, today's orders/revenue, products).
-- Don't volunteer long lists or features unless asked — keep the greeting short and inviting.`,
+- For concrete data questions, use the few read-only tools available (shop info, today's orders/revenue, products).
+- For explainer / how-to / "what is …" / "can KiosCart …" questions, answer from the PLATFORM KNOWLEDGE block below. Cite tabs and concrete UI locations. Keep it to 2–4 sentences plus a "Next:" footer.
+- Don't volunteer long feature lists for greetings — keep greetings short.`,
   };
+
+  // Static product-knowledge block injected into every specialist's system
+  // message. Lets the bot answer "how do I X" / "what does Y do" / pricing /
+  // hardware / payment questions accurately without a tool call. Sourced
+  // from the in-product FAQs (frontend SHOPKEEPER_FAQS + LandingPage faqs)
+  // plus tab-by-tab functionality. Keep this tight — it's sent on every call,
+  // and providers cache static prompts so repeat-call cost is near zero.
+  private static KNOWLEDGE_BASE = `
+PLATFORM KNOWLEDGE — KiosCart (use for explainer / how-to questions; never for live data):
+
+What KiosCart is: A unified commerce platform for shopkeepers running both a physical kiosk (in-store self-checkout / walk-in POS) AND an online E-Shop, with one shared inventory, one analytics view, and one customer list.
+
+Tabs and what they do:
+- Dashboard — analytics: revenue, orders, top products, customers; period filters (today/this month/last month/this quarter/last quarter/this year/last year).
+- Kiosk — walk-in / in-store ordering. Place an order, generate a UPI (India) or PayNow (Singapore) QR for the customer to scan, or take cash and print a receipt (A4 or 58mm thermal).
+- Orders — list, view detail, update status (processing / ready / completed / cancelled), confirm Gmail-matched payments individually or in bulk.
+- CRM — customer list with stats (orderCount, totalSpent, lastOrderDate), single-customer profile, create/update customers, VIP filter (totalSpent > 100), CRM stats.
+- Products — catalog: name, price, SKU, inventory, status (active/draft/archived), variants (e.g. size XL), subcategories (e.g. Veg/Non-Veg, with their own variants), productOptions (Size/Pack), low-stock alerts, bulk archive/delete, image upload (UI only — not via chat).
+- Storefront — branding: theme, colors, logo, hero banner, store-link slug, SEO. Edits via the Storefront tab UI (not chat tools yet).
+- Settings — shop profile, payment QR / bank details, operators (team members with role-based access), coupons (PERCENTAGE or FLAT), pickup settings, delivery toggle, subscription plan.
+- Chat (KiosAI) — this assistant. Can place kiosk orders, open the Add Product / Edit Product form, render an Add Customer form inline, show analytics cards, list products as a tree.
+
+Plans: Starter for local shops; Enterprise for multi-location kiosk sync + advanced analytics. Direct shopkeepers to Settings → Subscription for plan changes; do not quote specific prices.
+
+Hardware: hardware-agnostic — runs on tablets (iPad / Android), touch-screen terminals, regular laptops. Supports thermal printers (58mm) and barcode scanners.
+
+Payments: India → UPI QR generated from the shopkeeper's saved UPI ID. Singapore → PayNow QR. Payment-email matching via Gmail integration moves orders from pending → processing once a matching transfer arrives.
+
+Delivery: optional. Settings → Delivery toggle. When enabled, set a flat fee or subtotal-based fee rules. When disabled, the cart hides the delivery option.
+
+Operators: Settings → Operators. Add a team member with name + WhatsApp + email and grant them tab-level access (e.g. only Kiosk + Orders). Operators see only the data scoped to the shop they belong to.
+
+Coupons: Settings → Coupons. Create PERCENTAGE or FLAT discounts with a max-usage cap. Coupons apply at checkout in the storefront and the cart.
+
+Languages: KiosAI replies in the language the shopkeeper writes in (English, Hindi, Hinglish, Tamil, Chinese, Malay, Singlish, etc.).
+
+Bulk product import: Products tab → Add Product → "Import" option for an Excel/CSV bulk upload. Not available via chat.
+
+Receipt formats: A4 PDF, or 58 mm thermal-printer roll. Choose at the moment of download from the QR card or the order detail.
+
+Security: payments are routed through PCI-compliant processors (UPI for India, PayNow for Singapore). KiosCart does not store card numbers.
+
+Limits of this chat: cannot upload images, change theme, edit storefront layout, run bulk CSV exports, or send WhatsApp/email campaigns — these require their respective tabs.`;
 
   async processMessage(shopkeeperIdIn: string, message: string, jwtName?: string): Promise<BotResponse> {
     let shopkeeperId = shopkeeperIdIn;
@@ -341,6 +447,18 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
       const shopName = shopkeeper?.shopName || "Store";
       const firstName = (personName || "").split(/\s+/)[0] || "there";
 
+      // Chit-chat short-circuit. Pure social messages (hi, thanks, ok,
+      // compliments, how-are-you) get a warm one-line reply without burning
+      // an LLM call or a tool round-trip. Off-product tasks ("translate this",
+      // "what's the weather") get a polite redirect to keep the bot scoped to
+      // the shopkeeper's KiosCart workflow.
+      const chitchat = this.detectChitChat(message);
+      if (chitchat) {
+        const reply = this.respondChitChat(chitchat, shopName, firstName, shopkeeper?.country);
+        this.appendHistory(shopkeeperId, message, reply.text);
+        return reply;
+      }
+
       // Stage 1 — router: classify the message into a tab. Give it the last
       // few turns so mid-flow follow-ups ("use T-shirt XL") stay on the same tab.
       const tab = await this.routeToTab(shopkeeperId, message);
@@ -357,6 +475,51 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
           this.appendHistory(shopkeeperId, message, reply.text);
           return reply;
         }
+
+        // Bare trigger ("place an order" / "kiosk order") with no items →
+        // render the inline order form. The form gathers customer +
+        // products + payment, then submits a synthesised "Place order for …"
+        // message that flows through THIS same pipeline (and lands in the
+        // tryParseKioskOrder branch above) so the AI ultimately places the order.
+        if (this.isKioskOrderTriggerIntent(message)) {
+          const sk: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
+          const rawCountry = (sk?.country || "IN").toString().trim().toUpperCase();
+          const country: "IN" | "SG" =
+            rawCountry.startsWith("SG") || rawCountry.startsWith("SING") ? "SG" : "IN";
+          const catalog = await this.buildOrderFormCatalog(shopkeeperId);
+          // QR readiness — determines whether the form lets the shopkeeper
+          // pick QR. India needs an uploaded UPI QR image; Singapore needs
+          // a PayNow-eligible WhatsApp number.
+          let qrReady = false;
+          let qrSetupHint: string | undefined;
+          if (country === "IN") {
+            qrReady = !!sk?.paymentURL;
+            if (!qrReady) {
+              qrSetupHint = "Upload your UPI QR image in Settings → Payment Tracking before taking QR payments.";
+            }
+          } else {
+            qrReady = !!sk?.whatsappNumber;
+            if (!qrReady) {
+              qrSetupHint = "Save your PayNow WhatsApp number in Settings → Profile before taking QR payments.";
+            }
+          }
+          const reply: BotResponse = {
+            text: "Fill in the order details below. I'll handle the rest once you submit.",
+            orderForm: { country, catalog, qrReady, qrSetupHint },
+          };
+          this.appendHistory(shopkeeperId, message, reply.text);
+          return reply;
+        }
+      }
+
+      // Deterministic fast path for "confirm all today's orders" (and
+      // synonyms). Bulk-flips today's pending orders → processing in one
+      // call, leaves anything already processing/completed/cancelled alone.
+      if (tab === "orders" && this.isConfirmTodayOrdersIntent(message)) {
+        const result: any = await this.executeTool(shopkeeperId, "confirm_today_orders", {});
+        const reply = this.renderConfirmTodayReply(result, shopkeeper?.country);
+        this.appendHistory(shopkeeperId, message, reply.text);
+        return reply;
       }
 
       // Deterministic fast path for analytics intents. The LLM sometimes calls
@@ -374,15 +537,25 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
 
           if (period === "today") {
             const todayResult: any = await this.executeTool(shopkeeperId, "get_today_orders", {});
-            const custResult: any = await this.executeTool(shopkeeperId, "get_customers", {});
             const top: any = await this.executeTool(shopkeeperId, "get_top_products", {});
             const orders = Number(todayResult?.total) || 0;
             const revenue = Number(todayResult?.revenue) || 0;
+            // Count ONLY customers who placed orders today (not all-time customers).
+            // get_customers does an unbounded all-time count, which made the
+            // snapshot's "Total Customers" show a number wildly out of sync with
+            // today's order count. Inline a date-scoped distinct-userId count.
+            const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+            const todayUserIds = await this.orderModel.distinct("userId", {
+              shopkeeperId,
+              createdAt: { $gte: todayStart },
+              isSoftDeleted: { $ne: true },
+            });
+            const customers = todayUserIds.filter(Boolean).length;
             analytics = {
               revenue,
               orders,
               avgOrder: orders > 0 ? Math.round((revenue / orders) * 100) / 100 : 0,
-              customers: Number(custResult?.totalCustomers) || 0,
+              customers,
               currency,
               period: "today",
               topProducts: Array.isArray(top) ? top.slice(0, 5) : undefined,
@@ -440,11 +613,58 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
         return reply;
       }
 
+      // Deterministic fast path for "open Add/Edit Product form" intents.
+      // Once the same intent is in the chat history, the LLM frequently
+      // regresses to a text-only ack on the repeat ("Sure, opening…") and
+      // skips the navigate_to tool call — so the form never opens. Detect
+      // these intents by regex and emit the navigate action ourselves.
+      if (tab === "products") {
+        const nav = this.detectProductNavIntent(message);
+        if (nav) {
+          const text = nav.action === "add"
+            ? "Opening the Add Product form…"
+            : `Opening **${nav.productName}** for editing…`;
+          const reply: BotResponse = {
+            text,
+            botAction: {
+              type: "navigate",
+              tab: "products",
+              action: nav.action,
+              ...(nav.productName ? { productName: nav.productName } : {}),
+            },
+            quickActions: this.suggestActions("product"),
+          };
+          this.appendHistory(shopkeeperId, message, reply.text);
+          return reply;
+        }
+      }
+
+      // Deterministic fast path for "add customer …" intents. Render an
+      // inline Add Customer form INSIDE the chat (not navigate to the CRM
+      // tab), pre-filled with whatever fields the shopkeeper supplied. The
+      // widget posts the form straight to the existing create-user endpoint
+      // when the shopkeeper clicks Create. Skips the LLM and create_customer.
+      if (tab === "crm") {
+        const crm = this.detectCrmAddIntent(message);
+        if (crm) {
+          const fullName = [crm.firstName, crm.lastName].filter(Boolean).join(" ");
+          const text = fullName
+            ? `Review **${fullName}**'s details below and click Create when ready.`
+            : "Fill in the customer's details below and click Create.";
+          const reply: BotResponse = {
+            text,
+            customerForm: crm,
+          };
+          this.appendHistory(shopkeeperId, message, reply.text);
+          return reply;
+        }
+      }
+
       // Stage 2 — specialist for that tab runs the tool-calling loop.
       const reply = await this.runSpecialist(shopkeeperId, message, tab, shopName, firstName, shopkeeper?.country);
       this.appendHistory(shopkeeperId, message, reply.text);
       return reply;
-    } catch (error) {
+    } catch (error: any) {
       const detail = error?.response?.data?.error?.failed_generation || error?.error?.failed_generation || "";
       this.logger.error(`AI Error: ${error.message}${detail ? ` | failed_generation: ${JSON.stringify(detail).slice(0, 500)}` : ""}`);
       return this.fallbackKeyword(shopkeeperId, message, jwtName);
@@ -468,7 +688,7 @@ Focus: shop profile, operators, coupons, plan/subscription, pickup settings.
     if (/\b(pending orders|order status|mark order|confirm payment|update order|cancel order)\b/.test(m)) return "orders";
     if (/\b(revenue|analytics|stats|performance|how is my shop|earnings|earning|income|report)\b/.test(m)) return "dashboard";
     if (this.detectAnalyticsPeriod(m)) return "dashboard";
-    if (/\b(add|edit|delete|remove|update)\s+(a\s+)?(product|variant|subcategory|option)\b/.test(m)) return "products";
+    if (/\b(add|edit|delete|remove|update|create|new)\s+(a\s+|an\s+|the\s+)?(new\s+)?(product|variant|subcategory|option)\b/.test(m)) return "products";
     if (/\b(low stock|top products|show menu|view menu|catalog|catalogue|inventory)\b/.test(m)) return "products";
     if (this.isListProductsIntent(m)) return "products";
 
@@ -534,24 +754,30 @@ Return just the id.`,
       .replace("{GREETING_LINE}", greetingLine);
 
     const sysCommon = `
-Global rules:
-- Be concise. Use **bold** for key numbers and order ids.
-- For any list/table-like answer (customers, products, orders, payments, variants), output a GitHub-flavored markdown table:
-    | Col1 | Col2 |
-    |------|------|
-    | a    | b    |
-  The chat UI renders this as a proper styled HTML table — don't fall back to plain bullet lines for tabular data.
-- Always use tools to get real data — never make up numbers.
-- IMPORTANT: call tools via the structured tool-calling API only. NEVER write tool calls as text like "<function=name{...}>" or inside markdown — that is not a valid response.
-- If a tool returns an error, explain it to the shopkeeper in plain language and suggest what to do next.
-- Suggest 2-3 follow-up actions in your reply text.
-- **Language matching**: reply in the SAME language/script the shopkeeper wrote in. If they write in English, reply in English. If they write in Hindi (Devanagari), reply in Hindi. Hinglish (Hindi words in Latin script, e.g. "aaj ka order kya hai") → reply in Hinglish. Same rule for Tamil, Malay, Chinese, Singlish, or any other language. Do NOT default to Hindi when the user wrote English. Recognise period words in the user's language (e.g. "today/aaj/今日", "last month/pichhla mahina/上个月") but match their reply language.`;
+Hard rules — violations are bugs:
+- THREE QUESTION CLASSES (everything else gets the polite refusal):
+  (a) DATA questions about THIS shop (orders, products, customers, revenue, payments, plan, operators, stock) — require a tool call. Numbers/IDs/names come ONLY from the tool result received this turn. No invention, no estimation, no hedging.
+  (b) EXPLAINER questions about KiosCart itself ("how do I X", "what does Y do", "can KiosCart …", "where is Z", pricing/hardware/security) — answer from PLATFORM KNOWLEDGE. No tool call. Cite tabs by name.
+  (c) CHIT-CHAT (greeting, thanks, "ok", compliment, goodbye, "how are you") — one warm sentence, then a one-line nudge back to a product action. Never expand into off-product conversation.
+- HARD PRODUCT FENCE: never answer non-product tasks (translation, math, code, weather, news, world knowledge, recipes, jokes, anything off-domain). Reply: "That's outside what I can help with — I'm built for orders, products, customers, payments, and analytics on KiosCart. What can I help you with there?" Do not pretend or try to be helpful with the off-product ask. Never call a tool for an off-product ask.
+- DATA-ONLY OUTPUT for class (a). Reply IS the data. No preamble ("Here's…", "Sure,", "Of course,"), no postamble ("Let me know…", "Hope this helps"). Start with the table/form/sentence and stop.
+- Format for class (a): multi-row → GFM markdown table; single record → "**Label:** value" form one per line; analytics → "**Snapshot — <period>**" + KPI table; write-tool confirm → one sentence with **ID/name** in bold.
+- Format for class (b): 2–4 short sentences, plain text. Reference the relevant tab (e.g. "Settings → Operators"). End with one "Next:" footer if a concrete action makes sense.
+- Empty tool result → reply exactly: "No matching records." Question outside both classes (no tool, no knowledge) → reply exactly: "I don't have an answer for that yet — please check the relevant tab in your dashboard."
+- No hedging (approximately/around/roughly/probably/maybe/I think). No filler. Bold only numbers, IDs, and form labels. No emojis except where a specialist template explicitly includes one (greetings 👋, kiosk confirmations ✅, errors ⚠️). No exclamation marks except inside the explicit greeting template.
+- Tool-calling via the structured API only — never inline "<function=name{...}>" text. On tool error, surface the message and suggest one next action.
+- Language: reply in the shopkeeper's input language/script. Don't default to Hindi when the input is English.`;
 
     const history = this.historyAsMessages(shopkeeperId);
     const lang = this.detectLanguage(message);
     const langDirective = `REPLY LANGUAGE: ${lang}. This is mandatory — the shopkeeper's message is in ${lang}, so every word of your response must be in ${lang}. Ignore any earlier replies that used a different language.`;
+    // Currency directive — every money value the model emits must carry the
+    // shopkeeper's local currency symbol so India shopkeepers never see "S$"
+    // and Singapore shopkeepers never see "₹".
+    const currency = this.currencySymbol(country);
+    const currencyDirective = `CURRENCY: this shop is in ${country || "IN"} — every money value in your reply must be prefixed with "${currency}" (e.g. "${currency}250.00", "${currency}1,250"). Never strip the symbol, never substitute a different one.`;
     const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: `${langDirective}\n\n${prompt}\n${sysCommon}` },
+      { role: "system", content: `${langDirective}\n${currencyDirective}\n\n${prompt}\n${sysCommon}\n${ChatbotService.KNOWLEDGE_BASE}` },
       ...history,
       { role: "user", content: message },
     ];
@@ -670,12 +896,16 @@ Global rules:
         }
       }
 
+      // Follow-up renders the final reply from tool results. Cap tokens
+      // tighter and drop temperature to 0 to discourage rambling/hallucinated
+      // narrative around the data.
       let followUp: any;
       try {
         followUp = await this.ai.chat.completions.create({
           model: currentModel,
           messages: toolMessages,
-          max_tokens: 1024,
+          max_tokens: 600,
+          temperature: 0,
         });
       } catch (fErr: any) {
         if (this.isRateLimit(fErr) && this.fallbackModel !== currentModel) {
@@ -683,18 +913,26 @@ Global rules:
           followUp = await this.ai.chat.completions.create({
             model: this.fallbackModel,
             messages: toolMessages,
-            max_tokens: 1024,
+            max_tokens: 600,
+            temperature: 0,
           });
         } else {
           throw fErr;
         }
       }
-      const text = (followUp.choices[0].message as any).content || "Done!";
+      const rawFollow = (followUp.choices[0].message as any).content;
+      const text = rawFollow && rawFollow.trim() ? rawFollow : "No matching records.";
       return { text, quickActions: this.suggestActions(message), botAction, productTree, analytics };
     }
 
+    // No tool calls path — model replied with text only. Whitespace counts as
+    // empty for the safety check; fall through to a polite redirect so the
+    // shopkeeper always sees something useful.
+    const directText = assistantMsg.content && assistantMsg.content.trim()
+      ? assistantMsg.content
+      : "Could you give me a bit more detail? You can also try one of the shortcuts below.";
     return {
-      text: assistantMsg.content || "How can I help you?",
+      text: directText,
       quickActions: this.suggestActions(message),
       botAction,
       productTree,
@@ -848,6 +1086,20 @@ Global rules:
   // Builds the user-facing reply for a deterministic kiosk order. If place_order
   // succeeded and the method is QR, auto-calls get_payment_qr so the widget shows
   // the code without needing another round trip.
+  // Currency symbol for a shopkeeper's country. Used everywhere the chat
+  // renders money so India shopkeepers see ₹ and Singapore shopkeepers see S$.
+  private currencySymbol(country?: string): string {
+    const c = (country || "").toString().trim().toUpperCase();
+    if (c.startsWith("SG") || c.startsWith("SING")) return "S$";
+    return "₹";
+  }
+
+  // Two-decimal money formatter scoped to a country.
+  private fmtMoney(value: any, country?: string): string {
+    const n = Number(value) || 0;
+    return `${this.currencySymbol(country)}${n.toFixed(2)}`;
+  }
+
   private async renderKioskOrderReply(shopkeeperId: string, result: any, paymentMethod?: "cash" | "qr"): Promise<BotResponse> {
     if (result?.error) {
       const lines = [`⚠️ ${result.error}`];
@@ -863,24 +1115,40 @@ Global rules:
     }
     if (!result?.success) return { text: "Couldn't place order. Please try again." };
 
+    // Resolve country once so every money line gets the right symbol.
+    const sk: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
+    const country = sk?.country;
+
     const b = result.breakdown || {};
     const itemsLine = (result.items || []).map((i: any) => {
       const parts = [i.subcategory, i.variant].filter(Boolean);
-      if (i.option) parts.push(`option ${i.option}${i.optionPrice ? ` +${i.optionPrice}` : ""}`);
+      if (i.option) parts.push(`option ${i.option}${i.optionPrice ? ` +${this.fmtMoney(i.optionPrice, country)}` : ""}`);
       const detail = parts.length ? ` (${parts.join(" > ")})` : "";
-      const priceLine = i.unitPrice !== undefined ? ` — ${i.unitPrice} × ${i.qty}` : "";
+      const priceLine = i.unitPrice !== undefined ? ` — ${this.fmtMoney(i.unitPrice, country)} × ${i.qty}` : "";
       return `  ${i.qty}× ${i.name}${detail}${priceLine}`;
     }).join("\n");
     const text = [
       `✅ Order **#${result.orderId}** placed for ${result.customer}.`,
       itemsLine,
-      `Subtotal: ${b.subtotal}${b.discountPercentage ? `  ·  Discount ${b.discountPercentage}%: -${b.discount}` : ""}${b.taxPercentage ? `  ·  Tax ${b.taxPercentage}%: +${b.tax}` : ""}`,
-      `**Total: ${b.total}**  (${paymentMethod === "cash" ? "cash received" : "QR payment"})`,
+      `Subtotal: ${this.fmtMoney(b.subtotal, country)}${b.discountPercentage ? `  ·  Discount ${b.discountPercentage}%: -${this.fmtMoney(b.discount, country)}` : ""}${b.taxPercentage ? `  ·  Tax ${b.taxPercentage}%: +${this.fmtMoney(b.tax, country)}` : ""}`,
+      `**Total: ${this.fmtMoney(b.total, country)}**  (${paymentMethod === "cash" ? "cash received" : "QR payment"})`,
     ].filter(Boolean).join("\n");
 
-    // For QR orders, pre-fetch the QR payload so the widget renders it inline.
+    // QR orders → pre-fetch the QR payload so the widget renders it inline.
+    // Cash orders → emit a showReceipt action so the widget renders a Download
+    // Receipt pill (with the same A4 / 58mm picker the QR card already uses).
     let botAction: BotAction | undefined;
-    if (paymentMethod !== "cash") {
+    if (paymentMethod === "cash") {
+      if (result.orderMongoId) {
+        botAction = {
+          type: "showReceipt",
+          orderId: result.orderId,
+          orderMongoId: result.orderMongoId,
+          amount: Number(result.breakdown?.total) || 0,
+          country: this.currencySymbol(country) === "S$" ? "SG" : "IN",
+        };
+      }
+    } else {
       const qr = await this.executeTool(shopkeeperId, "get_payment_qr", { order_id: result.orderId });
       if (qr && !qr.error) {
         botAction = {
@@ -906,12 +1174,15 @@ Global rules:
     const m = (message || "").toLowerCase().trim();
     // Must be analytics-shaped: revenue / sales / analytics / report / stats /
     // performance / dashboard / "how is my shop" / today summary.
+    // NOTE: "today's orders" / "this month orders" are NOT analytics — they
+    // are list requests that should route to the orders specialist so the
+    // shopkeeper sees a real table of order rows, not a KPI snapshot. So we
+    // intentionally exclude `orders` from the today/this-month patterns.
     const isAnalyticsish =
       /\b(revenue|sales|analytics|report|stats|performance|dashboard|earnings|earning|income)\b/.test(m) ||
       /\bhow\s+is\s+my\s+shop\b/.test(m) ||
-      // Accepts both straight and curly apostrophes ('today's orders', 'today's orders')
-      /\btoday(['‘’]s)?\s+(orders?|sales?|revenue|summary|stats?)\b/.test(m) ||
-      /\bthis\s+(month|year|quarter)\s+(orders?|sales?|revenue|summary|stats?|report|analytics)\b/.test(m);
+      /\btoday(['‘’]s)?\s+(sales?|revenue|summary|stats?)\b/.test(m) ||
+      /\bthis\s+(month|year|quarter)\s+(sales?|revenue|summary|stats?|report|analytics)\b/.test(m);
     if (!isAnalyticsish) return null;
 
     if (/\blast\s+month\b/.test(m)) return "lastmonth";
@@ -923,6 +1194,348 @@ Global rules:
     if (/\btoday\b|\baaj\b/.test(m)) return "today";
     // Generic "show analytics" / "revenue" with no period → default to monthly.
     return "monthly";
+  }
+
+  // "add product" / "edit product X" → open the dashboard's product form.
+  // Returns null when the message looks like a narrow inline edit
+  // ("change Mango price to 50") so update_product still wins for those.
+  private detectProductNavIntent(message: string): { action: "add" | "edit"; productName?: string } | null {
+    const m = (message || "").toLowerCase().trim().replace(/[?!.]+$/, "");
+    if (!m) return null;
+    // Inline-value edits ("change X price to 50", "X stock 100") — leave to LLM/update_product.
+    if (/\b(price|cost|category|inventory|stock|sku|tags?|barcode|measurement|description|discount)\b/.test(m)) return null;
+
+    // ADD intents — pure form-open phrasing, no other details.
+    if (
+      /^(?:please\s+)?(?:add|create)\s+(?:a\s+|an\s+|the\s+)?(?:new\s+)?product(?:\s+form)?$/.test(m) ||
+      /^(?:please\s+)?new\s+product$/.test(m) ||
+      /^(?:please\s+)?(?:open|show|give\s+me)\s+(?:the\s+)?add\s+product(?:\s+form)?$/.test(m)
+    ) {
+      return { action: "add" };
+    }
+
+    // EDIT intents — must name a target, must not contain a number (those go to
+    // update_product). Strip a trailing " form" if the shopkeeper added it.
+    if (/\d/.test(m)) return null;
+    const edit = m.match(/^(?:please\s+)?(?:edit|update|modify)\s+(?:product\s+)?(.+?)$/);
+    if (edit) {
+      const name = edit[1].replace(/\s+form\s*$/, "").trim();
+      if (name && !["product", "the product", "this product", "a product"].includes(name)) {
+        return { action: "edit", productName: name };
+      }
+    }
+    const open = m.match(/^open\s+(.+?)\s+(?:for\s+(?:editing|edit)|edit\s+form)$/);
+    if (open) return { action: "edit", productName: open[1].trim() };
+
+    return null;
+  }
+
+  // Public — used by the chat controller's /chatbot/customer-search route.
+  // Wraps findCustomersForShopkeeper with the same operator → shop scope
+  // resolution that processMessage does.
+  async searchCustomersForOrderForm(callerId: string, query: string) {
+    let scopedShopId = callerId;
+    const skExists = await this.shopkeeperModel.exists({ _id: callerId });
+    if (!skExists) {
+      const op: any = await this.operatorModel.findById(callerId).lean();
+      if (op?.shopkeeperId) scopedShopId = String(op.shopkeeperId);
+    }
+    const matches = await this.findCustomersForShopkeeper(scopedShopId, query);
+    return {
+      count: matches.length,
+      customers: matches.slice(0, 10).map((u: any) => ({
+        id: u._id.toString(),
+        name: u.name || "",
+        whatsapp: u.whatsAppNumber || "",
+        email: u.email || "",
+      })),
+    };
+  }
+
+  // "confirm today's orders" / "process all today's orders" → bulk-flip
+  // pending → processing for today. Caught before the LLM so the action is
+  // deterministic and idempotent.
+  private isConfirmTodayOrdersIntent(message: string): boolean {
+    const m = (message || "").toLowerCase().trim().replace(/[?!.]+$/, "");
+    if (!m) return false;
+    if (
+      /^(?:please\s+)?(?:confirm|process|move|update|mark|approve)\s+(?:all\s+)?(?:of\s+)?(?:today'?s?|today)\s+(?:pending\s+)?orders?(?:\s+to\s+processing)?$/.test(m)
+    ) return true;
+    if (/^(?:please\s+)?(?:confirm|process|approve)\s+all\s+orders\s+received\s+today$/.test(m)) return true;
+    if (/^(?:please\s+)?(?:start|begin)\s+(?:the\s+)?day$/.test(m)) return true;
+    if (/^process\s+(?:the\s+)?(?:day's?\s+)?(?:pending\s+)?orders?$/.test(m)) return true;
+    return false;
+  }
+
+  // Render a clean reply for the bulk-confirm-today action — table of
+  // confirmed orders + a one-line summary of what was skipped.
+  private renderConfirmTodayReply(result: any, country?: string): BotResponse {
+    if (!result || result.total === 0) {
+      return {
+        text: "No orders today yet — nothing to confirm.",
+      };
+    }
+    if (result.confirmed === 0) {
+      const breakdown = [
+        result.alreadyProcessing > 0 ? `${result.alreadyProcessing} already processing` : "",
+        result.completed > 0 ? `${result.completed} completed` : "",
+        result.cancelled > 0 ? `${result.cancelled} cancelled` : "",
+      ].filter(Boolean).join(" · ");
+      return {
+        text: `All ${result.total} of today's orders are already past pending${breakdown ? ` (${breakdown})` : ""}.`,
+        quickActions: [
+          { label: "Today's Orders", action: "show today's orders" },
+          { label: "Pending Orders", action: "show pending orders" },
+        ],
+      };
+    }
+    const rows = (result.confirmedOrders || [])
+      .map((o: any) => `| #${o.orderId} | ${o.customer || "Customer"} | ${this.fmtMoney(o.amount, country)} |`)
+      .join("\n");
+    const skipped: string[] = [];
+    if (result.alreadyProcessing > 0) skipped.push(`${result.alreadyProcessing} already processing`);
+    if (result.completed > 0) skipped.push(`${result.completed} completed`);
+    if (result.cancelled > 0) skipped.push(`${result.cancelled} cancelled`);
+    const skippedLine = skipped.length > 0 ? ` (${skipped.join(" · ")} left as-is.)` : "";
+    const text = [
+      `Moved **${result.confirmed}** of today's pending orders to processing.${skippedLine}`,
+      "",
+      "| Order | Customer | Total |",
+      "|-------|----------|-------|",
+      rows,
+    ].join("\n");
+    return {
+      text,
+      quickActions: [
+        { label: "Today's Orders", action: "show today's orders" },
+        { label: "Pending Orders", action: "show pending orders" },
+        { label: "Confirm Matched Payments", action: "confirm all matched payments" },
+      ],
+    };
+  }
+
+  // Chit-chat detector — returns the bucket the message falls into, or null
+  // if it's a real product question. Bucket "offtopic" = a non-product task
+  // (math/translation/weather/world-knowledge) we should politely refuse.
+  private detectChitChat(message: string):
+    | "greeting"
+    | "thanks"
+    | "ack"
+    | "compliment"
+    | "bye"
+    | "howareyou"
+    | "joke"
+    | "offtopic"
+    | null {
+    const m = (message || "").toLowerCase().trim().replace(/[?!.]+$/, "");
+    if (!m) return null;
+    // Length guard — anything over 80 chars likely contains a real ask, leave
+    // it for the specialist routing.
+    if (m.length > 80) return null;
+
+    // Hard reject — these phrases look chit-chat-shaped but actually ask the
+    // bot to do off-product work. Catch them so we redirect explicitly.
+    if (/\b(translate|translation|paraphrase|rewrite|summarise|summarize)\b/.test(m)) return "offtopic";
+    if (/\b(weather|temperature|forecast|news|stock\s+price|cricket|sports|election)\b/.test(m)) return "offtopic";
+    if (/\b(write\s+(?:a\s+)?(?:poem|story|essay|song|email|code|script|program))\b/.test(m)) return "offtopic";
+    if (/\b(solve|calculate|compute|what\s+is\s+\d+|\d+\s*[+\-*/x]\s*\d+)\b/.test(m)) return "offtopic";
+    if (/\b(who\s+(?:is|was)\s+(?:the\s+)?(?:president|prime\s+minister|king|queen|ceo))\b/.test(m)) return "offtopic";
+    if (/\b(capital\s+of|population\s+of|currency\s+of|language\s+of)\b/.test(m)) return "offtopic";
+    if (/\b(recipe|cook|cooking)\b/.test(m)) return "offtopic";
+
+    // Greetings (full-message-only — "hi" inside a longer sentence isn't a greeting).
+    if (/^(?:hi|hii+|hello+|hey+|yo|hola|namaste|namaskar|salaam|salam|hii\s+there|hey\s+there|hi\s+there)$/.test(m)) return "greeting";
+    if (/^good\s+(?:morning|afternoon|evening|night)$/.test(m)) return "greeting";
+
+    // Thanks
+    if (/^(?:thanks|thank\s+you|thanku|thankyou|thx|ty|tysm|shukriya|dhanyavaad|dhanyavad)$/.test(m)) return "thanks";
+    if (/^(?:thanks|thank\s+you|thx)\s+(?:a\s+lot|so\s+much|very\s+much)$/.test(m)) return "thanks";
+
+    // Acknowledgements
+    if (/^(?:ok|okay|okk+|k|kk+|alright|got\s+it|noted|sure|fine|cool|done|yes|yeah|yep|nope|no)$/.test(m)) return "ack";
+
+    // Compliments / praise
+    if (/^(?:great|good|awesome|amazing|brilliant|perfect|excellent|wow|nice)$/.test(m)) return "compliment";
+    if (/\byou(?:'re|\s+are)\s+(?:great|amazing|awesome|smart|cool|the\s+best|so\s+helpful|helpful)\b/.test(m)) return "compliment";
+    if (/\b(?:good|great|nice|well)\s+(?:job|work)\b/.test(m)) return "compliment";
+
+    // How-are-you
+    if (/^(?:how\s+are\s+you|how('|\s+i)s\s+it\s+going|how\s+r\s+u|hru|whats\s+up|sup|kaise\s+ho|kaisa\s+hai)$/.test(m)) return "howareyou";
+
+    // Goodbye
+    if (/^(?:bye+|goodbye|see\s+you|see\s+ya|cya|talk\s+later|later|good\s+night|alvida|tata)$/.test(m)) return "bye";
+
+    // Joke / fun small-talk request
+    if (/^(?:tell\s+(?:me\s+)?(?:a\s+)?joke|make\s+me\s+laugh|haha|lol|lmao|rofl)$/.test(m)) return "joke";
+
+    return null;
+  }
+
+  // Friendly, KiosCart-scoped reply for each chit-chat bucket. Always pivots
+  // back to a product action so the conversation stays on rails.
+  private respondChitChat(
+    bucket:
+      | "greeting"
+      | "thanks"
+      | "ack"
+      | "compliment"
+      | "bye"
+      | "howareyou"
+      | "joke"
+      | "offtopic",
+    shopName: string,
+    firstName: string,
+    country?: string,
+  ): BotResponse {
+    const greetingLine = this.buildGreetingLine(firstName, country);
+    const name = firstName && firstName !== "there" ? firstName : "Kiosker";
+
+    const productActions: QuickAction[] = [
+      { label: "Today's Orders", action: "show today's orders" },
+      { label: "Today's Revenue", action: "today's revenue" },
+      { label: "Place an Order", action: "Place an order" },
+      { label: "Show Products", action: "show all products" },
+    ];
+
+    switch (bucket) {
+      case "greeting":
+        return {
+          text: `${greetingLine} 👋 I'm KiosAI, your store assistant for **${shopName}**. What can I do for you today?`,
+          quickActions: productActions,
+        };
+      case "thanks":
+        return {
+          text: `You're welcome, ${name}. Anything else for **${shopName}**?`,
+          quickActions: productActions,
+        };
+      case "ack":
+        return {
+          text: `Got it. Ready when you are.`,
+          quickActions: productActions,
+        };
+      case "compliment":
+        return {
+          text: `Appreciate it, ${name} — happy to keep **${shopName}** running smoothly.`,
+          quickActions: productActions,
+        };
+      case "howareyou":
+        return {
+          text: `All systems green here. How's **${shopName}** doing today?`,
+          quickActions: [
+            { label: "Today's Orders", action: "show today's orders" },
+            { label: "Today's Revenue", action: "today's revenue" },
+            { label: "Pending Orders", action: "show pending orders" },
+          ],
+        };
+      case "bye":
+        return {
+          text: `Take care, ${name}. I'll be here whenever **${shopName}** needs me.`,
+        };
+      case "joke":
+        return {
+          text: `I keep my humour scoped to your shop, ${name} — but I can tell you what's selling.`,
+          quickActions: [
+            { label: "Top Products", action: "top products" },
+            { label: "Today's Revenue", action: "today's revenue" },
+          ],
+        };
+      case "offtopic":
+        return {
+          text: `That's outside what I can help with, ${name}. I'm built for **${shopName}** — orders, products, customers, payments, and analytics. What can I help you with there?`,
+          quickActions: productActions,
+        };
+    }
+  }
+
+  // "place an order" / "new order" / "kiosk order" with NO items mentioned →
+  // open the inline kiosk-order form. We only fire when the message is the
+  // pure intent (no items, no customer); a fully-formed "Place order for X: 2 Y"
+  // is still picked up by tryParseKioskOrder so existing single-line ordering
+  // continues to work.
+  private isKioskOrderTriggerIntent(message: string): boolean {
+    const m = (message || "").toLowerCase().trim().replace(/[?!.]+$/, "");
+    if (!m) return false;
+    // Reject messages that look like full one-liners (have ":" or item numbers).
+    if (/:/.test(m)) return false;
+    if (/\bfor\s+\S+\s*:/.test(m)) return false;
+    return (
+      /^(?:please\s+)?(?:place|create|new|take|start|ring\s*up)\s+(?:(?:an?|the|new|a\s+new|the\s+new)\s+)?order$/.test(m) ||
+      /^(?:please\s+)?(?:open|show|start)\s+(?:the\s+)?(?:kiosk|order)\s*(?:form|order)?$/.test(m) ||
+      /^kiosk\s*order$/.test(m) ||
+      /^new\s+order$/.test(m)
+    );
+  }
+
+  // Build the structured catalog payload the inline order form consumes.
+  // Mirrors the public catalog (active, non-deleted) but limits to 200 rows so
+  // the dropdown stays responsive. Each row carries enough shape for the
+  // frontend to drive cascading option/subcategory/variant dropdowns.
+  private async buildOrderFormCatalog(sid: string) {
+    const products = await this.productModel
+      .find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, status: { $ne: "archived" } })
+      .sort({ name: 1 })
+      .limit(200)
+      .lean();
+    return products.map((p: any) => ({
+      name: p.name,
+      price: Number(p.price) || 0,
+      category: p.category,
+      productOptions: (p.productOptions || []).map((o: any) => ({
+        title: o.title,
+        price: Number(o.price) || 0,
+      })),
+      variants: (p.variants || []).map((v: any) => ({
+        title: v.title,
+        price: Number(v.price) || 0,
+      })),
+      subcategories: (p.subcategories || []).map((s: any) => ({
+        name: s.name,
+        basePrice: Number(s.basePrice) || 0,
+        variants: (s.variants || []).map((v: any) => ({
+          title: v.title,
+          price: Number(v.price) || 0,
+        })),
+      })),
+    }));
+  }
+
+  // "add customer Vansh, +91…, email@x" → open the Add Customer form pre-filled.
+  // Returns null when the message isn't a CRM-add intent. Empty tail
+  // (just "add a customer") returns an object with no fields so the form opens
+  // empty.
+  private detectCrmAddIntent(message: string): null | {
+    firstName?: string;
+    lastName?: string;
+    whatsapp?: string;
+    email?: string;
+  } {
+    const m = (message || "").trim();
+    if (!m) return null;
+    const head = m.match(/^(?:please\s+)?(?:add|create|new|register)\s+(?:a\s+|an\s+|the\s+)?(?:new\s+)?(?:customer|client|contact|buyer)\b\s*[:,]?\s*(.*)$/i);
+    if (!head) return null;
+    const tail = (head[1] || "").trim();
+    if (!tail) return {}; // "add a customer" → open empty form
+
+    const parts = tail.split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+    let name = "";
+    let phone = "";
+    let email = "";
+    for (const p of parts) {
+      if (!email && /@/.test(p)) email = p.toLowerCase();
+      else if (!phone && /^\+?[\d\s\-()]{6,}$/.test(p)) phone = p.replace(/[\s\-()]/g, "");
+      else if (!name) name = p;
+    }
+    if (!name && !phone && !email) return {}; // open empty form
+
+    const nameParts = name.split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] || undefined;
+    const lastName = nameParts.slice(1).join(" ") || undefined;
+    const out: { firstName?: string; lastName?: string; whatsapp?: string; email?: string } = {};
+    if (firstName) out.firstName = firstName;
+    if (lastName) out.lastName = lastName;
+    if (phone) out.whatsapp = phone.startsWith("+") ? phone : `+${phone.replace(/^\+/, "")}`;
+    if (email) out.email = email;
+    return out;
   }
 
   // "show all products", "product list", "list my products", "show menu", etc.
@@ -986,8 +1599,24 @@ Global rules:
     if (/[\u0B80-\u0BFF]/.test(s)) return "Tamil";
     if (/[\u4E00-\u9FFF]/.test(s)) return "Chinese";
     if (/[\u0600-\u06FF]/.test(s)) return "Arabic";
-    // Hinglish = Latin script with common Hindi words
-    if (/\b(aaj|kal|kya|hai|nahi|nahin|kar|karo|chahiye|kitna|kitni|kitne|mera|mere|meri|tumhara|shop|dukaan|order|hain|theek|accha|ji|haan|dena|do|lena|lo|paisa|rupay|bhej|bhejo|batao|bataao|namaste)\b/i.test(s)) return "Hinglish (Hindi in Latin script)";
+    // Hinglish detection — Latin script with HINDI-ONLY words. We deliberately
+    // exclude English loanwords ("shop", "order") and ambiguous short tokens
+    // ("do", "lo", "ji") because they fire on plain English messages like
+    // "show pending orders" or "do I have any orders" and flip the bot's
+    // reply language. Require TWO distinct matches OR one strong-signal word
+    // so a lone ambiguous match can't trip the detector.
+    const hinglishWords =
+      /\b(aaj|kal(?!\.com)|kya|kyu|kyun|hai|hain|nahi|nahin|kar|karo|karna|kiya|chahiye|kitna|kitni|kitne|mera|mere|meri|tumhara|tumhari|aap|tum|main|hum|dukaan|theek|accha|achha|haan|dena|lena|paisa|paise|rupay|rupaye|bhej|bhejo|batao|bataao|namaste|namaskar|dhanyavaad|shukriya)\b/gi;
+    const matches = s.match(hinglishWords);
+    if (matches) {
+      const distinct = new Set(matches.map((w) => w.toLowerCase()));
+      // Strong-signal words alone are enough — these are unambiguous Hindi.
+      const strong =
+        /\b(aaj|kya|nahi|nahin|chahiye|dukaan|namaste|namaskar|bhejo|batao|bataao|dhanyavaad|shukriya|kitna|kitni|kitne|tumhara|tumhari)\b/i;
+      if (distinct.size >= 2 || strong.test(s)) {
+        return "Hinglish (Hindi in Latin script)";
+      }
+    }
     return "English";
   }
 
@@ -1072,8 +1701,26 @@ Global rules:
     switch (name) {
       case "get_today_orders": {
         const s = new Date(); s.setHours(0, 0, 0, 0);
-        const orders = await this.orderModel.find({ shopkeeperId: sid, createdAt: { $gte: s }, isSoftDeleted: { $ne: true } }).lean();
-        return { total: orders.length, pending: orders.filter((o: any) => o.status === "pending").length, completed: orders.filter((o: any) => o.status === "completed").length, processing: orders.filter((o: any) => o.status === "processing").length, revenue: orders.reduce((a: number, o: any) => a + (o.totalAmount || 0), 0) };
+        const orders = await this.orderModel.find({ shopkeeperId: sid, createdAt: { $gte: s }, isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
+        const customers = new Set(orders.map((o: any) => o.userId).filter(Boolean)).size;
+        return {
+          total: orders.length,
+          pending: orders.filter((o: any) => o.status === "pending").length,
+          completed: orders.filter((o: any) => o.status === "completed").length,
+          processing: orders.filter((o: any) => o.status === "processing").length,
+          revenue: orders.reduce((a: number, o: any) => a + (o.totalAmount || 0), 0),
+          customers,
+          // Surface the actual order rows so the orders specialist can render
+          // them as a markdown table when the shopkeeper asks "today's orders"
+          // or "show today's orders" instead of a snapshot.
+          orders: orders.slice(0, 20).map((o: any) => ({
+            orderId: o.orderId,
+            amount: o.totalAmount,
+            status: o.status,
+            customer: o.customerName || o.firstName || "Customer",
+            time: o.createdAt,
+          })),
+        };
       }
       case "get_pending_orders": {
         const orders = await this.orderModel.find({ shopkeeperId: sid, status: "pending", isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(10).lean();
@@ -1568,7 +2215,6 @@ Global rules:
             // strip filler words, and match each known option / subcategory /
             // variant by substring. Only accept when at least one layer matches.
             if (!variantTitle && !subcategoryName && !optionTitle) {
-              const filler = new Set(["option", "size", "subcategory", "variant", "in", "of", "-", ">", ","]);
               const haystack = q;
               const normalise = (s: any) => String(s || "").toLowerCase().trim();
               // productOption
@@ -1767,6 +2413,9 @@ Global rules:
           return {
             success: true,
             orderId: order.orderId,
+            // Mongo _id surfaced for downstream callers (renderKioskOrderReply
+            // uses it to wire a Download Receipt pill on cash orders).
+            orderMongoId: order._id.toString(),
             customer: input.customer_name,
             paymentMethod,
             paymentConfirmed: isCash,
@@ -1874,6 +2523,58 @@ Global rules:
         }
         return { confirmed: count };
       }
+      case "confirm_today_orders": {
+        // Move ALL of today's pending orders → processing in one shot.
+        // Anything already in processing / completed / cancelled is left
+        // untouched (per shopkeeper request: "if some are in processing
+        // then no change other all changed").
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const todayOrders: any[] = await this.orderModel
+          .find({ shopkeeperId: sid, createdAt: { $gte: startOfDay }, isSoftDeleted: { $ne: true } })
+          .lean();
+        const pending = todayOrders.filter((o) => o.status === "pending");
+        const alreadyProcessing = todayOrders.filter((o) => o.status === "processing").length;
+        const completed = todayOrders.filter((o) => o.status === "completed").length;
+        const cancelled = todayOrders.filter((o) => o.status === "cancelled").length;
+
+        if (pending.length === 0) {
+          return {
+            confirmed: 0,
+            alreadyProcessing,
+            completed,
+            cancelled,
+            total: todayOrders.length,
+            message:
+              todayOrders.length === 0
+                ? "No orders today yet."
+                : "All today's orders are already past pending — nothing to confirm.",
+            confirmedOrders: [],
+          };
+        }
+
+        const now = new Date();
+        await this.orderModel.updateMany(
+          { _id: { $in: pending.map((o) => o._id) } },
+          {
+            $set: { status: "processing" },
+            $push: { statusHistory: { status: "processing", changedAt: now, changedBy: "KiosAI" } },
+          },
+        );
+
+        return {
+          confirmed: pending.length,
+          alreadyProcessing,
+          completed,
+          cancelled,
+          total: todayOrders.length,
+          confirmedOrders: pending.slice(0, 20).map((o) => ({
+            orderId: o.orderId,
+            amount: o.totalAmount,
+            customer: o.customerName || o.firstName || "Customer",
+          })),
+        };
+      }
       case "get_matched_payments": {
         const p = await this.paymentEmailModel.find({ shopkeeperId: sid, status: "matched", matchedOrderId: { $ne: null } }).sort({ receivedAt: -1 }).limit(10).lean();
         return p.map((x: any) => ({ amount: x.amount, sender: x.senderName || x.from, orderId: x.matchedOrderId, provider: x.bankOrProvider }));
@@ -1908,7 +2609,7 @@ Global rules:
         // to THIS shopkeeper. The previous query was global (no providerId
         // filter) and case-mismatched, so it returned other shops' customers.
         const createdUsers = await this.userModel.find({ providerId: sid }).lean();
-        for (const u of createdUsers) {
+        for (const u of createdUsers as any[]) {
           const id = u._id.toString();
           if (!userById.has(id)) userById.set(id, u);
         }

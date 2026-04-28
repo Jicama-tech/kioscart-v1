@@ -2818,7 +2818,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                             </a>
                           )}
 
-                        {general.contactInfo.showTiktok &&
+                        {/* TikTok is banned in India — never render its link for an India shop. */}
+                        {!["IN", "IND", "INDIA"].includes((country || "").toString().trim().toUpperCase()) &&
+                          general.contactInfo.showTiktok &&
                           general.contactInfo.tiktokLink && (
                             <a
                               href={general.contactInfo.tiktokLink}
@@ -2885,7 +2887,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           </a>
                         )}
 
-                      {general.contactInfo.showTiktok &&
+                      {/* TikTok is banned in India — never render its link for an India shop. */}
+                      {!["IN", "IND", "INDIA"].includes((country || "").toString().trim().toUpperCase()) &&
+                        general.contactInfo.showTiktok &&
                         general.contactInfo.tiktokLink && (
                           <a
                             href={general.contactInfo.tiktokLink}
