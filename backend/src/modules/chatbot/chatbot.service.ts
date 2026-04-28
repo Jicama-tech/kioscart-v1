@@ -3,7 +3,10 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import OpenAI from "openai";
 
-export interface QuickAction { label: string; action: string; }
+export interface QuickAction {
+  label: string;
+  action: string;
+}
 export type BotAction =
   | {
       type: "navigate";
@@ -53,7 +56,11 @@ export interface ProductTreeItem {
   inventory?: number;
   category?: string;
   variants?: { title: string; price: number; inventory?: number }[];
-  subcategories?: { name: string; basePrice?: number; variants?: { title: string; price: number; inventory?: number }[] }[];
+  subcategories?: {
+    name: string;
+    basePrice?: number;
+    variants?: { title: string; price: number; inventory?: number }[];
+  }[];
   options?: { title: string; price: number; inventory?: number }[];
 }
 export interface AnalyticsSummary {
@@ -65,6 +72,11 @@ export interface AnalyticsSummary {
   currency: string;
   period?: string; // monthly / lastmonth / today / etc.
   topProducts?: { name: string; sold?: number; revenue?: number }[];
+  // What these numbers describe — drives card label switching in the widget.
+  // "shop" = whole-shop snapshot (default), "product" = single product,
+  // "customer" = single customer.
+  subject?: "shop" | "product" | "customer";
+  subjectName?: string;
 }
 export interface CustomerFormPayload {
   // Pre-fill values for the inline Add Customer form rendered in the chat.
@@ -115,7 +127,11 @@ export interface BotResponse {
   orderForm?: OrderFormPayload;
 }
 
-interface ConvEntry { role: "user" | "assistant"; content: string; ts: number }
+interface ConvEntry {
+  role: "user" | "assistant";
+  content: string;
+  ts: number;
+}
 
 @Injectable()
 export class ChatbotService {
@@ -143,9 +159,12 @@ export class ChatbotService {
     // Qwen's free/paid tiers are more generous and its tool-calling is more
     // reliable than Groq's 8B fallback.
     const useQwen = !!process.env.QWEN_API_KEY;
-    const apiKey = useQwen ? process.env.QWEN_API_KEY : (process.env.GROQ_API_KEY || "");
+    const apiKey = useQwen
+      ? process.env.QWEN_API_KEY
+      : process.env.GROQ_API_KEY || "";
     const baseURL = useQwen
-      ? (process.env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1")
+      ? process.env.QWEN_BASE_URL ||
+        "https://dashscope.aliyuncs.com/compatible-mode/v1"
       : "https://api.groq.com/openai/v1";
     this.ai = new OpenAI({ apiKey, baseURL });
     this.provider = useQwen ? "qwen" : "groq";
@@ -160,19 +179,24 @@ export class ChatbotService {
 
   // Small/cheap model used for routing (classification only).
   private get routerModel() {
-    if (this.provider === "qwen") return process.env.QWEN_ROUTER_MODEL || "qwen-turbo";
+    if (this.provider === "qwen")
+      return process.env.QWEN_ROUTER_MODEL || "qwen-turbo";
     return process.env.GROQ_ROUTER_MODEL || "llama-3.1-8b-instant";
   }
 
   // Fallback model used when the primary returns 429 (daily TPD exceeded).
   private get fallbackModel() {
-    if (this.provider === "qwen") return process.env.QWEN_FALLBACK_MODEL || "qwen-turbo";
+    if (this.provider === "qwen")
+      return process.env.QWEN_FALLBACK_MODEL || "qwen-turbo";
     return process.env.GROQ_FALLBACK_MODEL || "llama-3.1-8b-instant";
   }
 
   private isRateLimit(err: any): boolean {
     const status = err?.status || err?.response?.status;
-    return status === 429 || /rate limit|TPD|tokens per day/i.test(err?.message || "");
+    return (
+      status === 429 ||
+      /rate limit|TPD|tokens per day/i.test(err?.message || "")
+    );
   }
 
   private hasApiKey() {
@@ -180,67 +204,959 @@ export class ChatbotService {
   }
 
   private tools: OpenAI.ChatCompletionTool[] = [
-    { type: "function", function: { name: "get_today_orders", description: "Get today's orders summary — count, revenue, pending/completed breakdown", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_pending_orders", description: "Get list of pending orders", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_recent_orders", description: "Get recent orders", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_order_detail", description: "Get details of a specific order by ID", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
-    { type: "function", function: { name: "update_order_status", description: "Update order status (processing/ready/completed/cancelled)", parameters: { type: "object", properties: { order_id: { type: "string" }, status: { type: "string", enum: ["processing", "ready", "completed", "cancelled"] } }, required: ["order_id", "status"] } } },
-    { type: "function", function: { name: "get_products", description: "Get shopkeeper's products list", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_product_count", description: "Get product counts", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_low_stock", description: "Get products with low stock", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_product_detail", description: "Get full structure of a single product — including its variants, subcategories, and options. Use this before editing when the user mentions a variant, size, or pack.", parameters: { type: "object", properties: { product_name: { type: "string", description: "Name or partial name of the product" } }, required: ["product_name"] } } },
-    { type: "function", function: { name: "update_product", description: "Update a product's top-level fields. Works on any product regardless of variants. To edit a specific variant/subcategory/option, use the dedicated tool instead.", parameters: { type: "object", properties: { product_name: { type: "string" }, new_name: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, status: { type: "string", enum: ["active", "draft", "archived"] }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" }, description: { type: "string" }, barcode: { type: "string" }, measurement: { type: "string" }, tags: { type: "array", items: { type: "string" }, description: "Replaces the full tags list. Pass the complete new array." } }, required: ["product_name"] } } },
-    { type: "function", function: { name: "create_product", description: "Create a new simple product (no images, no variants). Use when the shopkeeper wants to add a quick catalog entry. For image upload / complex variants, navigate_to the products tab.", parameters: { type: "object", properties: { name: { type: "string" }, price: { type: "number" }, category: { type: "string", description: "Required. Pick a category the shop already uses (e.g. food, clothing, etc)." }, sku: { type: "string", description: "Optional — auto-generated if omitted." }, status: { type: "string", enum: ["active", "draft", "archived"], description: "Defaults to active." }, description: { type: "string" }, inventory: { type: "number" }, trackQuantity: { type: "boolean" }, lowstockThreshold: { type: "number" }, tags: { type: "array", items: { type: "string" } } }, required: ["name", "price", "category"] } } },
-    { type: "function", function: { name: "bulk_update_products_status", description: "Change status (active/draft/archived) for multiple products at once — e.g. archive a seasonal line.", parameters: { type: "object", properties: { product_names: { type: "array", items: { type: "string" } }, status: { type: "string", enum: ["active", "draft", "archived"] } }, required: ["product_names", "status"] } } },
-    { type: "function", function: { name: "bulk_delete_products", description: "Soft-delete multiple products by name in one call.", parameters: { type: "object", properties: { product_names: { type: "array", items: { type: "string" } } }, required: ["product_names"] } } },
-    { type: "function", function: { name: "update_variant", description: "Update a variant inside a product by title or SKU. For tree-structured products with the same variant title under multiple subcategories (e.g. Veg>Medium and Non-Veg>Medium), pass subcategory_name to disambiguate.", parameters: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string", description: "Variant title or SKU to match" }, subcategory_name: { type: "string", description: "Optional: restrict the match to a specific subcategory" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "variant_title"] } } },
-    { type: "function", function: { name: "update_subcategory", description: "Update a subcategory inside a product (matched by name). Edits subcategory-level fields like basePrice and inventory.", parameters: { type: "object", properties: { product_name: { type: "string" }, subcategory_name: { type: "string" }, basePrice: { type: "number" }, additionalPrice: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" } }, required: ["product_name", "subcategory_name"] } } },
-    { type: "function", function: { name: "update_option", description: "Update a product option (e.g. Size/Quantity/Pack) by its title. Only for products that have productOptions.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, lowstockThreshold: { type: "number" }, trackQuantity: { type: "boolean" }, isDiscounted: { type: "boolean" }, discountedPrice: { type: "number" } }, required: ["product_name", "option_title"] } } },
-    { type: "function", function: { name: "add_variant", description: "Add a NEW variant to a product. If subcategory_name is provided, the variant is added inside that subcategory (tree products). Otherwise added to the product's top-level variants array.", parameters: { type: "object", properties: { product_name: { type: "string" }, title: { type: "string" }, price: { type: "number" }, subcategory_name: { type: "string", description: "Optional: add the variant inside this subcategory" }, sku: { type: "string", description: "Optional: auto-generated if omitted" }, inventory: { type: "number" }, trackQuantity: { type: "boolean" }, lowstockThreshold: { type: "number" } }, required: ["product_name", "title", "price"] } } },
-    { type: "function", function: { name: "remove_variant", description: "Remove a variant from a product by title or SKU. Provide subcategory_name to remove a variant nested inside a specific subcategory; otherwise removes from the top-level variants array.", parameters: { type: "object", properties: { product_name: { type: "string" }, variant_title: { type: "string" }, subcategory_name: { type: "string", description: "Optional: the subcategory containing the variant" } }, required: ["product_name", "variant_title"] } } },
-    { type: "function", function: { name: "add_subcategory", description: "Add a NEW subcategory to a product (e.g. 'Veg', 'Non-Veg'). Starts with an empty variants array — use add_variant afterwards to populate it.", parameters: { type: "object", properties: { product_name: { type: "string" }, name: { type: "string" }, basePrice: { type: "number", description: "Defaults to 0" }, inventory: { type: "number" }, trackQuantity: { type: "boolean" }, lowstockThreshold: { type: "number" } }, required: ["product_name", "name"] } } },
-    { type: "function", function: { name: "remove_subcategory", description: "Remove a subcategory (and all its nested variants) from a product.", parameters: { type: "object", properties: { product_name: { type: "string" }, subcategory_name: { type: "string" } }, required: ["product_name", "subcategory_name"] } } },
-    { type: "function", function: { name: "add_option", description: "Add a NEW productOption (Size / Quantity / Pack) to a product.", parameters: { type: "object", properties: { product_name: { type: "string" }, title: { type: "string" }, price: { type: "number" }, inventory: { type: "number" }, trackQuantity: { type: "boolean" }, lowstockThreshold: { type: "number" } }, required: ["product_name", "title", "price"] } } },
-    { type: "function", function: { name: "remove_option", description: "Remove a productOption from a product by its title.", parameters: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string" } }, required: ["product_name", "option_title"] } } },
-    { type: "function", function: { name: "delete_product", description: "Soft-delete a product by name. Asks for confirmation implicitly — only call if user clearly said to delete/remove.", parameters: { type: "object", properties: { product_name: { type: "string" } }, required: ["product_name"] } } },
-    { type: "function", function: { name: "confirm_payment_by_order_id", description: "Confirm a single matched payment for a specific order — moves that order from pending to processing. Only works when a payment email already matched that order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
-    { type: "function", function: { name: "place_order", description: "Create a kiosk / walk-in order. Each item is resolved against the shopkeeper's catalog. A product can have up to three independent layers: productOption (e.g. sizes 9/10), subcategory (e.g. T-shirt/Jeans), and variant (e.g. XL/XXL inside T-shirt). When a product exposes multiple layers, pass all relevant fields together — the final unit price is variant_price (or subcategory basePrice) PLUS option_price if set. If a required leaf is missing, the tool returns a list of candidates so you can ask the shopkeeper. Always require customer's name + whatsapp + email up front.", parameters: { type: "object", properties: { customer_name: { type: "string" }, whatsapp: { type: "string", description: "Customer WhatsApp number with country code (e.g. +919876543210)" }, email: { type: "string", description: "Customer email" }, items: { type: "array", items: { type: "object", properties: { product_name: { type: "string" }, option_title: { type: "string", description: "productOption title when the product has one (e.g. '9' or 'Pack of 3')" }, subcategory_name: { type: "string", description: "Subcategory name (e.g. 'T-shirt' in Clothes > T-shirt > XL)" }, variant_title: { type: "string", description: "Variant title or SKU. For tree products this is the inner variant (e.g. 'XL')." }, quantity: { type: "number", description: "Defaults to 1 if omitted" } }, required: ["product_name"] } }, payment_method: { type: "string", enum: ["qr", "cash"], description: "qr = generate a payment QR; cash = already paid. Defaults to qr." }, instructions: { type: "string", description: "Optional notes / instructions for this order" } }, required: ["customer_name", "items"] } } },
-    { type: "function", function: { name: "get_payment_qr", description: "Generate a payment QR for an existing order. Returns UPI payload for India or PayNow data for Singapore, based on shopkeeper's country setting. Call after a QR-payment place_order.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
-    { type: "function", function: { name: "get_order_receipt", description: "Return the URL of the PDF receipt for an order. Use after a cash order, or whenever the shopkeeper asks for a receipt.", parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] } } },
-    { type: "function", function: { name: "get_analytics", description: "Get analytics for a period", parameters: { type: "object", properties: { period: { type: "string", enum: ["monthly", "lastmonth", "quarterly", "lastquarter", "yearly", "lastyear"] } }, required: ["period"] } } },
-    { type: "function", function: { name: "get_today_revenue", description: "Get today's revenue", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_top_products", description: "Get top selling products", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_payment_summary", description: "Get payment tracking summary", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "confirm_matched_payments", description: "Confirm all matched payments and move orders to processing", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "confirm_today_orders", description: "Bulk-move ALL of today's pending orders to processing. Orders already in processing / completed / cancelled are left untouched. Use when the shopkeeper says 'confirm all today's orders' / 'process today's orders' / 'start the day' etc.", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_matched_payments", description: "Get matched payments awaiting confirmation", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_unmatched_payments", description: "Get unmatched payments", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_customers", description: "Get total customer count", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "list_customers", description: "List customers for this shop with aggregated stats (orderCount, totalSpent, lastOrderDate). Supports optional search and filtering.", parameters: { type: "object", properties: { search: { type: "string", description: "Substring match on name, phone, or email" }, vip_only: { type: "boolean", description: "Only customers whose totalSpent > 100" }, limit: { type: "number", description: "Defaults to 20, max 100" } }, required: [] } } },
-    { type: "function", function: { name: "get_customer", description: "Get a single customer's full profile — contact info + order stats + recent orders. Identify by phone OR email OR exact name.", parameters: { type: "object", properties: { phone: { type: "string", description: "WhatsApp number with country code" }, email: { type: "string" }, name: { type: "string" } }, required: [] } } },
-    { type: "function", function: { name: "get_customer_orders", description: "List a customer's recent orders. Identify by phone/email/name as for get_customer.", parameters: { type: "object", properties: { phone: { type: "string" }, email: { type: "string" }, name: { type: "string" }, limit: { type: "number", description: "Defaults to 10" } }, required: [] } } },
-    { type: "function", function: { name: "create_customer", description: "Create a new customer profile manually (not via an order). Requires first_name, last_name, whatsapp; email is optional.", parameters: { type: "object", properties: { first_name: { type: "string" }, last_name: { type: "string" }, whatsapp: { type: "string", description: "With country code, e.g. +918401201831" }, email: { type: "string" } }, required: ["first_name", "last_name", "whatsapp"] } } },
-    { type: "function", function: { name: "update_customer", description: "Update an existing customer's fields. Identify them with phone/email/name; supply any of the editable fields.", parameters: { type: "object", properties: { phone: { type: "string" }, email: { type: "string" }, name: { type: "string" }, new_first_name: { type: "string" }, new_last_name: { type: "string" }, new_whatsapp: { type: "string" }, new_email: { type: "string" } }, required: [] } } },
-    { type: "function", function: { name: "get_crm_stats", description: "Aggregate CRM stats for this shop: totalCustomers, vipCount (spend > 100), totalRevenue, avgOrderValue, totalOrders, and local vs international counts based on shopkeeper country.", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_coupons", description: "Get active coupons", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_plan_info", description: "Get subscription plan info", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_operators", description: "Get list of operators", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "get_shop_info", description: "Get shop details", parameters: { type: "object", properties: {}, required: [] } } },
-    { type: "function", function: { name: "navigate_to", description: "Navigate user to a dashboard tab. For the products tab, optionally pass action='add' to open the blank Add Product form, or action='edit' with productName to open the Edit form for that specific product.", parameters: { type: "object", properties: { tab: { type: "string", enum: ["dashboard", "products", "orders", "crm", "kiosk", "storefront", "settings"] }, action: { type: "string", enum: ["add", "edit"], description: "Only valid when tab='products'. 'add' opens the empty Add Product form. 'edit' opens the Edit form for productName." }, productName: { type: "string", description: "Required when action='edit'. The product to open for editing (case-insensitive match against the shopkeeper's product list)." } }, required: ["tab"] } } },
+    {
+      type: "function",
+      function: {
+        name: "get_today_orders",
+        description:
+          "Get today's orders summary — count, revenue, pending/completed breakdown",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_pending_orders",
+        description: "Get list of pending orders",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_recent_orders",
+        description: "Get recent orders",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_order_detail",
+        description: "Get details of a specific order by ID",
+        parameters: {
+          type: "object",
+          properties: { order_id: { type: "string" } },
+          required: ["order_id"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "update_order_status",
+        description:
+          "Update order status (processing/ready/completed/cancelled)",
+        parameters: {
+          type: "object",
+          properties: {
+            order_id: { type: "string" },
+            status: {
+              type: "string",
+              enum: ["processing", "ready", "completed", "cancelled"],
+            },
+          },
+          required: ["order_id", "status"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_products",
+        description: "Get shopkeeper's products list",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_product_count",
+        description: "Get product counts",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_low_stock",
+        description: "Get products with low stock",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_product_detail",
+        description:
+          "Get full structure of a single product — including its variants, subcategories, and options. Use this before editing when the user mentions a variant, size, or pack.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: {
+              type: "string",
+              description: "Name or partial name of the product",
+            },
+          },
+          required: ["product_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "update_product",
+        description:
+          "Update a product's top-level fields. Works on any product regardless of variants. To edit a specific variant/subcategory/option, use the dedicated tool instead.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            new_name: { type: "string" },
+            price: { type: "number" },
+            inventory: { type: "number" },
+            status: { type: "string", enum: ["active", "draft", "archived"] },
+            lowstockThreshold: { type: "number" },
+            trackQuantity: { type: "boolean" },
+            isDiscounted: { type: "boolean" },
+            discountedPrice: { type: "number" },
+            description: { type: "string" },
+            barcode: { type: "string" },
+            measurement: { type: "string" },
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "Replaces the full tags list. Pass the complete new array.",
+            },
+          },
+          required: ["product_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "create_product",
+        description:
+          "Create a new simple product (no images, no variants). Use when the shopkeeper wants to add a quick catalog entry. For image upload / complex variants, navigate_to the products tab.",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            price: { type: "number" },
+            category: {
+              type: "string",
+              description:
+                "Required. Pick a category the shop already uses (e.g. food, clothing, etc).",
+            },
+            sku: {
+              type: "string",
+              description: "Optional — auto-generated if omitted.",
+            },
+            status: {
+              type: "string",
+              enum: ["active", "draft", "archived"],
+              description: "Defaults to active.",
+            },
+            description: { type: "string" },
+            inventory: { type: "number" },
+            trackQuantity: { type: "boolean" },
+            lowstockThreshold: { type: "number" },
+            tags: { type: "array", items: { type: "string" } },
+          },
+          required: ["name", "price", "category"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "bulk_update_products_status",
+        description:
+          "Change status (active/draft/archived) for multiple products at once — e.g. archive a seasonal line.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_names: { type: "array", items: { type: "string" } },
+            status: { type: "string", enum: ["active", "draft", "archived"] },
+          },
+          required: ["product_names", "status"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "bulk_delete_products",
+        description: "Soft-delete multiple products by name in one call.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_names: { type: "array", items: { type: "string" } },
+          },
+          required: ["product_names"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "update_variant",
+        description:
+          "Update a variant inside a product by title or SKU. For tree-structured products with the same variant title under multiple subcategories (e.g. Veg>Medium and Non-Veg>Medium), pass subcategory_name to disambiguate.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            variant_title: {
+              type: "string",
+              description: "Variant title or SKU to match",
+            },
+            subcategory_name: {
+              type: "string",
+              description:
+                "Optional: restrict the match to a specific subcategory",
+            },
+            price: { type: "number" },
+            inventory: { type: "number" },
+            lowstockThreshold: { type: "number" },
+            trackQuantity: { type: "boolean" },
+            isDiscounted: { type: "boolean" },
+            discountedPrice: { type: "number" },
+          },
+          required: ["product_name", "variant_title"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "update_subcategory",
+        description:
+          "Update a subcategory inside a product (matched by name). Edits subcategory-level fields like basePrice and inventory.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            subcategory_name: { type: "string" },
+            basePrice: { type: "number" },
+            additionalPrice: { type: "number" },
+            inventory: { type: "number" },
+            lowstockThreshold: { type: "number" },
+            trackQuantity: { type: "boolean" },
+          },
+          required: ["product_name", "subcategory_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "update_option",
+        description:
+          "Update a product option (e.g. Size/Quantity/Pack) by its title. Only for products that have productOptions.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            option_title: { type: "string" },
+            price: { type: "number" },
+            inventory: { type: "number" },
+            lowstockThreshold: { type: "number" },
+            trackQuantity: { type: "boolean" },
+            isDiscounted: { type: "boolean" },
+            discountedPrice: { type: "number" },
+          },
+          required: ["product_name", "option_title"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_variant",
+        description:
+          "Add a NEW variant to a product. If subcategory_name is provided, the variant is added inside that subcategory (tree products). Otherwise added to the product's top-level variants array.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            title: { type: "string" },
+            price: { type: "number" },
+            subcategory_name: {
+              type: "string",
+              description: "Optional: add the variant inside this subcategory",
+            },
+            sku: {
+              type: "string",
+              description: "Optional: auto-generated if omitted",
+            },
+            inventory: { type: "number" },
+            trackQuantity: { type: "boolean" },
+            lowstockThreshold: { type: "number" },
+          },
+          required: ["product_name", "title", "price"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "remove_variant",
+        description:
+          "Remove a variant from a product by title or SKU. Provide subcategory_name to remove a variant nested inside a specific subcategory; otherwise removes from the top-level variants array.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            variant_title: { type: "string" },
+            subcategory_name: {
+              type: "string",
+              description: "Optional: the subcategory containing the variant",
+            },
+          },
+          required: ["product_name", "variant_title"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_subcategory",
+        description:
+          "Add a NEW subcategory to a product (e.g. 'Veg', 'Non-Veg'). Starts with an empty variants array — use add_variant afterwards to populate it.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            name: { type: "string" },
+            basePrice: { type: "number", description: "Defaults to 0" },
+            inventory: { type: "number" },
+            trackQuantity: { type: "boolean" },
+            lowstockThreshold: { type: "number" },
+          },
+          required: ["product_name", "name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "remove_subcategory",
+        description:
+          "Remove a subcategory (and all its nested variants) from a product.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            subcategory_name: { type: "string" },
+          },
+          required: ["product_name", "subcategory_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_option",
+        description:
+          "Add a NEW productOption (Size / Quantity / Pack) to a product.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            title: { type: "string" },
+            price: { type: "number" },
+            inventory: { type: "number" },
+            trackQuantity: { type: "boolean" },
+            lowstockThreshold: { type: "number" },
+          },
+          required: ["product_name", "title", "price"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "remove_option",
+        description: "Remove a productOption from a product by its title.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            option_title: { type: "string" },
+          },
+          required: ["product_name", "option_title"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "delete_product",
+        description:
+          "Soft-delete a product by name. Asks for confirmation implicitly — only call if user clearly said to delete/remove.",
+        parameters: {
+          type: "object",
+          properties: { product_name: { type: "string" } },
+          required: ["product_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "confirm_payment_by_order_id",
+        description:
+          "Confirm a single matched payment for a specific order — moves that order from pending to processing. Only works when a payment email already matched that order.",
+        parameters: {
+          type: "object",
+          properties: { order_id: { type: "string" } },
+          required: ["order_id"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "place_order",
+        description:
+          "Create a kiosk / walk-in order. Each item is resolved against the shopkeeper's catalog. A product can have up to three independent layers: productOption (e.g. sizes 9/10), subcategory (e.g. T-shirt/Jeans), and variant (e.g. XL/XXL inside T-shirt). When a product exposes multiple layers, pass all relevant fields together — the final unit price is variant_price (or subcategory basePrice) PLUS option_price if set. If a required leaf is missing, the tool returns a list of candidates so you can ask the shopkeeper. Always require customer's name + whatsapp + email up front.",
+        parameters: {
+          type: "object",
+          properties: {
+            customer_name: { type: "string" },
+            whatsapp: {
+              type: "string",
+              description:
+                "Customer WhatsApp number with country code (e.g. +919876543210)",
+            },
+            email: { type: "string", description: "Customer email" },
+            items: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  product_name: { type: "string" },
+                  option_title: {
+                    type: "string",
+                    description:
+                      "productOption title when the product has one (e.g. '9' or 'Pack of 3')",
+                  },
+                  subcategory_name: {
+                    type: "string",
+                    description:
+                      "Subcategory name (e.g. 'T-shirt' in Clothes > T-shirt > XL)",
+                  },
+                  variant_title: {
+                    type: "string",
+                    description:
+                      "Variant title or SKU. For tree products this is the inner variant (e.g. 'XL').",
+                  },
+                  quantity: {
+                    type: "number",
+                    description: "Defaults to 1 if omitted",
+                  },
+                },
+                required: ["product_name"],
+              },
+            },
+            payment_method: {
+              type: "string",
+              enum: ["qr", "cash"],
+              description:
+                "qr = generate a payment QR; cash = already paid. Defaults to qr.",
+            },
+            instructions: {
+              type: "string",
+              description: "Optional notes / instructions for this order",
+            },
+          },
+          required: ["customer_name", "items"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_payment_qr",
+        description:
+          "Generate a payment QR for an existing order. Returns UPI payload for India or PayNow data for Singapore, based on shopkeeper's country setting. Call after a QR-payment place_order.",
+        parameters: {
+          type: "object",
+          properties: { order_id: { type: "string" } },
+          required: ["order_id"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_order_receipt",
+        description:
+          "Return the URL of the PDF receipt for an order. Use after a cash order, or whenever the shopkeeper asks for a receipt.",
+        parameters: {
+          type: "object",
+          properties: { order_id: { type: "string" } },
+          required: ["order_id"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_analytics",
+        description: "Get analytics for a period",
+        parameters: {
+          type: "object",
+          properties: {
+            period: {
+              type: "string",
+              enum: [
+                "monthly",
+                "lastmonth",
+                "quarterly",
+                "lastquarter",
+                "yearly",
+                "lastyear",
+              ],
+            },
+          },
+          required: ["period"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_product_analytics",
+        description:
+          "Deep analytics for a SINGLE product over an optional time window. Returns revenue from that product, orders containing it, units sold, unique buyers, and best-selling variants/options. Use this whenever the shopkeeper asks for stats / sales / performance OF a specific product.",
+        parameters: {
+          type: "object",
+          properties: {
+            product_name: {
+              type: "string",
+              description: "Product name or partial match.",
+            },
+            period: {
+              type: "string",
+              enum: [
+                "today",
+                "monthly",
+                "lastmonth",
+                "quarterly",
+                "lastquarter",
+                "yearly",
+                "lastyear",
+                "all",
+              ],
+              description:
+                "Defaults to all-time. Ignored when start_date is provided.",
+            },
+            start_date: {
+              type: "string",
+              description:
+                "ISO date (YYYY-MM-DD) — start of a custom window. Overrides period when set.",
+            },
+            end_date: {
+              type: "string",
+              description:
+                "ISO date (YYYY-MM-DD) — end of a custom window (exclusive). Defaults to now when only start_date is given.",
+            },
+          },
+          required: ["product_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_customer_analytics",
+        description:
+          "Deep analytics for a SINGLE customer over an optional time window. Returns total spent, order count, avg order, favorite products, and recent orders. Identify by phone / email / name. Use this whenever the shopkeeper asks for stats / spend / history OF a specific customer.",
+        parameters: {
+          type: "object",
+          properties: {
+            phone: {
+              type: "string",
+              description: "WhatsApp number with country code.",
+            },
+            email: { type: "string" },
+            name: { type: "string" },
+            period: {
+              type: "string",
+              enum: [
+                "today",
+                "monthly",
+                "lastmonth",
+                "quarterly",
+                "lastquarter",
+                "yearly",
+                "lastyear",
+                "all",
+              ],
+              description:
+                "Defaults to all-time. Ignored when start_date is provided.",
+            },
+            start_date: {
+              type: "string",
+              description:
+                "ISO date (YYYY-MM-DD) — start of a custom window. Overrides period when set.",
+            },
+            end_date: {
+              type: "string",
+              description:
+                "ISO date (YYYY-MM-DD) — end of a custom window (exclusive). Defaults to now when only start_date is given.",
+            },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_order_analytics",
+        description:
+          "Detailed breakdown / analytics for a SINGLE order by orderId. Returns per-item revenue, payment status, customer info, and timing. Use whenever the shopkeeper asks for details / breakdown / analytics OF an order.",
+        parameters: {
+          type: "object",
+          properties: { order_id: { type: "string" } },
+          required: ["order_id"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_today_revenue",
+        description: "Get today's revenue",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_top_products",
+        description: "Get top selling products",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_payment_summary",
+        description: "Get payment tracking summary",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "confirm_matched_payments",
+        description:
+          "Confirm all matched payments and move orders to processing",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "confirm_today_orders",
+        description:
+          "Bulk-move ALL of today's pending orders to processing. Orders already in processing / completed / cancelled are left untouched. Use when the shopkeeper says 'confirm all today's orders' / 'process today's orders' / 'start the day' etc.",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_matched_payments",
+        description: "Get matched payments awaiting confirmation",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_unmatched_payments",
+        description: "Get unmatched payments",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_customers",
+        description: "Get total customer count",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "list_customers",
+        description:
+          "List customers for this shop with aggregated stats (orderCount, totalSpent, lastOrderDate). Supports optional search and filtering.",
+        parameters: {
+          type: "object",
+          properties: {
+            search: {
+              type: "string",
+              description: "Substring match on name, phone, or email",
+            },
+            vip_only: {
+              type: "boolean",
+              description: "Only customers whose totalSpent > 100",
+            },
+            limit: { type: "number", description: "Defaults to 20, max 100" },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_customer",
+        description:
+          "Get a single customer's full profile — contact info + order stats + recent orders. Identify by phone OR email OR exact name.",
+        parameters: {
+          type: "object",
+          properties: {
+            phone: {
+              type: "string",
+              description: "WhatsApp number with country code",
+            },
+            email: { type: "string" },
+            name: { type: "string" },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_customer_orders",
+        description:
+          "List a customer's recent orders. Identify by phone/email/name as for get_customer.",
+        parameters: {
+          type: "object",
+          properties: {
+            phone: { type: "string" },
+            email: { type: "string" },
+            name: { type: "string" },
+            limit: { type: "number", description: "Defaults to 10" },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "create_customer",
+        description:
+          "Create a new customer profile manually (not via an order). Requires first_name, last_name, whatsapp; email is optional.",
+        parameters: {
+          type: "object",
+          properties: {
+            first_name: { type: "string" },
+            last_name: { type: "string" },
+            whatsapp: {
+              type: "string",
+              description: "With country code, e.g. +918401201831",
+            },
+            email: { type: "string" },
+          },
+          required: ["first_name", "last_name", "whatsapp"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "update_customer",
+        description:
+          "Update an existing customer's fields. Identify them with phone/email/name; supply any of the editable fields.",
+        parameters: {
+          type: "object",
+          properties: {
+            phone: { type: "string" },
+            email: { type: "string" },
+            name: { type: "string" },
+            new_first_name: { type: "string" },
+            new_last_name: { type: "string" },
+            new_whatsapp: { type: "string" },
+            new_email: { type: "string" },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_crm_stats",
+        description:
+          "Aggregate CRM stats for this shop: totalCustomers, vipCount (spend > 100), totalRevenue, avgOrderValue, totalOrders, and local vs international counts based on shopkeeper country.",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_coupons",
+        description: "Get active coupons",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_plan_info",
+        description: "Get subscription plan info",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_operators",
+        description: "Get list of operators",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_shop_info",
+        description: "Get shop details",
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "navigate_to",
+        description:
+          "Navigate user to a dashboard tab. For the products tab, optionally pass action='add' to open the blank Add Product form, or action='edit' with productName to open the Edit form for that specific product.",
+        parameters: {
+          type: "object",
+          properties: {
+            tab: {
+              type: "string",
+              enum: [
+                "dashboard",
+                "products",
+                "orders",
+                "crm",
+                "kiosk",
+                "storefront",
+                "settings",
+              ],
+            },
+            action: {
+              type: "string",
+              enum: ["add", "edit"],
+              description:
+                "Only valid when tab='products'. 'add' opens the empty Add Product form. 'edit' opens the Edit form for productName.",
+            },
+            productName: {
+              type: "string",
+              description:
+                "Required when action='edit'. The product to open for editing (case-insensitive match against the shopkeeper's product list).",
+            },
+          },
+          required: ["tab"],
+        },
+      },
+    },
   ];
 
   // Agentic pipeline — router classifies the message into a tab,
   // then a tab-specific specialist runs with only that tab's tools +
   // a tuned system prompt. Small focused tool lists = better tool-call accuracy.
   private static TAB_TOOLS: Record<string, string[]> = {
-    dashboard: ["get_today_orders", "get_today_revenue", "get_analytics", "get_top_products", "get_product_count", "get_customers", "get_pending_orders"],
-    kiosk: ["get_products", "get_product_detail", "place_order", "get_payment_qr", "get_order_receipt", "get_order_detail"],
-    orders: ["get_today_orders", "get_pending_orders", "get_recent_orders", "get_order_detail", "update_order_status", "get_payment_summary", "confirm_matched_payments", "confirm_payment_by_order_id", "confirm_today_orders", "get_matched_payments", "get_unmatched_payments"],
-    crm: ["list_customers", "get_customer", "get_customer_orders", "create_customer", "update_customer", "get_crm_stats"],
-    products: ["get_products", "get_product_count", "get_low_stock", "get_product_detail", "create_product", "update_product", "update_variant", "update_subcategory", "update_option", "add_variant", "remove_variant", "add_subcategory", "remove_subcategory", "add_option", "remove_option", "delete_product", "bulk_update_products_status", "bulk_delete_products", "get_top_products"],
+    dashboard: [
+      "get_today_orders",
+      "get_today_revenue",
+      "get_analytics",
+      "get_product_analytics",
+      "get_customer_analytics",
+      "get_order_analytics",
+      "get_top_products",
+      "get_product_count",
+      "get_customers",
+      "get_pending_orders",
+    ],
+    kiosk: [
+      "get_products",
+      "get_product_detail",
+      "place_order",
+      "get_payment_qr",
+      "get_order_receipt",
+      "get_order_detail",
+    ],
+    orders: [
+      "get_today_orders",
+      "get_pending_orders",
+      "get_recent_orders",
+      "get_order_detail",
+      "update_order_status",
+      "get_payment_summary",
+      "confirm_matched_payments",
+      "confirm_payment_by_order_id",
+      "confirm_today_orders",
+      "get_matched_payments",
+      "get_unmatched_payments",
+    ],
+    crm: [
+      "list_customers",
+      "get_customer",
+      "get_customer_orders",
+      "create_customer",
+      "update_customer",
+      "get_crm_stats",
+    ],
+    products: [
+      "get_products",
+      "get_product_count",
+      "get_low_stock",
+      "get_product_detail",
+      "create_product",
+      "update_product",
+      "update_variant",
+      "update_subcategory",
+      "update_option",
+      "add_variant",
+      "remove_variant",
+      "add_subcategory",
+      "remove_subcategory",
+      "add_option",
+      "remove_option",
+      "delete_product",
+      "bulk_update_products_status",
+      "bulk_delete_products",
+      "get_top_products",
+    ],
     storefront: [], // TODO phase 2: storefront config + branding tools
-    settings: ["get_shop_info", "get_plan_info", "get_operators", "get_coupons"], // TODO phase 2: profile/coupon/operator edit tools
-    general: ["get_shop_info", "get_today_orders", "get_today_revenue", "get_products", "get_pending_orders"],
+    settings: [
+      "get_shop_info",
+      "get_plan_info",
+      "get_operators",
+      "get_coupons",
+    ], // TODO phase 2: profile/coupon/operator edit tools
+    general: [
+      "get_shop_info",
+      "get_today_orders",
+      "get_today_revenue",
+      "get_products",
+      "get_pending_orders",
+    ],
   };
 
   private static SPECIALIST_PROMPTS: Record<string, string> = {
@@ -250,6 +1166,12 @@ Focus: analytics, performance overview, revenue trends, top products, customer c
 - Period words map to tool periods (recognise in any language the user writes): "today" → get_today_orders + get_today_revenue; "this month" → get_analytics(monthly); "last month" → get_analytics(lastmonth); "this quarter" → get_analytics(quarterly); "last quarter" → get_analytics(lastquarter); "this year" → get_analytics(yearly); "last year" → get_analytics(lastyear).
 - Lead with the headline number in **bold**, then 1-2 supporting metrics.
 - For generic "how is my shop doing" questions, call get_analytics(monthly) and format: revenue, orders, top products.
+
+**Targeted analytics — product / customer / order:**
+- "analytics for <product>" / "sales of <product>" / "how is <product> doing" / "<product> stats" → call **get_product_analytics({ product_name })**. If the shopkeeper added a period word, pass it along. Reply briefly — the widget renders the cards. Mention top variants and unique buyer count from the response.
+- "analytics for <customer>" / "<customer>'s spending" / "how much has <customer> spent" / "<customer> stats" → call **get_customer_analytics({ name | phone | email })**. Reply briefly — surface total spent, order count, avg order, favorite products.
+- "analytics for order <id>" / "breakdown of order <id>" / "<id> details" → call **get_order_analytics({ order_id })**. Reply with the line-item breakdown (markdown table) + payment / status.
+
 - If the user asks for something that belongs to another tab (e.g. edit a product), briefly answer and suggest navigate_to.`,
     kiosk: `You are the **Kiosk** specialist for "{SHOP}" on KiosCart. You act like an in-store POS over chat.
 Focus: placing walk-in orders, generating payment QRs, and producing receipts.
@@ -419,7 +1341,11 @@ Security: payments are routed through PCI-compliant processors (UPI for India, P
 
 Limits of this chat: cannot upload images, change theme, edit storefront layout, run bulk CSV exports, or send WhatsApp/email campaigns — these require their respective tabs.`;
 
-  async processMessage(shopkeeperIdIn: string, message: string, jwtName?: string): Promise<BotResponse> {
+  async processMessage(
+    shopkeeperIdIn: string,
+    message: string,
+    jwtName?: string,
+  ): Promise<BotResponse> {
     let shopkeeperId = shopkeeperIdIn;
     try {
       if (!this.hasApiKey()) {
@@ -430,7 +1356,9 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
       // OR an operator working on behalf of one, so try both. The display name
       // comes from the JWT first (no DB hit needed), falling back to the DB
       // record when the token didn't carry one.
-      let shopkeeper: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
+      let shopkeeper: any = await this.shopkeeperModel
+        .findById(shopkeeperId)
+        .lean();
       let personName = jwtName || shopkeeper?.name;
       let scopedShopId = shopkeeperId;
       if (!shopkeeper) {
@@ -454,7 +1382,12 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
       // the shopkeeper's KiosCart workflow.
       const chitchat = this.detectChitChat(message);
       if (chitchat) {
-        const reply = this.respondChitChat(chitchat, shopName, firstName, shopkeeper?.country);
+        const reply = this.respondChitChat(
+          chitchat,
+          shopName,
+          firstName,
+          shopkeeper?.country,
+        );
         this.appendHistory(shopkeeperId, message, reply.text);
         return reply;
       }
@@ -462,7 +1395,9 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
       // Stage 1 — router: classify the message into a tab. Give it the last
       // few turns so mid-flow follow-ups ("use T-shirt XL") stay on the same tab.
       const tab = await this.routeToTab(shopkeeperId, message);
-      this.logger.log(`[Router/${this.provider}] "${message.slice(0, 60)}" → ${tab}`);
+      this.logger.log(
+        `[Router/${this.provider}] "${message.slice(0, 60)}" → ${tab}`,
+      );
 
       // Deterministic fast path for kiosk orders that match the standard format.
       // Bypasses the LLM entirely so the order lands even when Groq is rate-limited
@@ -470,8 +1405,16 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
       if (tab === "kiosk") {
         const parsed = this.tryParseKioskOrder(message);
         if (parsed) {
-          const result = await this.executeTool(shopkeeperId, "place_order", parsed);
-          const reply = await this.renderKioskOrderReply(shopkeeperId, result, parsed.payment_method);
+          const result = await this.executeTool(
+            shopkeeperId,
+            "place_order",
+            parsed,
+          );
+          const reply = await this.renderKioskOrderReply(
+            shopkeeperId,
+            result,
+            parsed.payment_method,
+          );
           this.appendHistory(shopkeeperId, message, reply.text);
           return reply;
         }
@@ -482,10 +1425,17 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
         // message that flows through THIS same pipeline (and lands in the
         // tryParseKioskOrder branch above) so the AI ultimately places the order.
         if (this.isKioskOrderTriggerIntent(message)) {
-          const sk: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
-          const rawCountry = (sk?.country || "IN").toString().trim().toUpperCase();
+          const sk: any = await this.shopkeeperModel
+            .findById(shopkeeperId)
+            .lean();
+          const rawCountry = (sk?.country || "IN")
+            .toString()
+            .trim()
+            .toUpperCase();
           const country: "IN" | "SG" =
-            rawCountry.startsWith("SG") || rawCountry.startsWith("SING") ? "SG" : "IN";
+            rawCountry.startsWith("SG") || rawCountry.startsWith("SING")
+              ? "SG"
+              : "IN";
           const catalog = await this.buildOrderFormCatalog(shopkeeperId);
           // QR readiness — determines whether the form lets the shopkeeper
           // pick QR. India needs an uploaded UPI QR image; Singapore needs
@@ -495,12 +1445,14 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
           if (country === "IN") {
             qrReady = !!sk?.paymentURL;
             if (!qrReady) {
-              qrSetupHint = "Upload your UPI QR image in Settings → Payment Tracking before taking QR payments.";
+              qrSetupHint =
+                "Upload your UPI QR image in Settings → Payment Tracking before taking QR payments.";
             }
           } else {
             qrReady = !!sk?.whatsappNumber;
             if (!qrReady) {
-              qrSetupHint = "Save your PayNow WhatsApp number in Settings → Profile before taking QR payments.";
+              qrSetupHint =
+                "Save your PayNow WhatsApp number in Settings → Profile before taking QR payments.";
             }
           }
           const reply: BotResponse = {
@@ -516,35 +1468,140 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
       // synonyms). Bulk-flips today's pending orders → processing in one
       // call, leaves anything already processing/completed/cancelled alone.
       if (tab === "orders" && this.isConfirmTodayOrdersIntent(message)) {
-        const result: any = await this.executeTool(shopkeeperId, "confirm_today_orders", {});
+        const result: any = await this.executeTool(
+          shopkeeperId,
+          "confirm_today_orders",
+          {},
+        );
         const reply = this.renderConfirmTodayReply(result, shopkeeper?.country);
         this.appendHistory(shopkeeperId, message, reply.text);
         return reply;
+      }
+
+      // Deterministic fast path for targeted analytics — "analytics for X",
+      // "sales of X", "how is X doing", "X's spending", "breakdown of order Y".
+      // Runs the right executor ourselves so the cards always render even when
+      // the LLM is rate-limited or picks the wrong tool.
+      if (tab === "dashboard") {
+        const targeted = this.tryParseTargetedAnalytics(message);
+        if (targeted) {
+          const result: any = await this.executeTool(
+            shopkeeperId,
+            targeted.tool,
+            targeted.args,
+          );
+          if (!result?.error) {
+            const analytics: AnalyticsSummary = {
+              revenue: Number(result.revenue) || 0,
+              orders: Number(result.orders) || 0,
+              avgOrder: Number(result.avgOrder) || 0,
+              customers: Number(result.customers) || 0,
+              currency: result.currency || "Rs.",
+              period: result.period,
+              topProducts: Array.isArray(result.topProducts)
+                ? result.topProducts
+                : undefined,
+              subject: result.subject,
+              subjectName: result.subjectName,
+            };
+            const headline =
+              analytics.subject === "product"
+                ? `Here's the snapshot for **${analytics.subjectName}**:`
+                : analytics.subject === "customer"
+                  ? `Here's **${analytics.subjectName}**'s activity:`
+                  : `Here's the breakdown for **${analytics.subjectName}**:`;
+            const reply: BotResponse = {
+              text: headline,
+              analytics,
+              quickActions: this.suggestActions("revenue"),
+            };
+            this.appendHistory(shopkeeperId, message, reply.text);
+            return reply;
+          }
+          // Tool returned an error — fall through to the LLM so it can ask the
+          // shopkeeper to clarify (e.g. "Customer not found").
+        }
       }
 
       // Deterministic fast path for analytics intents. The LLM sometimes calls
       // get_today_orders / get_today_revenue (which don't surface as cards) for
       // "today" instead of get_analytics, or returns text only — so we always
       // run the tool ourselves and build an analytics card payload.
-      if (tab === "dashboard") {
+      //
+      // SKIP this path when the shopkeeper is asking about a specific subject
+      // (product / customer / order). Phrases like "analytics for Mango Juice"
+      // contain "analytics" so the period detector matches, but we want the
+      // LLM specialist to call get_product_analytics, not the whole-shop
+      // monthly snapshot. The targeted-analytics fast path above catches the
+      // most common phrasings deterministically; everything else falls through
+      // to the specialist.
+      // Custom date range fast path — handles "since January", "from March to
+      // May", "last 7 days", "this week", "yesterday", etc. Runs a direct
+      // MongoDB aggregation so any window the shopkeeper names is supported,
+      // not just the fixed period enum the report endpoint understands.
+      if (tab === "dashboard" && !this.isTargetedAnalyticsIntent(message)) {
+        const range = this.parseCustomDateRange(message);
+        if (range) {
+          const sk: any = await this.shopkeeperModel
+            .findById(shopkeeperId)
+            .lean();
+          const country = (sk?.country || "IN").toString().trim().toUpperCase();
+          const currency =
+            country.startsWith("SG") || country.startsWith("SING")
+              ? "S$"
+              : "Rs.";
+          const analytics = await this.aggregateShopAnalytics(
+            shopkeeperId,
+            range.start,
+            range.end,
+            currency,
+          );
+          const reply: BotResponse = {
+            text:
+              analytics.orders > 0
+                ? `Here's your snapshot ${range.label}:`
+                : `No orders ${range.label} yet — your dashboard will fill up once sales come in.`,
+            analytics,
+            quickActions: this.suggestActions("revenue"),
+          };
+          this.appendHistory(shopkeeperId, message, reply.text);
+          return reply;
+        }
+      }
+
+      if (tab === "dashboard" && !this.isTargetedAnalyticsIntent(message)) {
         const period = this.detectAnalyticsPeriod(message);
         if (period) {
-          const sk: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
+          const sk: any = await this.shopkeeperModel
+            .findById(shopkeeperId)
+            .lean();
           const country = (sk?.country || "IN").toString().trim().toUpperCase();
-          const currency = country.startsWith("SG") || country.startsWith("SING") ? "S$" : "Rs.";
+          const currency =
+            country.startsWith("SG") || country.startsWith("SING")
+              ? "S$"
+              : "Rs.";
           let analytics: AnalyticsSummary | undefined;
           let periodLabel = "";
 
           if (period === "today") {
-            const todayResult: any = await this.executeTool(shopkeeperId, "get_today_orders", {});
-            const top: any = await this.executeTool(shopkeeperId, "get_top_products", {});
+            const todayResult: any = await this.executeTool(
+              shopkeeperId,
+              "get_today_orders",
+              {},
+            );
+            const top: any = await this.executeTool(
+              shopkeeperId,
+              "get_top_products",
+              {},
+            );
             const orders = Number(todayResult?.total) || 0;
             const revenue = Number(todayResult?.revenue) || 0;
             // Count ONLY customers who placed orders today (not all-time customers).
             // get_customers does an unbounded all-time count, which made the
             // snapshot's "Total Customers" show a number wildly out of sync with
             // today's order count. Inline a date-scoped distinct-userId count.
-            const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
             const todayUserIds = await this.orderModel.distinct("userId", {
               shopkeeperId,
               createdAt: { $gte: todayStart },
@@ -554,7 +1611,8 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
             analytics = {
               revenue,
               orders,
-              avgOrder: orders > 0 ? Math.round((revenue / orders) * 100) / 100 : 0,
+              avgOrder:
+                orders > 0 ? Math.round((revenue / orders) * 100) / 100 : 0,
               customers,
               currency,
               period: "today",
@@ -562,7 +1620,11 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
             };
             periodLabel = "today";
           } else {
-            const result: any = await this.executeTool(shopkeeperId, "get_analytics", { period });
+            const result: any = await this.executeTool(
+              shopkeeperId,
+              "get_analytics",
+              { period },
+            );
             if (!result?.error) {
               analytics = {
                 revenue: Number(result.revenue) || 0,
@@ -571,21 +1633,30 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
                 customers: Number(result.customers) || 0,
                 currency: result.currency || currency,
                 period,
-                topProducts: Array.isArray(result.topProducts) ? result.topProducts : undefined,
+                topProducts: Array.isArray(result.topProducts)
+                  ? result.topProducts
+                  : undefined,
               };
-              periodLabel = ({
-                monthly: "this month", lastmonth: "last month",
-                quarterly: "this quarter", lastquarter: "last quarter",
-                yearly: "this year", lastyear: "last year",
-              } as Record<string, string>)[period] || period;
+              periodLabel =
+                (
+                  {
+                    monthly: "this month",
+                    lastmonth: "last month",
+                    quarterly: "this quarter",
+                    lastquarter: "last quarter",
+                    yearly: "this year",
+                    lastyear: "last year",
+                  } as Record<string, string>
+                )[period] || period;
             }
           }
 
           if (analytics) {
             const reply: BotResponse = {
-              text: analytics.orders > 0
-                ? `Here's your snapshot for ${periodLabel}:`
-                : `No orders ${periodLabel} yet — your dashboard will fill up once sales come in.`,
+              text:
+                analytics.orders > 0
+                  ? `Here's your snapshot for ${periodLabel}:`
+                  : `No orders ${periodLabel} yet — your dashboard will fill up once sales come in.`,
               analytics,
               quickActions: this.suggestActions("revenue"),
             };
@@ -603,9 +1674,10 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
         const total = result?.total ?? 0;
         const products = Array.isArray(result?.products) ? result.products : [];
         const reply: BotResponse = {
-          text: total > 0
-            ? `Here are your **${total}** products — click any row with a chevron to expand its variants.`
-            : "You don't have any products yet. Try \"add a new product\" to create your first one.",
+          text:
+            total > 0
+              ? `Here are your **${total}** products — click any row with a chevron to expand its variants.`
+              : 'You don\'t have any products yet. Try "add a new product" to create your first one.',
           productTree: products,
           quickActions: this.suggestActions("product"),
         };
@@ -621,9 +1693,10 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
       if (tab === "products") {
         const nav = this.detectProductNavIntent(message);
         if (nav) {
-          const text = nav.action === "add"
-            ? "Opening the Add Product form…"
-            : `Opening **${nav.productName}** for editing…`;
+          const text =
+            nav.action === "add"
+              ? "Opening the Add Product form…"
+              : `Opening **${nav.productName}** for editing…`;
           const reply: BotResponse = {
             text,
             botAction: {
@@ -647,7 +1720,9 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
       if (tab === "crm") {
         const crm = this.detectCrmAddIntent(message);
         if (crm) {
-          const fullName = [crm.firstName, crm.lastName].filter(Boolean).join(" ");
+          const fullName = [crm.firstName, crm.lastName]
+            .filter(Boolean)
+            .join(" ");
           const text = fullName
             ? `Review **${fullName}**'s details below and click Create when ready.`
             : "Fill in the customer's details below and click Create.";
@@ -661,35 +1736,95 @@ Limits of this chat: cannot upload images, change theme, edit storefront layout,
       }
 
       // Stage 2 — specialist for that tab runs the tool-calling loop.
-      const reply = await this.runSpecialist(shopkeeperId, message, tab, shopName, firstName, shopkeeper?.country);
+      const reply = await this.runSpecialist(
+        shopkeeperId,
+        message,
+        tab,
+        shopName,
+        firstName,
+        shopkeeper?.country,
+      );
       this.appendHistory(shopkeeperId, message, reply.text);
       return reply;
     } catch (error: any) {
-      const detail = error?.response?.data?.error?.failed_generation || error?.error?.failed_generation || "";
-      this.logger.error(`AI Error: ${error.message}${detail ? ` | failed_generation: ${JSON.stringify(detail).slice(0, 500)}` : ""}`);
+      const detail =
+        error?.response?.data?.error?.failed_generation ||
+        error?.error?.failed_generation ||
+        "";
+      this.logger.error(
+        `AI Error: ${error.message}${detail ? ` | failed_generation: ${JSON.stringify(detail).slice(0, 500)}` : ""}`,
+      );
       return this.fallbackKeyword(shopkeeperId, message, jwtName);
     }
   }
 
   // Stage 1 — small, cheap classification call. Returns one of:
   // dashboard | kiosk | orders | crm | products | storefront | settings | general
-  private async routeToTab(shopkeeperId: string, message: string): Promise<string> {
+  private async routeToTab(
+    shopkeeperId: string,
+    message: string,
+  ): Promise<string> {
     const validTabs = Object.keys(ChatbotService.TAB_TOOLS);
 
     // Heuristic shortcut — unambiguous phrases bypass the LLM entirely.
     // Saves tokens and guarantees correct routing regardless of model.
     const m = message.toLowerCase().trim();
     // CRM first — "add customer" must not be confused with "add" → products.
-    if (/\b(add|new|create|register)\s+(a\s+)?(customer|client|buyer|contact)\b/.test(m)) return "crm";
-    if (/\b(edit|update|change|remove|delete)\s+(a\s+)?(customer|client|contact)\b/.test(m)) return "crm";
-    if (/\b(customer list|list customers|show customers|all customers|my customers|vip customers|show customer|customer details|crm stats)\b/.test(m)) return "crm";
-    if (/\b(place|create|new|take|ring up|ringup)\s+(an?\s+)?order\b/.test(m)) return "kiosk";
+    if (
+      /\b(add|new|create|register)\s+(a\s+)?(customer|client|buyer|contact)\b/.test(
+        m,
+      )
+    )
+      return "crm";
+    if (
+      /\b(edit|update|change|remove|delete)\s+(a\s+)?(customer|client|contact)\b/.test(
+        m,
+      )
+    )
+      return "crm";
+    if (
+      /\b(customer list|list customers|show customers|all customers|my customers|vip customers|show customer|customer details|crm stats)\b/.test(
+        m,
+      )
+    )
+      return "crm";
+    if (/\b(place|create|new|take|ring up|ringup)\s+(an?\s+)?order\b/.test(m))
+      return "kiosk";
     if (/\b(checkout|kiosk mode)\b/.test(m)) return "kiosk";
-    if (/\b(pending orders|order status|mark order|confirm payment|update order|cancel order)\b/.test(m)) return "orders";
-    if (/\b(revenue|analytics|stats|performance|how is my shop|earnings|earning|income|report)\b/.test(m)) return "dashboard";
+    if (
+      /\b(pending orders|order status|mark order|confirm payment|update order|cancel order)\b/.test(
+        m,
+      )
+    )
+      return "orders";
+    if (
+      /\b(revenue|analytics|stats|performance|how is my shop|earnings|earning|income|report)\b/.test(
+        m,
+      )
+    )
+      return "dashboard";
+    // Targeted analytics intents — "sales of X", "how is X doing", "X's stats / spending".
+    if (
+      /\b(sales|sold|performance|stats|spending|spent|breakdown)\s+(of|for)\b/.test(
+        m,
+      )
+    )
+      return "dashboard";
+    if (/\bhow (is|are|much)\s+\w+\s+(doing|selling|spent|spending)\b/.test(m))
+      return "dashboard";
     if (this.detectAnalyticsPeriod(m)) return "dashboard";
-    if (/\b(add|edit|delete|remove|update|create|new)\s+(a\s+|an\s+|the\s+)?(new\s+)?(product|variant|subcategory|option)\b/.test(m)) return "products";
-    if (/\b(low stock|top products|show menu|view menu|catalog|catalogue|inventory)\b/.test(m)) return "products";
+    if (
+      /\b(add|edit|delete|remove|update|create|new)\s+(a\s+|an\s+|the\s+)?(new\s+)?(product|variant|subcategory|option)\b/.test(
+        m,
+      )
+    )
+      return "products";
+    if (
+      /\b(low stock|top products|show menu|view menu|catalog|catalogue|inventory)\b/.test(
+        m,
+      )
+    )
+      return "products";
     if (this.isListProductsIntent(m)) return "products";
 
     // Last 2 turns keep the router anchored when the user writes a follow-up.
@@ -724,7 +1859,9 @@ Return just the id.`,
         max_tokens: 12,
         temperature: 0,
       });
-      const raw = ((res.choices?.[0]?.message as any)?.content || "general").trim().toLowerCase();
+      const raw = ((res.choices?.[0]?.message as any)?.content || "general")
+        .trim()
+        .toLowerCase();
       for (const tab of validTabs) {
         if (raw === tab || raw.includes(tab)) return tab;
       }
@@ -745,10 +1882,18 @@ Return just the id.`,
     personFirstName: string = "there",
     country?: string,
   ): Promise<BotResponse> {
-    const allowed = new Set([...(ChatbotService.TAB_TOOLS[tab] || []), "navigate_to"]);
-    const tools = this.tools.filter(t => t.type === "function" && allowed.has(t.function.name));
+    const allowed = new Set([
+      ...(ChatbotService.TAB_TOOLS[tab] || []),
+      "navigate_to",
+    ]);
+    const tools = this.tools.filter(
+      (t) => t.type === "function" && allowed.has(t.function.name),
+    );
     const greetingLine = this.buildGreetingLine(personFirstName, country);
-    const prompt = (ChatbotService.SPECIALIST_PROMPTS[tab] || ChatbotService.SPECIALIST_PROMPTS.general)
+    const prompt = (
+      ChatbotService.SPECIALIST_PROMPTS[tab] ||
+      ChatbotService.SPECIALIST_PROMPTS.general
+    )
       .replace("{SHOP}", shopName)
       .replace("{PERSON}", personFirstName)
       .replace("{GREETING_LINE}", greetingLine);
@@ -777,28 +1922,38 @@ Hard rules — violations are bugs:
     const currency = this.currencySymbol(country);
     const currencyDirective = `CURRENCY: this shop is in ${country || "IN"} — every money value in your reply must be prefixed with "${currency}" (e.g. "${currency}250.00", "${currency}1,250"). Never strip the symbol, never substitute a different one.`;
     const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: `${langDirective}\n${currencyDirective}\n\n${prompt}\n${sysCommon}\n${ChatbotService.KNOWLEDGE_BASE}` },
+      {
+        role: "system",
+        content: `${langDirective}\n${currencyDirective}\n\n${prompt}\n${sysCommon}\n${ChatbotService.KNOWLEDGE_BASE}`,
+      },
       ...history,
       { role: "user", content: message },
     ];
 
     let response: any;
     let currentModel = this.model;
-    const runCompletion = (modelId: string) => this.ai.chat.completions.create({
-      model: modelId,
-      messages,
-      tools: tools.length > 0 ? tools : undefined,
-      tool_choice: tools.length > 0 ? "auto" : undefined,
-      max_tokens: 1024,
-      temperature: 0,
-    });
+    const runCompletion = (modelId: string) =>
+      this.ai.chat.completions.create({
+        model: modelId,
+        messages,
+        tools: tools.length > 0 ? tools : undefined,
+        tool_choice: tools.length > 0 ? "auto" : undefined,
+        max_tokens: 1024,
+        temperature: 0,
+      });
     try {
       response = await runCompletion(currentModel);
     } catch (err: any) {
       // 429 → retry once on the smaller fallback model so the bot stays live
       // after the daily TPD cap is hit on the primary (e.g. Groq 70B).
-      if (this.isRateLimit(err) && this.fallbackModel && this.fallbackModel !== currentModel) {
-        this.logger.warn(`Primary model rate-limited; falling back to ${this.fallbackModel}`);
+      if (
+        this.isRateLimit(err) &&
+        this.fallbackModel &&
+        this.fallbackModel !== currentModel
+      ) {
+        this.logger.warn(
+          `Primary model rate-limited; falling back to ${this.fallbackModel}`,
+        );
         currentModel = this.fallbackModel;
         try {
           response = await runCompletion(currentModel);
@@ -825,7 +1980,10 @@ Hard rules — violations are bugs:
                   {
                     id: `call_recovered_${Date.now()}`,
                     type: "function",
-                    function: { name: parsed.name, arguments: JSON.stringify(parsed.args) },
+                    function: {
+                      name: parsed.name,
+                      arguments: JSON.stringify(parsed.args),
+                    },
                   },
                 ],
               },
@@ -855,10 +2013,22 @@ Hard rules — violations are bugs:
           args = {};
         }
         if (!args || typeof args !== "object") args = {};
-        this.logger.log(`[Tool] ${tc.function.name}(${JSON.stringify(args).slice(0, 200)})`);
-        const result = await this.executeTool(shopkeeperId, tc.function.name, args);
-        this.logger.log(`[Tool] ${tc.function.name} → ${JSON.stringify(result).slice(0, 200)}`);
-        toolMessages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
+        this.logger.log(
+          `[Tool] ${tc.function.name}(${JSON.stringify(args).slice(0, 200)})`,
+        );
+        const result = await this.executeTool(
+          shopkeeperId,
+          tc.function.name,
+          args,
+        );
+        this.logger.log(
+          `[Tool] ${tc.function.name} → ${JSON.stringify(result).slice(0, 200)}`,
+        );
+        toolMessages.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: JSON.stringify(result),
+        });
         if (tc.function.name === "navigate_to") {
           botAction = {
             type: "navigate",
@@ -866,7 +2036,11 @@ Hard rules — violations are bugs:
             ...(args.action ? { action: args.action } : {}),
             ...(args.productName ? { productName: args.productName } : {}),
           };
-        } else if (tc.function.name === "get_payment_qr" && result && !result.error) {
+        } else if (
+          tc.function.name === "get_payment_qr" &&
+          result &&
+          !result.error
+        ) {
           botAction = {
             type: "showQR",
             orderId: result.orderId,
@@ -877,11 +2051,18 @@ Hard rules — violations are bugs:
             shopkeeperPhone: result.shopkeeperPhone,
             paymentURL: result.paymentURL,
           };
-        } else if (tc.function.name === "get_products" && Array.isArray(result?.products)) {
+        } else if (
+          tc.function.name === "get_products" &&
+          Array.isArray(result?.products)
+        ) {
           // Surface the structured product list so the widget can render an
           // expandable tree (matching the Products tab UI).
           productTree = result.products;
-        } else if (tc.function.name === "get_analytics" && result && !result.error) {
+        } else if (
+          tc.function.name === "get_analytics" &&
+          result &&
+          !result.error
+        ) {
           // Surface the analytics summary so the widget can render the same
           // four KPI cards used on the Analytics page.
           analytics = {
@@ -891,7 +2072,32 @@ Hard rules — violations are bugs:
             customers: Number(result.customers) || 0,
             currency: result.currency || "Rs.",
             period: args?.period,
-            topProducts: Array.isArray(result.topProducts) ? result.topProducts : undefined,
+            topProducts: Array.isArray(result.topProducts)
+              ? result.topProducts
+              : undefined,
+            subject: "shop",
+          };
+        } else if (
+          (tc.function.name === "get_product_analytics" ||
+            tc.function.name === "get_customer_analytics" ||
+            tc.function.name === "get_order_analytics") &&
+          result &&
+          !result.error
+        ) {
+          // The targeted-analytics tools already return the AnalyticsSummary
+          // shape with subject + subjectName populated. Pass through.
+          analytics = {
+            revenue: Number(result.revenue) || 0,
+            orders: Number(result.orders) || 0,
+            avgOrder: Number(result.avgOrder) || 0,
+            customers: Number(result.customers) || 0,
+            currency: result.currency || "Rs.",
+            period: result.period,
+            topProducts: Array.isArray(result.topProducts)
+              ? result.topProducts
+              : undefined,
+            subject: result.subject,
+            subjectName: result.subjectName,
           };
         }
       }
@@ -909,7 +2115,9 @@ Hard rules — violations are bugs:
         });
       } catch (fErr: any) {
         if (this.isRateLimit(fErr) && this.fallbackModel !== currentModel) {
-          this.logger.warn(`Follow-up rate-limited; falling back to ${this.fallbackModel}`);
+          this.logger.warn(
+            `Follow-up rate-limited; falling back to ${this.fallbackModel}`,
+          );
           followUp = await this.ai.chat.completions.create({
             model: this.fallbackModel,
             messages: toolMessages,
@@ -921,16 +2129,24 @@ Hard rules — violations are bugs:
         }
       }
       const rawFollow = (followUp.choices[0].message as any).content;
-      const text = rawFollow && rawFollow.trim() ? rawFollow : "No matching records.";
-      return { text, quickActions: this.suggestActions(message), botAction, productTree, analytics };
+      const text =
+        rawFollow && rawFollow.trim() ? rawFollow : "No matching records.";
+      return {
+        text,
+        quickActions: this.suggestActions(message),
+        botAction,
+        productTree,
+        analytics,
+      };
     }
 
     // No tool calls path — model replied with text only. Whitespace counts as
     // empty for the safety check; fall through to a polite redirect so the
     // shopkeeper always sees something useful.
-    const directText = assistantMsg.content && assistantMsg.content.trim()
-      ? assistantMsg.content
-      : "Could you give me a bit more detail? You can also try one of the shortcuts below.";
+    const directText =
+      assistantMsg.content && assistantMsg.content.trim()
+        ? assistantMsg.content
+        : "Could you give me a bit more detail? You can also try one of the shortcuts below.";
     return {
       text: directText,
       quickActions: this.suggestActions(message),
@@ -942,17 +2158,30 @@ Hard rules — violations are bugs:
 
   private suggestActions(msg: string): QuickAction[] {
     const m = msg.toLowerCase();
-    if (m.includes("order")) return [{ label: "Pending Orders", action: "show pending orders" }, { label: "Today's Revenue", action: "today's revenue" }];
-    if (m.includes("product")) return [{ label: "Add Product", action: "add a new product" }, { label: "Low Stock", action: "low stock alerts" }];
-    if (m.includes("payment")) return [{ label: "Confirm Payments", action: "confirm all matched payments" }, { label: "Summary", action: "payment summary" }];
-    if (m.includes("hi") || m.includes("hello") || m.includes("help")) return [
-      { label: "Today's Orders", action: "show today's orders" },
-      { label: "Revenue", action: "today's revenue" },
-      { label: "Analytics", action: "this month analytics" },
-      { label: "Payments", action: "payment summary" },
-      { label: "Products", action: "show products" },
-      { label: "Add Product", action: "add product" },
-    ];
+    if (m.includes("order"))
+      return [
+        { label: "Pending Orders", action: "show pending orders" },
+        { label: "Today's Revenue", action: "today's revenue" },
+      ];
+    if (m.includes("product"))
+      return [
+        { label: "Add Product", action: "add a new product" },
+        { label: "Low Stock", action: "low stock alerts" },
+      ];
+    if (m.includes("payment"))
+      return [
+        { label: "Confirm Payments", action: "confirm all matched payments" },
+        { label: "Summary", action: "payment summary" },
+      ];
+    if (m.includes("hi") || m.includes("hello") || m.includes("help"))
+      return [
+        { label: "Today's Orders", action: "show today's orders" },
+        { label: "Revenue", action: "today's revenue" },
+        { label: "Analytics", action: "this month analytics" },
+        { label: "Payments", action: "payment summary" },
+        { label: "Products", action: "show products" },
+        { label: "Add Product", action: "add product" },
+      ];
     return [
       { label: "Orders", action: "show today's orders" },
       { label: "Revenue", action: "today's revenue" },
@@ -965,7 +2194,7 @@ Hard rules — violations are bugs:
   private getHistory(sid: string): ConvEntry[] {
     const cutoff = Date.now() - ChatbotService.TTL_MINUTES * 60 * 1000;
     const all = this.conversations.get(sid) || [];
-    const live = all.filter(e => e.ts >= cutoff);
+    const live = all.filter((e) => e.ts >= cutoff);
     if (live.length !== all.length) this.conversations.set(sid, live);
     return live;
   }
@@ -981,17 +2210,24 @@ Hard rules — violations are bugs:
     this.conversations.set(sid, hist);
   }
 
-  private historyAsMessages(sid: string, limit = ChatbotService.MAX_TURNS * 2): OpenAI.ChatCompletionMessageParam[] {
+  private historyAsMessages(
+    sid: string,
+    limit = ChatbotService.MAX_TURNS * 2,
+  ): OpenAI.ChatCompletionMessageParam[] {
     const hist = this.getHistory(sid).slice(-limit);
-    return hist.map(e => ({ role: e.role, content: e.content }));
+    return hist.map((e) => ({ role: e.role, content: e.content }));
   }
 
   // Recover from Groq's llama-3.x text-wrapped tool calls, e.g.:
   //   <function=get_analytics{"period":"lastmonth"}>
   //   <function=navigate_to({"tab":"products"})>
-  private parseMalformedToolCall(text: string): { name: string; args: any } | null {
+  private parseMalformedToolCall(
+    text: string,
+  ): { name: string; args: any } | null {
     if (!text) return null;
-    const m = text.match(/<function\s*=\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(?\s*(\{[\s\S]*?\})\s*\)?\s*(?:\/?>|<\/function>)?/);
+    const m = text.match(
+      /<function\s*=\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(?\s*(\{[\s\S]*?\})\s*\)?\s*(?:\/?>|<\/function>)?/,
+    );
     if (!m) return null;
     try {
       return { name: m[1], args: JSON.parse(m[2]) };
@@ -1005,8 +2241,18 @@ Hard rules — violations are bugs:
   //   "Place order for NAME[, PHONE, EMAIL], items [cash|qr]"   (no colon — natural)
   // Returns null if the format doesn't match, in which case the LLM path runs.
   // When only a name is given, place_order will look up phone/email from the CRM.
-  private tryParseKioskOrder(message: string): null | { customer_name: string; whatsapp?: string; email?: string; items: { product_name: string; variant_title?: string; quantity: number }[]; payment_method?: "cash" | "qr" } {
-    const prefix = message.match(/^\s*(?:please\s+)?(?:place|create|new|take|ring\s*up)\s+(?:an?\s+|the\s+)?order\s+(?:for\s+)?(.+?)\s*$/i);
+  private tryParseKioskOrder(
+    message: string,
+  ): null | {
+    customer_name: string;
+    whatsapp?: string;
+    email?: string;
+    items: { product_name: string; variant_title?: string; quantity: number }[];
+    payment_method?: "cash" | "qr";
+  } {
+    const prefix = message.match(
+      /^\s*(?:please\s+)?(?:place|create|new|take|ring\s*up)\s+(?:an?\s+|the\s+)?order\s+(?:for\s+)?(.+?)\s*$/i,
+    );
     if (!prefix) return null;
     let tail = prefix[1].trim();
 
@@ -1029,14 +2275,22 @@ Hard rules — violations are bugs:
     } else {
       // No colon: walk comma-separated parts. The first part that looks
       // item-like ("2 Mango", "Chai x2") marks the start of the body.
-      const parts = tail.split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+      const parts = tail
+        .split(/\s*,\s*/)
+        .map((s) => s.trim())
+        .filter(Boolean);
       if (parts.length < 2) return null;
-      const isContactish = (p: string) => /@/.test(p) || /^\+?[\d\s\-()]{6,}$/.test(p);
-      const isItemish = (p: string) => /^\d/.test(p) || /\s+x\s*\d+\s*$/i.test(p);
+      const isContactish = (p: string) =>
+        /@/.test(p) || /^\+?[\d\s\-()]{6,}$/.test(p);
+      const isItemish = (p: string) =>
+        /^\d/.test(p) || /\s+x\s*\d+\s*$/i.test(p);
       let splitIdx = -1;
       for (let i = 1; i < parts.length; i++) {
         if (isContactish(parts[i])) continue;
-        if (isItemish(parts[i])) { splitIdx = i; break; }
+        if (isItemish(parts[i])) {
+          splitIdx = i;
+          break;
+        }
       }
       if (splitIdx === -1) return null;
       header = parts.slice(0, splitIdx).join(", ");
@@ -1045,13 +2299,17 @@ Hard rules — violations are bugs:
     if (!header || !body) return null;
 
     // Split header by comma: name, whatsapp, email (in any order; whatsapp starts with + or digits, email has @)
-    const parts = header.split(",").map(s => s.trim()).filter(Boolean);
+    const parts = header
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     let customer_name = "";
     let whatsapp: string | undefined;
     let email: string | undefined;
     for (const part of parts) {
       if (!email && /@/.test(part)) email = part;
-      else if (!whatsapp && /^\+?[\d\s\-()]{6,}$/.test(part)) whatsapp = part.replace(/[\s\-()]/g, "");
+      else if (!whatsapp && /^\+?[\d\s\-()]{6,}$/.test(part))
+        whatsapp = part.replace(/[\s\-()]/g, "");
       else if (!customer_name) customer_name = part;
     }
     if (!customer_name) customer_name = parts[0] || "";
@@ -1061,16 +2319,21 @@ Hard rules — violations are bugs:
     const itemStrings = body.split(/\s*,\s*/).filter(Boolean);
     if (itemStrings.length === 0) return null;
 
-    const items = itemStrings.map(raw => {
+    const items = itemStrings.map((raw) => {
       let s = raw.trim();
       let quantity = 1;
       // "2 Chai" — leading integer
       let m1 = s.match(/^(\d+)\s+(.+)$/);
-      if (m1) { quantity = parseInt(m1[1], 10); s = m1[2].trim(); }
-      else {
+      if (m1) {
+        quantity = parseInt(m1[1], 10);
+        s = m1[2].trim();
+      } else {
         // "Chai x2" / "Chai X2"
         const m2 = s.match(/^(.+?)\s+x\s*(\d+)$/i);
-        if (m2) { quantity = parseInt(m2[2], 10); s = m2[1].trim(); }
+        if (m2) {
+          quantity = parseInt(m2[2], 10);
+          s = m2[1].trim();
+        }
       }
       // Pass the whole descriptor as product_name. The executor tries the full
       // string first; if no product matches and it contains spaces, auto-split
@@ -1100,39 +2363,63 @@ Hard rules — violations are bugs:
     return `${this.currencySymbol(country)}${n.toFixed(2)}`;
   }
 
-  private async renderKioskOrderReply(shopkeeperId: string, result: any, paymentMethod?: "cash" | "qr"): Promise<BotResponse> {
+  private async renderKioskOrderReply(
+    shopkeeperId: string,
+    result: any,
+    paymentMethod?: "cash" | "qr",
+  ): Promise<BotResponse> {
     if (result?.error) {
       const lines = [`⚠️ ${result.error}`];
       if (result.available) {
-        if (result.available.variants?.length) lines.push(`Variants: ${result.available.variants.join(", ")}`);
-        if (result.available.subcategories?.length) lines.push(`Subcategories: ${result.available.subcategories.join(", ")}`);
-        if (result.available.subcategoryVariants?.length) lines.push(`Sub-variants: ${result.available.subcategoryVariants.join(", ")}`);
-        if (result.available.options?.length) lines.push(`Options: ${result.available.options.join(", ")}`);
+        if (result.available.variants?.length)
+          lines.push(`Variants: ${result.available.variants.join(", ")}`);
+        if (result.available.subcategories?.length)
+          lines.push(
+            `Subcategories: ${result.available.subcategories.join(", ")}`,
+          );
+        if (result.available.subcategoryVariants?.length)
+          lines.push(
+            `Sub-variants: ${result.available.subcategoryVariants.join(", ")}`,
+          );
+        if (result.available.options?.length)
+          lines.push(`Options: ${result.available.options.join(", ")}`);
       }
-      if (Array.isArray(result.matches) && result.matches.length) lines.push(`Matched: ${result.matches.join(", ")}`);
+      if (Array.isArray(result.matches) && result.matches.length)
+        lines.push(`Matched: ${result.matches.join(", ")}`);
       lines.push("Please reply with the exact variant/subcategory name.");
       return { text: lines.join("\n"), quickActions: this.suggestActions("") };
     }
-    if (!result?.success) return { text: "Couldn't place order. Please try again." };
+    if (!result?.success)
+      return { text: "Couldn't place order. Please try again." };
 
     // Resolve country once so every money line gets the right symbol.
     const sk: any = await this.shopkeeperModel.findById(shopkeeperId).lean();
     const country = sk?.country;
 
     const b = result.breakdown || {};
-    const itemsLine = (result.items || []).map((i: any) => {
-      const parts = [i.subcategory, i.variant].filter(Boolean);
-      if (i.option) parts.push(`option ${i.option}${i.optionPrice ? ` +${this.fmtMoney(i.optionPrice, country)}` : ""}`);
-      const detail = parts.length ? ` (${parts.join(" > ")})` : "";
-      const priceLine = i.unitPrice !== undefined ? ` — ${this.fmtMoney(i.unitPrice, country)} × ${i.qty}` : "";
-      return `  ${i.qty}× ${i.name}${detail}${priceLine}`;
-    }).join("\n");
+    const itemsLine = (result.items || [])
+      .map((i: any) => {
+        const parts = [i.subcategory, i.variant].filter(Boolean);
+        if (i.option)
+          parts.push(
+            `option ${i.option}${i.optionPrice ? ` +${this.fmtMoney(i.optionPrice, country)}` : ""}`,
+          );
+        const detail = parts.length ? ` (${parts.join(" > ")})` : "";
+        const priceLine =
+          i.unitPrice !== undefined
+            ? ` — ${this.fmtMoney(i.unitPrice, country)} × ${i.qty}`
+            : "";
+        return `  ${i.qty}× ${i.name}${detail}${priceLine}`;
+      })
+      .join("\n");
     const text = [
       `✅ Order **#${result.orderId}** placed for ${result.customer}.`,
       itemsLine,
       `Subtotal: ${this.fmtMoney(b.subtotal, country)}${b.discountPercentage ? `  ·  Discount ${b.discountPercentage}%: -${this.fmtMoney(b.discount, country)}` : ""}${b.taxPercentage ? `  ·  Tax ${b.taxPercentage}%: +${this.fmtMoney(b.tax, country)}` : ""}`,
       `**Total: ${this.fmtMoney(b.total, country)}**  (${paymentMethod === "cash" ? "cash received" : "QR payment"})`,
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     // QR orders → pre-fetch the QR payload so the widget renders it inline.
     // Cash orders → emit a showReceipt action so the widget renders a Download
@@ -1149,7 +2436,9 @@ Hard rules — violations are bugs:
         };
       }
     } else {
-      const qr = await this.executeTool(shopkeeperId, "get_payment_qr", { order_id: result.orderId });
+      const qr = await this.executeTool(shopkeeperId, "get_payment_qr", {
+        order_id: result.orderId,
+      });
       if (qr && !qr.error) {
         botAction = {
           type: "showQR",
@@ -1179,10 +2468,14 @@ Hard rules — violations are bugs:
     // shopkeeper sees a real table of order rows, not a KPI snapshot. So we
     // intentionally exclude `orders` from the today/this-month patterns.
     const isAnalyticsish =
-      /\b(revenue|sales|analytics|report|stats|performance|dashboard|earnings|earning|income)\b/.test(m) ||
+      /\b(revenue|sales|analytics|report|stats|performance|dashboard|earnings|earning|income)\b/.test(
+        m,
+      ) ||
       /\bhow\s+is\s+my\s+shop\b/.test(m) ||
       /\btoday(['‘’]s)?\s+(sales?|revenue|summary|stats?)\b/.test(m) ||
-      /\bthis\s+(month|year|quarter)\s+(sales?|revenue|summary|stats?|report|analytics)\b/.test(m);
+      /\bthis\s+(month|year|quarter)\s+(sales?|revenue|summary|stats?|report|analytics)\b/.test(
+        m,
+      );
     if (!isAnalyticsish) return null;
 
     if (/\blast\s+month\b/.test(m)) return "lastmonth";
@@ -1199,17 +2492,31 @@ Hard rules — violations are bugs:
   // "add product" / "edit product X" → open the dashboard's product form.
   // Returns null when the message looks like a narrow inline edit
   // ("change Mango price to 50") so update_product still wins for those.
-  private detectProductNavIntent(message: string): { action: "add" | "edit"; productName?: string } | null {
-    const m = (message || "").toLowerCase().trim().replace(/[?!.]+$/, "");
+  private detectProductNavIntent(
+    message: string,
+  ): { action: "add" | "edit"; productName?: string } | null {
+    const m = (message || "")
+      .toLowerCase()
+      .trim()
+      .replace(/[?!.]+$/, "");
     if (!m) return null;
     // Inline-value edits ("change X price to 50", "X stock 100") — leave to LLM/update_product.
-    if (/\b(price|cost|category|inventory|stock|sku|tags?|barcode|measurement|description|discount)\b/.test(m)) return null;
+    if (
+      /\b(price|cost|category|inventory|stock|sku|tags?|barcode|measurement|description|discount)\b/.test(
+        m,
+      )
+    )
+      return null;
 
     // ADD intents — pure form-open phrasing, no other details.
     if (
-      /^(?:please\s+)?(?:add|create)\s+(?:a\s+|an\s+|the\s+)?(?:new\s+)?product(?:\s+form)?$/.test(m) ||
+      /^(?:please\s+)?(?:add|create)\s+(?:a\s+|an\s+|the\s+)?(?:new\s+)?product(?:\s+form)?$/.test(
+        m,
+      ) ||
       /^(?:please\s+)?new\s+product$/.test(m) ||
-      /^(?:please\s+)?(?:open|show|give\s+me)\s+(?:the\s+)?add\s+product(?:\s+form)?$/.test(m)
+      /^(?:please\s+)?(?:open|show|give\s+me)\s+(?:the\s+)?add\s+product(?:\s+form)?$/.test(
+        m,
+      )
     ) {
       return { action: "add" };
     }
@@ -1217,15 +2524,186 @@ Hard rules — violations are bugs:
     // EDIT intents — must name a target, must not contain a number (those go to
     // update_product). Strip a trailing " form" if the shopkeeper added it.
     if (/\d/.test(m)) return null;
-    const edit = m.match(/^(?:please\s+)?(?:edit|update|modify)\s+(?:product\s+)?(.+?)$/);
+    const edit = m.match(
+      /^(?:please\s+)?(?:edit|update|modify)\s+(?:product\s+)?(.+?)$/,
+    );
     if (edit) {
       const name = edit[1].replace(/\s+form\s*$/, "").trim();
-      if (name && !["product", "the product", "this product", "a product"].includes(name)) {
+      if (
+        name &&
+        !["product", "the product", "this product", "a product"].includes(name)
+      ) {
         return { action: "edit", productName: name };
       }
     }
-    const open = m.match(/^open\s+(.+?)\s+(?:for\s+(?:editing|edit)|edit\s+form)$/);
+    const open = m.match(
+      /^open\s+(.+?)\s+(?:for\s+(?:editing|edit)|edit\s+form)$/,
+    );
     if (open) return { action: "edit", productName: open[1].trim() };
+
+    return null;
+  }
+  // True when the message is asking about a SPECIFIC product / customer / order
+  // rather than the whole shop. We disable the whole-shop fast path for these
+  // so the LLM (or the targeted-analytics fast path) can answer correctly.
+  private isTargetedAnalyticsIntent(message: string): boolean {
+    return !!this.tryParseTargetedAnalytics(message);
+  }
+
+  // Parse free-form date windows the shopkeeper might type:
+  //   "since January"           → Jan 1 of current year (or last year if January is in the future)
+  //   "since 2026-01-15"        → that exact date
+  //   "from March to May"       → Mar 1 → June 1 (end-exclusive)
+  //   "from Jan 1 to Mar 31"    → Jan 1 → Apr 1
+  //   "last 7 days" / "past 30 days"
+  //   "this week" / "last week"
+  //   "yesterday"
+  // Returns { start, end (exclusive), label } or null when no custom range was
+  // expressed. Named periods like "monthly" / "today" are NOT handled here —
+  // those still go through the existing detectAnalyticsPeriod path.
+  private parseCustomDateRange(
+    message: string,
+  ): { start: Date; end: Date; label: string } | null {
+    const m = (message || "").toLowerCase().trim();
+    if (!m) return null;
+    const now = new Date();
+    const startOfDay = (d: Date) => {
+      const x = new Date(d);
+      x.setHours(0, 0, 0, 0);
+      return x;
+    };
+    const monthIndex = (s: string): number => {
+      const map: Record<string, number> = {
+        jan: 0,
+        january: 0,
+        feb: 1,
+        february: 1,
+        mar: 2,
+        march: 2,
+        apr: 3,
+        april: 3,
+        may: 4,
+        jun: 5,
+        june: 5,
+        jul: 6,
+        july: 6,
+        aug: 7,
+        august: 7,
+        sep: 8,
+        sept: 8,
+        september: 8,
+        oct: 9,
+        october: 9,
+        nov: 10,
+        november: 10,
+        dec: 11,
+        december: 11,
+      };
+      return map[s.toLowerCase()] ?? -1;
+    };
+    const monthPattern =
+      "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+
+    // Yesterday.
+    if (/\byesterday\b/.test(m)) {
+      const end = startOfDay(now);
+      const start = new Date(end);
+      start.setDate(start.getDate() - 1);
+      return { start, end, label: "yesterday" };
+    }
+
+    // This week (Mon → next Mon).
+    if (/\bthis\s+week\b/.test(m)) {
+      const start = startOfDay(now);
+      const dayOfWeek = (start.getDay() + 6) % 7; // 0 = Monday
+      start.setDate(start.getDate() - dayOfWeek);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      return { start, end, label: "this week" };
+    }
+
+    // Last week (previous Mon → this Mon).
+    if (/\blast\s+week\b/.test(m)) {
+      const thisMonday = startOfDay(now);
+      const dayOfWeek = (thisMonday.getDay() + 6) % 7;
+      thisMonday.setDate(thisMonday.getDate() - dayOfWeek);
+      const start = new Date(thisMonday);
+      start.setDate(start.getDate() - 7);
+      return { start, end: thisMonday, label: "last week" };
+    }
+
+    // "last N days" / "past N days".
+    let mt = m.match(/\b(?:last|past)\s+(\d{1,3})\s+(day|week|month|year)s?\b/);
+    if (mt) {
+      const n = Number(mt[1]);
+      const unit = mt[2];
+      const end = new Date(now);
+      const start = new Date(now);
+      if (unit === "day") start.setDate(start.getDate() - n);
+      else if (unit === "week") start.setDate(start.getDate() - n * 7);
+      else if (unit === "month") start.setMonth(start.getMonth() - n);
+      else if (unit === "year") start.setFullYear(start.getFullYear() - n);
+      return {
+        start: startOfDay(start),
+        end,
+        label: `in the last ${n} ${unit}${n > 1 ? "s" : ""}`,
+      };
+    }
+
+    // "from <date> to <date>" / "between <date> and <date>".
+    // Anchor the second capture to end-of-string or punctuation so multi-word
+    // dates like "march 15" aren't truncated to just "march".
+    mt = m.match(
+      /\b(?:from|between)\s+(.+?)\s+(?:to|and|until|till|-)\s+(.+?)\s*(?:[.,?!]|$)/,
+    );
+    if (mt) {
+      const a = this.parseLooseDate(mt[1], now, "start");
+      const b = this.parseLooseDate(mt[2], now, "end");
+      if (a && b && b > a) {
+        // For an inclusive end-date like "march 15", bump end by 1 day so the
+        // [start, end) range actually covers all of march 15.
+        const endExclusive = this.isSingleDay(mt[2])
+          ? new Date(b.getTime() + 24 * 60 * 60 * 1000)
+          : b;
+        return {
+          start: a,
+          end: endExclusive,
+          label: `from ${a.toDateString()} to ${b.toDateString()}`,
+        };
+      }
+    }
+
+    // "since <date>" / "after <date>".
+    mt = m.match(
+      /\b(?:since|after|from)\s+(.+?)(?:\s+till|\s+until|\s+to|$|\.|,|\?)/,
+    );
+    if (mt) {
+      const start = this.parseLooseDate(mt[1], now, "start");
+      if (start && start <= now)
+        return { start, end: now, label: `since ${start.toDateString()}` };
+    }
+
+    // Bare month name on its own ("March", "January") — interpret as that
+    // month in the current year (or last year if the month hasn't started yet).
+    mt = m.match(
+      new RegExp(
+        `^${monthPattern}\\s*(?:analytics|stats?|sales|revenue|report)?$`,
+      ),
+    );
+    if (mt) {
+      const mi = monthIndex(mt[1]);
+      if (mi >= 0) {
+        const year =
+          mi > now.getMonth() ? now.getFullYear() - 1 : now.getFullYear();
+        const start = new Date(year, mi, 1);
+        const end = new Date(year, mi + 1, 1);
+        return {
+          start,
+          end,
+          label: `for ${start.toLocaleString("en-US", { month: "long", year: "numeric" })}`,
+        };
+      }
+    }
 
     return null;
   }
@@ -1256,14 +2734,26 @@ Hard rules — violations are bugs:
   // pending → processing for today. Caught before the LLM so the action is
   // deterministic and idempotent.
   private isConfirmTodayOrdersIntent(message: string): boolean {
-    const m = (message || "").toLowerCase().trim().replace(/[?!.]+$/, "");
+    const m = (message || "")
+      .toLowerCase()
+      .trim()
+      .replace(/[?!.]+$/, "");
     if (!m) return false;
     if (
-      /^(?:please\s+)?(?:confirm|process|move|update|mark|approve)\s+(?:all\s+)?(?:of\s+)?(?:today'?s?|today)\s+(?:pending\s+)?orders?(?:\s+to\s+processing)?$/.test(m)
-    ) return true;
-    if (/^(?:please\s+)?(?:confirm|process|approve)\s+all\s+orders\s+received\s+today$/.test(m)) return true;
+      /^(?:please\s+)?(?:confirm|process|move|update|mark|approve)\s+(?:all\s+)?(?:of\s+)?(?:today'?s?|today)\s+(?:pending\s+)?orders?(?:\s+to\s+processing)?$/.test(
+        m,
+      )
+    )
+      return true;
+    if (
+      /^(?:please\s+)?(?:confirm|process|approve)\s+all\s+orders\s+received\s+today$/.test(
+        m,
+      )
+    )
+      return true;
     if (/^(?:please\s+)?(?:start|begin)\s+(?:the\s+)?day$/.test(m)) return true;
-    if (/^process\s+(?:the\s+)?(?:day's?\s+)?(?:pending\s+)?orders?$/.test(m)) return true;
+    if (/^process\s+(?:the\s+)?(?:day's?\s+)?(?:pending\s+)?orders?$/.test(m))
+      return true;
     return false;
   }
 
@@ -1277,10 +2767,14 @@ Hard rules — violations are bugs:
     }
     if (result.confirmed === 0) {
       const breakdown = [
-        result.alreadyProcessing > 0 ? `${result.alreadyProcessing} already processing` : "",
+        result.alreadyProcessing > 0
+          ? `${result.alreadyProcessing} already processing`
+          : "",
         result.completed > 0 ? `${result.completed} completed` : "",
         result.cancelled > 0 ? `${result.cancelled} cancelled` : "",
-      ].filter(Boolean).join(" · ");
+      ]
+        .filter(Boolean)
+        .join(" · ");
       return {
         text: `All ${result.total} of today's orders are already past pending${breakdown ? ` (${breakdown})` : ""}.`,
         quickActions: [
@@ -1290,13 +2784,18 @@ Hard rules — violations are bugs:
       };
     }
     const rows = (result.confirmedOrders || [])
-      .map((o: any) => `| #${o.orderId} | ${o.customer || "Customer"} | ${this.fmtMoney(o.amount, country)} |`)
+      .map(
+        (o: any) =>
+          `| #${o.orderId} | ${o.customer || "Customer"} | ${this.fmtMoney(o.amount, country)} |`,
+      )
       .join("\n");
     const skipped: string[] = [];
-    if (result.alreadyProcessing > 0) skipped.push(`${result.alreadyProcessing} already processing`);
+    if (result.alreadyProcessing > 0)
+      skipped.push(`${result.alreadyProcessing} already processing`);
     if (result.completed > 0) skipped.push(`${result.completed} completed`);
     if (result.cancelled > 0) skipped.push(`${result.cancelled} cancelled`);
-    const skippedLine = skipped.length > 0 ? ` (${skipped.join(" · ")} left as-is.)` : "";
+    const skippedLine =
+      skipped.length > 0 ? ` (${skipped.join(" · ")} left as-is.)` : "";
     const text = [
       `Moved **${result.confirmed}** of today's pending orders to processing.${skippedLine}`,
       "",
@@ -1309,7 +2808,10 @@ Hard rules — violations are bugs:
       quickActions: [
         { label: "Today's Orders", action: "show today's orders" },
         { label: "Pending Orders", action: "show pending orders" },
-        { label: "Confirm Matched Payments", action: "confirm all matched payments" },
+        {
+          label: "Confirm Matched Payments",
+          action: "confirm all matched payments",
+        },
       ],
     };
   }
@@ -1317,7 +2819,9 @@ Hard rules — violations are bugs:
   // Chit-chat detector — returns the bucket the message falls into, or null
   // if it's a real product question. Bucket "offtopic" = a non-product task
   // (math/translation/weather/world-knowledge) we should politely refuse.
-  private detectChitChat(message: string):
+  private detectChitChat(
+    message: string,
+  ):
     | "greeting"
     | "thanks"
     | "ack"
@@ -1327,7 +2831,10 @@ Hard rules — violations are bugs:
     | "joke"
     | "offtopic"
     | null {
-    const m = (message || "").toLowerCase().trim().replace(/[?!.]+$/, "");
+    const m = (message || "")
+      .toLowerCase()
+      .trim()
+      .replace(/[?!.]+$/, "");
     if (!m) return null;
     // Length guard — anything over 80 chars likely contains a real ask, leave
     // it for the specialist routing.
@@ -1335,38 +2842,436 @@ Hard rules — violations are bugs:
 
     // Hard reject — these phrases look chit-chat-shaped but actually ask the
     // bot to do off-product work. Catch them so we redirect explicitly.
-    if (/\b(translate|translation|paraphrase|rewrite|summarise|summarize)\b/.test(m)) return "offtopic";
-    if (/\b(weather|temperature|forecast|news|stock\s+price|cricket|sports|election)\b/.test(m)) return "offtopic";
-    if (/\b(write\s+(?:a\s+)?(?:poem|story|essay|song|email|code|script|program))\b/.test(m)) return "offtopic";
-    if (/\b(solve|calculate|compute|what\s+is\s+\d+|\d+\s*[+\-*/x]\s*\d+)\b/.test(m)) return "offtopic";
-    if (/\b(who\s+(?:is|was)\s+(?:the\s+)?(?:president|prime\s+minister|king|queen|ceo))\b/.test(m)) return "offtopic";
-    if (/\b(capital\s+of|population\s+of|currency\s+of|language\s+of)\b/.test(m)) return "offtopic";
+    if (
+      /\b(translate|translation|paraphrase|rewrite|summarise|summarize)\b/.test(
+        m,
+      )
+    )
+      return "offtopic";
+    if (
+      /\b(weather|temperature|forecast|news|stock\s+price|cricket|sports|election)\b/.test(
+        m,
+      )
+    )
+      return "offtopic";
+    if (
+      /\b(write\s+(?:a\s+)?(?:poem|story|essay|song|email|code|script|program))\b/.test(
+        m,
+      )
+    )
+      return "offtopic";
+    if (
+      /\b(solve|calculate|compute|what\s+is\s+\d+|\d+\s*[+\-*/x]\s*\d+)\b/.test(
+        m,
+      )
+    )
+      return "offtopic";
+    if (
+      /\b(who\s+(?:is|was)\s+(?:the\s+)?(?:president|prime\s+minister|king|queen|ceo))\b/.test(
+        m,
+      )
+    )
+      return "offtopic";
+    if (
+      /\b(capital\s+of|population\s+of|currency\s+of|language\s+of)\b/.test(m)
+    )
+      return "offtopic";
     if (/\b(recipe|cook|cooking)\b/.test(m)) return "offtopic";
 
     // Greetings (full-message-only — "hi" inside a longer sentence isn't a greeting).
-    if (/^(?:hi|hii+|hello+|hey+|yo|hola|namaste|namaskar|salaam|salam|hii\s+there|hey\s+there|hi\s+there)$/.test(m)) return "greeting";
-    if (/^good\s+(?:morning|afternoon|evening|night)$/.test(m)) return "greeting";
+    if (
+      /^(?:hi|hii+|hello+|hey+|yo|hola|namaste|namaskar|salaam|salam|hii\s+there|hey\s+there|hi\s+there)$/.test(
+        m,
+      )
+    )
+      return "greeting";
+    if (/^good\s+(?:morning|afternoon|evening|night)$/.test(m))
+      return "greeting";
 
     // Thanks
-    if (/^(?:thanks|thank\s+you|thanku|thankyou|thx|ty|tysm|shukriya|dhanyavaad|dhanyavad)$/.test(m)) return "thanks";
-    if (/^(?:thanks|thank\s+you|thx)\s+(?:a\s+lot|so\s+much|very\s+much)$/.test(m)) return "thanks";
+    if (
+      /^(?:thanks|thank\s+you|thanku|thankyou|thx|ty|tysm|shukriya|dhanyavaad|dhanyavad)$/.test(
+        m,
+      )
+    )
+      return "thanks";
+    if (
+      /^(?:thanks|thank\s+you|thx)\s+(?:a\s+lot|so\s+much|very\s+much)$/.test(m)
+    )
+      return "thanks";
 
     // Acknowledgements
-    if (/^(?:ok|okay|okk+|k|kk+|alright|got\s+it|noted|sure|fine|cool|done|yes|yeah|yep|nope|no)$/.test(m)) return "ack";
+    if (
+      /^(?:ok|okay|okk+|k|kk+|alright|got\s+it|noted|sure|fine|cool|done|yes|yeah|yep|nope|no)$/.test(
+        m,
+      )
+    )
+      return "ack";
 
     // Compliments / praise
-    if (/^(?:great|good|awesome|amazing|brilliant|perfect|excellent|wow|nice)$/.test(m)) return "compliment";
-    if (/\byou(?:'re|\s+are)\s+(?:great|amazing|awesome|smart|cool|the\s+best|so\s+helpful|helpful)\b/.test(m)) return "compliment";
-    if (/\b(?:good|great|nice|well)\s+(?:job|work)\b/.test(m)) return "compliment";
+    if (
+      /^(?:great|good|awesome|amazing|brilliant|perfect|excellent|wow|nice)$/.test(
+        m,
+      )
+    )
+      return "compliment";
+    if (
+      /\byou(?:'re|\s+are)\s+(?:great|amazing|awesome|smart|cool|the\s+best|so\s+helpful|helpful)\b/.test(
+        m,
+      )
+    )
+      return "compliment";
+    if (/\b(?:good|great|nice|well)\s+(?:job|work)\b/.test(m))
+      return "compliment";
 
     // How-are-you
-    if (/^(?:how\s+are\s+you|how('|\s+i)s\s+it\s+going|how\s+r\s+u|hru|whats\s+up|sup|kaise\s+ho|kaisa\s+hai)$/.test(m)) return "howareyou";
+    if (
+      /^(?:how\s+are\s+you|how('|\s+i)s\s+it\s+going|how\s+r\s+u|hru|whats\s+up|sup|kaise\s+ho|kaisa\s+hai)$/.test(
+        m,
+      )
+    )
+      return "howareyou";
 
     // Goodbye
-    if (/^(?:bye+|goodbye|see\s+you|see\s+ya|cya|talk\s+later|later|good\s+night|alvida|tata)$/.test(m)) return "bye";
+    if (
+      /^(?:bye+|goodbye|see\s+you|see\s+ya|cya|talk\s+later|later|good\s+night|alvida|tata)$/.test(
+        m,
+      )
+    )
+      return "bye";
 
     // Joke / fun small-talk request
-    if (/^(?:tell\s+(?:me\s+)?(?:a\s+)?joke|make\s+me\s+laugh|haha|lol|lmao|rofl)$/.test(m)) return "joke";
+    if (
+      /^(?:tell\s+(?:me\s+)?(?:a\s+)?joke|make\s+me\s+laugh|haha|lol|lmao|rofl)$/.test(
+        m,
+      )
+    )
+      return "joke";
+
+    return null;
+  }
+  // True when the date string names a specific day (e.g. "march 15", "2026-01-15",
+  // "15/01/2026") rather than a whole month ("march", "2026-01"). Used to decide
+  // whether to bump the end edge by 1 day so an inclusive "to march 15" actually
+  // includes march 15.
+  private isSingleDay(s: string): boolean {
+    const v = (s || "").trim();
+    if (/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(v)) return true; // 2026-01-15
+    if (/^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/.test(v)) return true; // 15/01/2026
+    if (/^[a-z]+\s+\d{1,2}(?:[\s,]+\d{4})?$/i.test(v)) return true; // March 15
+    if (/^\d{1,2}\s+[a-z]+(?:[\s,]+\d{4})?$/i.test(v)) return true; // 15 March
+    return false;
+  }
+
+  // Loose date parser used by parseCustomDateRange.
+  // Accepts:  "January", "Jan 15", "January 15 2026", "2026-01-15", "15/01/2026",
+  //           "2026-01"  → first/last of that month depending on `edge`.
+  private parseLooseDate(
+    s: string,
+    now: Date,
+    edge: "start" | "end",
+  ): Date | null {
+    const v = (s || "")
+      .trim()
+      .replace(/^the\s+/, "")
+      .replace(/[?.!]+$/, "");
+    if (!v) return null;
+    const monthIndex = (s: string): number => {
+      const map: Record<string, number> = {
+        jan: 0,
+        january: 0,
+        feb: 1,
+        february: 1,
+        mar: 2,
+        march: 2,
+        apr: 3,
+        april: 3,
+        may: 4,
+        jun: 5,
+        june: 5,
+        jul: 6,
+        july: 6,
+        aug: 7,
+        august: 7,
+        sep: 8,
+        sept: 8,
+        september: 8,
+        oct: 9,
+        october: 9,
+        nov: 10,
+        november: 10,
+        dec: 11,
+        december: 11,
+      };
+      return map[s.toLowerCase()] ?? -1;
+    };
+    // ISO yyyy-mm-dd or yyyy/mm/dd.
+    let mt = v.match(/^(\d{4})[-\/](\d{1,2})(?:[-\/](\d{1,2}))?$/);
+    if (mt) {
+      const y = Number(mt[1]),
+        mo = Number(mt[2]) - 1,
+        d = mt[3] ? Number(mt[3]) : edge === "start" ? 1 : 0;
+      const date = mt[3]
+        ? new Date(y, mo, d)
+        : edge === "start"
+          ? new Date(y, mo, 1)
+          : new Date(y, mo + 1, 1);
+      return isNaN(+date) ? null : date;
+    }
+    // dd/mm/yyyy.
+    mt = v.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (mt) {
+      const date = new Date(Number(mt[3]), Number(mt[2]) - 1, Number(mt[1]));
+      return isNaN(+date) ? null : date;
+    }
+    // "Jan 15", "January 15", "Jan 15 2026", "15 Jan", "15 January 2026".
+    mt = v.match(/^([a-z]+)\s+(\d{1,2})(?:[\s,]+(\d{4}))?$/i);
+    if (mt && monthIndex(mt[1]) >= 0) {
+      const year = mt[3] ? Number(mt[3]) : now.getFullYear();
+      const date = new Date(year, monthIndex(mt[1]), Number(mt[2]));
+      return isNaN(+date) ? null : date;
+    }
+    mt = v.match(/^(\d{1,2})\s+([a-z]+)(?:[\s,]+(\d{4}))?$/i);
+    if (mt && monthIndex(mt[2]) >= 0) {
+      const year = mt[3] ? Number(mt[3]) : now.getFullYear();
+      const date = new Date(year, monthIndex(mt[2]), Number(mt[1]));
+      return isNaN(+date) ? null : date;
+    }
+    // Bare month — "January" / "March". For start edge → first of month;
+    // end edge → first of next month (so the range covers the month inclusively).
+    mt = v.match(/^([a-z]+)$/i);
+    if (mt && monthIndex(mt[1]) >= 0) {
+      const mi = monthIndex(mt[1]);
+      const year =
+        mi > now.getMonth() ? now.getFullYear() - 1 : now.getFullYear();
+      return edge === "start"
+        ? new Date(year, mi, 1)
+        : new Date(year, mi + 1, 1);
+    }
+    return null;
+  }
+
+  // Aggregate revenue / orders / avg / customers / top products for an
+  // arbitrary date window directly from the Order collection. Used by the
+  // custom-range fast path so any window the shopkeeper names is supported.
+  private async aggregateShopAnalytics(
+    shopkeeperId: string,
+    start: Date,
+    end: Date,
+    currency: string,
+  ): Promise<AnalyticsSummary> {
+    const match: any = {
+      shopkeeperId,
+      isSoftDeleted: { $ne: true },
+      createdAt: { $gte: start, $lt: end },
+    };
+    const headline = await this.orderModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          revenue: {
+            $sum: {
+              $convert: {
+                input: "$totalAmount",
+                to: "double",
+                onError: 0,
+                onNull: 0,
+              },
+            },
+          },
+          orders: { $sum: 1 },
+          customers: { $addToSet: "$userId" },
+        },
+      },
+    ]);
+    const top = await this.orderModel.aggregate([
+      { $match: match },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.productName",
+          sold: {
+            $sum: {
+              $convert: {
+                input: "$items.quantity",
+                to: "double",
+                onError: 0,
+                onNull: 0,
+              },
+            },
+          },
+          revenue: {
+            $sum: {
+              $multiply: [
+                {
+                  $convert: {
+                    input: "$items.price",
+                    to: "double",
+                    onError: 0,
+                    onNull: 0,
+                  },
+                },
+                {
+                  $convert: {
+                    input: "$items.quantity",
+                    to: "double",
+                    onError: 0,
+                    onNull: 0,
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 5 },
+    ]);
+    const h = headline[0] || { revenue: 0, orders: 0, customers: [] };
+    const orders = Number(h.orders) || 0;
+    const revenue = Number(h.revenue) || 0;
+    return {
+      revenue: Math.round(revenue * 100) / 100,
+      orders,
+      avgOrder: orders ? Math.round((revenue / orders) * 100) / 100 : 0,
+      customers: Array.isArray(h.customers)
+        ? h.customers.filter(Boolean).length
+        : 0,
+      currency,
+      period: `${start.toISOString().slice(0, 10)}..${end.toISOString().slice(0, 10)}`,
+      subject: "shop",
+      topProducts: top
+        .filter((t: any) => t._id)
+        .map((t: any) => ({
+          name: String(t._id),
+          sold: t.sold,
+          revenue: Math.round((t.revenue || 0) * 100) / 100,
+        })),
+    };
+  }
+
+  // Parse phrases like:
+  //   "analytics for Mango Juice"            → get_product_analytics
+  //   "sales of pizza last month"            → get_product_analytics
+  //   "how is mango doing this month"        → get_product_analytics
+  //   "analytics for customer Vansh"         → get_customer_analytics
+  //   "Vansh's spending" / "spending of X"   → get_customer_analytics
+  //   "breakdown of order 0001"              → get_order_analytics
+  //   "analytics for order 0001"             → get_order_analytics
+  // Returns the tool name + args, or null if nothing matched.
+  private tryParseTargetedAnalytics(
+    message: string,
+  ): {
+    tool:
+      | "get_product_analytics"
+      | "get_customer_analytics"
+      | "get_order_analytics";
+    args: any;
+  } | null {
+    const raw = (message || "").trim();
+    if (!raw) return null;
+    const m = raw.toLowerCase();
+    const period = this.detectExplicitPeriod(m);
+    // Custom date window — the targeted-analytics tools accept start_date and
+    // end_date so the LLM-or-fastpath can scope to any window.
+    const range = this.parseCustomDateRange(raw);
+    const dateArgs = range
+      ? {
+          start_date: range.start.toISOString(),
+          end_date: range.end.toISOString(),
+        }
+      : {};
+
+    // Order — most specific, check first.
+    let mt = m.match(
+      /(?:analytics|breakdown|details|stats?|summary)\s+(?:for|of)\s+order\s+([a-z0-9-]+)/i,
+    );
+    if (mt) return { tool: "get_order_analytics", args: { order_id: mt[1] } };
+    mt = m.match(
+      /order\s+([a-z0-9-]+)\s+(?:breakdown|details|analytics|stats?)/i,
+    );
+    if (mt) return { tool: "get_order_analytics", args: { order_id: mt[1] } };
+
+    // Customer — explicit "customer" keyword.
+    mt = raw.match(
+      /(?:analytics|stats?|spending|spend|history|orders?)\s+(?:for|of)\s+customer\s+(.+?)\s*$/i,
+    );
+    if (mt)
+      return {
+        tool: "get_customer_analytics",
+        args: { ...this.parseCustomerIdentifier(mt[1]), ...dateArgs },
+      };
+    mt = raw.match(
+      /customer\s+(.+?)\s+(?:analytics|stats?|spending|spend|history)/i,
+    );
+    if (mt)
+      return {
+        tool: "get_customer_analytics",
+        args: { ...this.parseCustomerIdentifier(mt[1]), ...dateArgs },
+      };
+
+    // Customer — possessive ("Vansh's spending") or "spending of X".
+    mt = raw.match(
+      /(.+?)['‘’]s\s+(?:spending|spend|orders?|history|analytics|stats?)/i,
+    );
+    if (mt)
+      return {
+        tool: "get_customer_analytics",
+        args: { ...this.parseCustomerIdentifier(mt[1]), ...dateArgs },
+      };
+    mt = raw.match(/(?:spending|spend|history)\s+of\s+(.+?)\s*$/i);
+    if (mt)
+      return {
+        tool: "get_customer_analytics",
+        args: { ...this.parseCustomerIdentifier(mt[1]), ...dateArgs },
+      };
+    mt = raw.match(/how much (?:has|did)\s+(.+?)\s+(?:spent|spend)/i);
+    if (mt)
+      return {
+        tool: "get_customer_analytics",
+        args: { ...this.parseCustomerIdentifier(mt[1]), ...dateArgs },
+      };
+
+    // Product — explicit "product" keyword.
+    mt = raw.match(
+      /(?:analytics|sales|stats?|performance)\s+(?:for|of)\s+product\s+(.+?)\s*$/i,
+    );
+    if (mt)
+      return {
+        tool: "get_product_analytics",
+        args: { product_name: this.stripPeriod(mt[1]), period, ...dateArgs },
+      };
+
+    // Product — generic "analytics/sales for/of <name>" (after order+customer
+    // were ruled out).
+    mt = raw.match(
+      /(?:analytics|sales|stats?|performance|breakdown)\s+(?:for|of)\s+(.+?)\s*$/i,
+    );
+    if (mt)
+      return {
+        tool: "get_product_analytics",
+        args: { product_name: this.stripPeriod(mt[1]), period, ...dateArgs },
+      };
+
+    // "How is <name> doing/selling".
+    mt = raw.match(/how\s+is\s+(.+?)\s+(?:doing|selling|performing)/i);
+    if (mt)
+      return {
+        tool: "get_product_analytics",
+        args: { product_name: this.stripPeriod(mt[1]), period, ...dateArgs },
+      };
+
+    // "<name> stats" / "<name> sales" — only when it's clearly a product-shaped
+    // tail (avoid catching "today's stats" → fall to whole-shop path).
+    mt = raw.match(
+      /^(?!today|this|last|yesterday)(.+?)\s+(?:sales|stats?|performance)\s*$/i,
+    );
+    if (mt)
+      return {
+        tool: "get_product_analytics",
+        args: { product_name: this.stripPeriod(mt[1]), period, ...dateArgs },
+      };
 
     return null;
   }
@@ -1453,14 +3358,21 @@ Hard rules — violations are bugs:
   // is still picked up by tryParseKioskOrder so existing single-line ordering
   // continues to work.
   private isKioskOrderTriggerIntent(message: string): boolean {
-    const m = (message || "").toLowerCase().trim().replace(/[?!.]+$/, "");
+    const m = (message || "")
+      .toLowerCase()
+      .trim()
+      .replace(/[?!.]+$/, "");
     if (!m) return false;
     // Reject messages that look like full one-liners (have ":" or item numbers).
     if (/:/.test(m)) return false;
     if (/\bfor\s+\S+\s*:/.test(m)) return false;
     return (
-      /^(?:please\s+)?(?:place|create|new|take|start|ring\s*up)\s+(?:(?:an?|the|new|a\s+new|the\s+new)\s+)?order$/.test(m) ||
-      /^(?:please\s+)?(?:open|show|start)\s+(?:the\s+)?(?:kiosk|order)\s*(?:form|order)?$/.test(m) ||
+      /^(?:please\s+)?(?:place|create|new|take|start|ring\s*up)\s+(?:(?:an?|the|new|a\s+new|the\s+new)\s+)?order$/.test(
+        m,
+      ) ||
+      /^(?:please\s+)?(?:open|show|start)\s+(?:the\s+)?(?:kiosk|order)\s*(?:form|order)?$/.test(
+        m,
+      ) ||
       /^kiosk\s*order$/.test(m) ||
       /^new\s+order$/.test(m)
     );
@@ -1472,7 +3384,11 @@ Hard rules — violations are bugs:
   // frontend to drive cascading option/subcategory/variant dropdowns.
   private async buildOrderFormCatalog(sid: string) {
     const products = await this.productModel
-      .find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, status: { $ne: "archived" } })
+      .find({
+        shopkeeperId: sid,
+        isSoftDeleted: { $ne: true },
+        status: { $ne: "archived" },
+      })
       .sort({ name: 1 })
       .limit(200)
       .lean();
@@ -1511,18 +3427,24 @@ Hard rules — violations are bugs:
   } {
     const m = (message || "").trim();
     if (!m) return null;
-    const head = m.match(/^(?:please\s+)?(?:add|create|new|register)\s+(?:a\s+|an\s+|the\s+)?(?:new\s+)?(?:customer|client|contact|buyer)\b\s*[:,]?\s*(.*)$/i);
+    const head = m.match(
+      /^(?:please\s+)?(?:add|create|new|register)\s+(?:a\s+|an\s+|the\s+)?(?:new\s+)?(?:customer|client|contact|buyer)\b\s*[:,]?\s*(.*)$/i,
+    );
     if (!head) return null;
     const tail = (head[1] || "").trim();
     if (!tail) return {}; // "add a customer" → open empty form
 
-    const parts = tail.split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+    const parts = tail
+      .split(/\s*,\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     let name = "";
     let phone = "";
     let email = "";
     for (const p of parts) {
       if (!email && /@/.test(p)) email = p.toLowerCase();
-      else if (!phone && /^\+?[\d\s\-()]{6,}$/.test(p)) phone = p.replace(/[\s\-()]/g, "");
+      else if (!phone && /^\+?[\d\s\-()]{6,}$/.test(p))
+        phone = p.replace(/[\s\-()]/g, "");
       else if (!name) name = p;
     }
     if (!name && !phone && !email) return {}; // open empty form
@@ -1530,12 +3452,59 @@ Hard rules — violations are bugs:
     const nameParts = name.split(/\s+/).filter(Boolean);
     const firstName = nameParts[0] || undefined;
     const lastName = nameParts.slice(1).join(" ") || undefined;
-    const out: { firstName?: string; lastName?: string; whatsapp?: string; email?: string } = {};
+    const out: {
+      firstName?: string;
+      lastName?: string;
+      whatsapp?: string;
+      email?: string;
+    } = {};
     if (firstName) out.firstName = firstName;
     if (lastName) out.lastName = lastName;
-    if (phone) out.whatsapp = phone.startsWith("+") ? phone : `+${phone.replace(/^\+/, "")}`;
+    if (phone)
+      out.whatsapp = phone.startsWith("+")
+        ? phone
+        : `+${phone.replace(/^\+/, "")}`;
     if (email) out.email = email;
     return out;
+  }
+
+  // Strip trailing period words ("last month", "this quarter", etc.) from a
+  // captured subject name so "pizza last month" → "pizza".
+  private stripPeriod(s: string): string {
+    return s
+      .replace(
+        /\b(today|yesterday|this\s+(?:month|quarter|year)|last\s+(?:month|quarter|year)|monthly|quarterly|yearly|annual)\b.*$/i,
+        "",
+      )
+      .replace(/[?.!]+$/, "")
+      .trim();
+  }
+
+  // Pull a period token out of the full message (so "sales of pizza last month"
+  // → period: "lastmonth"). Returns undefined if none mentioned, so the analytics
+  // tool defaults to all-time.
+  private detectExplicitPeriod(m: string): string | undefined {
+    if (/\blast\s+month\b/.test(m)) return "lastmonth";
+    if (/\blast\s+quarter\b/.test(m)) return "lastquarter";
+    if (/\blast\s+year\b/.test(m)) return "lastyear";
+    if (/\bthis\s+month\b|\bmonthly\b/.test(m)) return "monthly";
+    if (/\bthis\s+quarter\b|\bquarterly\b/.test(m)) return "quarterly";
+    if (/\bthis\s+year\b|\byearly\b|\bannual\b/.test(m)) return "yearly";
+    if (/\btoday\b/.test(m)) return "today";
+    return undefined;
+  }
+
+  // Decide whether a captured customer name string is actually a phone, email,
+  // or plain name — so we route to the right findCustomer field.
+  private parseCustomerIdentifier(s: string): {
+    phone?: string;
+    email?: string;
+    name?: string;
+  } {
+    const v = (s || "").trim().replace(/[?.!]+$/, "");
+    if (/^\+?\d[\d\s-]{6,}$/.test(v)) return { phone: v.replace(/[\s-]/g, "") };
+    if (/@/.test(v)) return { email: v };
+    return { name: v };
   }
 
   // "show all products", "product list", "list my products", "show menu", etc.
@@ -1543,11 +3512,22 @@ Hard rules — violations are bugs:
   // catalog when the shopkeeper meant "show product Mango".
   private isListProductsIntent(message: string): boolean {
     const m = (message || "").toLowerCase().trim();
-    if (/\b(add|edit|update|delete|remove|create|change|low\s*stock|top|best)\b/.test(m)) return false;
+    if (
+      /\b(add|edit|update|delete|remove|create|change|low\s*stock|top|best)\b/.test(
+        m,
+      )
+    )
+      return false;
     if (/\bshow\s+product\s+\S/.test(m)) return false; // "show product Mango"
-    if (/\b(show|list|view|display|see|browse)\s+(me\s+)?(all\s+)?(my\s+|the\s+)?products?\b/.test(m)) return true;
+    if (
+      /\b(show|list|view|display|see|browse)\s+(me\s+)?(all\s+)?(my\s+|the\s+)?products?\b/.test(
+        m,
+      )
+    )
+      return true;
     if (/\bproducts?\s+list\b/.test(m)) return true;
-    if (/\b(show|view)\s+(menu|catalog|catalogue|inventory)\b/.test(m)) return true;
+    if (/\b(show|view)\s+(menu|catalog|catalogue|inventory)\b/.test(m))
+      return true;
     if (/\b(all|my)\s+products?\b/.test(m)) return true;
     if (/\bproducts?\s*\?$/.test(m)) return true; // "products?"
     return false;
@@ -1559,17 +3539,31 @@ Hard rules — violations are bugs:
   // the server runs in UTC.
   private timeOfDayGreeting(country?: string): string {
     const tzMap: Record<string, string> = {
-      IN: "Asia/Kolkata", IND: "Asia/Kolkata", INDIA: "Asia/Kolkata",
-      SG: "Asia/Singapore", SGP: "Asia/Singapore", SING: "Asia/Singapore", SINGAPORE: "Asia/Singapore",
-      US: "America/New_York", USA: "America/New_York",
-      GB: "Europe/London", UK: "Europe/London",
-      AE: "Asia/Dubai", UAE: "Asia/Dubai",
+      IN: "Asia/Kolkata",
+      IND: "Asia/Kolkata",
+      INDIA: "Asia/Kolkata",
+      SG: "Asia/Singapore",
+      SGP: "Asia/Singapore",
+      SING: "Asia/Singapore",
+      SINGAPORE: "Asia/Singapore",
+      US: "America/New_York",
+      USA: "America/New_York",
+      GB: "Europe/London",
+      UK: "Europe/London",
+      AE: "Asia/Dubai",
+      UAE: "Asia/Dubai",
       AU: "Australia/Sydney",
     };
-    const tz = country ? tzMap[country.toString().trim().toUpperCase()] : undefined;
+    const tz = country
+      ? tzMap[country.toString().trim().toUpperCase()]
+      : undefined;
     let hour: number;
     try {
-      const formatter = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: tz });
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        hour12: false,
+        timeZone: tz,
+      });
       hour = parseInt(formatter.format(new Date()), 10);
       if (!Number.isFinite(hour)) hour = new Date().getHours();
     } catch {
@@ -1630,7 +3624,8 @@ Hard rules — violations are bugs:
     // 10+ digits starting with 0 → strip the 0 and prepend cc
     if (/^0\d{10,}$/.test(s)) return defaultCountryCode + s.slice(1);
     if (/^\d{10}$/.test(s)) return defaultCountryCode + s;
-    if (/^\d{8}$/.test(s) && defaultCountryCode === "+65") return defaultCountryCode + s;
+    if (/^\d{8}$/.test(s) && defaultCountryCode === "+65")
+      return defaultCountryCode + s;
     if (/^\d{11,14}$/.test(s)) return "+" + s; // already has cc, missing plus
     return /^\+?\d{6,15}$/.test(s) ? (s.startsWith("+") ? s : "+" + s) : null;
   }
@@ -1641,10 +3636,11 @@ Hard rules — violations are bugs:
     // Common voice/IME variants for @ and .
     // "at the rate" (Indian English), "at rate", "at" → @
     // "dot" → .
-    s = s.replace(/\s+at\s+the\s+rate\s+/g, "@")
-         .replace(/\s+at\s+rate\s+/g, "@")
-         .replace(/\s+at\s+/g, "@")
-         .replace(/\s+dot\s+/g, ".");
+    s = s
+      .replace(/\s+at\s+the\s+rate\s+/g, "@")
+      .replace(/\s+at\s+rate\s+/g, "@")
+      .replace(/\s+at\s+/g, "@")
+      .replace(/\s+dot\s+/g, ".");
     // Remove stray spaces inside the email
     s = s.replace(/\s+/g, "");
     return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : undefined;
@@ -1654,10 +3650,15 @@ Hard rules — violations are bugs:
   // either created by the shopkeeper (provider "Shopkeeper" + providerId) OR who has
   // placed at least one order at this shop. Used by place_order so the shopkeeper can
   // say "place order for Vansh" and we silently reuse Vansh's stored phone/email.
-  private async findCustomersForShopkeeper(sid: string, nameQuery: string): Promise<any[]> {
+  private async findCustomersForShopkeeper(
+    sid: string,
+    nameQuery: string,
+  ): Promise<any[]> {
     const q = String(nameQuery || "").trim();
     if (!q) return [];
-    const candidates = await this.userModel.find({ name: { $regex: q, $options: "i" } }).lean();
+    const candidates = await this.userModel
+      .find({ name: { $regex: q, $options: "i" } })
+      .lean();
     if (candidates.length === 0) return [];
     const ids = candidates.map((u: any) => String(u._id));
     const orderedIds: any[] = await this.orderModel.distinct("userId", {
@@ -1666,49 +3667,208 @@ Hard rules — violations are bugs:
       isSoftDeleted: { $ne: true },
     });
     const orderedSet = new Set(orderedIds.map((id: any) => String(id)));
-    return candidates.filter((u: any) =>
-      (u.provider === "Shopkeeper" && String(u.providerId || "") === sid) ||
-      orderedSet.has(String(u._id)),
+    return candidates.filter(
+      (u: any) =>
+        (u.provider === "Shopkeeper" && String(u.providerId || "") === sid) ||
+        orderedSet.has(String(u._id)),
     );
   }
 
   // Flexible customer lookup by phone, email, or name (any one is enough).
-  private async findCustomer(input: { phone?: string; email?: string; name?: string }): Promise<any | null> {
+  private async findCustomer(input: {
+    phone?: string;
+    email?: string;
+    name?: string;
+  }): Promise<any | null> {
     if (input.phone) {
-      const u = await this.userModel.findOne({ whatsAppNumber: input.phone }).lean();
+      const u = await this.userModel
+        .findOne({ whatsAppNumber: input.phone })
+        .lean();
       if (u) return u;
     }
     if (input.email) {
-      const u = await this.userModel.findOne({ email: { $regex: `^${String(input.email).trim()}$`, $options: "i" } }).lean();
+      const u = await this.userModel
+        .findOne({
+          email: { $regex: `^${String(input.email).trim()}$`, $options: "i" },
+        })
+        .lean();
       if (u) return u;
     }
     if (input.name) {
-      const u = await this.userModel.findOne({ name: { $regex: String(input.name).trim(), $options: "i" } }).lean();
+      const u = await this.userModel
+        .findOne({ name: { $regex: String(input.name).trim(), $options: "i" } })
+        .lean();
       if (u) return u;
     }
     return null;
   }
 
-  private async findOneProduct(sid: string, query: string): Promise<{ product: any } | { error: string; matches?: string[] }> {
+  // Looser product lookup used by analytics — picks the best fuzzy match instead
+  // of erroring on multiple hits, since "show analytics for pizza" should still
+  // resolve when the catalog has both "Pizza" and "Pizza Slice".
+  private async findProductByName(
+    sid: string,
+    query: string,
+  ): Promise<any | null> {
+    if (!query) return null;
+    // Exact match first (case-insensitive), then prefix, then substring.
+    const exact = await this.productModel
+      .findOne({
+        shopkeeperId: sid,
+        isSoftDeleted: { $ne: true },
+        name: {
+          $regex: `^${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+          $options: "i",
+        },
+      })
+      .lean();
+    if (exact) return exact;
+    const matches = await this.productModel
+      .find({
+        shopkeeperId: sid,
+        isSoftDeleted: { $ne: true },
+        name: {
+          $regex: query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+          $options: "i",
+        },
+      })
+      .lean();
+    if (matches.length === 0) return null;
+    // Prefer the shortest name (best signal of "exact concept match" — "Pizza"
+    // beats "Pizza Slice" when the shopkeeper said "pizza").
+    matches.sort(
+      (a: any, b: any) => (a.name?.length || 0) - (b.name?.length || 0),
+    );
+    return matches[0];
+  }
+
+  // Resolve either an explicit start_date/end_date pair or a named period
+  // token to a date range. Returns null for "all-time".
+  private resolveRange(input: {
+    period?: string;
+    start_date?: string;
+    end_date?: string;
+  }): { start: Date; end: Date; label: string } | null {
+    if (input.start_date) {
+      const start = new Date(input.start_date);
+      if (isNaN(+start)) return null;
+      const end = input.end_date ? new Date(input.end_date) : new Date();
+      if (isNaN(+end)) return null;
+      return {
+        start,
+        end,
+        label: `${start.toISOString().slice(0, 10)}..${end.toISOString().slice(0, 10)}`,
+      };
+    }
+    const r = this.periodToDateRange(input.period);
+    return r ? { ...r, label: input.period || "" } : null;
+  }
+
+  // Map a period token (today / monthly / lastmonth / quarterly / lastquarter /
+  // yearly / lastyear / all) to a [start, end) date range. Returns null for "all".
+  private periodToDateRange(
+    period?: string,
+  ): { start: Date; end: Date } | null {
+    if (!period || period === "all") return null;
+    const now = new Date();
+    if (period === "today") {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      return { start, end };
+    }
+    if (period === "monthly") {
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+      };
+    }
+    if (period === "lastmonth") {
+      return {
+        start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+        end: new Date(now.getFullYear(), now.getMonth(), 1),
+      };
+    }
+    if (period === "quarterly") {
+      const q = Math.floor(now.getMonth() / 3);
+      return {
+        start: new Date(now.getFullYear(), q * 3, 1),
+        end: new Date(now.getFullYear(), q * 3 + 3, 1),
+      };
+    }
+    if (period === "lastquarter") {
+      const q = Math.floor(now.getMonth() / 3);
+      const y = q === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const m = q === 0 ? 9 : (q - 1) * 3;
+      return { start: new Date(y, m, 1), end: new Date(y, m + 3, 1) };
+    }
+    if (period === "yearly") {
+      return {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear() + 1, 0, 1),
+      };
+    }
+    if (period === "lastyear") {
+      return {
+        start: new Date(now.getFullYear() - 1, 0, 1),
+        end: new Date(now.getFullYear(), 0, 1),
+      };
+    }
+    return null;
+  }
+
+  private async findOneProduct(
+    sid: string,
+    query: string,
+  ): Promise<{ product: any } | { error: string; matches?: string[] }> {
     if (!query) return { error: "product_name required" };
-    const matches = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: query, $options: "i" } }).lean();
+    const matches = await this.productModel
+      .find({
+        shopkeeperId: sid,
+        isSoftDeleted: { $ne: true },
+        name: { $regex: query, $options: "i" },
+      })
+      .lean();
     if (matches.length === 0) return { error: "Product not found" };
-    if (matches.length > 1) return { error: "Multiple products matched — please be more specific", matches: matches.slice(0, 5).map((p: any) => p.name) };
+    if (matches.length > 1)
+      return {
+        error: "Multiple products matched — please be more specific",
+        matches: matches.slice(0, 5).map((p: any) => p.name),
+      };
     return { product: matches[0] };
   }
 
-  private async executeTool(sid: string, name: string, input: any): Promise<any> {
+  private async executeTool(
+    sid: string,
+    name: string,
+    input: any,
+  ): Promise<any> {
     switch (name) {
       case "get_today_orders": {
-        const s = new Date(); s.setHours(0, 0, 0, 0);
-        const orders = await this.orderModel.find({ shopkeeperId: sid, createdAt: { $gte: s }, isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
-        const customers = new Set(orders.map((o: any) => o.userId).filter(Boolean)).size;
+        const s = new Date();
+        s.setHours(0, 0, 0, 0);
+        const orders = await this.orderModel
+          .find({
+            shopkeeperId: sid,
+            createdAt: { $gte: s },
+            isSoftDeleted: { $ne: true },
+          })
+          .sort({ createdAt: -1 })
+          .lean();
+        const customers = new Set(
+          orders.map((o: any) => o.userId).filter(Boolean),
+        ).size;
         return {
           total: orders.length,
           pending: orders.filter((o: any) => o.status === "pending").length,
           completed: orders.filter((o: any) => o.status === "completed").length,
-          processing: orders.filter((o: any) => o.status === "processing").length,
-          revenue: orders.reduce((a: number, o: any) => a + (o.totalAmount || 0), 0),
+          processing: orders.filter((o: any) => o.status === "processing")
+            .length,
+          revenue: orders.reduce(
+            (a: number, o: any) => a + (o.totalAmount || 0),
+            0,
+          ),
           customers,
           // Surface the actual order rows so the orders specialist can render
           // them as a markdown table when the shopkeeper asks "today's orders"
@@ -1723,50 +3883,129 @@ Hard rules — violations are bugs:
         };
       }
       case "get_pending_orders": {
-        const orders = await this.orderModel.find({ shopkeeperId: sid, status: "pending", isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(10).lean();
-        return orders.map((o: any) => ({ orderId: o.orderId, amount: o.totalAmount, customer: o.customerName || o.firstName || "Customer", date: o.createdAt }));
+        const orders = await this.orderModel
+          .find({
+            shopkeeperId: sid,
+            status: "pending",
+            isSoftDeleted: { $ne: true },
+          })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .lean();
+        return orders.map((o: any) => ({
+          orderId: o.orderId,
+          amount: o.totalAmount,
+          customer: o.customerName || o.firstName || "Customer",
+          date: o.createdAt,
+        }));
       }
       case "get_recent_orders": {
-        const orders = await this.orderModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(10).lean();
-        return orders.map((o: any) => ({ orderId: o.orderId, amount: o.totalAmount, status: o.status, customer: o.customerName || o.firstName || "Customer" }));
+        const orders = await this.orderModel
+          .find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .lean();
+        return orders.map((o: any) => ({
+          orderId: o.orderId,
+          amount: o.totalAmount,
+          status: o.status,
+          customer: o.customerName || o.firstName || "Customer",
+        }));
       }
       case "get_order_detail": {
-        const order: any = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } }).lean();
+        const order: any = await this.orderModel
+          .findOne({
+            shopkeeperId: sid,
+            orderId: { $regex: input.order_id, $options: "i" },
+            isSoftDeleted: { $ne: true },
+          })
+          .lean();
         if (!order) return { error: "Order not found" };
-        return { orderId: order.orderId, status: order.status, total: order.totalAmount, type: order.orderType, customer: order.customerName || order.firstName, items: (order.cartItems || []).map((i: any) => ({ name: i.title || i.name, qty: i.quantity, price: i.price })) };
+        return {
+          orderId: order.orderId,
+          status: order.status,
+          total: order.totalAmount,
+          type: order.orderType,
+          customer: order.customerName || order.firstName,
+          items: (order.cartItems || []).map((i: any) => ({
+            name: i.title || i.name,
+            qty: i.quantity,
+            price: i.price,
+          })),
+        };
       }
       case "update_order_status": {
-        const order = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } });
+        const order = await this.orderModel.findOne({
+          shopkeeperId: sid,
+          orderId: { $regex: input.order_id, $options: "i" },
+          isSoftDeleted: { $ne: true },
+        });
         if (!order) return { error: "Order not found" };
         order.status = input.status;
-        order.statusHistory = [...(order.statusHistory || []), { status: input.status, changedAt: new Date(), changedBy: "KiosAI" }];
+        order.statusHistory = [
+          ...(order.statusHistory || []),
+          { status: input.status, changedAt: new Date(), changedBy: "KiosAI" },
+        ];
         await order.save();
-        return { success: true, orderId: order.orderId, newStatus: input.status };
+        return {
+          success: true,
+          orderId: order.orderId,
+          newStatus: input.status,
+        };
       }
       case "get_products": {
-        const products = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(15).lean();
-        const total = await this.productModel.countDocuments({ shopkeeperId: sid, isSoftDeleted: { $ne: true } });
+        const products = await this.productModel
+          .find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } })
+          .sort({ createdAt: -1 })
+          .limit(15)
+          .lean();
+        const total = await this.productModel.countDocuments({
+          shopkeeperId: sid,
+          isSoftDeleted: { $ne: true },
+        });
         return {
           total,
           products: products.map((p: any) => {
-            const variants = (p.variants || []).map((v: any) => ({ title: v.title, price: v.price, inventory: v.inventory }));
+            const variants = (p.variants || []).map((v: any) => ({
+              title: v.title,
+              price: v.price,
+              inventory: v.inventory,
+            }));
             const subcategories = (p.subcategories || []).map((s: any) => ({
               name: s.name,
               basePrice: s.basePrice,
-              variants: (s.variants || []).map((v: any) => ({ title: v.title, price: v.price, inventory: v.inventory })),
+              variants: (s.variants || []).map((v: any) => ({
+                title: v.title,
+                price: v.price,
+                inventory: v.inventory,
+              })),
             }));
-            const options = (p.productOptions || []).map((o: any) => ({ title: o.title, price: o.price, inventory: o.inventory }));
+            const options = (p.productOptions || []).map((o: any) => ({
+              title: o.title,
+              price: o.price,
+              inventory: o.inventory,
+            }));
             const treeSummary: string[] = [];
-            if (variants.length) treeSummary.push(`${variants.length} variant${variants.length > 1 ? "s" : ""}`);
-            if (subcategories.length) treeSummary.push(`${subcategories.length} subcategor${subcategories.length > 1 ? "ies" : "y"}`);
-            if (options.length) treeSummary.push(`${options.length} option${options.length > 1 ? "s" : ""}`);
+            if (variants.length)
+              treeSummary.push(
+                `${variants.length} variant${variants.length > 1 ? "s" : ""}`,
+              );
+            if (subcategories.length)
+              treeSummary.push(
+                `${subcategories.length} subcategor${subcategories.length > 1 ? "ies" : "y"}`,
+              );
+            if (options.length)
+              treeSummary.push(
+                `${options.length} option${options.length > 1 ? "s" : ""}`,
+              );
             return {
               name: p.name,
               price: p.price,
               status: p.status,
               inventory: p.inventory,
               category: p.category,
-              hasTree: variants.length + subcategories.length + options.length > 0,
+              hasTree:
+                variants.length + subcategories.length + options.length > 0,
               treeSummary: treeSummary.join(", ") || undefined,
               variants: variants.length ? variants : undefined,
               subcategories: subcategories.length ? subcategories : undefined,
@@ -1777,27 +4016,77 @@ Hard rules — violations are bugs:
       }
       case "get_product_count": {
         const [total, active, draft] = await Promise.all([
-          this.productModel.countDocuments({ shopkeeperId: sid, isSoftDeleted: { $ne: true } }),
-          this.productModel.countDocuments({ shopkeeperId: sid, status: "active", isSoftDeleted: { $ne: true } }),
-          this.productModel.countDocuments({ shopkeeperId: sid, status: "draft", isSoftDeleted: { $ne: true } }),
+          this.productModel.countDocuments({
+            shopkeeperId: sid,
+            isSoftDeleted: { $ne: true },
+          }),
+          this.productModel.countDocuments({
+            shopkeeperId: sid,
+            status: "active",
+            isSoftDeleted: { $ne: true },
+          }),
+          this.productModel.countDocuments({
+            shopkeeperId: sid,
+            status: "draft",
+            isSoftDeleted: { $ne: true },
+          }),
         ]);
         return { total, active, draft };
       }
       case "get_low_stock": {
-        const p = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, trackQuantity: true, $expr: { $lte: ["$inventory", "$lowstockThreshold"] } }).lean();
-        return p.map((x: any) => ({ name: x.name, stock: x.inventory, threshold: x.lowstockThreshold }));
+        const p = await this.productModel
+          .find({
+            shopkeeperId: sid,
+            isSoftDeleted: { $ne: true },
+            trackQuantity: true,
+            $expr: { $lte: ["$inventory", "$lowstockThreshold"] },
+          })
+          .lean();
+        return p.map((x: any) => ({
+          name: x.name,
+          stock: x.inventory,
+          threshold: x.lowstockThreshold,
+        }));
       }
       case "get_product_detail": {
         const p = await this.findOneProduct(sid, input.product_name);
         if ("error" in p) return p;
         const prod = p.product;
         return {
-          name: prod.name, price: prod.price, status: prod.status, sku: prod.sku, category: prod.category,
-          inventory: prod.inventory, trackQuantity: prod.trackQuantity, lowstockThreshold: prod.lowstockThreshold,
-          isDiscounted: prod.isDiscounted, discountedPrice: prod.discountedPrice,
-          productOptions: (prod.productOptions || []).map((o: any) => ({ title: o.title, price: o.price, inventory: o.inventory, trackQuantity: o.trackQuantity })),
-          variants: (prod.variants || []).map((v: any) => ({ title: v.title, sku: v.sku, price: v.price, inventory: v.inventory, trackQuantity: v.trackQuantity })),
-          subcategories: (prod.subcategories || []).map((s: any) => ({ name: s.name, basePrice: s.basePrice, inventory: s.inventory, variants: (s.variants || []).map((v: any) => ({ title: v.title, sku: v.sku, price: v.price, inventory: v.inventory })) })),
+          name: prod.name,
+          price: prod.price,
+          status: prod.status,
+          sku: prod.sku,
+          category: prod.category,
+          inventory: prod.inventory,
+          trackQuantity: prod.trackQuantity,
+          lowstockThreshold: prod.lowstockThreshold,
+          isDiscounted: prod.isDiscounted,
+          discountedPrice: prod.discountedPrice,
+          productOptions: (prod.productOptions || []).map((o: any) => ({
+            title: o.title,
+            price: o.price,
+            inventory: o.inventory,
+            trackQuantity: o.trackQuantity,
+          })),
+          variants: (prod.variants || []).map((v: any) => ({
+            title: v.title,
+            sku: v.sku,
+            price: v.price,
+            inventory: v.inventory,
+            trackQuantity: v.trackQuantity,
+          })),
+          subcategories: (prod.subcategories || []).map((s: any) => ({
+            name: s.name,
+            basePrice: s.basePrice,
+            inventory: s.inventory,
+            variants: (s.variants || []).map((v: any) => ({
+              title: v.title,
+              sku: v.sku,
+              price: v.price,
+              inventory: v.inventory,
+            })),
+          })),
         };
       }
       case "update_product": {
@@ -1809,19 +4098,34 @@ Hard rules — violations are bugs:
         if (input.price !== undefined) updates.price = input.price;
         if (input.inventory !== undefined) updates.inventory = input.inventory;
         if (input.status !== undefined) updates.status = input.status;
-        if (input.lowstockThreshold !== undefined) updates.lowstockThreshold = input.lowstockThreshold;
-        if (input.trackQuantity !== undefined) updates.trackQuantity = input.trackQuantity;
-        if (input.isDiscounted !== undefined) updates.isDiscounted = input.isDiscounted;
-        if (input.discountedPrice !== undefined) updates.discountedPrice = input.discountedPrice;
-        if (input.description !== undefined) updates.description = input.description;
+        if (input.lowstockThreshold !== undefined)
+          updates.lowstockThreshold = input.lowstockThreshold;
+        if (input.trackQuantity !== undefined)
+          updates.trackQuantity = input.trackQuantity;
+        if (input.isDiscounted !== undefined)
+          updates.isDiscounted = input.isDiscounted;
+        if (input.discountedPrice !== undefined)
+          updates.discountedPrice = input.discountedPrice;
+        if (input.description !== undefined)
+          updates.description = input.description;
         if (input.barcode !== undefined) updates.barcode = input.barcode;
-        if (input.measurement !== undefined) updates.measurement = input.measurement;
-        if (Array.isArray(input.tags)) updates.tags = input.tags.map((t: any) => String(t).trim()).filter(Boolean);
-        if (Object.keys(updates).length === 0) return { error: "No fields to update" };
-        await this.productModel.findByIdAndUpdate(product._id, { $set: updates });
-        const note = ((product.productOptions?.length || 0) > 0 || (product.variants?.length || 0) > 0 || (product.subcategories?.length || 0) > 0)
-          ? "Note: this product has variants/options/subcategories — top-level fields updated, but variant prices/stock are separate. Use update_variant to edit them."
-          : undefined;
+        if (input.measurement !== undefined)
+          updates.measurement = input.measurement;
+        if (Array.isArray(input.tags))
+          updates.tags = input.tags
+            .map((t: any) => String(t).trim())
+            .filter(Boolean);
+        if (Object.keys(updates).length === 0)
+          return { error: "No fields to update" };
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $set: updates,
+        });
+        const note =
+          (product.productOptions?.length || 0) > 0 ||
+          (product.variants?.length || 0) > 0 ||
+          (product.subcategories?.length || 0) > 0
+            ? "Note: this product has variants/options/subcategories — top-level fields updated, but variant prices/stock are separate. Use update_variant to edit them."
+            : undefined;
         return { success: true, product: product.name, updated: updates, note };
       }
       case "update_variant": {
@@ -1829,10 +4133,18 @@ Hard rules — violations are bugs:
         if ("error" in p) return p;
         const product: any = p.product;
         const fields: any = {};
-        for (const f of ["price", "inventory", "lowstockThreshold", "trackQuantity", "isDiscounted", "discountedPrice"]) {
+        for (const f of [
+          "price",
+          "inventory",
+          "lowstockThreshold",
+          "trackQuantity",
+          "isDiscounted",
+          "discountedPrice",
+        ]) {
           if (input[f] !== undefined) fields[f] = input[f];
         }
-        if (Object.keys(fields).length === 0) return { error: "No fields to update" };
+        if (Object.keys(fields).length === 0)
+          return { error: "No fields to update" };
         const match = (v: any) => {
           const t = (v?.title || "").toLowerCase();
           const s = (v?.sku || "").toLowerCase();
@@ -1843,100 +4155,251 @@ Hard rules — violations are bugs:
         if (input.subcategory_name) {
           // Disambiguated — match variant only inside the named subcategory
           const sq = String(input.subcategory_name).toLowerCase();
-          const si = (product.subcategories || []).findIndex((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
-          if (si < 0) return { error: `Subcategory "${input.subcategory_name}" not found`, availableSubcategories: (product.subcategories || []).map((s: any) => s.name) };
-          const vi = (product.subcategories[si].variants || []).findIndex(match);
-          if (vi < 0) return { error: `Variant not found inside ${product.subcategories[si].name}`, availableVariants: (product.subcategories[si].variants || []).map((v: any) => v.title) };
+          const si = (product.subcategories || []).findIndex(
+            (s: any) =>
+              (s.name || "").toLowerCase() === sq ||
+              (s.name || "").toLowerCase().includes(sq),
+          );
+          if (si < 0)
+            return {
+              error: `Subcategory "${input.subcategory_name}" not found`,
+              availableSubcategories: (product.subcategories || []).map(
+                (s: any) => s.name,
+              ),
+            };
+          const vi = (product.subcategories[si].variants || []).findIndex(
+            match,
+          );
+          if (vi < 0)
+            return {
+              error: `Variant not found inside ${product.subcategories[si].name}`,
+              availableVariants: (product.subcategories[si].variants || []).map(
+                (v: any) => v.title,
+              ),
+            };
           path = `subcategories.${si}.variants.${vi}`;
         } else {
           const topIdx = (product.variants || []).findIndex(match);
           if (topIdx >= 0) path = `variants.${topIdx}`;
           if (!path) {
             for (let si = 0; si < (product.subcategories || []).length; si++) {
-              const vi = (product.subcategories[si].variants || []).findIndex(match);
-              if (vi >= 0) { path = `subcategories.${si}.variants.${vi}`; break; }
+              const vi = (product.subcategories[si].variants || []).findIndex(
+                match,
+              );
+              if (vi >= 0) {
+                path = `subcategories.${si}.variants.${vi}`;
+                break;
+              }
             }
           }
         }
-        if (!path) return { error: "Variant not found", availableVariants: [...(product.variants || []).map((v: any) => v.title), ...((product.subcategories || []).flatMap((s: any) => (s.variants || []).map((v: any) => `${s.name} > ${v.title}`)))] };
+        if (!path)
+          return {
+            error: "Variant not found",
+            availableVariants: [
+              ...(product.variants || []).map((v: any) => v.title),
+              ...(product.subcategories || []).flatMap((s: any) =>
+                (s.variants || []).map((v: any) => `${s.name} > ${v.title}`),
+              ),
+            ],
+          };
         const setDoc: any = {};
         for (const [k, v] of Object.entries(fields)) setDoc[`${path}.${k}`] = v;
-        await this.productModel.findByIdAndUpdate(product._id, { $set: setDoc });
-        return { success: true, product: product.name, variantPath: path, updated: fields };
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $set: setDoc,
+        });
+        return {
+          success: true,
+          product: product.name,
+          variantPath: path,
+          updated: fields,
+        };
       }
       case "update_subcategory": {
         const p = await this.findOneProduct(sid, input.product_name);
         if ("error" in p) return p;
         const product: any = p.product;
         const q = (input.subcategory_name || "").toLowerCase();
-        const idx = (product.subcategories || []).findIndex((s: any) => (s.name || "").toLowerCase() === q || (s.name || "").toLowerCase().includes(q));
-        if (idx < 0) return { error: "Subcategory not found", availableSubcategories: (product.subcategories || []).map((s: any) => s.name) };
+        const idx = (product.subcategories || []).findIndex(
+          (s: any) =>
+            (s.name || "").toLowerCase() === q ||
+            (s.name || "").toLowerCase().includes(q),
+        );
+        if (idx < 0)
+          return {
+            error: "Subcategory not found",
+            availableSubcategories: (product.subcategories || []).map(
+              (s: any) => s.name,
+            ),
+          };
         const setDoc: any = {};
-        for (const f of ["basePrice", "additionalPrice", "inventory", "lowstockThreshold", "trackQuantity"]) {
-          if (input[f] !== undefined) setDoc[`subcategories.${idx}.${f}`] = input[f];
+        for (const f of [
+          "basePrice",
+          "additionalPrice",
+          "inventory",
+          "lowstockThreshold",
+          "trackQuantity",
+        ]) {
+          if (input[f] !== undefined)
+            setDoc[`subcategories.${idx}.${f}`] = input[f];
         }
-        if (Object.keys(setDoc).length === 0) return { error: "No fields to update" };
-        await this.productModel.findByIdAndUpdate(product._id, { $set: setDoc });
-        return { success: true, product: product.name, subcategory: product.subcategories[idx].name, updated: Object.keys(setDoc) };
+        if (Object.keys(setDoc).length === 0)
+          return { error: "No fields to update" };
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $set: setDoc,
+        });
+        return {
+          success: true,
+          product: product.name,
+          subcategory: product.subcategories[idx].name,
+          updated: Object.keys(setDoc),
+        };
       }
       case "update_option": {
         const p = await this.findOneProduct(sid, input.product_name);
         if ("error" in p) return p;
         const product: any = p.product;
         const q = (input.option_title || "").toLowerCase();
-        const idx = (product.productOptions || []).findIndex((o: any) => (o.title || "").toLowerCase() === q || (o.title || "").toLowerCase().includes(q));
-        if (idx < 0) return { error: "Option not found", availableOptions: (product.productOptions || []).map((o: any) => o.title) };
+        const idx = (product.productOptions || []).findIndex(
+          (o: any) =>
+            (o.title || "").toLowerCase() === q ||
+            (o.title || "").toLowerCase().includes(q),
+        );
+        if (idx < 0)
+          return {
+            error: "Option not found",
+            availableOptions: (product.productOptions || []).map(
+              (o: any) => o.title,
+            ),
+          };
         const setDoc: any = {};
-        for (const f of ["price", "inventory", "lowstockThreshold", "trackQuantity", "isDiscounted", "discountedPrice"]) {
-          if (input[f] !== undefined) setDoc[`productOptions.${idx}.${f}`] = input[f];
+        for (const f of [
+          "price",
+          "inventory",
+          "lowstockThreshold",
+          "trackQuantity",
+          "isDiscounted",
+          "discountedPrice",
+        ]) {
+          if (input[f] !== undefined)
+            setDoc[`productOptions.${idx}.${f}`] = input[f];
         }
-        if (Object.keys(setDoc).length === 0) return { error: "No fields to update" };
-        await this.productModel.findByIdAndUpdate(product._id, { $set: setDoc });
-        return { success: true, product: product.name, option: product.productOptions[idx].title, updated: Object.keys(setDoc) };
+        if (Object.keys(setDoc).length === 0)
+          return { error: "No fields to update" };
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $set: setDoc,
+        });
+        return {
+          success: true,
+          product: product.name,
+          option: product.productOptions[idx].title,
+          updated: Object.keys(setDoc),
+        };
       }
       case "add_variant": {
         const p = await this.findOneProduct(sid, input.product_name);
         if ("error" in p) return p;
         const product: any = p.product;
-        if (!input.title || input.price === undefined) return { error: "title and price are required" };
+        if (!input.title || input.price === undefined)
+          return { error: "title and price are required" };
         const variant = {
           id: Date.now(),
           title: String(input.title),
           price: Number(input.price),
-          sku: input.sku ? String(input.sku) : `${product.name.slice(0, 3).toUpperCase()}-${String(input.title).slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`,
-          inventory: input.inventory !== undefined ? Number(input.inventory) : 0,
+          sku: input.sku
+            ? String(input.sku)
+            : `${product.name.slice(0, 3).toUpperCase()}-${String(input.title).slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`,
+          inventory:
+            input.inventory !== undefined ? Number(input.inventory) : 0,
           trackQuantity: !!input.trackQuantity,
-          lowstockThreshold: input.lowstockThreshold !== undefined ? Number(input.lowstockThreshold) : 10,
+          lowstockThreshold:
+            input.lowstockThreshold !== undefined
+              ? Number(input.lowstockThreshold)
+              : 10,
           options: {},
         };
         if (input.subcategory_name) {
           const sq = String(input.subcategory_name).toLowerCase();
-          const si = (product.subcategories || []).findIndex((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
-          if (si < 0) return { error: `Subcategory "${input.subcategory_name}" not found`, availableSubcategories: (product.subcategories || []).map((s: any) => s.name) };
-          await this.productModel.findByIdAndUpdate(product._id, { $push: { [`subcategories.${si}.variants`]: variant } });
-          return { success: true, product: product.name, addedTo: `${product.subcategories[si].name} (subcategory)`, variant };
+          const si = (product.subcategories || []).findIndex(
+            (s: any) =>
+              (s.name || "").toLowerCase() === sq ||
+              (s.name || "").toLowerCase().includes(sq),
+          );
+          if (si < 0)
+            return {
+              error: `Subcategory "${input.subcategory_name}" not found`,
+              availableSubcategories: (product.subcategories || []).map(
+                (s: any) => s.name,
+              ),
+            };
+          await this.productModel.findByIdAndUpdate(product._id, {
+            $push: { [`subcategories.${si}.variants`]: variant },
+          });
+          return {
+            success: true,
+            product: product.name,
+            addedTo: `${product.subcategories[si].name} (subcategory)`,
+            variant,
+          };
         }
-        await this.productModel.findByIdAndUpdate(product._id, { $push: { variants: variant } });
-        return { success: true, product: product.name, addedTo: "top-level variants", variant };
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $push: { variants: variant },
+        });
+        return {
+          success: true,
+          product: product.name,
+          addedTo: "top-level variants",
+          variant,
+        };
       }
       case "remove_variant": {
         const p = await this.findOneProduct(sid, input.product_name);
         if ("error" in p) return p;
         const product: any = p.product;
         const vq = String(input.variant_title || "").toLowerCase();
-        const match = (v: any) => (v.title || "").toLowerCase() === vq || (v.title || "").toLowerCase().includes(vq) || (v.sku || "").toLowerCase() === vq;
+        const match = (v: any) =>
+          (v.title || "").toLowerCase() === vq ||
+          (v.title || "").toLowerCase().includes(vq) ||
+          (v.sku || "").toLowerCase() === vq;
         if (input.subcategory_name) {
           const sq = String(input.subcategory_name).toLowerCase();
-          const si = (product.subcategories || []).findIndex((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
-          if (si < 0) return { error: `Subcategory "${input.subcategory_name}" not found` };
+          const si = (product.subcategories || []).findIndex(
+            (s: any) =>
+              (s.name || "").toLowerCase() === sq ||
+              (s.name || "").toLowerCase().includes(sq),
+          );
+          if (si < 0)
+            return {
+              error: `Subcategory "${input.subcategory_name}" not found`,
+            };
           const v = (product.subcategories[si].variants || []).find(match);
-          if (!v) return { error: `Variant "${input.variant_title}" not found in ${product.subcategories[si].name}`, availableVariants: (product.subcategories[si].variants || []).map((x: any) => x.title) };
-          await this.productModel.findByIdAndUpdate(product._id, { $pull: { [`subcategories.${si}.variants`]: { id: v.id } } });
-          return { success: true, product: product.name, removed: `${product.subcategories[si].name} > ${v.title}` };
+          if (!v)
+            return {
+              error: `Variant "${input.variant_title}" not found in ${product.subcategories[si].name}`,
+              availableVariants: (product.subcategories[si].variants || []).map(
+                (x: any) => x.title,
+              ),
+            };
+          await this.productModel.findByIdAndUpdate(product._id, {
+            $pull: { [`subcategories.${si}.variants`]: { id: v.id } },
+          });
+          return {
+            success: true,
+            product: product.name,
+            removed: `${product.subcategories[si].name} > ${v.title}`,
+          };
         }
         const v = (product.variants || []).find(match);
-        if (!v) return { error: `Variant "${input.variant_title}" not found`, availableVariants: (product.variants || []).map((x: any) => x.title) };
-        await this.productModel.findByIdAndUpdate(product._id, { $pull: { variants: { id: v.id } } });
+        if (!v)
+          return {
+            error: `Variant "${input.variant_title}" not found`,
+            availableVariants: (product.variants || []).map(
+              (x: any) => x.title,
+            ),
+          };
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $pull: { variants: { id: v.id } },
+        });
         return { success: true, product: product.name, removed: v.title };
       }
       case "add_subcategory": {
@@ -1944,18 +4407,31 @@ Hard rules — violations are bugs:
         if ("error" in p) return p;
         const product: any = p.product;
         if (!input.name) return { error: "name is required" };
-        const exists = (product.subcategories || []).some((s: any) => (s.name || "").toLowerCase() === String(input.name).toLowerCase());
-        if (exists) return { error: `Subcategory "${input.name}" already exists on ${product.name}` };
+        const exists = (product.subcategories || []).some(
+          (s: any) =>
+            (s.name || "").toLowerCase() === String(input.name).toLowerCase(),
+        );
+        if (exists)
+          return {
+            error: `Subcategory "${input.name}" already exists on ${product.name}`,
+          };
         const sub = {
           id: Date.now(),
           name: String(input.name),
-          basePrice: input.basePrice !== undefined ? Number(input.basePrice) : 0,
-          inventory: input.inventory !== undefined ? Number(input.inventory) : 0,
+          basePrice:
+            input.basePrice !== undefined ? Number(input.basePrice) : 0,
+          inventory:
+            input.inventory !== undefined ? Number(input.inventory) : 0,
           trackQuantity: !!input.trackQuantity,
-          lowstockThreshold: input.lowstockThreshold !== undefined ? Number(input.lowstockThreshold) : 10,
+          lowstockThreshold:
+            input.lowstockThreshold !== undefined
+              ? Number(input.lowstockThreshold)
+              : 10,
           variants: [],
         };
-        await this.productModel.findByIdAndUpdate(product._id, { $push: { subcategories: sub } });
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $push: { subcategories: sub },
+        });
         return { success: true, product: product.name, added: sub.name };
       }
       case "remove_subcategory": {
@@ -1963,27 +4439,58 @@ Hard rules — violations are bugs:
         if ("error" in p) return p;
         const product: any = p.product;
         const sq = String(input.subcategory_name || "").toLowerCase();
-        const sc = (product.subcategories || []).find((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
-        if (!sc) return { error: `Subcategory "${input.subcategory_name}" not found`, availableSubcategories: (product.subcategories || []).map((s: any) => s.name) };
-        await this.productModel.findByIdAndUpdate(product._id, { $pull: { subcategories: { id: sc.id } } });
-        return { success: true, product: product.name, removed: sc.name, removedVariantCount: (sc.variants || []).length };
+        const sc = (product.subcategories || []).find(
+          (s: any) =>
+            (s.name || "").toLowerCase() === sq ||
+            (s.name || "").toLowerCase().includes(sq),
+        );
+        if (!sc)
+          return {
+            error: `Subcategory "${input.subcategory_name}" not found`,
+            availableSubcategories: (product.subcategories || []).map(
+              (s: any) => s.name,
+            ),
+          };
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $pull: { subcategories: { id: sc.id } },
+        });
+        return {
+          success: true,
+          product: product.name,
+          removed: sc.name,
+          removedVariantCount: (sc.variants || []).length,
+        };
       }
       case "add_option": {
         const p = await this.findOneProduct(sid, input.product_name);
         if ("error" in p) return p;
         const product: any = p.product;
-        if (!input.title || input.price === undefined) return { error: "title and price are required" };
-        const exists = (product.productOptions || []).some((o: any) => (o.title || "").toLowerCase() === String(input.title).toLowerCase());
-        if (exists) return { error: `Option "${input.title}" already exists on ${product.name}` };
+        if (!input.title || input.price === undefined)
+          return { error: "title and price are required" };
+        const exists = (product.productOptions || []).some(
+          (o: any) =>
+            (o.title || "").toLowerCase() === String(input.title).toLowerCase(),
+        );
+        if (exists)
+          return {
+            error: `Option "${input.title}" already exists on ${product.name}`,
+          };
         const opt = {
           id: Date.now(),
           title: String(input.title),
           price: Number(input.price),
-          inventory: input.inventory !== undefined ? Number(input.inventory) : 0,
+          inventory:
+            input.inventory !== undefined ? Number(input.inventory) : 0,
           trackQuantity: !!input.trackQuantity,
-          lowstockThreshold: input.lowstockThreshold !== undefined ? Number(input.lowstockThreshold) : 10,
+          lowstockThreshold:
+            input.lowstockThreshold !== undefined
+              ? Number(input.lowstockThreshold)
+              : 10,
         };
-        await this.productModel.findByIdAndUpdate(product._id, { $push: { productOptions: opt }, $set: { hasOptions: true } });
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $push: { productOptions: opt },
+          $set: { hasOptions: true },
+        });
         return { success: true, product: product.name, added: opt.title };
       }
       case "remove_option": {
@@ -1991,9 +4498,21 @@ Hard rules — violations are bugs:
         if ("error" in p) return p;
         const product: any = p.product;
         const q = String(input.option_title || "").toLowerCase();
-        const opt = (product.productOptions || []).find((o: any) => (o.title || "").toLowerCase() === q || (o.title || "").toLowerCase().includes(q));
-        if (!opt) return { error: `Option "${input.option_title}" not found`, availableOptions: (product.productOptions || []).map((o: any) => o.title) };
-        const remaining = (product.productOptions || []).filter((o: any) => o.id !== opt.id);
+        const opt = (product.productOptions || []).find(
+          (o: any) =>
+            (o.title || "").toLowerCase() === q ||
+            (o.title || "").toLowerCase().includes(q),
+        );
+        if (!opt)
+          return {
+            error: `Option "${input.option_title}" not found`,
+            availableOptions: (product.productOptions || []).map(
+              (o: any) => o.title,
+            ),
+          };
+        const remaining = (product.productOptions || []).filter(
+          (o: any) => o.id !== opt.id,
+        );
         await this.productModel.findByIdAndUpdate(product._id, {
           $pull: { productOptions: { id: opt.id } },
           $set: { hasOptions: remaining.length > 0 },
@@ -2004,14 +4523,26 @@ Hard rules — violations are bugs:
         const p = await this.findOneProduct(sid, input.product_name);
         if ("error" in p) return p;
         const product: any = p.product;
-        await this.productModel.findByIdAndUpdate(product._id, { $set: { isSoftDeleted: true, softDeletedAt: new Date() } });
+        await this.productModel.findByIdAndUpdate(product._id, {
+          $set: { isSoftDeleted: true, softDeletedAt: new Date() },
+        });
         return { success: true, deleted: product.name };
       }
       case "create_product": {
-        if (!input.name || input.price === undefined || !input.category) return { error: "name, price and category are required" };
-        const dup = await this.productModel.findOne({ shopkeeperId: sid, name: { $regex: `^${String(input.name).trim()}$`, $options: "i" }, isSoftDeleted: { $ne: true } }).lean();
-        if (dup) return { error: `A product named "${input.name}" already exists` };
-        const sku = input.sku ? String(input.sku) : `${String(input.name).slice(0, 3).toUpperCase().replace(/\s/g, "")}-${Date.now().toString().slice(-5)}`;
+        if (!input.name || input.price === undefined || !input.category)
+          return { error: "name, price and category are required" };
+        const dup = await this.productModel
+          .findOne({
+            shopkeeperId: sid,
+            name: { $regex: `^${String(input.name).trim()}$`, $options: "i" },
+            isSoftDeleted: { $ne: true },
+          })
+          .lean();
+        if (dup)
+          return { error: `A product named "${input.name}" already exists` };
+        const sku = input.sku
+          ? String(input.sku)
+          : `${String(input.name).slice(0, 3).toUpperCase().replace(/\s/g, "")}-${Date.now().toString().slice(-5)}`;
         const doc = await this.productModel.create({
           shopkeeperId: sid,
           name: String(input.name).trim(),
@@ -2020,26 +4551,56 @@ Hard rules — violations are bugs:
           sku,
           status: input.status || "active",
           description: input.description || undefined,
-          inventory: input.inventory !== undefined ? Number(input.inventory) : 0,
+          inventory:
+            input.inventory !== undefined ? Number(input.inventory) : 0,
           trackQuantity: !!input.trackQuantity,
-          lowstockThreshold: input.lowstockThreshold !== undefined ? Number(input.lowstockThreshold) : 10,
-          tags: Array.isArray(input.tags) ? input.tags.map((t: any) => String(t).trim()).filter(Boolean) : [],
+          lowstockThreshold:
+            input.lowstockThreshold !== undefined
+              ? Number(input.lowstockThreshold)
+              : 10,
+          tags: Array.isArray(input.tags)
+            ? input.tags.map((t: any) => String(t).trim()).filter(Boolean)
+            : [],
           images: [],
           variants: [],
           subcategories: [],
           productOptions: [],
         });
-        return { success: true, product: { id: doc._id.toString(), name: doc.name, sku: doc.sku, price: doc.price, category: doc.category, status: doc.status } };
+        return {
+          success: true,
+          product: {
+            id: doc._id.toString(),
+            name: doc.name,
+            sku: doc.sku,
+            price: doc.price,
+            category: doc.category,
+            status: doc.status,
+          },
+        };
       }
       case "bulk_update_products_status": {
-        if (!Array.isArray(input.product_names) || input.product_names.length === 0) return { error: "product_names array is required" };
-        if (!["active", "draft", "archived"].includes(input.status)) return { error: "status must be active | draft | archived" };
+        if (
+          !Array.isArray(input.product_names) ||
+          input.product_names.length === 0
+        )
+          return { error: "product_names array is required" };
+        if (!["active", "draft", "archived"].includes(input.status))
+          return { error: "status must be active | draft | archived" };
         const updated: string[] = [];
         const notFound: string[] = [];
         for (const raw of input.product_names) {
-          const hits = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: `^${String(raw).trim()}$`, $options: "i" } }).lean();
+          const hits = await this.productModel
+            .find({
+              shopkeeperId: sid,
+              isSoftDeleted: { $ne: true },
+              name: { $regex: `^${String(raw).trim()}$`, $options: "i" },
+            })
+            .lean();
           if (hits.length === 1) {
-            await this.productModel.updateOne({ _id: (hits[0] as any)._id }, { $set: { status: input.status } });
+            await this.productModel.updateOne(
+              { _id: (hits[0] as any)._id },
+              { $set: { status: input.status } },
+            );
             updated.push((hits[0] as any).name);
           } else {
             notFound.push(raw);
@@ -2048,13 +4609,26 @@ Hard rules — violations are bugs:
         return { success: true, status: input.status, updated, notFound };
       }
       case "bulk_delete_products": {
-        if (!Array.isArray(input.product_names) || input.product_names.length === 0) return { error: "product_names array is required" };
+        if (
+          !Array.isArray(input.product_names) ||
+          input.product_names.length === 0
+        )
+          return { error: "product_names array is required" };
         const deleted: string[] = [];
         const notFound: string[] = [];
         for (const raw of input.product_names) {
-          const hits = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: `^${String(raw).trim()}$`, $options: "i" } }).lean();
+          const hits = await this.productModel
+            .find({
+              shopkeeperId: sid,
+              isSoftDeleted: { $ne: true },
+              name: { $regex: `^${String(raw).trim()}$`, $options: "i" },
+            })
+            .lean();
           if (hits.length === 1) {
-            await this.productModel.updateOne({ _id: (hits[0] as any)._id }, { $set: { isSoftDeleted: true, softDeletedAt: new Date() } });
+            await this.productModel.updateOne(
+              { _id: (hits[0] as any)._id },
+              { $set: { isSoftDeleted: true, softDeletedAt: new Date() } },
+            );
             deleted.push((hits[0] as any).name);
           } else {
             notFound.push(raw);
@@ -2063,55 +4637,106 @@ Hard rules — violations are bugs:
         return { success: true, deleted, notFound };
       }
       case "confirm_payment_by_order_id": {
-        const order: any = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } });
+        const order: any = await this.orderModel.findOne({
+          shopkeeperId: sid,
+          orderId: { $regex: input.order_id, $options: "i" },
+          isSoftDeleted: { $ne: true },
+        });
         if (!order) return { error: "Order not found" };
-        const payment: any = await this.paymentEmailModel.findOne({ shopkeeperId: sid, matchedOrderId: order.orderId, status: "matched" });
-        if (!payment) return { error: "No matched payment awaiting confirmation for this order", hint: "Check if the payment email was received and matched, or use confirm_matched_payments to see the list." };
-        await this.paymentEmailModel.findByIdAndUpdate(payment._id, { status: "confirmed" });
+        const payment: any = await this.paymentEmailModel.findOne({
+          shopkeeperId: sid,
+          matchedOrderId: order.orderId,
+          status: "matched",
+        });
+        if (!payment)
+          return {
+            error: "No matched payment awaiting confirmation for this order",
+            hint: "Check if the payment email was received and matched, or use confirm_matched_payments to see the list.",
+          };
+        await this.paymentEmailModel.findByIdAndUpdate(payment._id, {
+          status: "confirmed",
+        });
         order.status = "processing";
-        order.statusHistory = [...(order.statusHistory || []), { status: "processing", changedAt: new Date(), changedBy: "KiosAI" }];
+        order.statusHistory = [
+          ...(order.statusHistory || []),
+          { status: "processing", changedAt: new Date(), changedBy: "KiosAI" },
+        ];
         await order.save();
-        return { success: true, orderId: order.orderId, amount: payment.amount, newStatus: "processing" };
+        return {
+          success: true,
+          orderId: order.orderId,
+          amount: payment.amount,
+          newStatus: "processing",
+        };
       }
       case "place_order": {
-        if (!Array.isArray(input.items) || input.items.length === 0) return { error: "No items provided" };
+        if (!Array.isArray(input.items) || input.items.length === 0)
+          return { error: "No items provided" };
         const resolved: any[] = [];
         for (const it of input.items) {
-          if (!it?.product_name) return { error: "Each item needs a product_name" };
+          if (!it?.product_name)
+            return { error: "Each item needs a product_name" };
           const quantity = Number(it.quantity || 1);
           // Primary lookup
-          let prodMatches = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: it.product_name, $options: "i" } }).lean();
+          let prodMatches = await this.productModel
+            .find({
+              shopkeeperId: sid,
+              isSoftDeleted: { $ne: true },
+              name: { $regex: it.product_name, $options: "i" },
+            })
+            .lean();
 
           // Forgiveness path: weaker LLMs sometimes lump the whole descriptor into
           // product_name (e.g. "Clothes 9 XL" → 0 matches). If product_name has
           // spaces and no match, try progressively shorter prefixes and push the
           // remainder into variant_title for the resolver below.
-          if (prodMatches.length === 0 && typeof it.product_name === "string" && it.product_name.includes(" ")) {
+          if (
+            prodMatches.length === 0 &&
+            typeof it.product_name === "string" &&
+            it.product_name.includes(" ")
+          ) {
             const words = it.product_name.trim().split(/\s+/);
             for (let n = words.length - 1; n >= 1; n--) {
               const guess = words.slice(0, n).join(" ");
               const rem = words.slice(n).join(" ");
-              const cand = await this.productModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true }, name: { $regex: `^${guess}$|^${guess}\\b`, $options: "i" } }).lean();
+              const cand = await this.productModel
+                .find({
+                  shopkeeperId: sid,
+                  isSoftDeleted: { $ne: true },
+                  name: { $regex: `^${guess}$|^${guess}\\b`, $options: "i" },
+                })
+                .lean();
               if (cand.length === 1) {
                 prodMatches = cand;
                 it.product_name = cand[0].name;
                 if (!it.variant_title) it.variant_title = rem;
                 else it.variant_title = `${rem} ${it.variant_title}`.trim();
-                this.logger.log(`[place_order] auto-split product_name → "${cand[0].name}" + variant "${it.variant_title}"`);
+                this.logger.log(
+                  `[place_order] auto-split product_name → "${cand[0].name}" + variant "${it.variant_title}"`,
+                );
                 break;
               }
             }
           }
 
-          if (prodMatches.length === 0) return { error: `Product not found: "${it.product_name}"` };
-          if (prodMatches.length > 1) return { error: `Multiple products matched "${it.product_name}"`, matches: prodMatches.slice(0, 5).map((p: any) => p.name) };
+          if (prodMatches.length === 0)
+            return { error: `Product not found: "${it.product_name}"` };
+          if (prodMatches.length > 1)
+            return {
+              error: `Multiple products matched "${it.product_name}"`,
+              matches: prodMatches.slice(0, 5).map((p: any) => p.name),
+            };
           const prod: any = prodMatches[0];
 
           // Resolve up to three independent layers: productOption + subcategory + variant.
           // Final unit price = (variant/subcat base price OR product base price) + option price.
           // Number() everywhere because prices can be stored as strings in some catalogs.
           const num = (x: any) => Number(x) || 0;
-          let basePrice = num(prod.isDiscounted && prod.discountedPrice ? prod.discountedPrice : prod.price);
+          let basePrice = num(
+            prod.isDiscounted && prod.discountedPrice
+              ? prod.discountedPrice
+              : prod.price,
+          );
           let price = basePrice;
           let variantTitle: string | undefined;
           let subcategoryName: string | undefined;
@@ -2123,30 +4748,67 @@ Hard rules — violations are bugs:
           const avail = () => ({
             variants: (prod.variants || []).map((v: any) => v.title),
             subcategories: (prod.subcategories || []).map((sc: any) => sc.name),
-            subcategoryVariants: (prod.subcategories || []).flatMap((sc: any) => (sc.variants || []).map((v: any) => `${sc.name} > ${v.title}`)),
+            subcategoryVariants: (prod.subcategories || []).flatMap((sc: any) =>
+              (sc.variants || []).map((v: any) => `${sc.name} > ${v.title}`),
+            ),
             options: (prod.productOptions || []).map((o: any) => o.title),
           });
 
           // A) Resolve option_title first if provided OR if product requires an option
           if (it.option_title && hasOpts) {
             const oq = String(it.option_title).toLowerCase();
-            const opt = (prod.productOptions || []).find((o: any) => (o.title || "").toLowerCase() === oq || (o.title || "").toLowerCase().includes(oq));
-            if (!opt) return { error: `Option "${it.option_title}" not found on ${prod.name}`, available: { options: (prod.productOptions || []).map((o: any) => o.title) } };
+            const opt = (prod.productOptions || []).find(
+              (o: any) =>
+                (o.title || "").toLowerCase() === oq ||
+                (o.title || "").toLowerCase().includes(oq),
+            );
+            if (!opt)
+              return {
+                error: `Option "${it.option_title}" not found on ${prod.name}`,
+                available: {
+                  options: (prod.productOptions || []).map((o: any) => o.title),
+                },
+              };
             optionTitle = opt.title;
-            optionPrice = num(opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price);
+            optionPrice = num(
+              opt.isDiscounted && opt.discountedPrice
+                ? opt.discountedPrice
+                : opt.price,
+            );
           }
 
           if (it.subcategory_name) {
             const sq = String(it.subcategory_name).toLowerCase();
-            const sc = (prod.subcategories || []).find((s: any) => (s.name || "").toLowerCase() === sq || (s.name || "").toLowerCase().includes(sq));
-            if (!sc) return { error: `Subcategory "${it.subcategory_name}" not found on ${prod.name}`, available: avail() };
+            const sc = (prod.subcategories || []).find(
+              (s: any) =>
+                (s.name || "").toLowerCase() === sq ||
+                (s.name || "").toLowerCase().includes(sq),
+            );
+            if (!sc)
+              return {
+                error: `Subcategory "${it.subcategory_name}" not found on ${prod.name}`,
+                available: avail(),
+              };
             subcategoryName = sc.name;
             if (it.variant_title) {
               const vq = String(it.variant_title).toLowerCase();
-              const v = (sc.variants || []).find((x: any) => (x.title || "").toLowerCase() === vq || (x.title || "").toLowerCase().includes(vq) || (x.sku || "").toLowerCase().includes(vq));
-              if (!v) return { error: `Variant "${it.variant_title}" not found inside ${prod.name} > ${sc.name}`, available: (sc.variants || []).map((x: any) => x.title) };
+              const v = (sc.variants || []).find(
+                (x: any) =>
+                  (x.title || "").toLowerCase() === vq ||
+                  (x.title || "").toLowerCase().includes(vq) ||
+                  (x.sku || "").toLowerCase().includes(vq),
+              );
+              if (!v)
+                return {
+                  error: `Variant "${it.variant_title}" not found inside ${prod.name} > ${sc.name}`,
+                  available: (sc.variants || []).map((x: any) => x.title),
+                };
               variantTitle = v.title;
-              price = num(v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price);
+              price = num(
+                v.isDiscounted && v.discountedPrice
+                  ? v.discountedPrice
+                  : v.price,
+              );
             } else {
               // Subcategory-only (uses basePrice)
               price = num(sc.basePrice ?? prod.price);
@@ -2154,17 +4816,33 @@ Hard rules — violations are bugs:
           } else if (it.variant_title) {
             const q = String(it.variant_title).toLowerCase();
             // 1. Top-level variants
-            const top = (prod.variants || []).find((v: any) => (v.title || "").toLowerCase().includes(q) || (v.sku || "").toLowerCase().includes(q));
+            const top = (prod.variants || []).find(
+              (v: any) =>
+                (v.title || "").toLowerCase().includes(q) ||
+                (v.sku || "").toLowerCase().includes(q),
+            );
             if (top) {
-              price = num(top.isDiscounted && top.discountedPrice ? top.discountedPrice : top.price);
+              price = num(
+                top.isDiscounted && top.discountedPrice
+                  ? top.discountedPrice
+                  : top.price,
+              );
               variantTitle = top.title;
             }
             // 2. Subcategory > variants (match anywhere in the tree)
             if (!variantTitle) {
-              for (const sc of (prod.subcategories || [])) {
-                const scv = (sc.variants || []).find((v: any) => (v.title || "").toLowerCase().includes(q) || (v.sku || "").toLowerCase().includes(q));
+              for (const sc of prod.subcategories || []) {
+                const scv = (sc.variants || []).find(
+                  (v: any) =>
+                    (v.title || "").toLowerCase().includes(q) ||
+                    (v.sku || "").toLowerCase().includes(q),
+                );
                 if (scv) {
-                  price = num(scv.isDiscounted && scv.discountedPrice ? scv.discountedPrice : scv.price);
+                  price = num(
+                    scv.isDiscounted && scv.discountedPrice
+                      ? scv.discountedPrice
+                      : scv.price,
+                  );
                   variantTitle = scv.title;
                   subcategoryName = sc.name;
                   break;
@@ -2173,7 +4851,9 @@ Hard rules — violations are bugs:
             }
             // 3. Subcategory by name
             if (!variantTitle && !subcategoryName) {
-              const sc = (prod.subcategories || []).find((s: any) => (s.name || "").toLowerCase().includes(q));
+              const sc = (prod.subcategories || []).find((s: any) =>
+                (s.name || "").toLowerCase().includes(q),
+              );
               if (sc) {
                 price = num(sc.basePrice ?? prod.price);
                 subcategoryName = sc.name;
@@ -2181,10 +4861,16 @@ Hard rules — violations are bugs:
             }
             // 4. productOptions (Size / Quantity / Pack)
             if (!variantTitle && !subcategoryName) {
-              const opt = (prod.productOptions || []).find((o: any) => (o.title || "").toLowerCase().includes(q));
+              const opt = (prod.productOptions || []).find((o: any) =>
+                (o.title || "").toLowerCase().includes(q),
+              );
               if (opt) {
                 // Option as the only leaf: it REPLACES the base price (no double-count).
-                price = num(opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price);
+                price = num(
+                  opt.isDiscounted && opt.discountedPrice
+                    ? opt.discountedPrice
+                    : opt.price,
+                );
                 optionTitle = opt.title;
                 optionPrice = 0; // already counted in `price`
               }
@@ -2193,16 +4879,29 @@ Hard rules — violations are bugs:
             // Handles "Veg Medium", "Summer Red L", etc. where the LLM didn't use
             // subcategory_name explicitly. Tries each subcategory whose name is a
             // prefix of the descriptor, then looks for the remainder in its variants.
-            if (!variantTitle && !subcategoryName && !optionTitle && q.includes(" ")) {
-              outer: for (const sc of (prod.subcategories || [])) {
+            if (
+              !variantTitle &&
+              !subcategoryName &&
+              !optionTitle &&
+              q.includes(" ")
+            ) {
+              outer: for (const sc of prod.subcategories || []) {
                 const scName = (sc.name || "").toLowerCase();
                 if (!scName || !q.startsWith(scName + " ")) continue;
                 const remainder = q.slice(scName.length).trim();
-                for (const v of (sc.variants || [])) {
+                for (const v of sc.variants || []) {
                   const vt = (v.title || "").toLowerCase();
                   const vs = (v.sku || "").toLowerCase();
-                  if (vt === remainder || vt.includes(remainder) || vs === remainder) {
-                    price = num(v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price);
+                  if (
+                    vt === remainder ||
+                    vt.includes(remainder) ||
+                    vs === remainder
+                  ) {
+                    price = num(
+                      v.isDiscounted && v.discountedPrice
+                        ? v.discountedPrice
+                        : v.price,
+                    );
                     variantTitle = v.title;
                     subcategoryName = sc.name;
                     break outer;
@@ -2216,27 +4915,41 @@ Hard rules — violations are bugs:
             // variant by substring. Only accept when at least one layer matches.
             if (!variantTitle && !subcategoryName && !optionTitle) {
               const haystack = q;
-              const normalise = (s: any) => String(s || "").toLowerCase().trim();
+              const normalise = (s: any) =>
+                String(s || "")
+                  .toLowerCase()
+                  .trim();
               // productOption
-              for (const o of (prod.productOptions || [])) {
+              for (const o of prod.productOptions || []) {
                 const t = normalise(o.title);
-                if (t && (new RegExp(`(^|\\W)${t}(\\W|$)`).test(haystack))) {
+                if (t && new RegExp(`(^|\\W)${t}(\\W|$)`).test(haystack)) {
                   optionTitle = o.title;
-                  optionPrice = num(o.isDiscounted && o.discountedPrice ? o.discountedPrice : o.price);
+                  optionPrice = num(
+                    o.isDiscounted && o.discountedPrice
+                      ? o.discountedPrice
+                      : o.price,
+                  );
                   break;
                 }
               }
               // subcategory
-              for (const sc of (prod.subcategories || [])) {
+              for (const sc of prod.subcategories || []) {
                 const n = normalise(sc.name);
                 if (n && haystack.includes(n)) {
                   subcategoryName = sc.name;
                   // variant inside that subcategory
-                  for (const v of (sc.variants || [])) {
+                  for (const v of sc.variants || []) {
                     const vt = normalise(v.title);
-                    if (vt && (new RegExp(`(^|\\W)${vt}(\\W|$)`).test(haystack))) {
+                    if (
+                      vt &&
+                      new RegExp(`(^|\\W)${vt}(\\W|$)`).test(haystack)
+                    ) {
                       variantTitle = v.title;
-                      price = num(v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price);
+                      price = num(
+                        v.isDiscounted && v.discountedPrice
+                          ? v.discountedPrice
+                          : v.price,
+                      );
                       break;
                     }
                   }
@@ -2246,35 +4959,54 @@ Hard rules — violations are bugs:
               }
               // top-level variant if no subcategory used
               if (!subcategoryName && !variantTitle) {
-                for (const v of (prod.variants || [])) {
+                for (const v of prod.variants || []) {
                   const vt = normalise(v.title);
-                  if (vt && (new RegExp(`(^|\\W)${vt}(\\W|$)`).test(haystack))) {
+                  if (vt && new RegExp(`(^|\\W)${vt}(\\W|$)`).test(haystack)) {
                     variantTitle = v.title;
-                    price = num(v.isDiscounted && v.discountedPrice ? v.discountedPrice : v.price);
+                    price = num(
+                      v.isDiscounted && v.discountedPrice
+                        ? v.discountedPrice
+                        : v.price,
+                    );
                     break;
                   }
                 }
               }
             }
             if (!variantTitle && !subcategoryName && !optionTitle) {
-              return { error: `No variant/subcategory/option matching "${it.variant_title}" on ${prod.name}`, available: avail() };
+              return {
+                error: `No variant/subcategory/option matching "${it.variant_title}" on ${prod.name}`,
+                available: avail(),
+              };
             }
           }
 
           // Per-layer validation. A product that exposes a layer MUST have that
           // layer resolved (otherwise we'd silently ring it up at the wrong price).
           const missing: string[] = [];
-          if (hasOpts && !optionTitle) missing.push(`option (${(prod.productOptions || []).map((o: any) => o.title).join(" / ")})`);
-          if (hasSubs && !subcategoryName) missing.push(`subcategory (${(prod.subcategories || []).map((s: any) => s.name).join(" / ")})`);
+          if (hasOpts && !optionTitle)
+            missing.push(
+              `option (${(prod.productOptions || []).map((o: any) => o.title).join(" / ")})`,
+            );
+          if (hasSubs && !subcategoryName)
+            missing.push(
+              `subcategory (${(prod.subcategories || []).map((s: any) => s.name).join(" / ")})`,
+            );
           // If the selected subcategory has variants of its own, require a variant
           if (subcategoryName && !variantTitle) {
-            const sc = (prod.subcategories || []).find((s: any) => s.name === subcategoryName);
+            const sc = (prod.subcategories || []).find(
+              (s: any) => s.name === subcategoryName,
+            );
             if (sc && (sc.variants || []).length > 0) {
-              missing.push(`variant for ${subcategoryName} (${(sc.variants || []).map((v: any) => v.title).join(" / ")})`);
+              missing.push(
+                `variant for ${subcategoryName} (${(sc.variants || []).map((v: any) => v.title).join(" / ")})`,
+              );
             }
           }
           if (hasVars && !subcategoryName && !variantTitle && !optionTitle) {
-            missing.push(`variant (${(prod.variants || []).map((v: any) => v.title).join(" / ")})`);
+            missing.push(
+              `variant (${(prod.variants || []).map((v: any) => v.title).join(" / ")})`,
+            );
           }
           if (missing.length > 0) {
             return {
@@ -2285,7 +5017,9 @@ Hard rules — violations are bugs:
 
           // Final unit price = (variant/sub base price OR product base price) + option add-on
           const unitPrice = (price || 0) + (optionPrice || 0);
-          this.logger.log(`[place_order] resolved ${prod.name} → option="${optionTitle}" (${optionPrice}) + subcat="${subcategoryName}" + variant="${variantTitle}" (${price}) = unit ${unitPrice} × qty ${quantity}`);
+          this.logger.log(
+            `[place_order] resolved ${prod.name} → option="${optionTitle}" (${optionPrice}) + subcat="${subcategoryName}" + variant="${variantTitle}" (${price}) = unit ${unitPrice} × qty ${quantity}`,
+          );
           resolved.push({
             productId: prod._id.toString(),
             productName: prod.name,
@@ -2300,7 +5034,10 @@ Hard rules — violations are bugs:
           });
         }
         // Match Kiosk UI's total calculation: subtotal → discount → + tax
-        const subtotal = resolved.reduce((s, r) => s + (r.price || 0) * (r.quantity || 0), 0);
+        const subtotal = resolved.reduce(
+          (s, r) => s + (r.price || 0) * (r.quantity || 0),
+          0,
+        );
         const sk: any = await this.shopkeeperModel.findById(sid).lean();
         const discountPct = Number(sk?.discountPercentage || 0);
         const taxPct = Number(sk?.taxPercentage || 0);
@@ -2309,10 +5046,14 @@ Hard rules — violations are bugs:
         const tax = (afterDiscount * taxPct) / 100;
         const totalAmount = Math.round((afterDiscount + tax) * 100) / 100;
 
-        const paymentMethod = String(input.payment_method || "qr").toLowerCase();
+        const paymentMethod = String(
+          input.payment_method || "qr",
+        ).toLowerCase();
         const isCash = paymentMethod === "cash";
         const orderId = `KIOSAI-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-        const nameParts = String(input.customer_name || "").trim().split(/\s+/);
+        const nameParts = String(input.customer_name || "")
+          .trim()
+          .split(/\s+/);
         const now = new Date();
         const pickupDate = now.toISOString().split("T")[0];
         const pickupTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -2320,13 +5061,21 @@ Hard rules — violations are bugs:
         // look the customer up in their CRM (created or previously ordered). Only
         // demand phone+email when the customer is brand new.
         const shopDoc: any = await this.shopkeeperModel.findById(sid).lean();
-        const defaultCC = (shopDoc?.country || "").toString().toUpperCase().startsWith("SG") ? "+65" : "+91";
+        const defaultCC = (shopDoc?.country || "")
+          .toString()
+          .toUpperCase()
+          .startsWith("SG")
+          ? "+65"
+          : "+91";
         let whatsAppNumber = this.normalisePhone(input.whatsapp, defaultCC);
         let email = this.normaliseEmail(input.email);
         let existingUser: any = null;
 
         if (!whatsAppNumber && input.customer_name) {
-          const matches = await this.findCustomersForShopkeeper(sid, input.customer_name);
+          const matches = await this.findCustomersForShopkeeper(
+            sid,
+            input.customer_name,
+          );
           if (matches.length === 1) {
             existingUser = matches[0];
             whatsAppNumber = existingUser.whatsAppNumber;
@@ -2334,7 +5083,13 @@ Hard rules — violations are bugs:
           } else if (matches.length > 1) {
             return {
               error: `Found ${matches.length} customers named "${input.customer_name}". Please include the WhatsApp number so I know which one.`,
-              matches: matches.slice(0, 5).map((m: any) => ({ name: m.name, whatsapp: m.whatsAppNumber, email: m.email })),
+              matches: matches
+                .slice(0, 5)
+                .map((m: any) => ({
+                  name: m.name,
+                  whatsapp: m.whatsAppNumber,
+                  email: m.email,
+                })),
             };
           } else {
             return {
@@ -2344,11 +5099,14 @@ Hard rules — violations are bugs:
           }
         }
 
-        if (!whatsAppNumber) return { error: "WhatsApp number is required for a new customer." };
+        if (!whatsAppNumber)
+          return { error: "WhatsApp number is required for a new customer." };
 
         try {
           // Upsert user by WhatsApp, matching OrdersService.createOrder.
-          let user: any = existingUser || await this.userModel.findOne({ whatsAppNumber }).lean();
+          let user: any =
+            existingUser ||
+            (await this.userModel.findOne({ whatsAppNumber }).lean());
           if (!user) {
             user = await this.userModel.create({
               name: input.customer_name || "Kiosk Customer",
@@ -2360,7 +5118,10 @@ Hard rules — violations are bugs:
             });
           } else if (email && !user.email) {
             // Backfill email on an existing phone-only user
-            await this.userModel.updateOne({ _id: user._id }, { $set: { email } });
+            await this.userModel.updateOne(
+              { _id: user._id },
+              { $set: { email } },
+            );
             user.email = email;
           }
           const order: any = await this.orderModel.create({
@@ -2377,21 +5138,42 @@ Hard rules — violations are bugs:
             firstName: nameParts[0] || input.customer_name,
             lastName: nameParts.slice(1).join(" ") || "",
             customerName: input.customer_name,
-            customerWhatsApp: whatsAppNumber !== "kiosk-order" ? whatsAppNumber : undefined,
+            customerWhatsApp:
+              whatsAppNumber !== "kiosk-order" ? whatsAppNumber : undefined,
             customerEmail: email,
             status: isCash ? "processing" : "pending",
             paymentConfirmed: isCash,
             instructions: input.instructions || undefined,
-            statusHistory: [{ status: isCash ? "processing" : "pending", changedAt: new Date(), changedBy: "KiosAI" }],
+            statusHistory: [
+              {
+                status: isCash ? "processing" : "pending",
+                changedAt: new Date(),
+                changedBy: "KiosAI",
+              },
+            ],
           });
           for (const r of resolved) {
             if (!r.trackQuantity) continue;
             try {
               if (r.variantTitle && r.subcategoryName) {
                 await this.productModel.updateOne(
-                  { _id: r.productId, "subcategories.name": r.subcategoryName, "subcategories.variants.title": r.variantTitle },
-                  { $inc: { "subcategories.$[sc].variants.$[v].inventory": -r.quantity } },
-                  { arrayFilters: [{ "sc.name": r.subcategoryName }, { "v.title": r.variantTitle }] } as any,
+                  {
+                    _id: r.productId,
+                    "subcategories.name": r.subcategoryName,
+                    "subcategories.variants.title": r.variantTitle,
+                  },
+                  {
+                    $inc: {
+                      "subcategories.$[sc].variants.$[v].inventory":
+                        -r.quantity,
+                    },
+                  },
+                  {
+                    arrayFilters: [
+                      { "sc.name": r.subcategoryName },
+                      { "v.title": r.variantTitle },
+                    ],
+                  } as any,
                 );
               } else if (r.variantTitle) {
                 await this.productModel.updateOne(
@@ -2404,10 +5186,15 @@ Hard rules — violations are bugs:
                   { $inc: { "subcategories.$.inventory": -r.quantity } },
                 );
               } else {
-                await this.productModel.updateOne({ _id: r.productId }, { $inc: { inventory: -r.quantity } });
+                await this.productModel.updateOne(
+                  { _id: r.productId },
+                  { $inc: { inventory: -r.quantity } },
+                );
               }
             } catch (invErr) {
-              this.logger.warn(`Inventory decrement failed for ${r.productName}: ${(invErr as any)?.message}`);
+              this.logger.warn(
+                `Inventory decrement failed for ${r.productName}: ${(invErr as any)?.message}`,
+              );
             }
           }
           return {
@@ -2427,7 +5214,7 @@ Hard rules — violations are bugs:
               tax: Math.round(tax * 100) / 100,
               total: totalAmount,
             },
-            items: resolved.map(r => ({
+            items: resolved.map((r) => ({
               name: r.productName,
               variant: r.variantTitle,
               subcategory: r.subcategoryName,
@@ -2445,11 +5232,23 @@ Hard rules — violations are bugs:
         }
       }
       case "get_payment_qr": {
-        const order: any = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } }).lean();
+        const order: any = await this.orderModel
+          .findOne({
+            shopkeeperId: sid,
+            orderId: { $regex: input.order_id, $options: "i" },
+            isSoftDeleted: { $ne: true },
+          })
+          .lean();
         if (!order) return { error: "Order not found" };
         const sk: any = await this.shopkeeperModel.findById(sid).lean();
-        const rawCountry = (sk?.country || "IN").toString().trim().toUpperCase();
-        const country = rawCountry.startsWith("SG") || rawCountry.startsWith("SING") ? "SG" : "IN";
+        const rawCountry = (sk?.country || "IN")
+          .toString()
+          .trim()
+          .toUpperCase();
+        const country =
+          rawCountry.startsWith("SG") || rawCountry.startsWith("SING")
+            ? "SG"
+            : "IN";
         return {
           orderId: order.orderId,
           orderMongoId: order._id.toString(),
@@ -2458,23 +5257,37 @@ Hard rules — violations are bugs:
           shopName: sk?.shopName,
           shopkeeperPhone: country === "SG" ? sk?.whatsappNumber : undefined,
           paymentURL: country === "IN" ? sk?.paymentURL : undefined,
-          message: country === "SG" ? "PayNow QR will be shown." : "UPI QR will be shown.",
+          message:
+            country === "SG"
+              ? "PayNow QR will be shown."
+              : "UPI QR will be shown.",
         };
       }
       case "get_order_receipt": {
-        const order: any = await this.orderModel.findOne({ shopkeeperId: sid, orderId: { $regex: input.order_id, $options: "i" }, isSoftDeleted: { $ne: true } }).lean();
+        const order: any = await this.orderModel
+          .findOne({
+            shopkeeperId: sid,
+            orderId: { $regex: input.order_id, $options: "i" },
+            isSoftDeleted: { $ne: true },
+          })
+          .lean();
         if (!order) return { error: "Order not found" };
         // Receipt endpoint returns the PDF; the frontend can embed or open in a new tab.
-        const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+        const baseUrl =
+          process.env.BACKEND_URL ||
+          `http://localhost:${process.env.PORT || 3000}`;
         return {
           orderId: order.orderId,
           receiptUrl: `${baseUrl}/orders/${order._id}/receipt`,
-          message: "Share this URL with the customer, or open it to view/print the receipt.",
+          message:
+            "Share this URL with the customer, or open it to view/print the receipt.",
         };
       }
       case "get_analytics": {
         try {
-          const r = await fetch(`http://localhost:${process.env.PORT || 3000}/shopkeeper/analytics/${sid}/report/${input.period}`);
+          const r = await fetch(
+            `http://localhost:${process.env.PORT || 3000}/shopkeeper/analytics/${sid}/report/${input.period}`,
+          );
           if (!r.ok) return { error: "Failed" };
           const d = (await r.json()).data;
           // Normalise topProducts to the shape the chatbot widget renders
@@ -2488,37 +5301,373 @@ Hard rules — violations are bugs:
                 revenue: p.totalRevenue ?? p.revenue,
               }))
             : undefined;
-          return { revenue: d.totalRevenue, orders: d.totalOrders, customers: d.totalCustomers, avgOrder: d.avgOrderValue, items: d.totalItems, currency: d.currencySymbol, topProducts };
-        } catch { return { error: "Unavailable" }; }
+          return {
+            revenue: d.totalRevenue,
+            orders: d.totalOrders,
+            customers: d.totalCustomers,
+            avgOrder: d.avgOrderValue,
+            items: d.totalItems,
+            currency: d.currencySymbol,
+            topProducts,
+          };
+        } catch {
+          return { error: "Unavailable" };
+        }
       }
       case "get_today_revenue": {
-        const s = new Date(); s.setHours(0, 0, 0, 0);
-        const orders = await this.orderModel.find({ shopkeeperId: sid, createdAt: { $gte: s }, isSoftDeleted: { $ne: true } }).lean();
-        return { revenue: orders.reduce((a: number, o: any) => a + (o.totalAmount || 0), 0), orderCount: orders.length };
+        const s = new Date();
+        s.setHours(0, 0, 0, 0);
+        const orders = await this.orderModel
+          .find({
+            shopkeeperId: sid,
+            createdAt: { $gte: s },
+            isSoftDeleted: { $ne: true },
+          })
+          .lean();
+        return {
+          revenue: orders.reduce(
+            (a: number, o: any) => a + (o.totalAmount || 0),
+            0,
+          ),
+          orderCount: orders.length,
+        };
       }
       case "get_top_products": {
         const agg = await this.orderModel.aggregate([
-          { $match: { shopkeeperId: sid, isSoftDeleted: { $ne: true } } }, { $unwind: "$cartItems" },
-          { $group: { _id: "$cartItems.title", totalQty: { $sum: "$cartItems.quantity" }, revenue: { $sum: { $multiply: ["$cartItems.price", "$cartItems.quantity"] } } } },
-          { $sort: { revenue: -1 } }, { $limit: 5 },
+          { $match: { shopkeeperId: sid, isSoftDeleted: { $ne: true } } },
+          { $unwind: "$items" },
+          {
+            $group: {
+              _id: "$items.productName",
+              totalQty: { $sum: "$items.quantity" },
+              revenue: {
+                $sum: {
+                  $multiply: [
+                    {
+                      $convert: {
+                        input: "$items.price",
+                        to: "double",
+                        onError: 0,
+                        onNull: 0,
+                      },
+                    },
+                    {
+                      $convert: {
+                        input: "$items.quantity",
+                        to: "double",
+                        onError: 0,
+                        onNull: 0,
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          { $sort: { revenue: -1 } },
+          { $limit: 5 },
         ]);
-        return agg.map((p: any) => ({ name: p._id, sold: p.totalQty, revenue: p.revenue }));
+        return agg.map((p: any) => ({
+          name: p._id,
+          sold: p.totalQty,
+          revenue: p.revenue,
+        }));
+      }
+      case "get_product_analytics": {
+        const name = (input.product_name || "").trim();
+        if (!name) return { error: "product_name is required" };
+        const product = await this.findProductByName(sid, name);
+        if (!product)
+          return {
+            error: `No product matched "${name}". Try the exact catalog name.`,
+          };
+        const range = this.resolveRange(input);
+        const sk: any = await this.shopkeeperModel.findById(sid).lean();
+        const country = (sk?.country || "IN").toString().trim().toUpperCase();
+        const currency =
+          country.startsWith("SG") || country.startsWith("SING") ? "S$" : "Rs.";
+        const match: any = { shopkeeperId: sid, isSoftDeleted: { $ne: true } };
+        if (range) match.createdAt = { $gte: range.start, $lt: range.end };
+        // Match on either productName (chat-style "Product · Variant") or productId.
+        const escName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        match["items.productName"] = { $regex: escName, $options: "i" };
+        const headline = await this.orderModel.aggregate([
+          { $match: match },
+          { $unwind: "$items" },
+          {
+            $match: { "items.productName": { $regex: escName, $options: "i" } },
+          },
+          {
+            $group: {
+              _id: null,
+              revenue: {
+                $sum: {
+                  $multiply: [
+                    {
+                      $convert: {
+                        input: "$items.price",
+                        to: "double",
+                        onError: 0,
+                        onNull: 0,
+                      },
+                    },
+                    {
+                      $convert: {
+                        input: "$items.quantity",
+                        to: "double",
+                        onError: 0,
+                        onNull: 0,
+                      },
+                    },
+                  ],
+                },
+              },
+              units: {
+                $sum: {
+                  $convert: {
+                    input: "$items.quantity",
+                    to: "double",
+                    onError: 0,
+                    onNull: 0,
+                  },
+                },
+              },
+              orderIds: { $addToSet: "$_id" },
+              userIds: { $addToSet: "$userId" },
+            },
+          },
+        ]);
+        const variants = await this.orderModel.aggregate([
+          { $match: match },
+          { $unwind: "$items" },
+          {
+            $match: { "items.productName": { $regex: escName, $options: "i" } },
+          },
+          {
+            $group: {
+              _id: {
+                $ifNull: [
+                  "$items.variantTitle",
+                  { $ifNull: ["$items.optionTitle", "$items.subcategoryName"] },
+                ],
+              },
+              sold: {
+                $sum: {
+                  $convert: {
+                    input: "$items.quantity",
+                    to: "double",
+                    onError: 0,
+                    onNull: 0,
+                  },
+                },
+              },
+              revenue: {
+                $sum: {
+                  $multiply: [
+                    {
+                      $convert: {
+                        input: "$items.price",
+                        to: "double",
+                        onError: 0,
+                        onNull: 0,
+                      },
+                    },
+                    {
+                      $convert: {
+                        input: "$items.quantity",
+                        to: "double",
+                        onError: 0,
+                        onNull: 0,
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          { $sort: { revenue: -1 } },
+          { $limit: 5 },
+        ]);
+        const h = headline[0] || {
+          revenue: 0,
+          units: 0,
+          orderIds: [],
+          userIds: [],
+        };
+        const orders = (h.orderIds || []).length;
+        const customers = (h.userIds || []).filter(Boolean).length;
+        return {
+          revenue: Math.round((h.revenue || 0) * 100) / 100,
+          orders,
+          // For a product, "units" is more interesting than avg-order, so we
+          // surface it as avgOrder. The widget renders units when subject="product".
+          avgOrder: h.units || 0,
+          customers,
+          currency,
+          period: range?.label || input.period || "all",
+          subject: "product",
+          subjectName: product.name,
+          topProducts: variants
+            .filter((v: any) => v._id)
+            .map((v: any) => ({
+              name: String(v._id),
+              sold: v.sold,
+              revenue: Math.round((v.revenue || 0) * 100) / 100,
+            })),
+        };
+      }
+      case "get_customer_analytics": {
+        const user = await this.findCustomer(input);
+        if (!user)
+          return {
+            error: "Customer not found. Try a different phone / email / name.",
+          };
+        const range = this.resolveRange(input);
+        const sk: any = await this.shopkeeperModel.findById(sid).lean();
+        const country = (sk?.country || "IN").toString().trim().toUpperCase();
+        const currency =
+          country.startsWith("SG") || country.startsWith("SING") ? "S$" : "Rs.";
+        const match: any = {
+          shopkeeperId: sid,
+          userId: user._id.toString(),
+          isSoftDeleted: { $ne: true },
+        };
+        if (range) match.createdAt = { $gte: range.start, $lt: range.end };
+        const orders = await this.orderModel
+          .find(match)
+          .sort({ createdAt: -1 })
+          .lean();
+        const totalSpent = orders.reduce(
+          (s: number, o: any) => s + (Number(o.totalAmount) || 0),
+          0,
+        );
+        const orderCount = orders.length;
+        const avgOrder = orderCount ? totalSpent / orderCount : 0;
+        // Favorite products — aggregate quantity & revenue across this customer's orders.
+        const favMap = new Map<string, { sold: number; revenue: number }>();
+        for (const o of orders) {
+          for (const it of (o as any).items || []) {
+            const key = String(it.productName || "Unknown");
+            const cur = favMap.get(key) || { sold: 0, revenue: 0 };
+            cur.sold += Number(it.quantity) || 0;
+            cur.revenue += (Number(it.price) || 0) * (Number(it.quantity) || 0);
+            favMap.set(key, cur);
+          }
+        }
+        const favorites = Array.from(favMap.entries())
+          .map(([name, v]) => ({
+            name,
+            sold: v.sold,
+            revenue: Math.round(v.revenue * 100) / 100,
+          }))
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 5);
+        return {
+          revenue: Math.round(totalSpent * 100) / 100,
+          orders: orderCount,
+          avgOrder: Math.round(avgOrder * 100) / 100,
+          // For a customer, "customers" slot doubles as their unique-product variety,
+          // which is useful for spotting one-product-only buyers vs explorers.
+          customers: favorites.length,
+          currency,
+          period: range?.label || input.period || "all",
+          subject: "customer",
+          subjectName: user.name || user.whatsAppNumber || "Customer",
+          topProducts: favorites,
+        };
+      }
+      case "get_order_analytics": {
+        const order: any = await this.orderModel
+          .findOne({
+            orderId: input.order_id,
+            shopkeeperId: sid,
+            isSoftDeleted: { $ne: true },
+          })
+          .lean();
+        if (!order) return { error: `Order ${input.order_id} not found.` };
+        const sk: any = await this.shopkeeperModel.findById(sid).lean();
+        const country = (sk?.country || "IN").toString().trim().toUpperCase();
+        const currency =
+          country.startsWith("SG") || country.startsWith("SING") ? "S$" : "Rs.";
+        const items = (order.items || []).map((i: any) => ({
+          name: [i.productName, i.subcategoryName, i.variantTitle]
+            .filter(Boolean)
+            .join(" · "),
+          sold: Number(i.quantity) || 0,
+          revenue:
+            Math.round(
+              (Number(i.price) || 0) * (Number(i.quantity) || 0) * 100,
+            ) / 100,
+        }));
+        const totalUnits = items.reduce((s: number, x: any) => s + x.sold, 0);
+        const user: any = order.userId
+          ? await this.userModel.findById(order.userId).lean()
+          : null;
+        return {
+          revenue: Math.round((Number(order.totalAmount) || 0) * 100) / 100,
+          orders: 1,
+          avgOrder: totalUnits, // re-purposed as units
+          customers: 1,
+          currency,
+          period: "all",
+          subject: "product", // reuse product card layout (units + line-item table)
+          subjectName: `Order ${order.orderId}${user?.name ? ` · ${user.name}` : ""}`,
+          topProducts: items,
+        };
       }
       case "get_payment_summary": {
         const [u, m, c, ig] = await Promise.all([
-          this.paymentEmailModel.countDocuments({ shopkeeperId: sid, status: "unmatched" }),
-          this.paymentEmailModel.countDocuments({ shopkeeperId: sid, status: "matched" }),
-          this.paymentEmailModel.countDocuments({ shopkeeperId: sid, status: "confirmed" }),
-          this.paymentEmailModel.countDocuments({ shopkeeperId: sid, status: "ignored" }),
+          this.paymentEmailModel.countDocuments({
+            shopkeeperId: sid,
+            status: "unmatched",
+          }),
+          this.paymentEmailModel.countDocuments({
+            shopkeeperId: sid,
+            status: "matched",
+          }),
+          this.paymentEmailModel.countDocuments({
+            shopkeeperId: sid,
+            status: "confirmed",
+          }),
+          this.paymentEmailModel.countDocuments({
+            shopkeeperId: sid,
+            status: "ignored",
+          }),
         ]);
-        return { unmatched: u, matched: m, confirmed: c, ignored: ig, total: u + m + c + ig };
+        return {
+          unmatched: u,
+          matched: m,
+          confirmed: c,
+          ignored: ig,
+          total: u + m + c + ig,
+        };
       }
       case "confirm_matched_payments": {
-        const matched = await this.paymentEmailModel.find({ shopkeeperId: sid, status: "matched", matchedOrderId: { $ne: null } }).lean();
+        const matched = await this.paymentEmailModel
+          .find({
+            shopkeeperId: sid,
+            status: "matched",
+            matchedOrderId: { $ne: null },
+          })
+          .lean();
         let count = 0;
         for (const pe of matched) {
-          await this.paymentEmailModel.findByIdAndUpdate(pe._id, { status: "confirmed" });
-          await this.orderModel.findOneAndUpdate({ orderId: pe.matchedOrderId, status: "pending" }, { status: "processing", $push: { statusHistory: { status: "processing", changedAt: new Date(), changedBy: "KiosAI" } } });
+          await this.paymentEmailModel.findByIdAndUpdate(pe._id, {
+            status: "confirmed",
+          });
+          await this.orderModel.findOneAndUpdate(
+            { orderId: pe.matchedOrderId, status: "pending" },
+            {
+              status: "processing",
+              $push: {
+                statusHistory: {
+                  status: "processing",
+                  changedAt: new Date(),
+                  changedBy: "KiosAI",
+                },
+              },
+            },
+          );
           count++;
         }
         return { confirmed: count };
@@ -2531,12 +5680,22 @@ Hard rules — violations are bugs:
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
         const todayOrders: any[] = await this.orderModel
-          .find({ shopkeeperId: sid, createdAt: { $gte: startOfDay }, isSoftDeleted: { $ne: true } })
+          .find({
+            shopkeeperId: sid,
+            createdAt: { $gte: startOfDay },
+            isSoftDeleted: { $ne: true },
+          })
           .lean();
         const pending = todayOrders.filter((o) => o.status === "pending");
-        const alreadyProcessing = todayOrders.filter((o) => o.status === "processing").length;
-        const completed = todayOrders.filter((o) => o.status === "completed").length;
-        const cancelled = todayOrders.filter((o) => o.status === "cancelled").length;
+        const alreadyProcessing = todayOrders.filter(
+          (o) => o.status === "processing",
+        ).length;
+        const completed = todayOrders.filter(
+          (o) => o.status === "completed",
+        ).length;
+        const cancelled = todayOrders.filter(
+          (o) => o.status === "cancelled",
+        ).length;
 
         if (pending.length === 0) {
           return {
@@ -2558,7 +5717,13 @@ Hard rules — violations are bugs:
           { _id: { $in: pending.map((o) => o._id) } },
           {
             $set: { status: "processing" },
-            $push: { statusHistory: { status: "processing", changedAt: now, changedBy: "KiosAI" } },
+            $push: {
+              statusHistory: {
+                status: "processing",
+                changedAt: now,
+                changedBy: "KiosAI",
+              },
+            },
           },
         );
 
@@ -2576,15 +5741,39 @@ Hard rules — violations are bugs:
         };
       }
       case "get_matched_payments": {
-        const p = await this.paymentEmailModel.find({ shopkeeperId: sid, status: "matched", matchedOrderId: { $ne: null } }).sort({ receivedAt: -1 }).limit(10).lean();
-        return p.map((x: any) => ({ amount: x.amount, sender: x.senderName || x.from, orderId: x.matchedOrderId, provider: x.bankOrProvider }));
+        const p = await this.paymentEmailModel
+          .find({
+            shopkeeperId: sid,
+            status: "matched",
+            matchedOrderId: { $ne: null },
+          })
+          .sort({ receivedAt: -1 })
+          .limit(10)
+          .lean();
+        return p.map((x: any) => ({
+          amount: x.amount,
+          sender: x.senderName || x.from,
+          orderId: x.matchedOrderId,
+          provider: x.bankOrProvider,
+        }));
       }
       case "get_unmatched_payments": {
-        const p = await this.paymentEmailModel.find({ shopkeeperId: sid, status: "unmatched" }).sort({ receivedAt: -1 }).limit(10).lean();
-        return p.map((x: any) => ({ amount: x.amount, sender: x.senderName || x.from, provider: x.bankOrProvider }));
+        const p = await this.paymentEmailModel
+          .find({ shopkeeperId: sid, status: "unmatched" })
+          .sort({ receivedAt: -1 })
+          .limit(10)
+          .lean();
+        return p.map((x: any) => ({
+          amount: x.amount,
+          sender: x.senderName || x.from,
+          provider: x.bankOrProvider,
+        }));
       }
       case "get_customers": {
-        const agg = await this.orderModel.aggregate([{ $match: { shopkeeperId: sid, isSoftDeleted: { $ne: true } } }, { $group: { _id: "$userId" } }]);
+        const agg = await this.orderModel.aggregate([
+          { $match: { shopkeeperId: sid, isSoftDeleted: { $ne: true } } },
+          { $group: { _id: "$userId" } },
+        ]);
         return { totalCustomers: agg.length };
       }
       case "list_customers": {
@@ -2603,18 +5792,23 @@ Hard rules — violations are bugs:
           { $sort: { totalSpent: -1 } },
         ]);
         const userIds = stats.map((s: any) => s._id).filter(Boolean);
-        const users = await this.userModel.find({ _id: { $in: userIds } }).lean();
+        const users = await this.userModel
+          .find({ _id: { $in: userIds } })
+          .lean();
         const userById = new Map(users.map((u: any) => [u._id.toString(), u]));
         // Also include shopkeeper-created users that have no orders yet, scoped
         // to THIS shopkeeper. The previous query was global (no providerId
         // filter) and case-mismatched, so it returned other shops' customers.
-        const createdUsers = await this.userModel.find({ providerId: sid }).lean();
+        const createdUsers = await this.userModel
+          .find({ providerId: sid })
+          .lean();
         for (const u of createdUsers as any[]) {
           const id = u._id.toString();
           if (!userById.has(id)) userById.set(id, u);
         }
         let combined = Array.from(userById.values()).map((u: any) => {
-          const s = stats.find((x: any) => String(x._id) === String(u._id)) || {};
+          const s =
+            stats.find((x: any) => String(x._id) === String(u._id)) || {};
           const totalSpent = Number(s.totalSpent || 0);
           return {
             id: u._id.toString(),
@@ -2624,25 +5818,41 @@ Hard rules — violations are bugs:
             orderCount: s.orderCount || 0,
             totalSpent,
             lastOrderDate: s.lastOrderDate,
-            status: totalSpent > 100 ? "vip" : s.orderCount ? "active" : "inactive",
+            status:
+              totalSpent > 100 ? "vip" : s.orderCount ? "active" : "inactive",
           };
         });
         if (input.search) {
           const q = String(input.search).toLowerCase();
-          combined = combined.filter(c =>
-            (c.name || "").toLowerCase().includes(q) ||
-            (c.email || "").toLowerCase().includes(q) ||
-            (c.whatsapp || "").toLowerCase().includes(q),
+          combined = combined.filter(
+            (c) =>
+              (c.name || "").toLowerCase().includes(q) ||
+              (c.email || "").toLowerCase().includes(q) ||
+              (c.whatsapp || "").toLowerCase().includes(q),
           );
         }
-        if (input.vip_only) combined = combined.filter(c => c.status === "vip");
+        if (input.vip_only)
+          combined = combined.filter((c) => c.status === "vip");
         return { count: combined.length, customers: combined.slice(0, limit) };
       }
       case "get_customer": {
         const user = await this.findCustomer(input);
-        if (!user) return { error: "Customer not found. Try a different phone / email / name." };
-        const orders = await this.orderModel.find({ shopkeeperId: sid, userId: user._id.toString(), isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
-        const totalSpent = orders.reduce((s: number, o: any) => s + (Number(o.totalAmount) || 0), 0);
+        if (!user)
+          return {
+            error: "Customer not found. Try a different phone / email / name.",
+          };
+        const orders = await this.orderModel
+          .find({
+            shopkeeperId: sid,
+            userId: user._id.toString(),
+            isSoftDeleted: { $ne: true },
+          })
+          .sort({ createdAt: -1 })
+          .lean();
+        const totalSpent = orders.reduce(
+          (s: number, o: any) => s + (Number(o.totalAmount) || 0),
+          0,
+        );
         return {
           id: user._id.toString(),
           name: user.name,
@@ -2652,10 +5862,13 @@ Hard rules — violations are bugs:
           joinDate: (user as any).createdAt,
           orderCount: orders.length,
           totalSpent: Math.round(totalSpent * 100) / 100,
-          avgOrderValue: orders.length ? Math.round((totalSpent / orders.length) * 100) / 100 : 0,
+          avgOrderValue: orders.length
+            ? Math.round((totalSpent / orders.length) * 100) / 100
+            : 0,
           firstOrderDate: orders[orders.length - 1]?.createdAt,
           lastOrderDate: orders[0]?.createdAt,
-          status: totalSpent > 100 ? "vip" : orders.length ? "active" : "inactive",
+          status:
+            totalSpent > 100 ? "vip" : orders.length ? "active" : "inactive",
           // Full history — order by most recent first
           orderHistory: orders.map((o: any) => ({
             orderId: o.orderId,
@@ -2665,7 +5878,9 @@ Hard rules — violations are bugs:
             paymentConfirmed: o.paymentConfirmed,
             createdAt: o.createdAt,
             items: (o.items || []).map((i: any) => {
-              const extras = [i.subcategoryName, i.variantTitle].filter(Boolean).join(" > ");
+              const extras = [i.subcategoryName, i.variantTitle]
+                .filter(Boolean)
+                .join(" > ");
               const optPart = i.optionTitle ? ` [opt ${i.optionTitle}]` : "";
               return `${i.quantity}× ${i.productName}${extras ? ` (${extras})` : ""}${optPart}`;
             }),
@@ -2674,27 +5889,68 @@ Hard rules — violations are bugs:
       }
       case "get_customer_orders": {
         const user = await this.findCustomer(input);
-        if (!user) return { error: "Customer not found. Try a different phone / email / name." };
+        if (!user)
+          return {
+            error: "Customer not found. Try a different phone / email / name.",
+          };
         const limit = Math.min(Number(input.limit) || 10, 50);
-        const orders = await this.orderModel.find({ shopkeeperId: sid, userId: user._id.toString(), isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(limit).lean();
+        const orders = await this.orderModel
+          .find({
+            shopkeeperId: sid,
+            userId: user._id.toString(),
+            isSoftDeleted: { $ne: true },
+          })
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .lean();
         return {
           customer: user.name || user.whatsAppNumber,
-          orders: orders.map((o: any) => ({ orderId: o.orderId, status: o.status, totalAmount: o.totalAmount, orderType: o.orderType, createdAt: o.createdAt, items: (o.items || []).map((i: any) => `${i.quantity}× ${i.productName}${i.variantTitle ? ` (${i.variantTitle})` : ""}`).join(", ") })),
+          orders: orders.map((o: any) => ({
+            orderId: o.orderId,
+            status: o.status,
+            totalAmount: o.totalAmount,
+            orderType: o.orderType,
+            createdAt: o.createdAt,
+            items: (o.items || [])
+              .map(
+                (i: any) =>
+                  `${i.quantity}× ${i.productName}${i.variantTitle ? ` (${i.variantTitle})` : ""}`,
+              )
+              .join(", "),
+          })),
         };
       }
       case "create_customer": {
         const { first_name, last_name } = input;
-        if (!first_name || !last_name) return { error: "first_name and last_name are required" };
+        if (!first_name || !last_name)
+          return { error: "first_name and last_name are required" };
         // Normalise voice-transcribed inputs: "8347 450600" → "+918347450600",
         // "MK vartani at Gmail.com" → "mkvartani@gmail.com"
         const sk: any = await this.shopkeeperModel.findById(sid).lean();
         const country = (sk?.country || "IN").toString().trim().toUpperCase();
-        const defaultCC = country.startsWith("SG") || country.startsWith("SING") ? "+65" : "+91";
+        const defaultCC =
+          country.startsWith("SG") || country.startsWith("SING")
+            ? "+65"
+            : "+91";
         const whatsapp = this.normalisePhone(input.whatsapp, defaultCC);
-        if (!whatsapp) return { error: "A valid whatsapp number is required (include country code if possible)" };
+        if (!whatsapp)
+          return {
+            error:
+              "A valid whatsapp number is required (include country code if possible)",
+          };
         const email = this.normaliseEmail(input.email);
-        const existing: any = await this.userModel.findOne({ whatsAppNumber: whatsapp }).lean();
-        if (existing) return { error: "A customer with that whatsapp already exists", existing: { id: existing._id.toString(), name: existing.name, email: existing.email } };
+        const existing: any = await this.userModel
+          .findOne({ whatsAppNumber: whatsapp })
+          .lean();
+        if (existing)
+          return {
+            error: "A customer with that whatsapp already exists",
+            existing: {
+              id: existing._id.toString(),
+              name: existing.name,
+              email: existing.email,
+            },
+          };
         const user = await this.userModel.create({
           name: `${first_name} ${last_name}`.trim(),
           email: email || null,
@@ -2705,31 +5961,61 @@ Hard rules — violations are bugs:
           providerId: sid,
           whatsAppNumber: whatsapp,
         });
-        return { success: true, customer: { id: user._id.toString(), name: user.name, email: user.email, whatsapp: user.whatsAppNumber } };
+        return {
+          success: true,
+          customer: {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            whatsapp: user.whatsAppNumber,
+          },
+        };
       }
       case "update_customer": {
         const user: any = await this.findCustomer(input);
         if (!user) return { error: "Customer not found" };
         const updates: any = {};
         if (input.new_first_name || input.new_last_name) {
-          const first = input.new_first_name || user.name?.split(" ")?.[0] || "";
-          const last = input.new_last_name ?? user.name?.split(" ")?.slice(1).join(" ") ?? "";
+          const first =
+            input.new_first_name || user.name?.split(" ")?.[0] || "";
+          const last =
+            input.new_last_name ??
+            user.name?.split(" ")?.slice(1).join(" ") ??
+            "";
           updates.name = `${first} ${last}`.trim();
         }
         if (input.new_whatsapp !== undefined) {
           const sk: any = await this.shopkeeperModel.findById(sid).lean();
-          const defaultCC = (sk?.country || "").toString().toUpperCase().startsWith("SG") ? "+65" : "+91";
+          const defaultCC = (sk?.country || "")
+            .toString()
+            .toUpperCase()
+            .startsWith("SG")
+            ? "+65"
+            : "+91";
           const phone = this.normalisePhone(input.new_whatsapp, defaultCC);
           if (!phone) return { error: "Invalid new_whatsapp" };
           updates.whatsAppNumber = phone;
         }
-        if (input.new_email !== undefined) updates.email = this.normaliseEmail(input.new_email);
-        if (Object.keys(updates).length === 0) return { error: "No fields to update. Provide new_first_name / new_last_name / new_whatsapp / new_email." };
+        if (input.new_email !== undefined)
+          updates.email = this.normaliseEmail(input.new_email);
+        if (Object.keys(updates).length === 0)
+          return {
+            error:
+              "No fields to update. Provide new_first_name / new_last_name / new_whatsapp / new_email.",
+          };
         await this.userModel.updateOne({ _id: user._id }, { $set: updates });
-        return { success: true, customer: { id: user._id.toString(), ...updates } };
+        return {
+          success: true,
+          customer: { id: user._id.toString(), ...updates },
+        };
       }
       case "get_crm_stats": {
-        const orders = await this.orderModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } }, { userId: 1, totalAmount: 1 }).lean();
+        const orders = await this.orderModel
+          .find(
+            { shopkeeperId: sid, isSoftDeleted: { $ne: true } },
+            { userId: 1, totalAmount: 1 },
+          )
+          .lean();
         const byUser = new Map<string, { count: number; spent: number }>();
         let totalRevenue = 0;
         for (const o of orders) {
@@ -2742,15 +6028,29 @@ Hard rules — violations are bugs:
           byUser.set(uid, cur);
         }
         const totalCustomers = byUser.size;
-        const vipCount = Array.from(byUser.values()).filter(v => v.spent > 100).length;
+        const vipCount = Array.from(byUser.values()).filter(
+          (v) => v.spent > 100,
+        ).length;
         // Local vs international based on shopkeeper country
         const sk: any = await this.shopkeeperModel.findById(sid).lean();
         const country = (sk?.country || "IN").toString().trim().toUpperCase();
-        const localPrefix = country.startsWith("SG") || country.startsWith("SING") ? "+65" : "+91";
-        const users = await this.userModel.find({ _id: { $in: Array.from(byUser.keys()) } }, { whatsAppNumber: 1 }).lean();
-        const localCustomers = users.filter((u: any) => (u.whatsAppNumber || "").startsWith(localPrefix)).length;
+        const localPrefix =
+          country.startsWith("SG") || country.startsWith("SING")
+            ? "+65"
+            : "+91";
+        const users = await this.userModel
+          .find(
+            { _id: { $in: Array.from(byUser.keys()) } },
+            { whatsAppNumber: 1 },
+          )
+          .lean();
+        const localCustomers = users.filter((u: any) =>
+          (u.whatsAppNumber || "").startsWith(localPrefix),
+        ).length;
         const totalOrders = orders.length;
-        const avgOrderValue = totalOrders ? Math.round((totalRevenue / totalOrders) * 100) / 100 : 0;
+        const avgOrderValue = totalOrders
+          ? Math.round((totalRevenue / totalOrders) * 100) / 100
+          : 0;
         return {
           totalCustomers,
           vipCount,
@@ -2762,23 +6062,54 @@ Hard rules — violations are bugs:
         };
       }
       case "get_coupons": {
-        const c = await this.couponModel.find({ shopkeeperId: sid, isDeleted: false, isActive: true }).lean();
-        return c.map((x: any) => ({ code: x.code, type: x.discountType, value: x.discountType === "PERCENTAGE" ? x.discountPercentage + "%" : "$" + x.flatDiscountAmount, used: x.usedCount, max: x.maxUsage || "unlimited" }));
+        const c = await this.couponModel
+          .find({ shopkeeperId: sid, isDeleted: false, isActive: true })
+          .lean();
+        return c.map((x: any) => ({
+          code: x.code,
+          type: x.discountType,
+          value:
+            x.discountType === "PERCENTAGE"
+              ? x.discountPercentage + "%"
+              : "$" + x.flatDiscountAmount,
+          used: x.usedCount,
+          max: x.maxUsage || "unlimited",
+        }));
       }
       case "get_plan_info": {
         const sk: any = await this.shopkeeperModel.findById(sid).lean();
         if (!sk?.planId) return { subscribed: false };
         const plan: any = await this.planModel.findById(sk.planId).lean();
         const exp = sk.planExpiryDate ? new Date(sk.planExpiryDate) : null;
-        return { planName: plan?.planName, price: sk.pricePaid, daysLeft: exp ? Math.max(0, Math.ceil((exp.getTime() - Date.now()) / 86400000)) : 0, expires: exp?.toLocaleDateString() };
+        return {
+          planName: plan?.planName,
+          price: sk.pricePaid,
+          daysLeft: exp
+            ? Math.max(0, Math.ceil((exp.getTime() - Date.now()) / 86400000))
+            : 0,
+          expires: exp?.toLocaleDateString(),
+        };
       }
       case "get_operators": {
-        const ops = await this.operatorModel.find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } }).lean();
-        return ops.map((o: any) => ({ name: o.name, phone: o.whatsAppNumber, email: o.email }));
+        const ops = await this.operatorModel
+          .find({ shopkeeperId: sid, isSoftDeleted: { $ne: true } })
+          .lean();
+        return ops.map((o: any) => ({
+          name: o.name,
+          phone: o.whatsAppNumber,
+          email: o.email,
+        }));
       }
       case "get_shop_info": {
         const sk: any = await this.shopkeeperModel.findById(sid).lean();
-        return { shopName: sk?.shopName, owner: sk?.name, category: sk?.businessCategory, phone: sk?.phone, whatsapp: sk?.whatsappNumber, address: sk?.address };
+        return {
+          shopName: sk?.shopName,
+          owner: sk?.name,
+          category: sk?.businessCategory,
+          phone: sk?.phone,
+          whatsapp: sk?.whatsappNumber,
+          address: sk?.address,
+        };
       }
       case "navigate_to":
         return { navigating: true, tab: input.tab };
@@ -2787,15 +6118,23 @@ Hard rules — violations are bugs:
     }
   }
 
-  private async fallbackKeyword(sid: string, msg: string, jwtName?: string): Promise<BotResponse> {
+  private async fallbackKeyword(
+    sid: string,
+    msg: string,
+    jwtName?: string,
+  ): Promise<BotResponse> {
     const m = msg.toLowerCase();
     if (m.includes("hi") || m.includes("hello") || m.includes("help")) {
       // Same identity resolution as processMessage so the greeting is personal
       // even when the AI provider is unreachable.
       let person: any = await this.shopkeeperModel.findById(sid).lean();
       if (!person) person = await this.operatorModel.findById(sid).lean();
-      const first = ((jwtName || person?.name) || "").split(/\s+/)[0] || "there";
-      const shop: any = person?.shopName ? person : await this.shopkeeperModel.findById(person?.shopkeeperId || sid).lean();
+      const first = (jwtName || person?.name || "").split(/\s+/)[0] || "there";
+      const shop: any = person?.shopName
+        ? person
+        : await this.shopkeeperModel
+            .findById(person?.shopkeeperId || sid)
+            .lean();
       const shopName = shop?.shopName || "your store";
       const greetingLine = this.buildGreetingLine(first, shop?.country);
       return {
@@ -2811,14 +6150,40 @@ Hard rules — violations are bugs:
       };
     }
     if (m.includes("pending")) {
-      const orders = await this.orderModel.find({ shopkeeperId: sid, status: "pending", isSoftDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(5).lean();
-      const list = orders.map((o: any, i: number) => `${i + 1}. **#${o.orderId}** — $${o.totalAmount?.toFixed(2)}`).join("\n");
-      return { text: orders.length ? `⏳ **${orders.length} Pending:**\n\n${list}` : "No pending orders!" };
+      const orders = await this.orderModel
+        .find({
+          shopkeeperId: sid,
+          status: "pending",
+          isSoftDeleted: { $ne: true },
+        })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean();
+      const list = orders
+        .map(
+          (o: any, i: number) =>
+            `${i + 1}. **#${o.orderId}** — $${o.totalAmount?.toFixed(2)}`,
+        )
+        .join("\n");
+      return {
+        text: orders.length
+          ? `⏳ **${orders.length} Pending:**\n\n${list}`
+          : "No pending orders!",
+      };
     }
     if (m.includes("revenue") || m.includes("earning")) {
-      const s = new Date(); s.setHours(0, 0, 0, 0);
-      const orders = await this.orderModel.find({ shopkeeperId: sid, createdAt: { $gte: s }, isSoftDeleted: { $ne: true } }).lean();
-      return { text: `💰 Today: **$${orders.reduce((a: number, o: any) => a + (o.totalAmount || 0), 0).toFixed(2)}** from ${orders.length} orders` };
+      const s = new Date();
+      s.setHours(0, 0, 0, 0);
+      const orders = await this.orderModel
+        .find({
+          shopkeeperId: sid,
+          createdAt: { $gte: s },
+          isSoftDeleted: { $ne: true },
+        })
+        .lean();
+      return {
+        text: `💰 Today: **$${orders.reduce((a: number, o: any) => a + (o.totalAmount || 0), 0).toFixed(2)}** from ${orders.length} orders`,
+      };
     }
     if (m.includes("product")) {
       // Render the same expandable tree the LLM path would produce, so the UX
@@ -2828,30 +6193,59 @@ Hard rules — violations are bugs:
         const total = result?.total ?? 0;
         const products = Array.isArray(result?.products) ? result.products : [];
         return {
-          text: total > 0
-            ? `📦 You have **${total}** products — click any row with a chevron to expand its variants.`
-            : "📦 You don't have any products yet.",
+          text:
+            total > 0
+              ? `📦 You have **${total}** products — click any row with a chevron to expand its variants.`
+              : "📦 You don't have any products yet.",
           productTree: products,
           quickActions: [{ label: "Add Product", action: "add product" }],
         };
       }
-      const total = await this.productModel.countDocuments({ shopkeeperId: sid, isSoftDeleted: { $ne: true } });
-      return { text: `📦 You have **${total}** products.`, quickActions: [{ label: "Show All", action: "show all products" }, { label: "Add Product", action: "add product" }] };
+      const total = await this.productModel.countDocuments({
+        shopkeeperId: sid,
+        isSoftDeleted: { $ne: true },
+      });
+      return {
+        text: `📦 You have **${total}** products.`,
+        quickActions: [
+          { label: "Show All", action: "show all products" },
+          { label: "Add Product", action: "add product" },
+        ],
+      };
     }
     if (m.includes("confirm") && m.includes("payment")) {
-      const matched = await this.paymentEmailModel.find({ shopkeeperId: sid, status: "matched", matchedOrderId: { $ne: null } }).lean();
-      if (matched.length === 0) return { text: "No matched payments to confirm." };
+      const matched = await this.paymentEmailModel
+        .find({
+          shopkeeperId: sid,
+          status: "matched",
+          matchedOrderId: { $ne: null },
+        })
+        .lean();
+      if (matched.length === 0)
+        return { text: "No matched payments to confirm." };
       let c = 0;
       for (const pe of matched) {
-        await this.paymentEmailModel.findByIdAndUpdate(pe._id, { status: "confirmed" });
-        await this.orderModel.findOneAndUpdate({ orderId: pe.matchedOrderId, status: "pending" }, { status: "processing" });
+        await this.paymentEmailModel.findByIdAndUpdate(pe._id, {
+          status: "confirmed",
+        });
+        await this.orderModel.findOneAndUpdate(
+          { orderId: pe.matchedOrderId, status: "pending" },
+          { status: "processing" },
+        );
         c++;
       }
-      return { text: `✅ **${c} payments confirmed!** Orders moved to processing.` };
+      return {
+        text: `✅ **${c} payments confirmed!** Orders moved to processing.`,
+      };
     }
     return {
       text: "I can help with orders, products, payments, analytics & more. What do you need?",
-      quickActions: [{ label: "Orders", action: "today's orders" }, { label: "Revenue", action: "today's revenue" }, { label: "Products", action: "show products" }, { label: "Payments", action: "payment summary" }],
+      quickActions: [
+        { label: "Orders", action: "today's orders" },
+        { label: "Revenue", action: "today's revenue" },
+        { label: "Products", action: "show products" },
+        { label: "Payments", action: "payment summary" },
+      ],
     };
   }
 }

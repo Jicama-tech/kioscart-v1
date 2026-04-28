@@ -1,7 +1,31 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Store, Monitor, ShoppingCart, Users, Package, Globe, Settings, ChevronRight, ChevronDown, Sparkles, Download, BarChart3, HelpCircle, BookOpen } from "lucide-react";
+import {
+  MessageCircle,
+  X,
+  Send,
+  Bot,
+  User,
+  Loader2,
+  Mic,
+  MicOff,
+  Store,
+  Monitor,
+  ShoppingCart,
+  Users,
+  Package,
+  Globe,
+  Settings,
+  ChevronRight,
+  ChevronDown,
+  Sparkles,
+  Download,
+  BarChart3,
+  HelpCircle,
+  BookOpen,
+  RotateCcw,
+} from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import QRCode from "react-qr-code";
 import jsQR from "jsqr";
@@ -9,7 +33,10 @@ import { jwtDecode } from "jwt-decode";
 
 const apiURL = __API_URL__;
 
-interface QuickAction { label: string; action: string; }
+interface QuickAction {
+  label: string;
+  action: string;
+}
 interface QRPayload {
   orderId: string;
   // Mongo _id, needed to hit /orders/:id/receipt for download.
@@ -26,7 +53,11 @@ interface ProductTreeItem {
   inventory?: number;
   category?: string;
   variants?: { title: string; price: number; inventory?: number }[];
-  subcategories?: { name: string; basePrice?: number; variants?: { title: string; price: number; inventory?: number }[] }[];
+  subcategories?: {
+    name: string;
+    basePrice?: number;
+    variants?: { title: string; price: number; inventory?: number }[];
+  }[];
   options?: { title: string; price: number; inventory?: number }[];
 }
 interface AnalyticsSummary {
@@ -37,6 +68,9 @@ interface AnalyticsSummary {
   currency: string;
   period?: string;
   topProducts?: { name: string; sold?: number; revenue?: number }[];
+  // What these numbers describe — drives card label switching.
+  subject?: "shop" | "product" | "customer";
+  subjectName?: string;
 }
 interface CustomerFormPayload {
   firstName?: string;
@@ -130,7 +164,9 @@ async function buildQrValue(action: {
     return `https://www.sgqrcode.com/paynow?mobile=${clean}&uen=&editable=0&amount=${action.amount.toFixed(2)}&expiry=${encodeURIComponent(formatted)}&ref_id=${encodeURIComponent(action.orderId)}&company=`;
   }
   // India — extract UPI from the shopkeeper's payment image
-  const upi = action.paymentURL ? await extractUpiFromImage(apiURL + action.paymentURL) : "";
+  const upi = action.paymentURL
+    ? await extractUpiFromImage(apiURL + action.paymentURL)
+    : "";
   if (!upi) return "";
   return `upi://pay?pa=${upi}&pn=${encodeURIComponent(action.shopName || "Payment")}&am=${action.amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent("KiosAI Order - " + action.orderId)}`;
 }
@@ -182,7 +218,11 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
         <div className="px-3 py-2.5">Status</div>
       </div>
       {products.map((p, i) => {
-        const hasChildren = (p.variants?.length || 0) + (p.subcategories?.length || 0) + (p.options?.length || 0) > 0;
+        const hasChildren =
+          (p.variants?.length || 0) +
+            (p.subcategories?.length || 0) +
+            (p.options?.length || 0) >
+          0;
         const isOpen = openP.has(i);
         return (
           <div key={i}>
@@ -192,19 +232,39 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
             >
               <div className="px-4 py-3 flex items-center gap-2 min-w-0">
                 {hasChildren ? (
-                  isOpen ? <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-500" /> : <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                ) : <span className="w-4 flex-shrink-0" />}
-                <span className="font-medium text-slate-900 truncate">{p.name}</span>
-                {p.category && <span className="text-[11px] text-slate-400 flex-shrink-0">· {p.category}</span>}
+                  isOpen ? (
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                  )
+                ) : (
+                  <span className="w-4 flex-shrink-0" />
+                )}
+                <span className="font-medium text-slate-900 truncate">
+                  {p.name}
+                </span>
+                {p.category && (
+                  <span className="text-[11px] text-slate-400 flex-shrink-0">
+                    · {p.category}
+                  </span>
+                )}
               </div>
               <div className="px-3 py-3 text-slate-700">{fmt(p.price)}</div>
-              <div className="px-3 py-3 text-slate-700">{p.inventory ?? "—"}</div>
+              <div className="px-3 py-3 text-slate-700">
+                {p.inventory ?? "—"}
+              </div>
               <div className="px-3 py-3">
-                <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                  p.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                  p.status === "archived" ? "bg-slate-100 text-slate-600" :
-                  "bg-amber-100 text-amber-700"
-                }`}>{p.status || "—"}</span>
+                <span
+                  className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                    p.status === "active"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : p.status === "archived"
+                        ? "bg-slate-100 text-slate-600"
+                        : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {p.status || "—"}
+                </span>
               </div>
             </div>
 
@@ -212,14 +272,23 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
               <div className="bg-slate-50/60">
                 {/* Top-level variants */}
                 {(p.variants || []).map((v, vi) => (
-                  <div key={`v-${vi}`} className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]">
+                  <div
+                    key={`v-${vi}`}
+                    className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]"
+                  >
                     <div className="px-4 py-2 pl-10 flex items-center gap-2 text-slate-700">
                       <span className="text-slate-400">·</span>
                       <span className="font-medium">{v.title}</span>
-                      <span className="text-[11px] text-slate-400">variant</span>
+                      <span className="text-[11px] text-slate-400">
+                        variant
+                      </span>
                     </div>
-                    <div className="px-3 py-2 text-slate-700">{fmt(v.price)}</div>
-                    <div className="px-3 py-2 text-slate-700">{v.inventory ?? "—"}</div>
+                    <div className="px-3 py-2 text-slate-700">
+                      {fmt(v.price)}
+                    </div>
+                    <div className="px-3 py-2 text-slate-700">
+                      {v.inventory ?? "—"}
+                    </div>
                     <div className="px-3 py-2" />
                   </div>
                 ))}
@@ -236,39 +305,64 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
                       >
                         <div className="px-4 py-2 pl-8 flex items-center gap-2 text-slate-800">
                           {hasScVariants ? (
-                            scOpen ? <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" /> : <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
-                          ) : <span className="w-3.5 flex-shrink-0" />}
+                            scOpen ? (
+                              <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                            )
+                          ) : (
+                            <span className="w-3.5 flex-shrink-0" />
+                          )}
                           <span className="font-medium">{sc.name}</span>
-                          <span className="text-[11px] text-slate-400">subcategory</span>
+                          <span className="text-[11px] text-slate-400">
+                            subcategory
+                          </span>
                         </div>
-                        <div className="px-3 py-2 text-slate-700">{sc.basePrice !== undefined ? fmt(sc.basePrice) : "—"}</div>
+                        <div className="px-3 py-2 text-slate-700">
+                          {sc.basePrice !== undefined ? fmt(sc.basePrice) : "—"}
+                        </div>
                         <div className="px-3 py-2" />
                         <div className="px-3 py-2" />
                       </div>
-                      {scOpen && (sc.variants || []).map((v, vi) => (
-                        <div key={`scv-${si}-${vi}`} className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px] bg-white">
-                          <div className="px-4 py-2 pl-14 flex items-center gap-2 text-slate-700">
-                            <span className="text-slate-400">·</span>
-                            <span>{v.title}</span>
+                      {scOpen &&
+                        (sc.variants || []).map((v, vi) => (
+                          <div
+                            key={`scv-${si}-${vi}`}
+                            className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px] bg-white"
+                          >
+                            <div className="px-4 py-2 pl-14 flex items-center gap-2 text-slate-700">
+                              <span className="text-slate-400">·</span>
+                              <span>{v.title}</span>
+                            </div>
+                            <div className="px-3 py-2 text-slate-700">
+                              {fmt(v.price)}
+                            </div>
+                            <div className="px-3 py-2 text-slate-700">
+                              {v.inventory ?? "—"}
+                            </div>
+                            <div className="px-3 py-2" />
                           </div>
-                          <div className="px-3 py-2 text-slate-700">{fmt(v.price)}</div>
-                          <div className="px-3 py-2 text-slate-700">{v.inventory ?? "—"}</div>
-                          <div className="px-3 py-2" />
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   );
                 })}
                 {/* Product options */}
                 {(p.options || []).map((o, oi) => (
-                  <div key={`o-${oi}`} className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]">
+                  <div
+                    key={`o-${oi}`}
+                    className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]"
+                  >
                     <div className="px-4 py-2 pl-10 flex items-center gap-2 text-slate-700">
                       <span className="text-slate-400">·</span>
                       <span className="font-medium">{o.title}</span>
                       <span className="text-[11px] text-slate-400">option</span>
                     </div>
-                    <div className="px-3 py-2 text-slate-700">{fmt(o.price)}</div>
-                    <div className="px-3 py-2 text-slate-700">{o.inventory ?? "—"}</div>
+                    <div className="px-3 py-2 text-slate-700">
+                      {fmt(o.price)}
+                    </div>
+                    <div className="px-3 py-2 text-slate-700">
+                      {o.inventory ?? "—"}
+                    </div>
                     <div className="px-3 py-2" />
                   </div>
                 ))}
@@ -284,59 +378,190 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
 // KPI cards mirroring the Analytics page (Total Revenue / Orders / Avg / Customers).
 // 2 cols on mobile, 4 cols ≥sm so it works inside narrow chat bubbles too.
 // `compact` skips topProducts + the period label — used by the always-on header strip.
-function AnalyticsCards({ data, compact = false }: { data: AnalyticsSummary; compact?: boolean }) {
+function AnalyticsCards({
+  data,
+  compact = false,
+}: {
+  data: AnalyticsSummary;
+  compact?: boolean;
+}) {
   const fmt = (n: number) => (Number.isFinite(n) ? n.toLocaleString() : "0");
   const periodLabel = (p?: string) => {
     if (!p) return "";
     const map: Record<string, string> = {
-      monthly: "this month", lastmonth: "last month",
-      quarterly: "this quarter", lastquarter: "last quarter",
-      yearly: "this year", lastyear: "last year",
+      monthly: "this month",
+      lastmonth: "last month",
+      quarterly: "this quarter",
+      lastquarter: "last quarter",
+      yearly: "this year",
+      lastyear: "last year",
+      today: "today",
+      all: "all time",
     };
-    return map[p] || p;
+    if (map[p]) return map[p];
+    // Custom range: backend stamps "<startISO>..<endISO>" — humanise it.
+    const m = p.match(/^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/);
+    if (m) {
+      const fmtD = (s: string) => {
+        const d = new Date(s);
+        return isNaN(+d)
+          ? s
+          : d.toLocaleDateString(undefined, {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            });
+      };
+      return `${fmtD(m[1])} → ${fmtD(m[2])}`;
+    }
+    return p;
   };
-  const cards = [
-    { label: "Total Revenue", value: `${data.currency || ""}${fmt(data.revenue)}`, tint: "from-blue-50 to-blue-100/60 text-blue-700" },
-    { label: "Total Orders", value: fmt(data.orders), tint: "from-emerald-50 to-emerald-100/60 text-emerald-700" },
-    { label: "Avg Order Value", value: `${data.currency || ""}${fmt(data.avgOrder)}`, tint: "from-amber-50 to-amber-100/60 text-amber-700" },
-    { label: "Total Customers", value: fmt(data.customers), tint: "from-rose-50 to-rose-100/60 text-rose-700" },
-  ];
+  // Subject-aware labels — the same four cards mean different things for shop /
+  // product / customer / order. The backend stamps `subject` so the widget can
+  // re-purpose the card layout without inventing new components.
+  const subject = data.subject || "shop";
+  const cards =
+    subject === "product"
+      ? [
+          {
+            label: "Product Revenue",
+            value: `${data.currency || ""}${fmt(data.revenue)}`,
+            tint: "from-blue-50 to-blue-100/60 text-blue-700",
+          },
+          {
+            label: "Orders",
+            value: fmt(data.orders),
+            tint: "from-emerald-50 to-emerald-100/60 text-emerald-700",
+          },
+          {
+            label: "Units Sold",
+            value: fmt(data.avgOrder),
+            tint: "from-amber-50 to-amber-100/60 text-amber-700",
+          },
+          {
+            label: "Unique Buyers",
+            value: fmt(data.customers),
+            tint: "from-rose-50 to-rose-100/60 text-rose-700",
+          },
+        ]
+      : subject === "customer"
+        ? [
+            {
+              label: "Total Spent",
+              value: `${data.currency || ""}${fmt(data.revenue)}`,
+              tint: "from-blue-50 to-blue-100/60 text-blue-700",
+            },
+            {
+              label: "Orders",
+              value: fmt(data.orders),
+              tint: "from-emerald-50 to-emerald-100/60 text-emerald-700",
+            },
+            {
+              label: "Avg Order",
+              value: `${data.currency || ""}${fmt(data.avgOrder)}`,
+              tint: "from-amber-50 to-amber-100/60 text-amber-700",
+            },
+            {
+              label: "Products Bought",
+              value: fmt(data.customers),
+              tint: "from-rose-50 to-rose-100/60 text-rose-700",
+            },
+          ]
+        : [
+            {
+              label: "Total Revenue",
+              value: `${data.currency || ""}${fmt(data.revenue)}`,
+              tint: "from-blue-50 to-blue-100/60 text-blue-700",
+            },
+            {
+              label: "Total Orders",
+              value: fmt(data.orders),
+              tint: "from-emerald-50 to-emerald-100/60 text-emerald-700",
+            },
+            {
+              label: "Avg Order Value",
+              value: `${data.currency || ""}${fmt(data.avgOrder)}`,
+              tint: "from-amber-50 to-amber-100/60 text-amber-700",
+            },
+            {
+              label: "Total Customers",
+              value: fmt(data.customers),
+              tint: "from-rose-50 to-rose-100/60 text-rose-700",
+            },
+          ];
+  const subjectHeader =
+    subject === "product"
+      ? `Product analytics${data.subjectName ? ` — ${data.subjectName}` : ""}${data.period && data.period !== "all" ? ` · ${periodLabel(data.period)}` : ""}`
+      : subject === "customer"
+        ? `Customer analytics${data.subjectName ? ` — ${data.subjectName}` : ""}${data.period && data.period !== "all" ? ` · ${periodLabel(data.period)}` : ""}`
+        : data.period
+          ? `Analytics — ${periodLabel(data.period)}`
+          : "";
+  const topProductsTitle =
+    subject === "customer"
+      ? "Favorite products"
+      : subject === "product"
+        ? "Variant breakdown"
+        : "Top products";
   return (
     <div className={compact ? "" : "mt-2"}>
-      {!compact && data.period && (
+      {!compact && subjectHeader && (
         <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1.5">
-          Analytics — {periodLabel(data.period)}
+          {subjectHeader}
         </p>
       )}
-      <div className={`grid grid-cols-2 ${compact ? "gap-1.5 sm:gap-2" : "gap-2 sm:gap-3"} sm:grid-cols-4`}>
+      <div
+        className={`grid grid-cols-2 ${compact ? "gap-1.5 sm:gap-2" : "gap-2 sm:gap-3"} sm:grid-cols-4`}
+      >
         {cards.map((c) => (
           <div
             key={c.label}
             className={`rounded-xl border border-slate-200 bg-gradient-to-br ${c.tint} ${compact ? "px-2.5 py-1.5" : "px-3 py-2.5"} shadow-sm`}
           >
-            <div className={compact ? "text-[10px] font-medium text-slate-600 truncate" : "text-[11px] font-medium text-slate-600"}>{c.label}</div>
-            <div className={`mt-0.5 ${compact ? "text-sm sm:text-base" : "text-base sm:text-lg"} font-bold text-slate-900 break-all`}>{c.value}</div>
+            <div
+              className={
+                compact
+                  ? "text-[10px] font-medium text-slate-600 truncate"
+                  : "text-[11px] font-medium text-slate-600"
+              }
+            >
+              {c.label}
+            </div>
+            <div
+              className={`mt-0.5 ${compact ? "text-sm sm:text-base" : "text-base sm:text-lg"} font-bold text-slate-900 break-all`}
+            >
+              {c.value}
+            </div>
           </div>
         ))}
       </div>
-      {!compact && Array.isArray(data.topProducts) && data.topProducts.length > 0 && (
-        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1.5">
-            Top products
-          </p>
-          <ul className="space-y-1">
-            {data.topProducts.slice(0, 5).map((p, i) => (
-              <li key={i} className="flex items-center justify-between text-[13px]">
-                <span className="text-slate-700 truncate mr-2">{i + 1}. {p.name}</span>
-                <span className="text-slate-500 flex-shrink-0">
-                  {p.revenue !== undefined ? `${data.currency || ""}${fmt(p.revenue)}` : ""}
-                  {p.sold !== undefined ? ` · ${p.sold} sold` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {!compact &&
+        Array.isArray(data.topProducts) &&
+        data.topProducts.length > 0 && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1.5">
+              {topProductsTitle}
+            </p>
+            <ul className="space-y-1">
+              {data.topProducts.slice(0, 5).map((p, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between text-[13px]"
+                >
+                  <span className="text-slate-700 truncate mr-2">
+                    {i + 1}. {p.name}
+                  </span>
+                  <span className="text-slate-500 flex-shrink-0">
+                    {p.revenue !== undefined
+                      ? `${data.currency || ""}${fmt(p.revenue)}`
+                      : ""}
+                    {p.sold !== undefined ? ` · ${p.sold} sold` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
     </div>
   );
 }
@@ -351,14 +576,21 @@ function InlineCustomerForm({
 }: {
   initial: CustomerFormPayload;
   status: "idle" | "submitting" | "done";
-  onSubmit: (form: { firstName: string; lastName: string; whatsAppNumber: string; email?: string }) => Promise<void>;
+  onSubmit: (form: {
+    firstName: string;
+    lastName: string;
+    whatsAppNumber: string;
+    email?: string;
+  }) => Promise<void>;
 }) {
   // Split a "+9198…" number into a dial code (best effort) and local digits
   // so the shopkeeper sees the same shape they typed.
   const parsed = (() => {
     const raw = (initial.whatsapp || "").trim();
     const m = raw.match(/^(\+\d{1,3})(.*)$/);
-    return m ? { code: m[1], local: m[2].replace(/\s/g, "") } : { code: "+91", local: raw.replace(/^\+/, "") };
+    return m
+      ? { code: m[1], local: m[2].replace(/\s/g, "") }
+      : { code: "+91", local: raw.replace(/^\+/, "") };
   })();
 
   const [firstName, setFirstName] = useState(initial.firstName || "");
@@ -376,8 +608,10 @@ function InlineCustomerForm({
     if (!firstName.trim()) return setError("First name is required.");
     if (!lastName.trim()) return setError("Last name is required.");
     const digits = local.replace(/\D/g, "");
-    if (!/^\d{6,15}$/.test(digits)) return setError("WhatsApp number must be 6–15 digits.");
-    if (!/^\+\d{1,3}$/.test(code)) return setError("Country code must look like +91 or +65.");
+    if (!/^\d{6,15}$/.test(digits))
+      return setError("WhatsApp number must be 6–15 digits.");
+    if (!/^\+\d{1,3}$/.test(code))
+      return setError("Country code must look like +91 or +65.");
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return setError("Email is not valid.");
     }
@@ -398,10 +632,15 @@ function InlineCustomerForm({
   }
 
   return (
-    <form onSubmit={submit} className="mt-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+    <form
+      onSubmit={submit}
+      className="mt-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2"
+    >
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[11px] font-medium text-slate-600">First name</label>
+          <label className="text-[11px] font-medium text-slate-600">
+            First name
+          </label>
           <input
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
@@ -411,7 +650,9 @@ function InlineCustomerForm({
           />
         </div>
         <div>
-          <label className="text-[11px] font-medium text-slate-600">Last name</label>
+          <label className="text-[11px] font-medium text-slate-600">
+            Last name
+          </label>
           <input
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
@@ -422,7 +663,9 @@ function InlineCustomerForm({
         </div>
       </div>
       <div>
-        <label className="text-[11px] font-medium text-slate-600">WhatsApp number</label>
+        <label className="text-[11px] font-medium text-slate-600">
+          WhatsApp number
+        </label>
         <div className="mt-0.5 flex gap-1.5">
           <input
             value={code}
@@ -441,7 +684,9 @@ function InlineCustomerForm({
         </div>
       </div>
       <div>
-        <label className="text-[11px] font-medium text-slate-600">Email (optional)</label>
+        <label className="text-[11px] font-medium text-slate-600">
+          Email (optional)
+        </label>
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -457,7 +702,9 @@ function InlineCustomerForm({
           disabled={disabled}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 transition disabled:opacity-60"
         >
-          {status === "submitting" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          {status === "submitting" ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : null}
           {status === "submitting" ? "Creating…" : "Create"}
         </button>
       </div>
@@ -500,8 +747,14 @@ function InlineOrderForm({
   const [name, setName] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchTried, setSearchTried] = useState(false);
-  const [matches, setMatches] = useState<{ id: string; name: string; whatsapp: string; email: string }[]>([]);
-  const [chosen, setChosen] = useState<{ name: string; whatsapp: string; email: string } | null>(null);
+  const [matches, setMatches] = useState<
+    { id: string; name: string; whatsapp: string; email: string }[]
+  >([]);
+  const [chosen, setChosen] = useState<{
+    name: string;
+    whatsapp: string;
+    email: string;
+  } | null>(null);
   // Manual contact for new customers
   const [dial, setDial] = useState(defaultDial);
   const [local, setLocal] = useState("");
@@ -518,7 +771,9 @@ function InlineOrderForm({
   // Payment state — defaults to QR only when the shopkeeper has the QR
   // setup completed; otherwise falls back to Cash so the form can't submit
   // a QR order that the QR pipeline can't render.
-  const [payment, setPayment] = useState<"qr" | "cash">(qrReady ? "qr" : "cash");
+  const [payment, setPayment] = useState<"qr" | "cash">(
+    qrReady ? "qr" : "cash",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const product = useMemo(
@@ -562,7 +817,8 @@ function InlineOrderForm({
   };
 
   const subtotal = cart.reduce((s, c) => s + c.unitPrice * c.quantity, 0);
-  const fmtMoney = (n: number) => `${country === "SG" ? "S$" : "₹"}${n.toFixed(2)}`;
+  const fmtMoney = (n: number) =>
+    `${country === "SG" ? "S$" : "₹"}${n.toFixed(2)}`;
 
   const searchCustomer = async () => {
     if (!name.trim()) {
@@ -573,9 +829,12 @@ function InlineOrderForm({
     setSearching(true);
     try {
       const token = sessionStorage.getItem("token");
-      const res = await fetch(`${apiURL}/chatbot/customer-search?q=${encodeURIComponent(name.trim())}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${apiURL}/chatbot/customer-search?q=${encodeURIComponent(name.trim())}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const list = Array.isArray(data?.customers) ? data.customers : [];
@@ -583,7 +842,11 @@ function InlineOrderForm({
       setSearchTried(true);
       if (list.length === 1) {
         const c = list[0];
-        setChosen({ name: c.name || name.trim(), whatsapp: c.whatsapp, email: c.email });
+        setChosen({
+          name: c.name || name.trim(),
+          whatsapp: c.whatsapp,
+          email: c.email,
+        });
       } else if (list.length === 0) {
         setChosen(null);
       }
@@ -600,12 +863,18 @@ function InlineOrderForm({
       // New customer — require WhatsApp
       if (!name.trim()) return setError("Customer name is required.");
       const digits = local.replace(/\D/g, "");
-      if (!/^\d{6,15}$/.test(digits)) return setError("WhatsApp must be 6–15 digits.");
-      if (!/^\+\d{1,3}$/.test(dial)) return setError("Country code must look like +91 or +65.");
+      if (!/^\d{6,15}$/.test(digits))
+        return setError("WhatsApp must be 6–15 digits.");
+      if (!/^\+\d{1,3}$/.test(dial))
+        return setError("Country code must look like +91 or +65.");
       if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         return setError("Email is not valid.");
       }
-      setChosen({ name: name.trim(), whatsapp: `${dial}${digits}`, email: email.trim() });
+      setChosen({
+        name: name.trim(),
+        whatsapp: `${dial}${digits}`,
+        email: email.trim(),
+      });
     }
     setStep("items");
   };
@@ -620,9 +889,15 @@ function InlineOrderForm({
   const addItem = () => {
     setError(null);
     if (!product) return setError("Select a product.");
-    if (hasOptions && !optionTitle) return setError(`Select an option for ${product.name}.`);
-    if (hasSubcategories && !subcategoryName) return setError(`Select a subcategory for ${product.name}.`);
-    if (subcategoryName && (selectedSub?.variants?.length ?? 0) > 0 && !variantTitle) {
+    if (hasOptions && !optionTitle)
+      return setError(`Select an option for ${product.name}.`);
+    if (hasSubcategories && !subcategoryName)
+      return setError(`Select a subcategory for ${product.name}.`);
+    if (
+      subcategoryName &&
+      (selectedSub?.variants?.length ?? 0) > 0 &&
+      !variantTitle
+    ) {
       return setError(`Select a variant for ${subcategoryName}.`);
     }
     if (hasTopVariants && !subcategoryName && !variantTitle && !optionTitle) {
@@ -655,7 +930,9 @@ function InlineOrderForm({
     if (cart.length === 0) return setError("Add at least one item.");
     // Synthesise the natural-language message the existing chat pipeline already
     // handles. Comma-separates header (name, phone, email) and items.
-    const header = [chosen.name, chosen.whatsapp, chosen.email].filter(Boolean).join(", ");
+    const header = [chosen.name, chosen.whatsapp, chosen.email]
+      .filter(Boolean)
+      .join(", ");
     const itemPhrases = cart.map((c) => {
       const parts = [c.productName];
       if (c.subcategoryName) parts.push(c.subcategoryName);
@@ -680,7 +957,11 @@ function InlineOrderForm({
   const stepBadge = (s: Step, label: string, n: number) => (
     <div
       className={`flex items-center gap-1.5 text-[11px] font-medium ${
-        step === s ? "text-blue-700" : cart.length || chosen ? "text-slate-500" : "text-slate-400"
+        step === s
+          ? "text-blue-700"
+          : cart.length || chosen
+            ? "text-slate-500"
+            : "text-slate-400"
       }`}
     >
       <span
@@ -708,7 +989,9 @@ function InlineOrderForm({
       {step === "customer" && (
         <div className="space-y-2">
           <div>
-            <label className="text-[11px] font-medium text-slate-600">Customer name</label>
+            <label className="text-[11px] font-medium text-slate-600">
+              Customer name
+            </label>
             <div className="mt-0.5 flex gap-1.5">
               <input
                 value={name}
@@ -734,29 +1017,54 @@ function InlineOrderForm({
 
           {chosen && matches.length === 1 && (
             <div className="rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-2 text-[12px]">
-              <div className="font-semibold text-emerald-900">Matched in CRM</div>
+              <div className="font-semibold text-emerald-900">
+                Matched in CRM
+              </div>
               <div className="mt-0.5 text-emerald-800">
-                <div><span className="font-medium">Name:</span> {chosen.name}</div>
-                {chosen.whatsapp && <div><span className="font-medium">WhatsApp:</span> {chosen.whatsapp}</div>}
-                {chosen.email && <div><span className="font-medium">Email:</span> {chosen.email}</div>}
+                <div>
+                  <span className="font-medium">Name:</span> {chosen.name}
+                </div>
+                {chosen.whatsapp && (
+                  <div>
+                    <span className="font-medium">WhatsApp:</span>{" "}
+                    {chosen.whatsapp}
+                  </div>
+                )}
+                {chosen.email && (
+                  <div>
+                    <span className="font-medium">Email:</span> {chosen.email}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {matches.length > 1 && (
             <div className="rounded-md border border-amber-200 bg-amber-50 p-2 space-y-1">
-              <div className="text-[12px] font-medium text-amber-900">Multiple matches — pick one:</div>
+              <div className="text-[12px] font-medium text-amber-900">
+                Multiple matches — pick one:
+              </div>
               {matches.map((m) => (
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setChosen({ name: m.name, whatsapp: m.whatsapp, email: m.email })}
+                  onClick={() =>
+                    setChosen({
+                      name: m.name,
+                      whatsapp: m.whatsapp,
+                      email: m.email,
+                    })
+                  }
                   className={`block w-full text-left text-[12px] px-2 py-1 rounded ${
-                    chosen?.whatsapp === m.whatsapp ? "bg-amber-200" : "bg-white hover:bg-amber-100"
+                    chosen?.whatsapp === m.whatsapp
+                      ? "bg-amber-200"
+                      : "bg-white hover:bg-amber-100"
                   }`}
                 >
                   <span className="font-medium">{m.name}</span>{" "}
-                  <span className="text-slate-600">— {m.whatsapp || "no phone"}</span>
+                  <span className="text-slate-600">
+                    — {m.whatsapp || "no phone"}
+                  </span>
                 </button>
               ))}
             </div>
@@ -768,7 +1076,9 @@ function InlineOrderForm({
                 Not in CRM yet — enter contact details for a new customer.
               </div>
               <div>
-                <label className="text-[11px] font-medium text-slate-600">WhatsApp number</label>
+                <label className="text-[11px] font-medium text-slate-600">
+                  WhatsApp number
+                </label>
                 <div className="mt-0.5 flex gap-1.5">
                   <input
                     value={dial}
@@ -785,7 +1095,9 @@ function InlineOrderForm({
                 </div>
               </div>
               <div>
-                <label className="text-[11px] font-medium text-slate-600">Email (optional)</label>
+                <label className="text-[11px] font-medium text-slate-600">
+                  Email (optional)
+                </label>
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -815,13 +1127,16 @@ function InlineOrderForm({
         <div className="space-y-2">
           {chosen && (
             <div className="text-[11px] text-slate-500">
-              Customer: <span className="font-medium text-slate-700">{chosen.name}</span>
+              Customer:{" "}
+              <span className="font-medium text-slate-700">{chosen.name}</span>
               {chosen.whatsapp ? ` · ${chosen.whatsapp}` : ""}
             </div>
           )}
 
           <div>
-            <label className="text-[11px] font-medium text-slate-600">Product</label>
+            <label className="text-[11px] font-medium text-slate-600">
+              Product
+            </label>
             <select
               value={productName}
               onChange={(e) => {
@@ -841,7 +1156,9 @@ function InlineOrderForm({
 
           {hasSubcategories && (
             <div>
-              <label className="text-[11px] font-medium text-slate-600">Subcategory</label>
+              <label className="text-[11px] font-medium text-slate-600">
+                Subcategory
+              </label>
               <select
                 value={subcategoryName}
                 onChange={(e) => {
@@ -853,7 +1170,8 @@ function InlineOrderForm({
                 <option value="">Select…</option>
                 {product!.subcategories!.map((s) => (
                   <option key={s.name} value={s.name}>
-                    {s.name}{s.basePrice ? ` — base ${fmtMoney(s.basePrice)}` : ""}
+                    {s.name}
+                    {s.basePrice ? ` — base ${fmtMoney(s.basePrice)}` : ""}
                   </option>
                 ))}
               </select>
@@ -862,25 +1180,31 @@ function InlineOrderForm({
 
           {(subcategoryName ? subVariants.length > 0 : hasTopVariants) && (
             <div>
-              <label className="text-[11px] font-medium text-slate-600">Variant</label>
+              <label className="text-[11px] font-medium text-slate-600">
+                Variant
+              </label>
               <select
                 value={variantTitle}
                 onChange={(e) => setVariantTitle(e.target.value)}
                 className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
               >
                 <option value="">Select…</option>
-                {(subcategoryName ? subVariants : product!.variants!).map((v) => (
-                  <option key={v.title} value={v.title}>
-                    {v.title} — {fmtMoney(v.price)}
-                  </option>
-                ))}
+                {(subcategoryName ? subVariants : product!.variants!).map(
+                  (v) => (
+                    <option key={v.title} value={v.title}>
+                      {v.title} — {fmtMoney(v.price)}
+                    </option>
+                  ),
+                )}
               </select>
             </div>
           )}
 
           {hasOptions && (
             <div>
-              <label className="text-[11px] font-medium text-slate-600">Option</label>
+              <label className="text-[11px] font-medium text-slate-600">
+                Option
+              </label>
               <select
                 value={optionTitle}
                 onChange={(e) => setOptionTitle(e.target.value)}
@@ -898,12 +1222,16 @@ function InlineOrderForm({
 
           {product && (
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-medium text-slate-600">Quantity</label>
+              <label className="text-[11px] font-medium text-slate-600">
+                Quantity
+              </label>
               <input
                 type="number"
                 min={1}
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+                onChange={(e) =>
+                  setQuantity(Math.max(1, Number(e.target.value) || 1))
+                }
                 className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
               />
               <button
@@ -918,17 +1246,28 @@ function InlineOrderForm({
 
           {cart.length > 0 && (
             <div className="rounded-md border border-slate-200 bg-slate-50 p-2 space-y-1">
-              <div className="text-[11px] font-semibold text-slate-600 uppercase">Cart</div>
+              <div className="text-[11px] font-semibold text-slate-600 uppercase">
+                Cart
+              </div>
               {cart.map((c, i) => {
-                const detail = [c.subcategoryName, c.variantTitle].filter(Boolean).join(" > ");
+                const detail = [c.subcategoryName, c.variantTitle]
+                  .filter(Boolean)
+                  .join(" > ");
                 const opt = c.optionTitle ? ` [opt ${c.optionTitle}]` : "";
                 return (
-                  <div key={i} className="flex items-center justify-between text-[12px]">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between text-[12px]"
+                  >
                     <span className="truncate mr-2">
-                      {c.quantity}× <span className="font-medium">{c.productName}</span>
-                      {detail ? ` (${detail})` : ""}{opt}
+                      {c.quantity}×{" "}
+                      <span className="font-medium">{c.productName}</span>
+                      {detail ? ` (${detail})` : ""}
+                      {opt}
                     </span>
-                    <span className="text-slate-600 mr-2">{fmtMoney(c.unitPrice * c.quantity)}</span>
+                    <span className="text-slate-600 mr-2">
+                      {fmtMoney(c.unitPrice * c.quantity)}
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeItem(i)}
@@ -958,7 +1297,8 @@ function InlineOrderForm({
             <button
               type="button"
               onClick={() => {
-                if (cart.length === 0) return setError("Add at least one item.");
+                if (cart.length === 0)
+                  return setError("Add at least one item.");
                 setError(null);
                 setStep("payment");
               }}
@@ -974,22 +1314,33 @@ function InlineOrderForm({
       {step === "payment" && (
         <div className="space-y-2">
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-[12px] space-y-0.5">
-            <div className="font-semibold text-slate-600 uppercase text-[11px]">Summary</div>
-            <div>Customer: <span className="font-medium">{chosen?.name}</span></div>
+            <div className="font-semibold text-slate-600 uppercase text-[11px]">
+              Summary
+            </div>
+            <div>
+              Customer: <span className="font-medium">{chosen?.name}</span>
+            </div>
             <div>Items: {cart.length}</div>
-            <div>Subtotal: <span className="font-medium">{fmtMoney(subtotal)}</span></div>
-            <div className="text-[11px] text-slate-500">Discount/tax (if any) applied by the system on submit.</div>
+            <div>
+              Subtotal:{" "}
+              <span className="font-medium">{fmtMoney(subtotal)}</span>
+            </div>
+            <div className="text-[11px] text-slate-500">
+              Discount/tax (if any) applied by the system on submit.
+            </div>
           </div>
           <div>
-            <label className="text-[11px] font-medium text-slate-600">Payment method</label>
+            <label className="text-[11px] font-medium text-slate-600">
+              Payment method
+            </label>
             <div className="mt-0.5 flex gap-2">
               <label
                 className={`flex-1 rounded-md border px-3 py-2 text-[13px] ${
                   !qrReady
                     ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
                     : payment === "qr"
-                    ? "border-blue-500 bg-blue-50 text-blue-700 cursor-pointer"
-                    : "border-slate-300 bg-white cursor-pointer"
+                      ? "border-blue-500 bg-blue-50 text-blue-700 cursor-pointer"
+                      : "border-slate-300 bg-white cursor-pointer"
                 }`}
                 title={!qrReady ? qrSetupHint : undefined}
               >
@@ -1004,9 +1355,13 @@ function InlineOrderForm({
                 />
                 {country === "SG" ? "PayNow QR" : "UPI QR"}
               </label>
-              <label className={`flex-1 cursor-pointer rounded-md border px-3 py-2 text-[13px] ${
-                payment === "cash" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-300 bg-white"
-              }`}>
+              <label
+                className={`flex-1 cursor-pointer rounded-md border px-3 py-2 text-[13px] ${
+                  payment === "cash"
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-slate-300 bg-white"
+                }`}
+              >
                 <input
                   type="radio"
                   name="payment"
@@ -1039,8 +1394,14 @@ function InlineOrderForm({
               disabled={status === "submitting"}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 disabled:opacity-60"
             >
-              {status === "submitting" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              {status === "submitting" ? "Placing…" : payment === "qr" ? "Place order & show QR" : "Place order"}
+              {status === "submitting" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              {status === "submitting"
+                ? "Placing…"
+                : payment === "qr"
+                  ? "Place order & show QR"
+                  : "Place order"}
             </button>
           </div>
         </div>
@@ -1062,35 +1423,188 @@ const NAV_TABS: { id: string; label: string; Icon: any }[] = [
 
 // Quick-start cards shown in page mode. Designed like ChatGPT / Claude / Gemini
 // suggestion cards: icon badge, short title, example phrasing underneath.
-const SUGGESTED_CARDS: { Icon: any; tint: string; title: string; sub: string; prompt: string }[] = [
+const SUGGESTED_CARDS: {
+  Icon: any;
+  tint: string;
+  title: string;
+  sub: string;
+  prompt: string;
+}[] = [
   // Dashboard
-  { Icon: Store, tint: "text-blue-600 bg-blue-50", title: "Today's revenue", sub: "Quick snapshot of today's sales", prompt: "Show today's revenue" },
-  { Icon: Store, tint: "text-blue-600 bg-blue-50", title: "This month analytics", sub: "Revenue, orders & top products", prompt: "This month analytics" },
+  {
+    Icon: Store,
+    tint: "text-blue-600 bg-blue-50",
+    title: "Today's revenue",
+    sub: "Quick snapshot of today's sales",
+    prompt: "Show today's revenue",
+  },
+  {
+    Icon: Store,
+    tint: "text-blue-600 bg-blue-50",
+    title: "This month analytics",
+    sub: "Revenue, orders & top products",
+    prompt: "This month analytics",
+  },
+  {
+    Icon: BarChart3,
+    tint: "text-blue-600 bg-blue-50",
+    title: "Product analytics",
+    sub: "Sales of any product over time",
+    prompt: "Show analytics for <product>",
+  },
+  {
+    Icon: BarChart3,
+    tint: "text-blue-600 bg-blue-50",
+    title: "Customer analytics",
+    sub: "Spend & favorites of any customer",
+    prompt: "Show analytics for customer <name>",
+  },
+  {
+    Icon: BarChart3,
+    tint: "text-blue-600 bg-blue-50",
+    title: "Order breakdown",
+    sub: "Line-item analytics for an order",
+    prompt: "Breakdown of order <orderId>",
+  },
   // Kiosk
-  { Icon: Monitor, tint: "text-emerald-600 bg-emerald-50", title: "Place a kiosk order", sub: "Opens the inline order form", prompt: "Place an order" },
-  { Icon: Monitor, tint: "text-emerald-600 bg-emerald-50", title: "Get a receipt", sub: "Generate the PDF for any order", prompt: "Receipt for order <orderId>" },
+  {
+    Icon: Monitor,
+    tint: "text-emerald-600 bg-emerald-50",
+    title: "Place a kiosk order",
+    sub: "Opens the inline order form",
+    prompt: "Place an order",
+  },
+  {
+    Icon: Monitor,
+    tint: "text-emerald-600 bg-emerald-50",
+    title: "Get a receipt",
+    sub: "Generate the PDF for any order",
+    prompt: "Receipt for order <orderId>",
+  },
   // Orders
-  { Icon: ShoppingCart, tint: "text-amber-600 bg-amber-50", title: "Pending orders", sub: "See what still needs your action", prompt: "Show pending orders" },
-  { Icon: ShoppingCart, tint: "text-amber-600 bg-amber-50", title: "Confirm all payments", sub: "Mark every matched payment as paid", prompt: "Confirm all matched payments" },
-  { Icon: ShoppingCart, tint: "text-amber-600 bg-amber-50", title: "Confirm today's orders", sub: "Move today's pending → processing", prompt: "Confirm all today's orders" },
+  {
+    Icon: ShoppingCart,
+    tint: "text-amber-600 bg-amber-50",
+    title: "Pending orders",
+    sub: "See what still needs your action",
+    prompt: "Show pending orders",
+  },
+  {
+    Icon: ShoppingCart,
+    tint: "text-amber-600 bg-amber-50",
+    title: "Confirm all payments",
+    sub: "Mark every matched payment as paid",
+    prompt: "Confirm all matched payments",
+  },
+  {
+    Icon: ShoppingCart,
+    tint: "text-amber-600 bg-amber-50",
+    title: "Confirm today's orders",
+    sub: "Move today's pending → processing",
+    prompt: "Confirm all today's orders",
+  },
   // CRM
-  { Icon: Users, tint: "text-rose-600 bg-rose-50", title: "All customers", sub: "Full customer list with stats", prompt: "Show all my customers" },
-  { Icon: Users, tint: "text-rose-600 bg-rose-50", title: "Add a customer", sub: "Opens the Add Customer form pre-filled", prompt: "Add customer <name>, <phone>, <email>" },
+  {
+    Icon: Users,
+    tint: "text-rose-600 bg-rose-50",
+    title: "All customers",
+    sub: "Full customer list with stats",
+    prompt: "Show all my customers",
+  },
+  {
+    Icon: Users,
+    tint: "text-rose-600 bg-rose-50",
+    title: "Add a customer",
+    sub: "Opens the Add Customer form pre-filled",
+    prompt: "Add customer <name>, <phone>, <email>",
+  },
   // Products
-  { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "All products", sub: "Browse your catalog", prompt: "Show all products" },
-  { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "Low stock alerts", sub: "Items below threshold", prompt: "Low stock products" },
-  { Icon: Package, tint: "text-cyan-600 bg-cyan-50", title: "Add a new product", sub: "Opens the Add Product form", prompt: "Add a new Product" },
+  {
+    Icon: Package,
+    tint: "text-cyan-600 bg-cyan-50",
+    title: "All products",
+    sub: "Browse your catalog",
+    prompt: "Show all products",
+  },
+  {
+    Icon: Package,
+    tint: "text-cyan-600 bg-cyan-50",
+    title: "Low stock alerts",
+    sub: "Items below threshold",
+    prompt: "Low stock products",
+  },
+  {
+    Icon: Package,
+    tint: "text-cyan-600 bg-cyan-50",
+    title: "Add a new product",
+    sub: "Opens the Add Product form",
+    prompt: "Add a new Product",
+  },
   // Settings
-  { Icon: Settings, tint: "text-slate-600 bg-slate-100", title: "Shop info", sub: "Your store profile", prompt: "Show shop info" },
+  {
+    Icon: Settings,
+    tint: "text-slate-600 bg-slate-100",
+    title: "Shop info",
+    sub: "Your store profile",
+    prompt: "Show shop info",
+  },
   // Learn KiosCart — explainer questions answered from the platform knowledge base.
-  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "How do I enable delivery?", sub: "Set up the delivery toggle and fees", prompt: "How do I enable delivery?" },
-  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "How do payments work?", sub: "UPI, PayNow, Gmail matching", prompt: "How do payments work in KiosCart?" },
-  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "How do I add an operator?", sub: "Team members with role-based access", prompt: "How do I add an operator?" },
-  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "What does Kiosk mode do?", sub: "Walk-in / in-store ordering", prompt: "What does Kiosk mode do?" },
-  { Icon: BookOpen, tint: "text-violet-600 bg-violet-50", title: "How do I create a coupon?", sub: "Percentage or flat discounts", prompt: "How do I create a coupon?" },
-  { Icon: HelpCircle, tint: "text-violet-600 bg-violet-50", title: "What hardware do I need?", sub: "Tablets, terminals, printers", prompt: "What hardware do I need to run KiosCart?" },
-  { Icon: HelpCircle, tint: "text-violet-600 bg-violet-50", title: "Can I bulk import products?", sub: "Excel / CSV upload", prompt: "Can I bulk import products?" },
-  { Icon: HelpCircle, tint: "text-violet-600 bg-violet-50", title: "What plans are available?", sub: "Starter vs Enterprise", prompt: "What plans does KiosCart offer?" },
+  {
+    Icon: BookOpen,
+    tint: "text-violet-600 bg-violet-50",
+    title: "How do I enable delivery?",
+    sub: "Set up the delivery toggle and fees",
+    prompt: "How do I enable delivery?",
+  },
+  {
+    Icon: BookOpen,
+    tint: "text-violet-600 bg-violet-50",
+    title: "How do payments work?",
+    sub: "UPI, PayNow, Gmail matching",
+    prompt: "How do payments work in KiosCart?",
+  },
+  {
+    Icon: BookOpen,
+    tint: "text-violet-600 bg-violet-50",
+    title: "How do I add an operator?",
+    sub: "Team members with role-based access",
+    prompt: "How do I add an operator?",
+  },
+  {
+    Icon: BookOpen,
+    tint: "text-violet-600 bg-violet-50",
+    title: "What does Kiosk mode do?",
+    sub: "Walk-in / in-store ordering",
+    prompt: "What does Kiosk mode do?",
+  },
+  {
+    Icon: BookOpen,
+    tint: "text-violet-600 bg-violet-50",
+    title: "How do I create a coupon?",
+    sub: "Percentage or flat discounts",
+    prompt: "How do I create a coupon?",
+  },
+  {
+    Icon: HelpCircle,
+    tint: "text-violet-600 bg-violet-50",
+    title: "What hardware do I need?",
+    sub: "Tablets, terminals, printers",
+    prompt: "What hardware do I need to run KiosCart?",
+  },
+  // {
+  //   Icon: HelpCircle,
+  //   tint: "text-violet-600 bg-violet-50",
+  //   title: "Can I bulk import products?",
+  //   sub: "Excel / CSV upload",
+  //   prompt: "Can I bulk import products?",
+  // },
+  {
+    Icon: HelpCircle,
+    tint: "text-violet-600 bg-violet-50",
+    title: "What plans are available?",
+    sub: "Starter vs Enterprise",
+    prompt: "What plans does KiosCart offer?",
+  },
 ];
 
 // Lightweight markdown-to-HTML for chat replies. Supports:
@@ -1100,7 +1614,13 @@ const SUGGESTED_CARDS: { Icon: any; tint: string; title: string; sub: string; pr
 // - numbered items `1. ` -> <ol>/<li>
 // - blank lines and \n preserved as paragraph / line breaks
 function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
+  return s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ] || c,
+  );
 }
 function inlineMd(s: string) {
   return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -1108,12 +1628,28 @@ function inlineMd(s: string) {
 function renderTable(rows: string[]): string {
   // Drop the markdown separator row (---|---|...)
   const cells = rows
-    .map((r) => r.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()))
+    .map((r) =>
+      r
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((c) => c.trim()),
+    )
     .filter((cols, i) => !(i === 1 && cols.every((c) => /^:?-+:?$/.test(c))));
   if (cells.length === 0) return "";
   const [header, ...body] = cells;
-  const th = header.map((c) => `<th class="px-3 py-2.5 text-left text-[13px] font-semibold text-gray-700 border-b border-gray-200 bg-gray-50">${inlineMd(c)}</th>`).join("");
-  const tr = body.map((row) => `<tr class="hover:bg-gray-50">${row.map((c) => `<td class="px-3 py-2.5 text-[14px] text-gray-800 border-b border-gray-100">${inlineMd(c)}</td>`).join("")}</tr>`).join("");
+  const th = header
+    .map(
+      (c) =>
+        `<th class="px-3 py-2.5 text-left text-[13px] font-semibold text-gray-700 border-b border-gray-200 bg-gray-50">${inlineMd(c)}</th>`,
+    )
+    .join("");
+  const tr = body
+    .map(
+      (row) =>
+        `<tr class="hover:bg-gray-50">${row.map((c) => `<td class="px-3 py-2.5 text-[14px] text-gray-800 border-b border-gray-100">${inlineMd(c)}</td>`).join("")}</tr>`,
+    )
+    .join("");
   return `<div class="my-2 overflow-x-auto rounded-lg border border-gray-200"><table class="w-full border-collapse"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;
 }
 function formatMessage(text: string): string {
@@ -1137,7 +1673,9 @@ function formatMessage(text: string): string {
     if (/^\s*[-*]\s+/.test(line)) {
       const items: string[] = [];
       while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-        items.push(`<li class="ml-4">${inlineMd(lines[i].replace(/^\s*[-*]\s+/, ""))}</li>`);
+        items.push(
+          `<li class="ml-4">${inlineMd(lines[i].replace(/^\s*[-*]\s+/, ""))}</li>`,
+        );
         i++;
       }
       out.push(`<ul class="list-disc my-1">${items.join("")}</ul>`);
@@ -1147,7 +1685,9 @@ function formatMessage(text: string): string {
     if (/^\s*\d+\.\s+/.test(line)) {
       const items: string[] = [];
       while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        items.push(`<li class="ml-4">${inlineMd(lines[i].replace(/^\s*\d+\.\s+/, ""))}</li>`);
+        items.push(
+          `<li class="ml-4">${inlineMd(lines[i].replace(/^\s*\d+\.\s+/, ""))}</li>`,
+        );
         i++;
       }
       out.push(`<ol class="list-decimal my-1">${items.join("")}</ol>`);
@@ -1160,7 +1700,10 @@ function formatMessage(text: string): string {
   return out.join("<br/>");
 }
 
-export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetProps) {
+export function ChatbotWidget({
+  onNavigate,
+  mode = "floating",
+}: ChatbotWidgetProps) {
   const { isModuleEnabled } = useSubscription();
   // In page mode the chat is always "open".
   const [open, setOpen] = useState(mode === "page");
@@ -1171,10 +1714,13 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
   const [isListening, setIsListening] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   // Per-message QR receipt state: messageId → "idle" | "choosing" | "downloading"
-  const [receiptUI, setReceiptUI] = useState<Record<string, "idle" | "choosing" | "downloading">>({});
+  const [receiptUI, setReceiptUI] = useState<
+    Record<string, "idle" | "choosing" | "downloading">
+  >({});
   // Always-on analytics strip in the header. Mirrors the Analytics page's KPI cards
   // so the shopkeeper sees their snapshot the moment the chatbot opens.
-  const [headerAnalytics, setHeaderAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [headerAnalytics, setHeaderAnalytics] =
+    useState<AnalyticsSummary | null>(null);
   const [analyticsCollapsed, setAnalyticsCollapsed] = useState(false);
   const [headerPeriod, setHeaderPeriod] = useState<string>("monthly");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -1183,105 +1729,150 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
 
   // Forward-declare a ref for sendMessage so InlineOrderForm's onSubmit can
   // call it before its definition. Filled in below once sendMessage exists.
-  const sendMessageRef = useRef<(text: string, isGreeting?: boolean) => void>(() => {});
+  const sendMessageRef = useRef<(text: string, isGreeting?: boolean) => void>(
+    () => {},
+  );
 
   const submitOrderForm = useCallback((msgId: string, synth: string) => {
     setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, orderFormStatus: "submitted" as const } : m)),
+      prev.map((m) =>
+        m.id === msgId ? { ...m, orderFormStatus: "submitted" as const } : m,
+      ),
     );
     sendMessageRef.current(synth);
   }, []);
 
-  const submitCustomerForm = useCallback(async (
-    msgId: string,
-    form: { firstName: string; lastName: string; whatsAppNumber: string; email?: string },
-  ) => {
-    const token = sessionStorage.getItem("token");
-    if (!token) return;
-    let shopkeeperId: string;
-    try {
-      const decoded: any = jwtDecode(token);
-      shopkeeperId = decoded?.sub;
-    } catch {
-      return;
-    }
-    if (!shopkeeperId) return;
-
-    setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, customerFormStatus: "submitting" } : m));
-
-    try {
-      const payload = {
-        name: `${form.firstName} ${form.lastName}`.trim(),
-        firstName: form.firstName,
-        lastName: form.lastName,
-        whatsAppNumber: form.whatsAppNumber,
-        ...(form.email ? { email: form.email } : {}),
-      };
-      const res = await fetch(`${apiURL}/users/create-user-by-shopkeeper/${shopkeeperId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(errText || `HTTP ${res.status}`);
-      }
-      setMessages((prev) => [
-        ...prev.map((m) => m.id === msgId ? { ...m, customerFormStatus: "done" as const } : m),
-        {
-          id: (Date.now() + 1).toString(),
-          role: "bot",
-          text: `Customer **${form.firstName} ${form.lastName}** created with WhatsApp **${form.whatsAppNumber}**.`,
-          timestamp: new Date(),
-        },
-      ]);
-    } catch (err: any) {
-      setMessages((prev) => [
-        ...prev.map((m) => m.id === msgId ? { ...m, customerFormStatus: "idle" as const } : m),
-        {
-          id: (Date.now() + 1).toString(),
-          role: "bot",
-          text: `Could not create customer: ${err?.message || "unknown error"}.`,
-          timestamp: new Date(),
-        },
-      ]);
-    }
-  }, []);
-
-  const downloadReceipt = useCallback(async (msgId: string, mongoId: string, type: "A4" | "58MM") => {
-    setReceiptUI((p) => ({ ...p, [msgId]: "downloading" }));
-    try {
+  const submitCustomerForm = useCallback(
+    async (
+      msgId: string,
+      form: {
+        firstName: string;
+        lastName: string;
+        whatsAppNumber: string;
+        email?: string;
+      },
+    ) => {
       const token = sessionStorage.getItem("token");
-      const res = await fetch(
-        `${apiURL}/orders/${mongoId}/receipt?type=${type}&disposition=attachment`,
-        { method: "GET", headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      if (!token) return;
+      let shopkeeperId: string;
+      try {
+        const decoded: any = jwtDecode(token);
+        shopkeeperId = decoded?.sub;
+      } catch {
+        return;
+      }
+      if (!shopkeeperId) return;
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId ? { ...m, customerFormStatus: "submitting" } : m,
+        ),
       );
-      if (!res.ok) throw new Error("Receipt fetch failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `receipt-${mongoId.slice(-8)}-${type}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      // Surface as a chat bubble so it doesn't fail silently.
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(), role: "bot",
-        text: "Couldn't download the receipt. Please try again.", timestamp: new Date(),
-      }]);
-    } finally {
-      setReceiptUI((p) => ({ ...p, [msgId]: "idle" }));
-    }
-  }, []);
+
+      try {
+        const payload = {
+          name: `${form.firstName} ${form.lastName}`.trim(),
+          firstName: form.firstName,
+          lastName: form.lastName,
+          whatsAppNumber: form.whatsAppNumber,
+          ...(form.email ? { email: form.email } : {}),
+        };
+        const res = await fetch(
+          `${apiURL}/users/create-user-by-shopkeeper/${shopkeeperId}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          throw new Error(errText || `HTTP ${res.status}`);
+        }
+        setMessages((prev) => [
+          ...prev.map((m) =>
+            m.id === msgId ? { ...m, customerFormStatus: "done" as const } : m,
+          ),
+          {
+            id: (Date.now() + 1).toString(),
+            role: "bot",
+            text: `Customer **${form.firstName} ${form.lastName}** created with WhatsApp **${form.whatsAppNumber}**.`,
+            timestamp: new Date(),
+          },
+        ]);
+      } catch (err: any) {
+        setMessages((prev) => [
+          ...prev.map((m) =>
+            m.id === msgId ? { ...m, customerFormStatus: "idle" as const } : m,
+          ),
+          {
+            id: (Date.now() + 1).toString(),
+            role: "bot",
+            text: `Could not create customer: ${err?.message || "unknown error"}.`,
+            timestamp: new Date(),
+          },
+        ]);
+      }
+    },
+    [],
+  );
+
+  const downloadReceipt = useCallback(
+    async (msgId: string, mongoId: string, type: "A4" | "58MM") => {
+      setReceiptUI((p) => ({ ...p, [msgId]: "downloading" }));
+      try {
+        const token = sessionStorage.getItem("token");
+        const res = await fetch(
+          `${apiURL}/orders/${mongoId}/receipt?type=${type}&disposition=attachment`,
+          {
+            method: "GET",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          },
+        );
+        if (!res.ok) throw new Error("Receipt fetch failed");
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `receipt-${mongoId.slice(-8)}-${type}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch {
+        // Surface as a chat bubble so it doesn't fail silently.
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "bot",
+            text: "Couldn't download the receipt. Please try again.",
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setReceiptUI((p) => ({ ...p, [msgId]: "idle" }));
+      }
+    },
+    [],
+  );
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Auto-collapse the analytics strip once the shopkeeper starts chatting,
+  // so the conversation has full focus. They can still re-open it via "Show".
+  useEffect(() => {
+    if (messages.some((m) => m.role === "user")) setAnalyticsCollapsed(true);
+  }, [messages]);
 
   // Fetch the analytics snapshot for the header strip — same endpoint the
   // Dashboard page hits, so the shopkeeper sees identical numbers in both places.
@@ -1328,14 +1919,22 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
         if (!cancelled) setAnalyticsLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [open, headerPeriod]);
 
   const sendMessage = useCallback(async (text: string, isGreeting = false) => {
     if (!isGreeting) {
-      setMessages((prev) => [...prev, {
-        id: Date.now().toString(), role: "user", text, timestamp: new Date(),
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "user",
+          text,
+          timestamp: new Date(),
+        },
+      ]);
     }
     setInput("");
     setLoading(true);
@@ -1343,7 +1942,10 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
       const token = sessionStorage.getItem("token");
       const res = await fetch(`${apiURL}/chatbot/message`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ message: text }),
       });
       if (res.ok) {
@@ -1351,7 +1953,10 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
         let qr: QRPayload | undefined;
         let receipt: ReceiptPayload | undefined;
         let qrSetupError: string | null = null;
-        if (data.botAction?.type === "showReceipt" && data.botAction.orderMongoId) {
+        if (
+          data.botAction?.type === "showReceipt" &&
+          data.botAction.orderMongoId
+        ) {
           receipt = {
             orderId: data.botAction.orderId,
             orderMongoId: data.botAction.orderMongoId,
@@ -1383,26 +1988,47 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
         setMessages((prev) => [
           ...prev,
           {
-            id: (Date.now() + 1).toString(), role: "bot", text: data.text,
-            quickActions: data.quickActions, qr, receipt,
-            productTree: Array.isArray(data.productTree) ? data.productTree : undefined,
-            analytics: data.analytics && typeof data.analytics === "object" ? data.analytics : undefined,
-            customerForm: data.customerForm && typeof data.customerForm === "object" ? data.customerForm : undefined,
+            id: (Date.now() + 1).toString(),
+            role: "bot",
+            text: data.text,
+            quickActions: data.quickActions,
+            qr,
+            receipt,
+            productTree: Array.isArray(data.productTree)
+              ? data.productTree
+              : undefined,
+            analytics:
+              data.analytics && typeof data.analytics === "object"
+                ? data.analytics
+                : undefined,
+            customerForm:
+              data.customerForm && typeof data.customerForm === "object"
+                ? data.customerForm
+                : undefined,
             customerFormStatus: data.customerForm ? "idle" : undefined,
-            orderForm: data.orderForm && typeof data.orderForm === "object" ? data.orderForm : undefined,
+            orderForm:
+              data.orderForm && typeof data.orderForm === "object"
+                ? data.orderForm
+                : undefined,
             orderFormStatus: data.orderForm ? "idle" : undefined,
             timestamp: new Date(),
           },
           ...(qrSetupError
-            ? [{
-                id: (Date.now() + 2).toString(),
-                role: "bot" as const,
-                text: qrSetupError,
-                timestamp: new Date(),
-              }]
+            ? [
+                {
+                  id: (Date.now() + 2).toString(),
+                  role: "bot" as const,
+                  text: qrSetupError,
+                  timestamp: new Date(),
+                },
+              ]
             : []),
         ]);
-        if (data.botAction?.type === "navigate" && data.botAction.tab && onNavigate) {
+        if (
+          data.botAction?.type === "navigate" &&
+          data.botAction.tab &&
+          onNavigate
+        ) {
           const extras: {
             action?: "add" | "edit";
             productName?: string;
@@ -1414,24 +2040,36 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             };
           } = {};
           if (data.botAction.action) extras.action = data.botAction.action;
-          if (data.botAction.productName) extras.productName = data.botAction.productName;
-          if (data.botAction.customerPrefill) extras.customerPrefill = data.botAction.customerPrefill;
+          if (data.botAction.productName)
+            extras.productName = data.botAction.productName;
+          if (data.botAction.customerPrefill)
+            extras.customerPrefill = data.botAction.customerPrefill;
           setTimeout(() => {
             onNavigate(data.botAction.tab, extras);
             setOpen(false);
           }, 1500);
         }
       } else {
-        setMessages((prev) => [...prev, {
-          id: (Date.now() + 1).toString(), role: "bot",
-          text: "Something went wrong. Please try again.", timestamp: new Date(),
-        }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "bot",
+            text: "Something went wrong. Please try again.",
+            timestamp: new Date(),
+          },
+        ]);
       }
     } catch {
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(), role: "bot",
-        text: "Connection error.", timestamp: new Date(),
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "bot",
+          text: "Connection error.",
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -1461,8 +2099,20 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
     sendMessage(action);
   };
 
+  const handleReset = () => {
+    if (loading) return;
+    setMessages([]);
+    setInput("");
+    setReceiptUI({});
+    setShowSuggestions(false);
+    setAnalyticsCollapsed(false);
+    setInitialized(false);
+  };
+
   const toggleVoice = () => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SR =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
     if (!SR) return;
     if (isListening) return;
     const rec = new SR();
@@ -1484,8 +2134,12 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
     setIsListening(true);
   };
 
-  const hasVoice = typeof window !== "undefined" &&
-    !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  const hasVoice =
+    typeof window !== "undefined" &&
+    !!(
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition
+    );
 
   if (!isModuleEnabled("chatbot")) return null;
 
@@ -1500,8 +2154,10 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
   return (
     <>
       {!isPage && !open && (
-        <button onClick={() => setOpen(true)}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-105">
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-105"
+        >
           <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
         </button>
       )}
@@ -1516,8 +2172,12 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-slate-900 text-sm sm:text-base tracking-tight">KiosAI</p>
-                  <p className="text-[11px] sm:text-xs text-slate-500 truncate">Your smart store assistant · Online</p>
+                  <p className="font-semibold text-slate-900 text-sm sm:text-base tracking-tight">
+                    KiosAI
+                  </p>
+                  <p className="text-[11px] sm:text-xs text-slate-500 truncate">
+                    Your smart store assistant · Online
+                  </p>
                 </div>
               </div>
             </div>
@@ -1529,18 +2189,27 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                 </div>
                 <div>
                   <p className="font-bold text-sm">KiosAI</p>
-                  <p className="text-[10px] opacity-80">Your smart store assistant</p>
+                  <p className="text-[10px] opacity-80">
+                    Your smart store assistant
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setOpen(false)} className="p-1 hover:bg-white/20 rounded-lg transition">
+              <button
+                onClick={() => setOpen(false)}
+                className="p-1 hover:bg-white/20 rounded-lg transition"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
           )}
 
-          {/* Always-on analytics strip — same KPIs as the Analytics page. */}
+          {/* Always-on analytics strip — same KPIs as the Analytics page.
+              Auto-collapses once the shopkeeper sends their first message;
+              the strip itself stays visible so they can re-open it. */}
           {(headerAnalytics || analyticsLoading) && (
-            <div className={`flex-shrink-0 border-b border-slate-200 bg-slate-50/60 ${isPage ? "px-3 sm:pl-6 sm:pr-8" : "px-3"} py-2`}>
+            <div
+              className={`flex-shrink-0 border-b border-slate-200 bg-slate-50/60 ${isPage ? "px-3 sm:pl-6 sm:pr-8" : "px-3"} py-2`}
+            >
               <div className="flex items-center justify-between mb-1.5 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <BarChart3 className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
@@ -1558,7 +2227,9 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                     <option value="yearly">This Year</option>
                     <option value="lastyear">Last Year</option>
                   </select>
-                  {analyticsLoading && <Loader2 className="h-3 w-3 animate-spin text-slate-400 flex-shrink-0" />}
+                  {analyticsLoading && (
+                    <Loader2 className="h-3 w-3 animate-spin text-slate-400 flex-shrink-0" />
+                  )}
                 </div>
                 <button
                   type="button"
@@ -1576,7 +2247,9 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             </div>
           )}
 
-          <div className={`flex-1 overflow-y-auto ${isPage ? "px-3 py-4 sm:pl-6 sm:pr-8 sm:py-6" : "p-3"}`}>
+          <div
+            className={`flex-1 overflow-y-auto ${isPage ? "px-3 py-4 sm:pl-6 sm:pr-8 sm:py-6" : "p-3"}`}
+          >
             {/* Welcome / empty state — shown only until the shopkeeper sends their first message. */}
             {isPage && !messages.some((m) => m.role === "user") && (
               <div className="max-w-[900px] mx-auto pt-4 sm:pt-6 pb-6 sm:pb-10">
@@ -1587,9 +2260,16 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                   </div>
                   <div>
                     <p className="text-lg sm:text-xl font-semibold text-slate-900 tracking-tight">
-                      {messages[0]?.role === "bot" ? (messages[0].text.split("\n")[0].replace(/\*\*/g, "").replace(/[!.].*/, "")) : "How can I help?"}
+                      {messages[0]?.role === "bot"
+                        ? messages[0].text
+                            .split("\n")[0]
+                            .replace(/\*\*/g, "")
+                            .replace(/[!.].*/, "")
+                        : "How can I help?"}
                     </p>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Tap a suggestion or type your own message</p>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                      Tap a suggestion or type your own message
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
@@ -1603,7 +2283,9 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                       }}
                       className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
                     >
-                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}>
+                      <span
+                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}
+                      >
                         <c.Icon className="h-3 w-3" strokeWidth={2.25} />
                       </span>
                       {c.title}
@@ -1612,201 +2294,276 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                 </div>
               </div>
             )}
-            <div className={`${isPage ? "space-y-5 max-w-[1100px]" : "space-y-3"} ${isPage && !messages.some((m) => m.role === "user") ? "hidden" : ""}`}>
-            {messages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={messageMaxWidth}>
-                  <div className={`flex items-end ${isPage ? "gap-2" : "gap-1.5"} ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                    <div className={`${isPage ? "w-8 h-8" : "w-6 h-6"} rounded-full flex items-center justify-center flex-shrink-0 ${
-                      msg.role === "user" ? "bg-blue-100" : "bg-gray-100"
-                    }`}>
-                      {msg.role === "user" ? <User className={`${isPage ? "h-4 w-4" : "h-3 w-3"} text-blue-600`} /> : <Bot className={`${isPage ? "h-4 w-4" : "h-3 w-3"} text-gray-600`} />}
-                    </div>
-                    <div className={`rounded-2xl ${isPage ? "px-4 py-3 text-[15px] leading-relaxed" : "px-3 py-2 text-sm"} ${
-                      msg.role === "user" ? "bg-blue-600 text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-200 shadow-sm rounded-bl-sm"
-                    }`}>
-                      <div dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }} />
-                    </div>
-                  </div>
-                  {msg.productTree && msg.productTree.length > 0 && (
-                    <div className="mt-2 ml-10">
-                      <ProductTree products={msg.productTree} />
-                    </div>
-                  )}
-                  {msg.analytics && (
-                    <div className={isPage ? "mt-2 ml-10" : "mt-2 ml-8"}>
-                      <AnalyticsCards data={msg.analytics} />
-                    </div>
-                  )}
-                  {msg.customerForm && (
-                    <div className={isPage ? "ml-10 max-w-md" : "ml-8 max-w-sm"}>
-                      <InlineCustomerForm
-                        initial={msg.customerForm}
-                        status={msg.customerFormStatus || "idle"}
-                        onSubmit={(form) => submitCustomerForm(msg.id, form)}
-                      />
-                    </div>
-                  )}
-                  {msg.orderForm && (
-                    <div className={isPage ? "ml-10" : "ml-8"}>
-                      <InlineOrderForm
-                        payload={msg.orderForm}
-                        status={msg.orderFormStatus || "idle"}
-                        onSubmit={(synth) => submitOrderForm(msg.id, synth)}
-                      />
-                    </div>
-                  )}
-                  {msg.receipt && (() => {
-                    const state = receiptUI[msg.id] || "idle";
-                    const mongoId = msg.receipt.orderMongoId;
-                    return (
-                      <div className="mt-2 ml-8 inline-block bg-white border border-emerald-200 rounded-xl px-3 py-2 shadow-sm">
-                        <div className="text-[12px] font-semibold text-emerald-900 mb-0.5">
-                          Order #{msg.receipt.orderId} placed
-                        </div>
-                        <div className="text-[11px] text-slate-500 mb-1.5">
-                          Cash received{msg.receipt.amount
-                            ? ` · Total ${msg.receipt.country === "SG" ? "S$" : "₹"}${msg.receipt.amount.toFixed(2)}`
-                            : ""}
-                        </div>
-                        {state === "downloading" ? (
-                          <div className="inline-flex items-center gap-1.5 text-[11px] text-blue-700">
-                            <Loader2 className="h-3 w-3 animate-spin" /> Preparing receipt…
-                          </div>
-                        ) : state === "choosing" ? (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] text-gray-500">Format:</span>
-                            <button
-                              type="button"
-                              onClick={() => downloadReceipt(msg.id, mongoId, "A4")}
-                              className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                            >
-                              A4
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => downloadReceipt(msg.id, mongoId, "58MM")}
-                              className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                            >
-                              58mm (Thermal)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setReceiptUI((p) => ({ ...p, [msg.id]: "idle" }))}
-                              className="text-[11px] px-2 py-1 rounded-full text-gray-500 hover:text-gray-700"
-                            >
-                              Cancel
-                            </button>
-                          </div>
+            <div
+              className={`${isPage ? "space-y-5 max-w-[1100px]" : "space-y-3"} ${isPage && !messages.some((m) => m.role === "user") ? "hidden" : ""}`}
+            >
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div className={messageMaxWidth}>
+                    <div
+                      className={`flex items-end ${isPage ? "gap-2" : "gap-1.5"} ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                    >
+                      <div
+                        className={`${isPage ? "w-8 h-8" : "w-6 h-6"} rounded-full flex items-center justify-center flex-shrink-0 ${
+                          msg.role === "user" ? "bg-blue-100" : "bg-gray-100"
+                        }`}
+                      >
+                        {msg.role === "user" ? (
+                          <User
+                            className={`${isPage ? "h-4 w-4" : "h-3 w-3"} text-blue-600`}
+                          />
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => setReceiptUI((p) => ({ ...p, [msg.id]: "choosing" }))}
-                            className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                          >
-                            <Download className="h-3 w-3" />
-                            Download receipt
-                          </button>
+                          <Bot
+                            className={`${isPage ? "h-4 w-4" : "h-3 w-3"} text-gray-600`}
+                          />
                         )}
                       </div>
-                    );
-                  })()}
-                  {msg.qr && (
-                    <div className="mt-2 ml-8 inline-block bg-white border rounded-xl p-3 shadow-sm">
-                      <div className="text-xs font-semibold text-gray-700 mb-1">
-                        {msg.qr.country === "SG" ? "PayNow" : "UPI"} — Order #{msg.qr.orderId}
+                      <div
+                        className={`rounded-2xl ${isPage ? "px-4 py-3 text-[15px] leading-relaxed" : "px-3 py-2 text-sm"} ${
+                          msg.role === "user"
+                            ? "bg-blue-600 text-white rounded-br-sm"
+                            : "bg-white text-slate-800 border border-slate-200 shadow-sm rounded-bl-sm"
+                        }`}
+                      >
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: formatMessage(msg.text),
+                          }}
+                        />
                       </div>
-                      <div className="text-xs text-gray-500 mb-2">
-                        {msg.qr.shopName || ""} · {msg.qr.country === "SG" ? "S$" : "₹"}{msg.qr.amount.toFixed(2)}
+                    </div>
+                    {msg.productTree && msg.productTree.length > 0 && (
+                      <div className="mt-2 ml-10">
+                        <ProductTree products={msg.productTree} />
                       </div>
-                      <div className="bg-white p-2 rounded">
-                        <QRCode value={msg.qr.qrValue} size={160} />
+                    )}
+                    {msg.analytics && (
+                      <div className={isPage ? "mt-2 ml-10" : "mt-2 ml-8"}>
+                        <AnalyticsCards data={msg.analytics} />
                       </div>
-                      <div className="text-[10px] text-gray-400 mt-1">Customer scans to pay</div>
-                      {msg.qr.orderMongoId && (() => {
+                    )}
+                    {msg.customerForm && (
+                      <div
+                        className={isPage ? "ml-10 max-w-md" : "ml-8 max-w-sm"}
+                      >
+                        <InlineCustomerForm
+                          initial={msg.customerForm}
+                          status={msg.customerFormStatus || "idle"}
+                          onSubmit={(form) => submitCustomerForm(msg.id, form)}
+                        />
+                      </div>
+                    )}
+                    {msg.orderForm && (
+                      <div className={isPage ? "ml-10" : "ml-8"}>
+                        <InlineOrderForm
+                          payload={msg.orderForm}
+                          status={msg.orderFormStatus || "idle"}
+                          onSubmit={(synth) => submitOrderForm(msg.id, synth)}
+                        />
+                      </div>
+                    )}
+                    {msg.receipt &&
+                      (() => {
                         const state = receiptUI[msg.id] || "idle";
-                        const mongoId = msg.qr.orderMongoId;
-                        if (state === "downloading") {
-                          return (
-                            <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-blue-700">
-                              <Loader2 className="h-3 w-3 animate-spin" /> Preparing receipt…
-                            </div>
-                          );
-                        }
-                        if (state === "choosing") {
-                          return (
-                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                              <span className="text-[11px] text-gray-500">Format:</span>
-                              <button
-                                type="button"
-                                onClick={() => downloadReceipt(msg.id, mongoId, "A4")}
-                                className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                              >
-                                A4
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => downloadReceipt(msg.id, mongoId, "58MM")}
-                                className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                              >
-                                58mm (Thermal)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setReceiptUI((p) => ({ ...p, [msg.id]: "idle" }))}
-                                className="text-[11px] px-2 py-1 rounded-full text-gray-500 hover:text-gray-700"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          );
-                        }
+                        const mongoId = msg.receipt.orderMongoId;
                         return (
-                          <button
-                            type="button"
-                            onClick={() => setReceiptUI((p) => ({ ...p, [msg.id]: "choosing" }))}
-                            className="mt-2 inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                          >
-                            <Download className="h-3 w-3" />
-                            Download receipt
-                          </button>
+                          <div className="mt-2 ml-8 inline-block bg-white border border-emerald-200 rounded-xl px-3 py-2 shadow-sm">
+                            <div className="text-[12px] font-semibold text-emerald-900 mb-0.5">
+                              Order #{msg.receipt.orderId} placed
+                            </div>
+                            <div className="text-[11px] text-slate-500 mb-1.5">
+                              Cash received
+                              {msg.receipt.amount
+                                ? ` · Total ${msg.receipt.country === "SG" ? "S$" : "₹"}${msg.receipt.amount.toFixed(2)}`
+                                : ""}
+                            </div>
+                            {state === "downloading" ? (
+                              <div className="inline-flex items-center gap-1.5 text-[11px] text-blue-700">
+                                <Loader2 className="h-3 w-3 animate-spin" />{" "}
+                                Preparing receipt…
+                              </div>
+                            ) : state === "choosing" ? (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[11px] text-gray-500">
+                                  Format:
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    downloadReceipt(msg.id, mongoId, "A4")
+                                  }
+                                  className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                                >
+                                  A4
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    downloadReceipt(msg.id, mongoId, "58MM")
+                                  }
+                                  className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                                >
+                                  58mm (Thermal)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setReceiptUI((p) => ({
+                                      ...p,
+                                      [msg.id]: "idle",
+                                    }))
+                                  }
+                                  className="text-[11px] px-2 py-1 rounded-full text-gray-500 hover:text-gray-700"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setReceiptUI((p) => ({
+                                    ...p,
+                                    [msg.id]: "choosing",
+                                  }))
+                                }
+                                className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                              >
+                                <Download className="h-3 w-3" />
+                                Download receipt
+                              </button>
+                            )}
+                          </div>
                         );
                       })()}
-                    </div>
-                  )}
-                  {msg.quickActions && msg.quickActions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2 ml-8">
-                      {msg.quickActions.map((qa, i) => (
-                        <button key={i} onClick={() => handleQuickAction(qa.action)} disabled={loading}
-                          className="text-xs px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition disabled:opacity-50">
-                          {qa.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="flex items-end gap-1.5">
-                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Bot className="h-3 w-3 text-gray-600" />
+                    {msg.qr && (
+                      <div className="mt-2 ml-8 inline-block bg-white border rounded-xl p-3 shadow-sm">
+                        <div className="text-xs font-semibold text-gray-700 mb-1">
+                          {msg.qr.country === "SG" ? "PayNow" : "UPI"} — Order #
+                          {msg.qr.orderId}
+                        </div>
+                        <div className="text-xs text-gray-500 mb-2">
+                          {msg.qr.shopName || ""} ·{" "}
+                          {msg.qr.country === "SG" ? "S$" : "₹"}
+                          {msg.qr.amount.toFixed(2)}
+                        </div>
+                        <div className="bg-white p-2 rounded">
+                          <QRCode value={msg.qr.qrValue} size={160} />
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-1">
+                          Customer scans to pay
+                        </div>
+                        {msg.qr.orderMongoId &&
+                          (() => {
+                            const state = receiptUI[msg.id] || "idle";
+                            const mongoId = msg.qr.orderMongoId;
+                            if (state === "downloading") {
+                              return (
+                                <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-blue-700">
+                                  <Loader2 className="h-3 w-3 animate-spin" />{" "}
+                                  Preparing receipt…
+                                </div>
+                              );
+                            }
+                            if (state === "choosing") {
+                              return (
+                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[11px] text-gray-500">
+                                    Format:
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      downloadReceipt(msg.id, mongoId, "A4")
+                                    }
+                                    className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                                  >
+                                    A4
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      downloadReceipt(msg.id, mongoId, "58MM")
+                                    }
+                                    className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                                  >
+                                    58mm (Thermal)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReceiptUI((p) => ({
+                                        ...p,
+                                        [msg.id]: "idle",
+                                      }))
+                                    }
+                                    className="text-[11px] px-2 py-1 rounded-full text-gray-500 hover:text-gray-700"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              );
+                            }
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setReceiptUI((p) => ({
+                                    ...p,
+                                    [msg.id]: "choosing",
+                                  }))
+                                }
+                                className="mt-2 inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                              >
+                                <Download className="h-3 w-3" />
+                                Download receipt
+                              </button>
+                            );
+                          })()}
+                      </div>
+                    )}
+                    {msg.quickActions && msg.quickActions.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2 ml-8">
+                        {msg.quickActions.map((qa, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleQuickAction(qa.action)}
+                            disabled={loading}
+                            className="text-xs px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition disabled:opacity-50"
+                          >
+                            {qa.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                </div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="flex items-end gap-1.5">
+                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                      <Bot className="h-3 w-3 text-gray-600" />
+                    </div>
+                    <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+              )}
+              <div ref={messagesEndRef} />
             </div>
           </div>
 
           {isPage && onNavigate && (
             <div className="flex-shrink-0 border-t border-slate-200 bg-white/70 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-2 overflow-x-auto">
               <div className="flex sm:flex-wrap items-center gap-1.5 max-w-[1100px] min-w-max sm:min-w-0">
-                <span className="text-[11px] font-medium text-slate-500 mr-1 flex-shrink-0">Jump to:</span>
+                <span className="text-[11px] font-medium text-slate-500 mr-1 flex-shrink-0">
+                  Jump to:
+                </span>
                 {NAV_TABS.map((t) => (
                   <button
                     key={t.id}
@@ -1822,7 +2579,14 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className={isPage ? "relative flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-3 sm:py-4" : "p-3 border-t flex gap-2 flex-shrink-0"}>
+          <form
+            onSubmit={handleSubmit}
+            className={
+              isPage
+                ? "relative flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-3 sm:py-4"
+                : "p-3 border-t flex gap-2 flex-shrink-0"
+            }
+          >
             {/* Suggestions popover (page mode) — anchored above the composer. */}
             {isPage && showSuggestions && (
               <>
@@ -1834,8 +2598,14 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                 />
                 <div className="absolute z-50 left-3 right-3 sm:left-6 sm:right-8 bottom-[calc(100%+0.5rem)] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[12px] font-semibold text-slate-700 uppercase tracking-wide">Suggestions</p>
-                    <button type="button" onClick={() => setShowSuggestions(false)} className="text-slate-400 hover:text-slate-600">
+                    <p className="text-[12px] font-semibold text-slate-700 uppercase tracking-wide">
+                      Suggestions
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowSuggestions(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -1851,7 +2621,9 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
                         }}
                         className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
                       >
-                        <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}>
+                        <span
+                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}
+                        >
                           <c.Icon className="h-3 w-3" strokeWidth={2.25} />
                         </span>
                         {c.title}
@@ -1863,42 +2635,106 @@ export function ChatbotWidget({ onNavigate, mode = "floating" }: ChatbotWidgetPr
             )}
             {isPage ? (
               <div className="flex items-end gap-1.5 sm:gap-2 max-w-[1100px]">
-                <Button type="button" size="icon" variant={showSuggestions ? "default" : "outline"}
-                  onClick={() => setShowSuggestions((s) => !s)} disabled={loading}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={showSuggestions ? "default" : "outline"}
+                  onClick={() => setShowSuggestions((s) => !s)}
+                  disabled={loading}
                   title="Suggestions"
-                  className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${showSuggestions ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-slate-300"}`}>
+                  className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${showSuggestions ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-slate-300"}`}
+                >
                   <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
                 {hasVoice && (
-                  <Button type="button" size="icon" variant={isListening ? "destructive" : "outline"}
-                    onClick={toggleVoice} disabled={loading}
-                    className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-slate-300"}`}>
-                    {isListening ? <MicOff className="h-4 w-4 sm:h-5 sm:w-5" /> : <Mic className="h-4 w-4 sm:h-5 sm:w-5" />}
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant={isListening ? "destructive" : "outline"}
+                    onClick={toggleVoice}
+                    disabled={loading}
+                    className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-slate-300"}`}
+                  >
+                    {isListening ? (
+                      <MicOff className="h-4 w-4 sm:h-5 sm:w-5" />
+                    ) : (
+                      <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
+                    )}
                   </Button>
                 )}
-                <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
                   placeholder={isListening ? "Listening…" : "Message KiosAI"}
                   className="flex-1 h-10 sm:h-12 text-sm sm:text-base rounded-xl border-slate-300 bg-white focus-visible:ring-blue-500"
-                  disabled={loading || isListening} />
-                <Button type="submit" size="icon" disabled={!input.trim() || loading}
-                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-blue-600 hover:bg-blue-700 flex-shrink-0 shadow-sm">
+                  disabled={loading || isListening}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  onClick={handleReset}
+                  disabled={loading}
+                  title="Reset chat"
+                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 border-slate-300 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50"
+                >
+                  <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5" />
+                </Button>
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!input.trim() || loading}
+                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-blue-600 hover:bg-blue-700 flex-shrink-0 shadow-sm"
+                >
                   <Send className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               </div>
             ) : (
               <>
                 {hasVoice && (
-                  <Button type="button" size="sm" variant={isListening ? "destructive" : "outline"}
-                    onClick={toggleVoice} disabled={loading}
-                    className={`rounded-full w-9 h-9 p-0 flex-shrink-0 ${isListening ? "animate-pulse" : ""}`}>
-                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isListening ? "destructive" : "outline"}
+                    onClick={toggleVoice}
+                    disabled={loading}
+                    className={`rounded-full w-9 h-9 p-0 flex-shrink-0 ${isListening ? "animate-pulse" : ""}`}
+                  >
+                    {isListening ? (
+                      <MicOff className="h-4 w-4" />
+                    ) : (
+                      <Mic className="h-4 w-4" />
+                    )}
                   </Button>
                 )}
-                <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
-                  placeholder={isListening ? "Listening..." : "Ask KiosAI anything..."}
-                  className="flex-1 text-sm rounded-full" disabled={loading || isListening} />
-                <Button type="submit" size="sm" disabled={!input.trim() || loading}
-                  className="rounded-full w-9 h-9 p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={
+                    isListening ? "Listening..." : "Ask KiosAI anything..."
+                  }
+                  className="flex-1 text-sm rounded-full"
+                  disabled={loading || isListening}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleReset}
+                  disabled={loading}
+                  title="Reset chat"
+                  className="rounded-full w-9 h-9 p-0 flex-shrink-0 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!input.trim() || loading}
+                  className="rounded-full w-9 h-9 p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                >
                   <Send className="h-4 w-4" />
                 </Button>
               </>

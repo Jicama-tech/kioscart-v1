@@ -108,7 +108,6 @@ export function CartPage() {
   // (OTP timer removed — WhatsApp OTP no longer used for buyers)
   const [shopName, setShopName] = useState("");
 
-
   useEffect(() => {
     async function fetchCountries() {
       setCountries(
@@ -205,7 +204,6 @@ export function CartPage() {
         if (data.data.email) {
           setEmailId(data.data.email);
         }
-
       } catch (err) {
         console.error("Error fetching tax:", err);
       }
@@ -316,7 +314,8 @@ export function CartPage() {
         if (decoded.firstName) setFirstName(decoded.firstName);
         else if (decoded.name) setFirstName(decoded.name.split(" ")[0] || "");
         if (decoded.lastName) setLastName(decoded.lastName);
-        else if (decoded.name) setLastName(decoded.name.split(" ").slice(1).join(" "));
+        else if (decoded.name)
+          setLastName(decoded.name.split(" ").slice(1).join(" "));
       } catch {
         // Token invalid — clear it
         sessionStorage.removeItem("userToken");
@@ -338,7 +337,7 @@ export function CartPage() {
       const role = decode.roles[0];
       if (role === "shopkeeper") {
         setIsShopkeeperVerified(true);
-        setOrderFor("self"); // <--- Add this to force the switch
+        // setOrderFor("self"); // <--- Add this to force the switch
       }
     }
   }
@@ -386,7 +385,6 @@ export function CartPage() {
       setEmailVerifying(false);
     }
   }
-
 
   async function findUserBywhatsAppNumber(
     countryCode: string,
@@ -567,7 +565,9 @@ export function CartPage() {
   // deliveryEnabled = master switch. deliveryRules = subtotal→fee brackets
   // (the rule with the highest matching minSubtotal wins).
   const [deliveryEnabled, setDeliveryEnabled] = useState(true);
-  const [deliveryRules, setDeliveryRules] = useState<{ minSubtotal: number; fee: number }[]>([]);
+  const [deliveryRules, setDeliveryRules] = useState<
+    { minSubtotal: number; fee: number }[]
+  >([]);
   const [pickupAddress, setPickupAddress] = useState("");
   const [emailId, setEmailId] = useState("");
   const [slug, setSlug] = useState("");
@@ -584,12 +584,16 @@ export function CartPage() {
     if (!deliveryEnabled) return 0;
     if (!deliveryRules || deliveryRules.length === 0) return 0;
     const applicable = deliveryRules
-      .map((r) => ({ min: Number(r.minSubtotal) || 0, fee: Number(r.fee) || 0 }))
+      .map((r) => ({
+        min: Number(r.minSubtotal) || 0,
+        fee: Number(r.fee) || 0,
+      }))
       .filter((r) => cartSubtotal >= r.min)
       .sort((a, b) => b.min - a.min);
     return applicable[0] ? applicable[0].fee : 0;
   };
-  const deliveryFee = orderType === "delivery" ? computeDeliveryFee(subtotal) : 0;
+  const deliveryFee =
+    orderType === "delivery" ? computeDeliveryFee(subtotal) : 0;
 
   // Kiosk/self-order mode: auto-set pickup date & time to now
   const isSelfOrder = orderFor === "self";
@@ -658,7 +662,10 @@ export function CartPage() {
     for (let hour = 0; hour <= 23; hour++) {
       for (const min of [0, 30]) {
         // Skip past times if pickup date is today
-        if (isToday && (hour < currentHour || (hour === currentHour && min <= currentMin))) {
+        if (
+          isToday &&
+          (hour < currentHour || (hour === currentHour && min <= currentMin))
+        ) {
           continue;
         }
         const timeStr = `${hour.toString().padStart(2, "0")}:${min
@@ -848,21 +855,24 @@ export function CartPage() {
                             </p>
                           )}
                           <div className="flex flew-row gap-2 flex-wrap">
-                            {item.optionTitle && item.optionTitle !== "Default" && (
-                              <p className="text-xs bg-purple-600 rounded-md px-2 inline-block text-white">
-                                {item.optionTitle}
-                              </p>
-                            )}
-                            {item.subcategoryName && item.subcategoryName !== "Default" && (
-                              <p className="text-xs bg-black rounded-md px-2 inline-block text-white">
-                                {item.subcategoryName}
-                              </p>
-                            )}
-                            {item.variantTitle && item.variantTitle !== "Default" && (
-                              <p className="text-xs bg-black rounded-md px-2 inline-block text-white">
-                                {item.variantTitle}
-                              </p>
-                            )}
+                            {item.optionTitle &&
+                              item.optionTitle !== "Default" && (
+                                <p className="text-xs bg-purple-600 rounded-md px-2 inline-block text-white">
+                                  {item.optionTitle}
+                                </p>
+                              )}
+                            {item.subcategoryName &&
+                              item.subcategoryName !== "Default" && (
+                                <p className="text-xs bg-black rounded-md px-2 inline-block text-white">
+                                  {item.subcategoryName}
+                                </p>
+                              )}
+                            {item.variantTitle &&
+                              item.variantTitle !== "Default" && (
+                                <p className="text-xs bg-black rounded-md px-2 inline-block text-white">
+                                  {item.variantTitle}
+                                </p>
+                              )}
                           </div>
                           {item.sku && (
                             <p className="text-xs text-muted-foreground">
@@ -1182,10 +1192,14 @@ export function CartPage() {
                                     value={date.value}
                                     disabled={date.isClosed}
                                     className={
-                                      date.isClosed ? "text-gray-400 italic" : ""
+                                      date.isClosed
+                                        ? "text-gray-400 italic"
+                                        : ""
                                     }
                                     title={
-                                      date.isClosed ? "Shop is closed" : undefined
+                                      date.isClosed
+                                        ? "Shop is closed"
+                                        : undefined
                                     }
                                   >
                                     {date.label}
@@ -1217,7 +1231,10 @@ export function CartPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 {getAvailablePickupTimes().map((time) => (
-                                  <SelectItem key={time.value} value={time.value}>
+                                  <SelectItem
+                                    key={time.value}
+                                    value={time.value}
+                                  >
                                     {time.label}
                                   </SelectItem>
                                 ))}
@@ -1228,15 +1245,14 @@ export function CartPage() {
                       ) : (
                         <div className="p-3 bg-muted/50 border rounded-lg">
                           <p className="text-sm text-muted-foreground">
-                            {pickupMessage || "The shopkeeper will contact you to arrange pickup/delivery."}
+                            {pickupMessage ||
+                              "The shopkeeper will contact you to arrange pickup/delivery."}
                           </p>
                         </div>
                       )}
 
                       <div>
-                        <Label className="font-semibold">
-                          Pickup Address
-                        </Label>
+                        <Label className="font-semibold">Pickup Address</Label>
                         <div className="mt-1 p-3 border rounded bg-white text-sm text-muted-foreground">
                           <p>{pickupAddress}</p>
                         </div>
@@ -1271,93 +1287,111 @@ export function CartPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-4">
-                      {/* Google Sign-In Gate */}
-                      {!buyerGoogleLoggedIn ? (
-                        <div className="text-center py-4 space-y-3">
-                          <p className="text-sm text-muted-foreground">Sign in to place your order</p>
-                          <Button
-                            onClick={handleGoogleSignIn}
-                            className="w-full"
-                            variant="buttonOutline"
-                          >
-                            <FaGoogle className="mr-2 h-4 w-4" />
-                            Continue with Google
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                      {/* Customer Order Fields — pre-filled from Google */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="firstName">First Name *</Label>
-                          <Input
-                            id="firstName"
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            placeholder="John"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="lastName">Last Name *</Label>
-                          <Input
-                            id="lastName"
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            placeholder="Doe"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Email — from Google, read-only */}
-                      <div>
-                        <Label
-                          htmlFor="email"
-                          className="flex items-center justify-between mb-2"
+                    {/* Google Sign-In Gate */}
+                    {!buyerGoogleLoggedIn ? (
+                      <div className="text-center py-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Sign in to place your order
+                        </p>
+                        <Button
+                          onClick={handleGoogleSignIn}
+                          className="w-full"
+                          variant="buttonOutline"
                         >
-                          <span>Email Address</span>
-                          <Badge variant="default">Verified</Badge>
-                        </Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          disabled
-                          className="bg-muted"
-                        />
+                          <FaGoogle className="mr-2 h-4 w-4" />
+                          Continue with Google
+                        </Button>
                       </div>
-
-                      {/* WhatsApp — optional contact for shopkeeper */}
-                      <div>
-                        <Label htmlFor="whatsapp" className="flex items-center justify-between mb-2">
-                          <span>WhatsApp <span className="text-muted-foreground text-xs">(optional)</span></span>
-                        </Label>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-28">
-                            <Select value={countryCode} onValueChange={setCountryCode}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Code" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {countries.map((country) => (
-                                  <SelectItem key={country.code} value={country.dialCode}>
-                                    {country.name} {country.dialCode}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                    ) : (
+                      <>
+                        {/* Customer Order Fields — pre-filled from Google */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="firstName">First Name *</Label>
+                            <Input
+                              id="firstName"
+                              value={firstName}
+                              onChange={(e) => setFirstName(e.target.value)}
+                              placeholder="John"
+                            />
                           </div>
+                          <div>
+                            <Label htmlFor="lastName">Last Name *</Label>
+                            <Input
+                              id="lastName"
+                              value={lastName}
+                              onChange={(e) => setLastName(e.target.value)}
+                              placeholder="Doe"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Email — from Google, read-only */}
+                        <div>
+                          <Label
+                            htmlFor="email"
+                            className="flex items-center justify-between mb-2"
+                          >
+                            <span>Email Address</span>
+                            <Badge variant="default">Verified</Badge>
+                          </Label>
                           <Input
-                            id="whatsapp"
-                            type="tel"
-                            placeholder="For order updates"
-                            value={whatsapp}
-                            maxLength={10}
-                            onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ""))}
+                            id="email"
+                            type="email"
+                            value={email}
+                            disabled
+                            className="bg-muted"
                           />
                         </div>
-                      </div>
-                        </>
-                      )}
+
+                        {/* WhatsApp — optional contact for shopkeeper */}
+                        <div>
+                          <Label
+                            htmlFor="whatsapp"
+                            className="flex items-center justify-between mb-2"
+                          >
+                            <span>
+                              WhatsApp{" "}
+                              <span className="text-muted-foreground text-xs">
+                                (optional)
+                              </span>
+                            </span>
+                          </Label>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-28">
+                              <Select
+                                value={countryCode}
+                                onValueChange={setCountryCode}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Code" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {countries.map((country) => (
+                                    <SelectItem
+                                      key={country.code}
+                                      value={country.dialCode}
+                                    >
+                                      {country.name} {country.dialCode}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Input
+                              id="whatsapp"
+                              type="tel"
+                              placeholder="For order updates"
+                              value={whatsapp}
+                              maxLength={10}
+                              onChange={(e) =>
+                                setWhatsapp(e.target.value.replace(/\D/g, ""))
+                              }
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                   {/* Self/Kiosk mode moved to Shopkeeper Dashboard */}
 
@@ -1409,7 +1443,11 @@ export function CartPage() {
                       !lastName ||
                       (orderFor === "customer" && !buyerGoogleLoggedIn) ||
                       (orderFor === "self" && !isShopkeeperVerified) ||
-                      (!isSelfOrder && orderType === "pickup" && pickupDateRequired && !pickupDate && !pickupTime) ||
+                      (!isSelfOrder &&
+                        orderType === "pickup" &&
+                        pickupDateRequired &&
+                        !pickupDate &&
+                        !pickupTime) ||
                       (orderType === "delivery" && !deliveryAddress)
                     }
                     className="w-full"
@@ -1539,21 +1577,24 @@ export function CartPage() {
                           </p>
                         )}
                         <div className="flex flew-row gap-2 flex-wrap">
-                          {item.optionTitle && item.optionTitle !== "Default" && (
-                            <p className="text-xs bg-purple-600 rounded-md px-2 inline-block text-white">
-                              {item.optionTitle}
-                            </p>
-                          )}
-                          {item.subcategoryName && item.subcategoryName !== "Default" && (
-                            <p className="text-xs bg-black rounded-md px-2 inline-block text-white">
-                              {item.subcategoryName}
-                            </p>
-                          )}
-                          {item.variantTitle && item.variantTitle !== "Default" && (
-                            <p className="text-xs bg-black rounded-md px-2 inline-block text-white">
-                              {item.variantTitle}
-                            </p>
-                          )}
+                          {item.optionTitle &&
+                            item.optionTitle !== "Default" && (
+                              <p className="text-xs bg-purple-600 rounded-md px-2 inline-block text-white">
+                                {item.optionTitle}
+                              </p>
+                            )}
+                          {item.subcategoryName &&
+                            item.subcategoryName !== "Default" && (
+                              <p className="text-xs bg-black rounded-md px-2 inline-block text-white">
+                                {item.subcategoryName}
+                              </p>
+                            )}
+                          {item.variantTitle &&
+                            item.variantTitle !== "Default" && (
+                              <p className="text-xs bg-black rounded-md px-2 inline-block text-white">
+                                {item.variantTitle}
+                              </p>
+                            )}
                         </div>
                         {item.sku && (
                           <p className="text-xs text-muted-foreground">
@@ -1922,7 +1963,8 @@ export function CartPage() {
                     ) : (
                       <div className="p-3 bg-muted/50 border rounded-lg">
                         <p className="text-sm text-muted-foreground">
-                          {pickupMessage || "The shopkeeper will contact you to arrange pickup/delivery."}
+                          {pickupMessage ||
+                            "The shopkeeper will contact you to arrange pickup/delivery."}
                         </p>
                       </div>
                     )}
@@ -1935,9 +1977,7 @@ export function CartPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="instructions">
-                        Special Instructions
-                      </Label>
+                      <Label htmlFor="instructions">Special Instructions</Label>
                       <Textarea
                         id="instructions"
                         value={instructions}
@@ -1963,90 +2003,111 @@ export function CartPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-4">
-                    {/* Google Sign-In Gate */}
-                    {!buyerGoogleLoggedIn ? (
-                      <div className="text-center py-4 space-y-3">
-                        <p className="text-sm text-muted-foreground">Sign in to place your order</p>
-                        <Button
-                          onClick={handleGoogleSignIn}
-                          className="w-full"
-                          variant="buttonOutline"
-                        >
-                          <FaGoogle className="mr-2 h-4 w-4" />
-                          Continue with Google
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                    {/* Customer Order Fields — pre-filled from Google */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="firstName">First Name *</Label>
-                        <Input
-                          id="firstName"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          placeholder="John"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName">Last Name *</Label>
-                        <Input
-                          id="lastName"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          placeholder="Doe"
-                        />
-                      </div>
+                  {/* Google Sign-In Gate */}
+                  {!buyerGoogleLoggedIn ? (
+                    <div className="text-center py-4 space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Sign in to place your order
+                      </p>
+                      <Button
+                        onClick={handleGoogleSignIn}
+                        className="w-full"
+                        variant="buttonOutline"
+                      >
+                        <FaGoogle className="mr-2 h-4 w-4" />
+                        Continue with Google
+                      </Button>
                     </div>
-
-                    {/* Email — from Google, read-only */}
-                    <div>
-                      <Label htmlFor="email" className="flex items-center justify-between mb-2">
-                        <span>Email Address</span>
-                        <Badge variant="default">Verified</Badge>
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        disabled
-                        className="bg-muted"
-                      />
-                    </div>
-
-                    {/* WhatsApp — optional contact for shopkeeper */}
-                    <div>
-                      <Label htmlFor="whatsapp" className="flex items-center justify-between mb-2">
-                        <span>WhatsApp <span className="text-muted-foreground text-xs">(optional)</span></span>
-                      </Label>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-28">
-                          <Select value={countryCode} onValueChange={setCountryCode}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Code" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {countries.map((country) => (
-                                <SelectItem key={country.code} value={country.dialCode}>
-                                  {country.name} {country.dialCode}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                  ) : (
+                    <>
+                      {/* Customer Order Fields — pre-filled from Google */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="firstName">First Name *</Label>
+                          <Input
+                            id="firstName"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            placeholder="John"
+                          />
                         </div>
+                        <div>
+                          <Label htmlFor="lastName">Last Name *</Label>
+                          <Input
+                            id="lastName"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            placeholder="Doe"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email — from Google, read-only */}
+                      <div>
+                        <Label
+                          htmlFor="email"
+                          className="flex items-center justify-between mb-2"
+                        >
+                          <span>Email Address</span>
+                          <Badge variant="default">Verified</Badge>
+                        </Label>
                         <Input
-                          id="whatsapp"
-                          type="tel"
-                          maxLength={10}
-                          placeholder="For order updates"
-                          value={whatsapp}
-                          onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ""))}
+                          id="email"
+                          type="email"
+                          value={email}
+                          disabled
+                          className="bg-muted"
                         />
                       </div>
-                    </div>
-                      </>
-                    )}
+
+                      {/* WhatsApp — optional contact for shopkeeper */}
+                      <div>
+                        <Label
+                          htmlFor="whatsapp"
+                          className="flex items-center justify-between mb-2"
+                        >
+                          <span>
+                            WhatsApp{" "}
+                            <span className="text-muted-foreground text-xs">
+                              (optional)
+                            </span>
+                          </span>
+                        </Label>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-28">
+                            <Select
+                              value={countryCode}
+                              onValueChange={setCountryCode}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Code" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {countries.map((country) => (
+                                  <SelectItem
+                                    key={country.code}
+                                    value={country.dialCode}
+                                  >
+                                    {country.name} {country.dialCode}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Input
+                            id="whatsapp"
+                            type="tel"
+                            maxLength={10}
+                            placeholder="For order updates"
+                            value={whatsapp}
+                            onChange={(e) =>
+                              setWhatsapp(e.target.value.replace(/\D/g, ""))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-3 pt-4 border-t">
@@ -2097,7 +2158,10 @@ export function CartPage() {
                     !lastName ||
                     (orderFor === "customer" && !buyerGoogleLoggedIn) ||
                     (orderFor === "self" && !isShopkeeperVerified) ||
-                    (!isSelfOrder && orderType === "pickup" && pickupDateRequired && (!pickupDate || !pickupTime)) ||
+                    (!isSelfOrder &&
+                      orderType === "pickup" &&
+                      pickupDateRequired &&
+                      (!pickupDate || !pickupTime)) ||
                     (orderType === "delivery" && !deliveryAddress)
                   }
                   className="w-full"

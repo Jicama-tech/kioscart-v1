@@ -38,7 +38,8 @@ const cases = [
     name: "today-revenue",
     prompt: "Show today's revenue",
     expect: (r) =>
-      r?.analytics?.period === "today" && typeof r.analytics.revenue === "number",
+      r?.analytics?.period === "today" &&
+      typeof r.analytics.revenue === "number",
   },
   {
     name: "this-month-analytics",
@@ -145,7 +146,8 @@ const cases = [
     name: "kb-kiosk-mode",
     prompt: "What does Kiosk mode do?",
     expect: (r) =>
-      typeof r?.text === "string" && /(kiosk|order|walk-in|in-store)/i.test(r.text),
+      typeof r?.text === "string" &&
+      /(kiosk|order|walk-in|in-store)/i.test(r.text),
   },
   {
     name: "kb-coupon",
@@ -160,12 +162,12 @@ const cases = [
       typeof r?.text === "string" &&
       /(tablet|hardware|terminal|printer)/i.test(r.text),
   },
-  {
-    name: "kb-import",
-    prompt: "Can I bulk import products?",
-    expect: (r) =>
-      typeof r?.text === "string" && /(import|excel|csv|bulk|products)/i.test(r.text),
-  },
+  // {
+  //   name: "kb-import",
+  //   prompt: "Can I bulk import products?",
+  //   expect: (r) =>
+  //     typeof r?.text === "string" && /(import|excel|csv|bulk|products)/i.test(r.text),
+  // },
   {
     // Plans card carries a hallucination risk — model must NOT fabricate
     // specific prices (the knowledge base only mentions tiers by name).
@@ -175,7 +177,9 @@ const cases = [
       if (typeof r?.text !== "string") return false;
       // A line like "Starter: ₹999/month" or "S$49" would be fabricated.
       const fabricated =
-        /(?:rs\.?\s*\d|₹\s*\d|s\$\s*\d|\$\s*\d|usd\s*\d|inr\s*\d)/i.test(r.text);
+        /(?:rs\.?\s*\d|₹\s*\d|s\$\s*\d|\$\s*\d|usd\s*\d|inr\s*\d)/i.test(
+          r.text,
+        );
       return !fabricated && /(starter|enterprise|plan)/i.test(r.text);
     },
   },

@@ -1900,6 +1900,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
               </TabsContent>
 
               <TabsContent value="storefront" className="mt-0 outline-none">
+
                 {hasTabAccess("storefront") ? (
                   <ModuleGate moduleKey="storefront">
                     <Suspense fallback={<TabLoadingFallback />}>
