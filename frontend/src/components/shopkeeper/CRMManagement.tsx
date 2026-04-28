@@ -958,9 +958,16 @@ export function AddCustomerDialog({
   shopkeeperId,
   customerToEdit, // New prop for edit mode
   mode = "add", // New prop: 'add' | 'edit'
+  prefill, // Bot-supplied prefill for add mode
 }: AddCustomerDialogProps & {
   customerToEdit?: Customer | null;
   mode?: "add" | "edit";
+  prefill?: {
+    firstName?: string;
+    lastName?: string;
+    whatsapp?: string;
+    email?: string;
+  } | null;
 }) {
   const { toast } = useToast();
 
@@ -1022,10 +1029,31 @@ export function AddCustomerDialog({
       });
 
       setErrors({});
-    } else if (isOpen && mode === "add") {
-      resetForm();
+    } else if (isOpen && mode === "add" && countries.length > 0) {
+      // Apply bot-supplied prefill if present; otherwise reset to empty.
+      if (prefill && (prefill.firstName || prefill.lastName || prefill.whatsapp || prefill.email)) {
+        const raw = prefill.whatsapp || "";
+        const match = raw.match(/^(\+\d{1,3})(.*)$/);
+        let country: Country | null = null;
+        let localNumber = raw;
+        if (match) {
+          const dialCode = match[1];
+          localNumber = match[2].replace(/\s/g, "");
+          country = countries.find((c) => c.dialCode === dialCode) || null;
+        }
+        setSelectedCountry(country);
+        setFormData({
+          firstName: prefill.firstName || "",
+          lastName: prefill.lastName || "",
+          whatsAppNumber: localNumber,
+          email: prefill.email || "",
+        });
+        setErrors({});
+      } else {
+        resetForm();
+      }
     }
-  }, [isOpen, customerToEdit, mode, countries]);
+  }, [isOpen, customerToEdit, mode, countries, prefill]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -2259,7 +2287,24 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
   );
 }
 
-export function CRMManagement() {
+interface CRMPendingAction {
+  action: "add";
+  prefill?: {
+    firstName?: string;
+    lastName?: string;
+    whatsapp?: string;
+    email?: string;
+  };
+  key: number;
+}
+
+export function CRMManagement({
+  pendingAction,
+  onPendingActionConsumed,
+}: {
+  pendingAction?: CRMPendingAction | null;
+  onPendingActionConsumed?: () => void;
+} = {}) {
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("users");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -2269,6 +2314,28 @@ export function CRMManagement() {
   const [showProductMarketing, setShowProductMarketing] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
+  // Prefill payload from the chatbot. AddCustomerDialog reads this on mount
+  // (mode === "add") to populate the form before the shopkeeper clicks Create.
+  const [addPrefill, setAddPrefill] = useState<{
+    firstName?: string;
+    lastName?: string;
+    whatsapp?: string;
+    email?: string;
+  } | null>(null);
+
+  // Chat-driven entry point: open the Add Customer dialog with optional
+  // prefill. `pendingAction.key` re-fires this on every fresh bot intent.
+  useEffect(() => {
+    if (!pendingAction) return;
+    if (pendingAction.action === "add") {
+      setSelectedTab("users");
+      setCustomerToEdit(null);
+      setAddPrefill(pendingAction.prefill || null);
+      setShowAddCustomer(true);
+      onPendingActionConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAction?.key]);
 
   // State for API data
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -2539,6 +2606,7 @@ export function CRMManagement() {
   const closeAddCustomer = async () => {
     try {
       await setShowAddCustomer(false);
+      setAddPrefill(null);
       await fetchCustomerData();
     } catch (error) {
       throw error;
@@ -2978,6 +3046,7 @@ export function CRMManagement() {
           onClose={closeAddCustomer}
           customerToEdit={customerToEdit} // New prop
           mode={customerToEdit ? "edit" : "add"} // New prop
+          prefill={addPrefill}
         />
       )}
     </div>
