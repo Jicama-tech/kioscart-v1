@@ -90,6 +90,16 @@ interface StorefrontCustomizerProps {
 
 interface shopkeeperStore {
   sub: string;
+  country?: string;
+}
+
+// TikTok is banned in India, so the storefront must never expose a TikTok
+// link for India-based shops. Treat any country that resolves to "IN" /
+// "IND" / "INDIA" as India; everything else (including Singapore / SG)
+// keeps the TikTok option.
+function isIndiaCountry(country?: string): boolean {
+  const c = (country || "").toString().trim().toUpperCase();
+  return c === "IN" || c === "IND" || c === "INDIA";
 }
 
 export function StorefrontCustomizer({
@@ -105,6 +115,21 @@ export function StorefrontCustomizer({
   const [viewMode, setViewMode] = useState<"settings" | "preview">("settings");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Shopkeeper country drives region-specific feature gates (e.g. TikTok is
+  // banned in India). Sourced from the JWT to avoid an extra fetch.
+  const [shopCountry, setShopCountry] = useState<string | undefined>(undefined);
+  const isIndia = isIndiaCountry(shopCountry);
+
+  useEffect(() => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      const decoded = jwtDecode<shopkeeperStore>(token);
+      setShopCountry(decoded?.country);
+    } catch {
+      // JWT decode failure → leave country undefined (default = show TikTok).
+    }
+  }, []);
   const [isExistingStore, setIsExistingStore] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -1226,44 +1251,46 @@ export function StorefrontCustomizer({
                     )}
                   </div>
 
-                  {/* TikTok */}
-                  <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">TikTok</div>
-                        <p className="text-xs text-muted-foreground">
-                          Show TikTok link in footer
-                        </p>
+                  {/* TikTok — hidden for India shopkeepers (TikTok is banned in India) */}
+                  {!isIndia && (
+                    <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">TikTok</div>
+                          <p className="text-xs text-muted-foreground">
+                            Show TikTok link in footer
+                          </p>
+                        </div>
+                        <Switch
+                          checked={
+                            settings.general.contactInfo.showTiktok ?? false
+                          }
+                          onCheckedChange={(checked) =>
+                            handleNestedInputChange(
+                              "general",
+                              "contactInfo",
+                              "showTiktok",
+                              checked,
+                            )
+                          }
+                        />
                       </div>
-                      <Switch
-                        checked={
-                          settings.general.contactInfo.showTiktok ?? false
-                        }
-                        onCheckedChange={(checked) =>
-                          handleNestedInputChange(
-                            "general",
-                            "contactInfo",
-                            "showTiktok",
-                            checked,
-                          )
-                        }
-                      />
+                      {settings.general.contactInfo.showTiktok && (
+                        <Input
+                          value={settings.general.contactInfo.tiktokLink ?? ""}
+                          onChange={(e) =>
+                            handleNestedInputChange(
+                              "general",
+                              "contactInfo",
+                              "tiktokLink",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="https://www.tiktok.com/@yourhandle"
+                        />
+                      )}
                     </div>
-                    {settings.general.contactInfo.showTiktok && (
-                      <Input
-                        value={settings.general.contactInfo.tiktokLink ?? ""}
-                        onChange={(e) =>
-                          handleNestedInputChange(
-                            "general",
-                            "contactInfo",
-                            "tiktokLink",
-                            e.target.value,
-                          )
-                        }
-                        placeholder="https://www.tiktok.com/@yourhandle"
-                      />
-                    )}
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

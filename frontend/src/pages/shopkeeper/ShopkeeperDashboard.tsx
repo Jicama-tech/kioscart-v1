@@ -257,6 +257,18 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     productName?: string;
     key: number;
   } | null>(null);
+  // Bot-driven CRM pending action — opens the Add Customer form, optionally
+  // pre-filled. Cleared after CRMManagement consumes it.
+  const [crmPendingAction, setCrmPendingAction] = useState<{
+    action: "add";
+    prefill?: {
+      firstName?: string;
+      lastName?: string;
+      whatsapp?: string;
+      email?: string;
+    };
+    key: number;
+  } | null>(null);
 
   // Check if current user has access to a tab
   const hasTabAccess = (tabId: string) => {
@@ -1873,7 +1885,12 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                         <h2 className="text-2xl sm:text-3xl font-bold">
                           Management Dashboard
                         </h2>
-                        <CRMManagement />
+                        <CRMManagement
+                          pendingAction={crmPendingAction}
+                          onPendingActionConsumed={() =>
+                            setCrmPendingAction(null)
+                          }
+                        />
                       </div>
                     </Suspense>
                   </ModuleGate>
@@ -1883,6 +1900,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
               </TabsContent>
 
               <TabsContent value="storefront" className="mt-0 outline-none">
+
                 {hasTabAccess("storefront") ? (
                   <ModuleGate moduleKey="storefront">
                     <Suspense fallback={<TabLoadingFallback />}>
@@ -1901,7 +1919,13 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
               <TabsContent
                 value="chat"
-                className="mt-0 p-0 -mx-4 -my-4 md:-mx-6 md:-my-6"
+                // forceMount keeps the chat in the DOM when the shopkeeper
+                // switches to another tab, so the conversation, the inline
+                // order/customer forms, the QR card, and any in-flight scroll
+                // position survive the round-trip. data-[state=inactive]:hidden
+                // applies a CSS hide while it isn't the active tab.
+                forceMount
+                className="mt-0 p-0 -mx-4 -my-4 md:-mx-6 md:-my-6 data-[state=inactive]:hidden"
               >
                 <ChatbotWidget
                   mode="page"
@@ -1912,6 +1936,13 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                       setProductPendingAction({
                         action: extras.action,
                         productName: extras.productName,
+                        key: Date.now(),
+                      });
+                    }
+                    if (tab === "crm" && extras?.action === "add") {
+                      setCrmPendingAction({
+                        action: "add",
+                        prefill: extras.customerPrefill,
                         key: Date.now(),
                       });
                     }
