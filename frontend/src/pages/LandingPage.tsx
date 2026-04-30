@@ -86,10 +86,10 @@ const steps = [
     description:
       "Create your identity. Upload logos, set brand colors, and configure your business profile in under 2 minutes.",
     images: [
-      "/assets/step-1.png",
-      "/assets/step-2.png",
-      "/assets/step-3.png",
-      "/assets/step-4.png",
+      "/assets/step-1.webp",
+      "/assets/step-2.webp",
+      "/assets/step-3.webp",
+      "/assets/step-4.webp",
     ],
     icon: Store,
   },
@@ -97,21 +97,21 @@ const steps = [
     title: "Setting Up Store",
     description:
       "Bulk upload products or add them manually. Set variants, prices, and stock levels that sync everywhere.",
-    images: ["/assets/step-5.png", "/assets/step-6.png"],
+    images: ["/assets/step-5.webp", "/assets/step-6.webp"],
     icon: Box,
   },
   {
     title: "Inventory & Products",
     description:
       "Connect any tablet or touch screen. The interface automatically adapts to your hardware for instant selling.",
-    images: ["/assets/step-7.png", "/assets/step-8.png", "/assets/step-9.png"],
+    images: ["/assets/step-7.webp", "/assets/step-8.webp", "/assets/step-9.webp"],
     icon: MonitorSmartphone,
   },
   {
     title: "Go Live",
     description:
       "Start accepting payments securely. Monitor real-time analytics from both your online store and physical kiosk.",
-    images: ["/assets/step-10.png", "/assets/step-11.png"],
+    images: ["/assets/step-10.webp", "/assets/step-11.webp"],
     icon: Rocket,
   },
 ];
@@ -632,13 +632,13 @@ const LandingPage = () => {
                     // transition={{ duration: 0.5, ease: "easeInOut" }}
                     className="absolute inset-0"
                   >
-                    <motion.img
+                    <img
                       src={steps[activeStep].images[currentImageIndex]}
                       alt={`${steps[activeStep].title} - Image ${currentImageIndex + 1}`}
                       className="w-full h-full object-contain"
-                      initial={{ filter: "blur(10px)" }}
-                      animate={{ filter: "blur(0px)" }}
-                      // transition={{ duration: 0.4 }}
+                      loading="lazy"
+                      decoding="async"
+                      fetchPriority="low"
                     />
 
                     {/* Subtle gradient overlay */}

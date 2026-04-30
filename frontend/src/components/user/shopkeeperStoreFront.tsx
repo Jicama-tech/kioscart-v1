@@ -284,8 +284,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
         }
         if (!bundle) {
           const bundleRes = await fetch(
-            `${apiURL}/shopkeeper-stores/storefront-bundle/${slug}?t=${Date.now()}`,
-            { method: "GET", cache: "no-store" },
+            `${apiURL}/shopkeeper-stores/storefront-bundle/${encodeURIComponent(slug)}`,
           );
           if (!bundleRes.ok) throw new Error("Failed to load storefront");
           bundle = await bundleRes.json();

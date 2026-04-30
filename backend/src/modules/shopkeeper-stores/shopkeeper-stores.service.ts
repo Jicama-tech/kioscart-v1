@@ -10,6 +10,16 @@ import { Product } from "../products/entities/product.entity";
 
 @Injectable()
 export class ShopkeeperStoresService {
+  // In-process cache for the storefront bundle. Public storefronts are read
+  // ~10x more than they're written, so a tiny TTL cache eliminates almost all
+  // cold-load DB work while still picking up edits within a minute.
+  private bundleCache = new Map<
+    string,
+    { expiresAt: number; data: any }
+  >();
+  private readonly BUNDLE_TTL_MS = 60_000;
+  private readonly BUNDLE_CACHE_MAX = 200;
+
   constructor(
     @InjectModel(ShopfrontStore.name)
     private shopkeeperStoreModel: Model<ShopfrontStore>,
@@ -19,15 +29,35 @@ export class ShopkeeperStoresService {
     private productModel: Model<Product>,
   ) {}
 
+  private invalidateBundleCache(slug?: string) {
+    if (slug) {
+      this.bundleCache.delete(slug.toLowerCase());
+    } else {
+      this.bundleCache.clear();
+    }
+  }
+
   /**
    * Single aggregated endpoint: returns storefront settings + shopkeeper info + products
    * in ONE API call instead of 3 sequential calls.
    */
   async getStorefrontBundle(slug: string) {
+    const key = (slug || "").toLowerCase();
+    const now = Date.now();
+
+    const cached = this.bundleCache.get(key);
+    if (cached && cached.expiresAt > now) {
+      return cached.data;
+    }
+
     // Step 1: Find store by slug
     const store = await this.findBySlug(slug) as any;
     if (!store || !store.shopkeeperId) {
-      return { store: null, shopkeeper: null, products: [] };
+      const empty = { store: null, shopkeeper: null, products: [] };
+      // Cache misses for a short time too — protects against scrapers hammering
+      // unknown slugs and triggering the O(N) fallback in findBySlug.
+      this.setBundleCache(key, empty);
+      return empty;
     }
 
     const shopkeeperId = store.shopkeeperId.toString();
@@ -38,11 +68,25 @@ export class ShopkeeperStoresService {
       this.productModel.find({ shopkeeperId, status: { $ne: 'draft' } }).lean().exec(),
     ]);
 
-    return {
+    const bundle = {
       store,
       shopkeeper,
       products: products || [],
     };
+    this.setBundleCache(key, bundle);
+    return bundle;
+  }
+
+  private setBundleCache(key: string, data: any) {
+    if (this.bundleCache.size >= this.BUNDLE_CACHE_MAX) {
+      // Evict the oldest entry. Map iteration order is insertion order.
+      const firstKey = this.bundleCache.keys().next().value;
+      if (firstKey !== undefined) this.bundleCache.delete(firstKey);
+    }
+    this.bundleCache.set(key, {
+      expiresAt: Date.now() + this.BUNDLE_TTL_MS,
+      data,
+    });
   }
 
   async create(createShopkeeperStoreDto: CreateShopkeeperStoreDto) {
@@ -115,6 +159,8 @@ export class ShopkeeperStoresService {
       });
 
       const result = await shopfrontStore.save();
+
+      this.invalidateBundleCache(result.slug);
 
       return {
         message: "Shopfront settings created successfully",
@@ -387,6 +433,13 @@ export class ShopkeeperStoresService {
           { new: true, runValidators: true },
         )
         .exec();
+
+      // Invalidate cache for both the old slug (in case it changed) and the new
+      // one so the storefront reflects edits immediately.
+      this.invalidateBundleCache(existingStore.slug);
+      if (updatedStore?.slug && updatedStore.slug !== existingStore.slug) {
+        this.invalidateBundleCache(updatedStore.slug);
+      }
 
       return {
         message: "Shopfront store updated successfully",
