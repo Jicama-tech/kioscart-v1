@@ -125,6 +125,21 @@ sudo nano /etc/nginx/sites-available/kioscart
 
 ### Main domain config (`kioscart.com`):
 
+This config has two performance pieces baked in: long-term caching for hashed
+build assets, and a shared `proxy_cache` zone so storefront-bundle responses
+served to visitors hit nginx instead of the Node backend.
+
+The `proxy_cache_path` block belongs in the **http {}** scope (i.e. in
+`/etc/nginx/nginx.conf` or a snippet under `/etc/nginx/conf.d/`), not inside
+the `server` block. Add it once:
+
+```nginx
+# /etc/nginx/conf.d/kioscart-cache.conf
+proxy_cache_path /var/cache/nginx/kioscart levels=1:2 keys_zone=kioscart_api:10m max_size=200m inactive=10m use_temp_path=off;
+```
+
+Then the per-domain server block:
+
 ```nginx
 server {
     listen 80;
@@ -145,7 +160,38 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    # API reverse proxy — routes /api/* to backend
+    # Long-term cache for hashed Vite assets (filenames have content hashes,
+    # so they can be cached forever).
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Cache the public storefront bundle at the edge — every visitor to
+    # kioscart.com/<slug> hits this path. 60s TTL matches the in-process
+    # service cache and the Cache-Control header the backend returns.
+    location = /api/shopkeeper-stores/storefront-bundle {
+        return 404;  # placeholder, real route is /storefront-bundle/:slug below
+    }
+    location ~ ^/api/shopkeeper-stores/storefront-bundle/ {
+        proxy_pass http://localhost:3000$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_cache kioscart_api;
+        proxy_cache_valid 200 60s;
+        proxy_cache_valid 404 10s;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_lock on;
+        proxy_cache_background_update on;
+        add_header X-Cache-Status $upstream_cache_status always;
+    }
+
+    # API reverse proxy — routes /api/* to backend (uncached)
     location /api/ {
         proxy_pass http://localhost:3000/;
         proxy_http_version 1.1;
@@ -165,6 +211,22 @@ server {
     }
 }
 ```
+
+After applying:
+
+```bash
+sudo mkdir -p /var/cache/nginx/kioscart
+sudo chown -R www-data:www-data /var/cache/nginx/kioscart
+sudo nginx -t && sudo systemctl reload nginx
+
+# Verify the cache is working — the second hit should show X-Cache-Status: HIT
+curl -sI https://kioscart.com/api/shopkeeper-stores/storefront-bundle/thefoxsg | grep -i x-cache
+curl -sI https://kioscart.com/api/shopkeeper-stores/storefront-bundle/thefoxsg | grep -i x-cache
+```
+
+Apply the same `location ~ ^/api/shopkeeper-stores/storefront-bundle/` block
+inside every custom-domain server block (thefoxsg.com, xcionasia.com, etc.)
+so they also benefit.
 
 ### Enable and test:
 

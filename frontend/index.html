@@ -57,15 +57,18 @@
     </div>
   </div>
 
-  <!-- Prefetch storefront data while JS downloads -->
+  <!-- Prefetch storefront data while JS downloads. Uses the same origin as the
+       page so it works on kioscart.com and on every custom domain (each has an
+       nginx /api/ proxy). No cache-buster — let the response Cache-Control
+       (max-age=60, stale-while-revalidate=300) govern caching. -->
   <script>
     (function(){
       var path = window.location.pathname.replace(/^\//,'');
       if(path && !['login','signup','register','admin','shopkeeper','agent','api','auth','estore','cart','payment','pricing','blog','faq','contact','about','terms','privacy-policy'].some(function(r){return path.startsWith(r)})){
-        var slug = path.split('/')[0];
+        var slug = path.split('/')[0].toLowerCase();
         if(slug){
-          var url = (window.__API_URL__ || 'https://api.kioscart.com') + '/shopkeeper-stores/storefront-bundle/' + slug + '?t=' + Date.now();
-          window.__PREFETCHED_STORE__ = fetch(url,{method:'GET',cache:'no-store'}).then(function(r){return r.json()}).catch(function(){return null});
+          var url = window.location.origin + '/api/shopkeeper-stores/storefront-bundle/' + encodeURIComponent(slug);
+          window.__PREFETCHED_STORE__ = fetch(url).then(function(r){return r.ok ? r.json() : null}).catch(function(){return null});
         }
       }
     })();
