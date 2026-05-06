@@ -182,6 +182,7 @@ interface ChatbotWidgetProps {
     extras?: {
       action?: "add" | "edit";
       productName?: string;
+      subTab?: string;
       customerPrefill?: {
         firstName?: string;
         lastName?: string;
@@ -1724,6 +1725,9 @@ export function ChatbotWidget({
   const [analyticsCollapsed, setAnalyticsCollapsed] = useState(false);
   const [headerPeriod, setHeaderPeriod] = useState<string>("monthly");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  // Today's actionable counts shown as flashing pills under the greeting.
+  const [todayOrdersCount, setTodayOrdersCount] = useState(0);
+  const [todayPaymentsCount, setTodayPaymentsCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -1923,6 +1927,65 @@ export function ChatbotWidget({
       cancelled = true;
     };
   }, [open, headerPeriod]);
+
+  // Today's order + payment counts for the welcome-state pills.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      let shopkeeperId: string | undefined;
+      try {
+        shopkeeperId = (jwtDecode(token) as any)?.sub;
+      } catch {
+        return;
+      }
+      if (!shopkeeperId) return;
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const startMs = startOfDay.getTime();
+
+      const ordersReq = fetch(
+        `${apiURL}/orders/get-orders/shopkeeper/${shopkeeperId}?page=1&limit=200`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          const list = Array.isArray(j) ? j : j?.orders || [];
+          return list.filter(
+            (o: any) =>
+              o?.createdAt && new Date(o.createdAt).getTime() >= startMs,
+          ).length;
+        })
+        .catch(() => 0);
+
+      const paymentsReq = fetch(`${apiURL}/payment-emails/emails`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          const list = j?.emails || [];
+          return list.filter((e: any) => {
+            const ts = e?.receivedAt || e?.createdAt;
+            return ts && new Date(ts).getTime() >= startMs;
+          }).length;
+        })
+        .catch(() => 0);
+
+      const [ordersCount, paymentsCount] = await Promise.all([
+        ordersReq,
+        paymentsReq,
+      ]);
+      if (cancelled) return;
+      setTodayOrdersCount(ordersCount || 0);
+      setTodayPaymentsCount(paymentsCount || 0);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const sendMessage = useCallback(async (text: string, isGreeting = false) => {
     if (!isGreeting) {
@@ -2272,25 +2335,35 @@ export function ChatbotWidget({
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
-                  {SUGGESTED_CARDS.map((c) => (
-                    <button
-                      key={c.title}
-                      type="button"
-                      onClick={() => {
-                        setInput(c.prompt);
-                        inputRef.current?.focus();
-                      }}
-                      className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
-                    >
-                      <span
-                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}
-                      >
-                        <c.Icon className="h-3 w-3" strokeWidth={2.25} />
-                      </span>
-                      {c.title}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onNavigate?.("orders", { subTab: "orders" })
+                    }
+                    className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-[13px] font-medium text-blue-700 hover:bg-blue-100 transition shadow-sm animate-pulse"
+                    title="View today's orders"
+                  >
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white">
+                      <ShoppingCart className="h-3 w-3" strokeWidth={2.25} />
+                    </span>
+                    {todayOrdersCount} new order
+                    {todayOrdersCount === 1 ? "" : "s"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onNavigate?.("orders", { subTab: "payments" })
+                    }
+                    className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-emerald-300 bg-emerald-50 text-[13px] font-medium text-emerald-700 hover:bg-emerald-100 transition shadow-sm animate-pulse"
+                    title="View today's payments"
+                  >
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 text-white">
+                      <BarChart3 className="h-3 w-3" strokeWidth={2.25} />
+                    </span>
+                    {todayPaymentsCount} new payment
+                    {todayPaymentsCount === 1 ? "" : "s"}
+                  </button>
                 </div>
               </div>
             )}

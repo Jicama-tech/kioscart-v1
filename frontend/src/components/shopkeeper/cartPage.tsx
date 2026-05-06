@@ -316,6 +316,20 @@ export function CartPage() {
         if (decoded.lastName) setLastName(decoded.lastName);
         else if (decoded.name)
           setLastName(decoded.name.split(" ").slice(1).join(" "));
+        if (decoded.whatsAppNumber) {
+          // Stored as combined string e.g. "+65xxxxxxxx" — split on longest matching dial code
+          const stored: string = decoded.whatsAppNumber;
+          const match = COUNTRY_CODES
+            .slice()
+            .sort((a, b) => b.dial_code.length - a.dial_code.length)
+            .find((c) => stored.startsWith(c.dial_code));
+          if (match) {
+            setCountryCode(match.dial_code);
+            setWhatsapp(stored.slice(match.dial_code.length).replace(/\D/g, ""));
+          } else {
+            setWhatsapp(stored.replace(/\D/g, ""));
+          }
+        }
       } catch {
         // Token invalid — clear it
         sessionStorage.removeItem("userToken");
@@ -690,6 +704,17 @@ export function CartPage() {
         duration: 5000,
         title: "Error",
         description: "Invalid shopkeeper",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // WhatsApp is mandatory for customer orders
+    if (orderFor === "customer" && (!whatsapp || whatsapp.length < 6)) {
+      toast({
+        duration: 5000,
+        title: "WhatsApp number required",
+        description: "Please enter a valid WhatsApp number to place the order",
         variant: "destructive",
       });
       return;
@@ -1344,18 +1369,13 @@ export function CartPage() {
                           />
                         </div>
 
-                        {/* WhatsApp — optional contact for shopkeeper */}
+                        {/* WhatsApp — required contact for shopkeeper */}
                         <div>
                           <Label
                             htmlFor="whatsapp"
                             className="flex items-center justify-between mb-2"
                           >
-                            <span>
-                              WhatsApp{" "}
-                              <span className="text-muted-foreground text-xs">
-                                (optional)
-                              </span>
-                            </span>
+                            <span>WhatsApp *</span>
                           </Label>
                           <div className="flex items-center space-x-2">
                             <div className="w-28">
@@ -1441,7 +1461,8 @@ export function CartPage() {
                       shopCart.length === 0 ||
                       !firstName ||
                       !lastName ||
-                      (orderFor === "customer" && !buyerGoogleLoggedIn) ||
+                      (orderFor === "customer" &&
+                        (!buyerGoogleLoggedIn || !whatsapp)) ||
                       (orderFor === "self" && !isShopkeeperVerified) ||
                       (!isSelfOrder &&
                         orderType === "pickup" &&
@@ -2060,18 +2081,13 @@ export function CartPage() {
                         />
                       </div>
 
-                      {/* WhatsApp — optional contact for shopkeeper */}
+                      {/* WhatsApp — required contact for shopkeeper */}
                       <div>
                         <Label
                           htmlFor="whatsapp"
                           className="flex items-center justify-between mb-2"
                         >
-                          <span>
-                            WhatsApp{" "}
-                            <span className="text-muted-foreground text-xs">
-                              (optional)
-                            </span>
-                          </span>
+                          <span>WhatsApp *</span>
                         </Label>
                         <div className="flex items-center space-x-2">
                           <div className="w-28">
@@ -2156,7 +2172,8 @@ export function CartPage() {
                     shopCart.length === 0 ||
                     !firstName ||
                     !lastName ||
-                    (orderFor === "customer" && !buyerGoogleLoggedIn) ||
+                    (orderFor === "customer" &&
+                      (!buyerGoogleLoggedIn || !whatsapp)) ||
                     (orderFor === "self" && !isShopkeeperVerified) ||
                     (!isSelfOrder &&
                       orderType === "pickup" &&

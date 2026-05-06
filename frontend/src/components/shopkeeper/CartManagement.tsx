@@ -186,7 +186,15 @@ function LoadingOverlay({ show }: { show: boolean }) {
   );
 }
 
-export function CartManagement() {
+interface CartManagementProps {
+  pendingTab?: { tab: "orders" | "payments"; key: number } | null;
+  onPendingTabConsumed?: () => void;
+}
+
+export function CartManagement({
+  pendingTab,
+  onPendingTabConsumed,
+}: CartManagementProps = {}) {
   const { isModuleEnabled } = useSubscription();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,6 +275,14 @@ export function CartManagement() {
       fetchPaymentEmails();
     }
   }, [activeTab]);
+
+  // Honor an external request from the chatbot to open a specific sub-tab.
+  // `key` forces re-application even when the same sub-tab is requested twice.
+  useEffect(() => {
+    if (!pendingTab) return;
+    setActiveTab(pendingTab.tab);
+    onPendingTabConsumed?.();
+  }, [pendingTab?.key]);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("");
