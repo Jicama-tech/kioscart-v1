@@ -2303,7 +2303,7 @@ export function ChatbotWidget({
                 </button>
               </div>
               {!analyticsCollapsed && headerAnalytics && (
-                <div className="max-w-[1100px]">
+                <div className="w-full">
                   <AnalyticsCards data={headerAnalytics} compact />
                 </div>
               )}
@@ -2368,7 +2368,7 @@ export function ChatbotWidget({
               </div>
             )}
             <div
-              className={`${isPage ? "space-y-5 max-w-[1100px]" : "space-y-3"} ${isPage && !messages.some((m) => m.role === "user") ? "hidden" : ""}`}
+              className={`${isPage ? "space-y-5 w-full" : "space-y-3"} ${isPage && !messages.some((m) => m.role === "user") ? "hidden" : ""}`}
             >
               {messages.map((msg) => (
                 <div
@@ -2633,7 +2633,7 @@ export function ChatbotWidget({
 
           {isPage && onNavigate && (
             <div className="flex-shrink-0 border-t border-slate-200 bg-white/70 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-2 overflow-x-auto">
-              <div className="flex sm:flex-wrap items-center gap-1.5 max-w-[1100px] min-w-max sm:min-w-0">
+              <div className="flex sm:flex-wrap items-center gap-1.5 w-full min-w-max sm:min-w-0">
                 <span className="text-[11px] font-medium text-slate-500 mr-1 flex-shrink-0">
                   Jump to:
                 </span>
@@ -2707,7 +2707,7 @@ export function ChatbotWidget({
               </>
             )}
             {isPage ? (
-              <div className="flex items-end gap-1.5 sm:gap-2 max-w-[1100px]">
+              <div className="flex items-end gap-1.5 sm:gap-2 w-full">
                 <Button
                   type="button"
                   size="icon"
