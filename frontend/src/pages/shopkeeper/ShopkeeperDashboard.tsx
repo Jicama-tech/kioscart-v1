@@ -50,6 +50,8 @@ import {
   Mail,
   MessageCircle,
   HelpCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 // Lazy load heavy tab components - only loaded when tab is active
 const ProductManagement = lazy(() =>
@@ -283,6 +285,23 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   };
   const [showStorefront, setShowStorefront] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Desktop-only collapse: hides the sidebar on lg+ so the main content
+  // area can take the full viewport width. Persisted across sessions.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("shopkeeperSidebarCollapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "shopkeeperSidebarCollapsed",
+        sidebarCollapsed ? "1" : "0",
+      );
+    } catch {}
+  }, [sidebarCollapsed]);
   const [loading, setLoading] = useState(false);
   const [shopName, setShopName] = useState("KiosCart Store");
   const [slug, setSlug] = useState("");
@@ -834,6 +853,22 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
               )}
             </Button>
 
+            {/* Desktop sidebar collapse toggle */}
+            <Button
+              variant="buttonOutline"
+              size="sm"
+              className="hidden lg:inline-flex"
+              onClick={() => setSidebarCollapsed((c) => !c)}
+              title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+              aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen className="h-5 w-5" />
+              ) : (
+                <PanelLeftClose className="h-5 w-5" />
+              )}
+            </Button>
+
             <Store className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
             <h1 className="text-lg sm:text-xl font-bold hidden sm:block">
               {shopName}
@@ -872,10 +907,12 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
         {/* Sidebar */}
         <aside
           className={`
-            fixed lg:static lg:translate-x-0 
-            w-64 border-r bg-card/95 backdrop-blur-sm lg:bg-muted/30 
+            fixed lg:static lg:translate-x-0
+            border-r bg-card/95 backdrop-blur-sm lg:bg-muted/30
             h-full z-50 transition-all duration-300 ease-in-out
-            flex-shrink-0
+            flex-shrink-0 overflow-hidden
+            w-64
+            ${sidebarCollapsed ? "lg:w-0 lg:border-r-0" : "lg:w-64"}
             ${
               sidebarOpen
                 ? "translate-x-0"

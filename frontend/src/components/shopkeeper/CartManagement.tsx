@@ -276,6 +276,12 @@ export function CartManagement({
     }
   }, [activeTab]);
 
+  // Fetch payment emails once on mount so the "today" badge on the
+  // Payments tab trigger is accurate even before the tab is opened.
+  useEffect(() => {
+    fetchPaymentEmails();
+  }, [fetchPaymentEmails]);
+
   // Honor an external request from the chatbot to open a specific sub-tab.
   // `key` forces re-application even when the same sub-tab is requested twice.
   useEffect(() => {
@@ -1269,6 +1275,14 @@ Thank you for shopping with us.
     today.setHours(0, 0, 0, 0);
     return orderDate.toDateString() === today.toDateString();
   }).length;
+  const todaysPayments = paymentEmails.filter((p: any) => {
+    const ts = p?.receivedAt || p?.createdAt;
+    if (!ts) return false;
+    const d = new Date(ts);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d.toDateString() === today.toDateString();
+  }).length;
   const pendingOrders = orders.filter(
     (order) =>
       order.status === "pending" ||
@@ -1286,10 +1300,26 @@ Thank you for shopping with us.
           <TabsTrigger value="orders" className="flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
             Orders
+            {todaysOrders > 0 && (
+              <span
+                className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-semibold animate-pulse"
+                title={`${todaysOrders} new today`}
+              >
+                {todaysOrders}
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger value="payments" className={`flex items-center gap-2 ${!isModuleEnabled("paymentTracking") ? "opacity-60" : ""}`}>
             <CreditCard className="h-4 w-4" />
             Payments
+            {todaysPayments > 0 && isModuleEnabled("paymentTracking") && (
+              <span
+                className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[10px] font-semibold animate-pulse"
+                title={`${todaysPayments} new today`}
+              >
+                {todaysPayments}
+              </span>
+            )}
             {!isModuleEnabled("paymentTracking") && <Lock className="h-3 w-3 ml-1" />}
           </TabsTrigger>
         </TabsList>
@@ -1343,10 +1373,26 @@ Thank you for shopping with us.
           <TabsTrigger value="orders" className="flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
             Orders
+            {todaysOrders > 0 && (
+              <span
+                className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-semibold animate-pulse"
+                title={`${todaysOrders} new today`}
+              >
+                {todaysOrders}
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger value="payments" className={`flex items-center gap-2 ${!isModuleEnabled("paymentTracking") ? "opacity-60" : ""}`}>
             <CreditCard className="h-4 w-4" />
             Payments
+            {todaysPayments > 0 && isModuleEnabled("paymentTracking") && (
+              <span
+                className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[10px] font-semibold animate-pulse"
+                title={`${todaysPayments} new today`}
+              >
+                {todaysPayments}
+              </span>
+            )}
             {!isModuleEnabled("paymentTracking") && <Lock className="h-3 w-3 ml-1" />}
           </TabsTrigger>
         </TabsList>
@@ -1572,8 +1618,22 @@ Thank you for shopping with us.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedOrders.map((order) => (
-                      <TableRow key={order._id}>
+                    paginatedOrders.map((order) => {
+                      const _today = new Date();
+                      _today.setHours(0, 0, 0, 0);
+                      const isTodayOrder =
+                        !!order.createdAt &&
+                        new Date(order.createdAt).toDateString() ===
+                          _today.toDateString();
+                      return (
+                      <TableRow
+                        key={order._id}
+                        className={
+                          isTodayOrder
+                            ? "bg-blue-50 animate-pulse"
+                            : undefined
+                        }
+                      >
                         <TableCell className="font-mono">
                           {order.orderId}
                         </TableCell>
@@ -1688,7 +1748,8 @@ Thank you for shopping with us.
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -2477,8 +2538,20 @@ function PaymentsTabContent({
                 <TableBody>
                   {paymentEmails.map((email) => {
                     const matchedOrder = email.matchedOrderId ? findOrder(email.matchedOrderId) : null;
+                    const _today = new Date();
+                    _today.setHours(0, 0, 0, 0);
+                    const _ts = email?.receivedAt || email?.createdAt;
+                    const isTodayPayment =
+                      !!_ts && new Date(_ts).toDateString() === _today.toDateString();
                     return (
-                      <TableRow key={email._id} className="hover:bg-muted/30">
+                      <TableRow
+                        key={email._id}
+                        className={
+                          isTodayPayment
+                            ? "bg-emerald-50 animate-pulse hover:bg-emerald-100"
+                            : "hover:bg-muted/30"
+                        }
+                      >
                         <TableCell>
                           <span className="font-bold text-green-600 text-base">
                             {formatPrice(email.amount)}
