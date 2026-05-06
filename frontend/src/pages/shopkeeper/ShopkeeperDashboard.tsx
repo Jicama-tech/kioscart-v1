@@ -269,6 +269,11 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     };
     key: number;
   } | null>(null);
+  // Bot-driven Orders sub-tab request — picks "orders" vs "payments" inside CartManagement.
+  const [ordersSubTab, setOrdersSubTab] = useState<{
+    tab: "orders" | "payments";
+    key: number;
+  } | null>(null);
 
   // Check if current user has access to a tab
   const hasTabAccess = (tabId: string) => {
@@ -1868,7 +1873,10 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                         <h2 className="text-2xl sm:text-3xl font-bold">
                           Orders & Payments
                         </h2>
-                        <CartManagement />
+                        <CartManagement
+                          pendingTab={ordersSubTab}
+                          onPendingTabConsumed={() => setOrdersSubTab(null)}
+                        />
                       </div>
                     </Suspense>
                   </ModuleGate>
@@ -1943,6 +1951,16 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                       setCrmPendingAction({
                         action: "add",
                         prefill: extras.customerPrefill,
+                        key: Date.now(),
+                      });
+                    }
+                    if (
+                      tab === "orders" &&
+                      (extras?.subTab === "orders" ||
+                        extras?.subTab === "payments")
+                    ) {
+                      setOrdersSubTab({
+                        tab: extras.subTab,
                         key: Date.now(),
                       });
                     }

@@ -232,6 +232,7 @@ export class AuthController {
         roles: user.roles,
         firstName: user.firstName || userFromGoogle.firstName || "",
         lastName: user.lastName || userFromGoogle.lastName || "",
+        whatsAppNumber: user.whatsAppNumber || "",
       };
 
       const token = this.jwtService.sign(payload, {
