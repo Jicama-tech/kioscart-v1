@@ -105,6 +105,15 @@ export class Order extends Document {
   @Prop({ type: String, required: false })
   transactionId?: string;
 
+  @Prop({ type: Types.ObjectId, ref: "Payment", required: false })
+  paymentId?: Types.ObjectId;
+
+  @Prop({ type: String, default: "manual" })
+  paymentProvider?: string; // "razorpay" | "manual"
+
+  @Prop({ type: String, default: "pending" })
+  paymentStatus?: string; // pending | paid | failed | refunded
+
   @Prop({ default: false })
   isSoftDeleted: boolean;
 

@@ -9,14 +9,20 @@ export enum ReceiptType {
 
 export type ShopkeeperDocument = Shopkeeper & Document;
 
-// ✅ NEW: Razorpay linked account sub-schema
+// ✅ Razorpay linked account sub-schema
 export class RazorpayLinkedAccount {
   @Prop()
   accountId: string; // acc_xxxxx from Razorpay
 
+  @Prop()
+  stakeholderId?: string; // sth_xxxxx
+
+  @Prop()
+  productConfigId?: string; // acc_prd_xxxxx (route product config)
+
   @Prop({
     type: String,
-    enum: ["pending_kyc", "active", "rejected", "suspended"],
+    enum: ["pending_kyc", "under_review", "active", "rejected", "suspended"],
     default: "pending_kyc",
   })
   status: string;
@@ -25,7 +31,13 @@ export class RazorpayLinkedAccount {
   kycStatus?: string;
 
   @Prop()
+  kycRejectionReason?: string;
+
+  @Prop()
   businessName: string;
+
+  @Prop()
+  businessType?: string;
 
   @Prop()
   panNumber: string;
@@ -53,6 +65,42 @@ export class RazorpayLinkedAccount {
 
   @Prop()
   businessPhone: string;
+
+  @Prop()
+  address?: string;
+
+  @Prop()
+  city?: string;
+
+  @Prop()
+  state?: string;
+
+  @Prop()
+  zipcode?: string;
+
+  @Prop({ default: "IN" })
+  country: string;
+
+  // Razorpay document IDs returned after upload — not the file URLs
+  @Prop({
+    type: {
+      panFront: { type: String, default: null },
+      addressProof: { type: String, default: null },
+      cancelledCheque: { type: String, default: null },
+      gstCert: { type: String, default: null },
+      _id: false,
+    },
+    default: {},
+  })
+  documents?: {
+    panFront?: string;
+    addressProof?: string;
+    cancelledCheque?: string;
+    gstCert?: string;
+  };
+
+  @Prop()
+  submittedAt?: Date;
 
   @Prop()
   verifiedAt?: Date;
