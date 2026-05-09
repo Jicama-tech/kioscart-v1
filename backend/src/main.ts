@@ -26,6 +26,18 @@ const ALLOWED_DOMAINS = new Set([
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Capture raw body for webhook signature verification (Razorpay etc).
+  // Must be registered before global JSON parsing.
+  app.use(
+    "/webhooks",
+    express.json({
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf?.toString("utf8") || "";
+      },
+      limit: "1mb",
+    }),
+  );
+
   // Enable gzip compression for all responses
   app.use(compression());
 
