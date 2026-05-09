@@ -3,12 +3,18 @@ import {
   Post,
   Get,
   Query,
+  Body,
+  Req,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
   BadRequestException,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { AuthGuard } from "@nestjs/passport";
 import { PaymentsService } from "./payments.service";
+import { CheckoutService } from "./checkout.service";
+import { CreatePaymentOrderDto, VerifyPaymentDto } from "./dto/checkout.dto";
 import * as path from "path";
 import { diskStorage } from "multer";
 
@@ -25,7 +31,23 @@ function tempStorage() {
 
 @Controller("payments")
 export class PaymentsController {
-  constructor(private paymentsService: PaymentsService) {}
+  constructor(
+    private paymentsService: PaymentsService,
+    private checkoutService: CheckoutService,
+  ) {}
+
+  // ---- Razorpay customer-checkout flow (India only for now) ----
+
+  @Post("order")
+  async createPaymentOrder(@Body() dto: CreatePaymentOrderDto, @Req() req: any) {
+    const customerUserId = req.user?.sub;
+    return this.checkoutService.createPaymentOrder(dto, customerUserId);
+  }
+
+  @Post("verify")
+  async verifyPayment(@Body() dto: VerifyPaymentDto) {
+    return this.checkoutService.verifyPayment(dto);
+  }
 
   @Post("decode-qr")
   @UseInterceptors(FileInterceptor("file", { storage: tempStorage() }))

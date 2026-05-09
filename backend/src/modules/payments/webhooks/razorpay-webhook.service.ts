@@ -3,6 +3,8 @@ import {
   Logger,
   UnauthorizedException,
   BadRequestException,
+  forwardRef,
+  Inject,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -15,6 +17,7 @@ import {
   TransferStatus,
 } from "../schemas/payment.schema";
 import { Order } from "../../orders/entities/order.entity";
+import { CheckoutService } from "../checkout.service";
 
 /**
  * Verifies and dispatches Razorpay webhook events. Idempotent: any event
@@ -27,6 +30,8 @@ export class RazorpayWebhookService {
   constructor(
     private readonly gatewayFactory: PaymentGatewayFactory,
     private readonly shopkeepersService: ShopkeepersService,
+    @Inject(forwardRef(() => CheckoutService))
+    private readonly checkoutService: CheckoutService,
     @InjectModel(Payment.name)
     private readonly paymentModel: Model<PaymentDocument>,
     @InjectModel(Order.name) private readonly orderModel: Model<Order>,
@@ -151,6 +156,19 @@ export class RazorpayWebhookService {
       paymentStatus: "paid",
       transactionId: entity.id,
     });
+
+    // Create the on-hold Route transfer if the verify endpoint didn't.
+    // Failures here shouldn't reject the webhook (Razorpay would retry the
+    // payment.captured event and double-create); we'll surface via logs.
+    if (!payment.transferId) {
+      try {
+        await this.checkoutService.createOnHoldTransferForPayment(payment);
+      } catch (err: any) {
+        this.logger.error(
+          `Auto on-hold transfer failed for payment ${payment._id}: ${err.message}`,
+        );
+      }
+    }
   }
 
   private async onPaymentFailed(payload: any) {
