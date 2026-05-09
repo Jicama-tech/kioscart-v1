@@ -166,6 +166,39 @@ export class CheckoutService {
   }
 
   /**
+   * Earnings summary for a shopkeeper. Held = sum of net awaiting admin
+   * release. LifetimeReleased = sum of net already released. The
+   * dashboard widget reads this.
+   */
+  async earningsSummaryFor(shopkeeperId: string) {
+    const objectId = new Types.ObjectId(shopkeeperId);
+    const result = await this.paymentModel.aggregate([
+      { $match: { shopkeeperId: objectId } },
+      {
+        $group: {
+          _id: { currency: "$currency", transferStatus: "$transferStatus" },
+          total: { $sum: "$netAmount" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const summary: Record<string, { held: number; released: number; pendingCapture: number; count: number }> = {};
+    for (const row of result) {
+      const cur = row._id.currency;
+      if (!summary[cur])
+        summary[cur] = { held: 0, released: 0, pendingCapture: 0, count: 0 };
+      summary[cur].count += row.count;
+      if (row._id.transferStatus === "on_hold") summary[cur].held += row.total;
+      else if (row._id.transferStatus === "released")
+        summary[cur].released += row.total;
+      else if (row._id.transferStatus === "pending")
+        summary[cur].pendingCapture += row.total;
+    }
+    return summary;
+  }
+
+  /**
    * Internal helper. Creates the on-hold Route transfer to the shopkeeper.
    * Safe to call from either the verify endpoint or the payment.captured
    * webhook — guards against double-creation via transferId presence.

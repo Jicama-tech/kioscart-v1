@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { GmailPaymentSection } from "./GmailPaymentSection";
+import { RazorpayOnboarding } from "./RazorpayOnboarding";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -3459,13 +3460,33 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             />
           </div>
 
-          {/* 🔧 RAZORPAY SETUP SECTION - INLINE BELOW TOGGLE */}
+          {/* Razorpay Route onboarding (KYC + linked account + KYC docs) */}
           {paymentMethods.razorpayCards && (
-            <Card className="border-indigo-200 bg-indigo-50 animate-in slide-in-from-top">
+            <Card className="border-indigo-200 animate-in slide-in-from-top">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-indigo-900">
                   <CreditCard className="w-5 h-5" />
                   Razorpay Payment Setup
+                </CardTitle>
+                <CardDescription>
+                  Onboarding for accepting cards/UPI/netbanking through KiosCart.
+                  Funds are held in our partner account until released by admin.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RazorpayOnboarding shopProfile={shopProfile as any} />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Legacy razorpay setup block (kept for reference; remove once
+              the new onboarding flow above is verified end-to-end). */}
+          {false && paymentMethods.razorpayCards && (
+            <Card className="border-indigo-200 bg-indigo-50 animate-in slide-in-from-top">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-indigo-900">
+                  <CreditCard className="w-5 h-5" />
+                  Razorpay Payment Setup (legacy)
                 </CardTitle>
                 <CardDescription>
                   Configure Razorpay to accept cards, UPI and netbanking from

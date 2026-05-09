@@ -9,6 +9,7 @@ import {
   Briefcase,
   Store,
   Shield,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,6 +29,7 @@ const navigationItems = [
   { title: "Shopkeepers", url: "/admin-dashboard/shopkeepers", icon: Store },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Agents", url: "/admin-dashboard/agents", icon: Briefcase },
+  { title: "Payments", url: "/admin-dashboard/payments", icon: Wallet },
   { title: "Pricing", url: "/admin/pricing", icon: DollarSign },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
   { title: "Settings", url: "/admin/settings", icon: Settings },

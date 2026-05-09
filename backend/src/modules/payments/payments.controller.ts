@@ -4,6 +4,7 @@ import {
   Get,
   Query,
   Body,
+  Param,
   Req,
   UploadedFile,
   UseInterceptors,
@@ -47,6 +48,12 @@ export class PaymentsController {
   @Post("verify")
   async verifyPayment(@Body() dto: VerifyPaymentDto) {
     return this.checkoutService.verifyPayment(dto);
+  }
+
+  @Get("earnings/:shopkeeperId")
+  @UseGuards(AuthGuard("jwt"))
+  async earningsSummary(@Param("shopkeeperId") shopkeeperId: string) {
+    return this.checkoutService.earningsSummaryFor(shopkeeperId);
   }
 
   @Post("decode-qr")
