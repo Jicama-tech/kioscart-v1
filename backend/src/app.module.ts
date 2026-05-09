@@ -26,10 +26,12 @@ import { OperatorsModule } from "./modules/operators/operators.module";
 import { PaymentEmailsModule } from "./modules/payment-emails/payment-emails.module";
 import { AgentsModule } from "./modules/agents/agents.module";
 import { ChatbotModule } from "./modules/chatbot/chatbot.module";
+import { PaymentGatewaysModule } from "./modules/payment-gateways/payment-gateways.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    PaymentGatewaysModule,
     MailModule,
     MongooseModule.forRoot(
       process.env.MONGO_URI || "mongodb://127.0.0.1:27017/eventsh_dev",
