@@ -64,13 +64,22 @@ export function useRazorpayCheckout() {
 
   const createPaymentOrder = useCallback(async (args: CreateOrderArgs) => {
     const token = localStorage.getItem("token") || "";
+    const body = {
+      orderId: args.orderId,
+      shopkeeperId: args.shopkeeperId,
+      amount: args.amount,
+      ...(args.currency ? { currency: args.currency } : {}),
+      ...(args.customerName ? { customerName: args.customerName } : {}),
+      ...(args.customerEmail ? { customerEmail: args.customerEmail } : {}),
+      ...(args.customerPhone ? { customerPhone: args.customerPhone } : {}),
+    };
     const res = await fetch(`${apiURL}/payments/order`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify(args),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || "Failed to create payment order");

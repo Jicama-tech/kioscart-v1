@@ -105,6 +105,29 @@ export class RazorpayLinkedAccount {
   @Prop()
   verifiedAt?: Date;
 
+  @Prop({
+    type: String,
+    enum: ["route", "direct"],
+    default: "route",
+  })
+  mode?: string;
+
+  @Prop()
+  directKeyId?: string;
+
+  @Prop()
+  directKeySecretEncrypted?: string;
+
+  @Prop()
+  directKeyVerifiedAt?: Date;
+
+  /** Per-shop kill switch for the Direct mode flow. When false, customers
+   * won't see the Razorpay card at checkout even if keys are stored.
+   * Undefined is treated as enabled (back-compat for shops onboarded
+   * before this flag existed). */
+  @Prop()
+  directEnabled?: boolean;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 

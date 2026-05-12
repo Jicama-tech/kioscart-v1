@@ -40,12 +40,14 @@ export class PaymentsController {
   // ---- Razorpay customer-checkout flow (India only for now) ----
 
   @Post("order")
+  @UseGuards(AuthGuard("jwt"))
   async createPaymentOrder(@Body() dto: CreatePaymentOrderDto, @Req() req: any) {
-    const customerUserId = req.user?.sub;
+    const customerUserId = req.user?.userId || req.user?.sub;
     return this.checkoutService.createPaymentOrder(dto, customerUserId);
   }
 
   @Post("verify")
+  @UseGuards(AuthGuard("jwt"))
   async verifyPayment(@Body() dto: VerifyPaymentDto) {
     return this.checkoutService.verifyPayment(dto);
   }

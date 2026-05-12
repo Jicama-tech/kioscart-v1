@@ -40,11 +40,32 @@ export class RazorpayGateway implements PaymentGateway {
     }
   }
 
-  private authHeader(): string {
-    return (
-      "Basic " +
-      Buffer.from(`${this.keyId}:${this.keySecret}`).toString("base64")
-    );
+  private authHeader(creds?: { keyId: string; keySecret: string }): string {
+    const id = creds?.keyId || this.keyId;
+    const secret = creds?.keySecret || this.keySecret;
+    return "Basic " + Buffer.from(`${id}:${secret}`).toString("base64");
+  }
+
+  /** One-shot probe used by the Direct-mode onboarding flow to verify a shop's
+   * pasted keys actually work, before we save them. Hits /v1/payments which
+   * returns 200 even with zero history; non-200 = bad creds. */
+  async verifyDirectCredentials(keyId: string, keySecret: string) {
+    try {
+      await axios.request({
+        method: "GET",
+        url: `${RAZORPAY_API_BASE_V1}/payments?count=1`,
+        headers: { Authorization: this.authHeader({ keyId, keySecret }) },
+        timeout: 15000,
+      });
+      return { ok: true as const };
+    } catch (err: any) {
+      const description =
+        err?.response?.data?.error?.description ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Invalid Razorpay credentials";
+      return { ok: false as const, error: description };
+    }
   }
 
   private async request<T = any>(
@@ -52,6 +73,7 @@ export class RazorpayGateway implements PaymentGateway {
     url: string,
     body?: any,
     headers?: Record<string, string>,
+    creds?: { keyId: string; keySecret: string },
   ): Promise<T> {
     try {
       const res = await axios.request<T>({
@@ -59,7 +81,7 @@ export class RazorpayGateway implements PaymentGateway {
         url,
         data: body,
         headers: {
-          Authorization: this.authHeader(),
+          Authorization: this.authHeader(creds),
           "Content-Type": "application/json",
           ...(headers || {}),
         },
@@ -238,7 +260,10 @@ export class RazorpayGateway implements PaymentGateway {
     return { productConfigId: product.id, raw: product };
   }
 
-  async createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
+  async createOrder(
+    input: CreateOrderInput,
+    creds?: { keyId: string; keySecret: string },
+  ): Promise<CreateOrderResult> {
     const payload = {
       amount: Math.round(input.amount * 100),
       currency: input.currency,
@@ -250,6 +275,8 @@ export class RazorpayGateway implements PaymentGateway {
       "POST",
       `${RAZORPAY_API_BASE_V1}/orders`,
       payload,
+      undefined,
+      creds,
     );
     return {
       gatewayOrderId: order.id,
@@ -259,19 +286,29 @@ export class RazorpayGateway implements PaymentGateway {
     };
   }
 
-  verifyPaymentSignature(input: {
-    gatewayOrderId: string;
-    gatewayPaymentId: string;
-    signature: string;
-  }): boolean {
+  verifyPaymentSignature(
+    input: {
+      gatewayOrderId: string;
+      gatewayPaymentId: string;
+      signature: string;
+    },
+    creds?: { keyId: string; keySecret: string },
+  ): boolean {
+    const secret = creds?.keySecret || this.keySecret;
     const expected = crypto
-      .createHmac("sha256", this.keySecret)
+      .createHmac("sha256", secret)
       .update(`${input.gatewayOrderId}|${input.gatewayPaymentId}`)
       .digest("hex");
-    return crypto.timingSafeEqual(
-      Buffer.from(expected),
-      Buffer.from(input.signature),
-    );
+    // timingSafeEqual throws if buffers differ in length — an attacker-supplied
+    // signature of the wrong length must not crash the request handler.
+    const expectedBuf = Buffer.from(expected);
+    const givenBuf = Buffer.from(input.signature || "");
+    if (givenBuf.length !== expectedBuf.length) return false;
+    try {
+      return crypto.timingSafeEqual(expectedBuf, givenBuf);
+    } catch {
+      return false;
+    }
   }
 
   async createOnHoldTransfer(
@@ -326,11 +363,14 @@ export class RazorpayGateway implements PaymentGateway {
     return { reversalId: result.id, raw: result };
   }
 
-  async refundPayment(input: {
-    gatewayPaymentId: string;
-    amount?: number;
-    notes?: Record<string, string>;
-  }) {
+  async refundPayment(
+    input: {
+      gatewayPaymentId: string;
+      amount?: number;
+      notes?: Record<string, string>;
+    },
+    creds?: { keyId: string; keySecret: string },
+  ) {
     const payload: any = {};
     if (input.amount) payload.amount = Math.round(input.amount * 100);
     if (input.notes) payload.notes = input.notes;
@@ -338,6 +378,8 @@ export class RazorpayGateway implements PaymentGateway {
       "POST",
       `${RAZORPAY_API_BASE_V1}/payments/${input.gatewayPaymentId}/refund`,
       payload,
+      undefined,
+      creds,
     );
     return { refundId: refund.id, raw: refund };
   }

@@ -16,6 +16,9 @@ import { Order } from "../orders/entities/order.entity";
 import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
 import { PaymentGatewayFactory } from "../payment-gateways/gateway.factory";
 import { CreatePaymentOrderDto, VerifyPaymentDto } from "./dto/checkout.dto";
+import { decryptSecret } from "../../common/secrets.util";
+
+type RazorpayCreds = { keyId: string; keySecret: string } | undefined;
 
 const COUNTRY_TO_CURRENCY: Record<string, "INR" | "SGD"> = {
   IN: "INR",
@@ -49,50 +52,85 @@ export class CheckoutService {
 
     const shop = await this.shopkeeperModel.findById(dto.shopkeeperId);
     if (!shop) throw new NotFoundException("Shopkeeper not found");
-    if (!shop.razorpay?.accountId) {
-      throw new BadRequestException(
-        "Shopkeeper has not completed payment-gateway onboarding.",
-      );
-    }
-    if (shop.razorpay.status !== "active") {
-      throw new BadRequestException(
-        `Shopkeeper KYC is ${shop.razorpay.status}. Card payments unavailable until KYC is approved.`,
-      );
+
+    const isDirect = shop.razorpay?.mode === "direct";
+
+    if (isDirect) {
+      if (!shop.razorpay?.directKeyId || !shop.razorpay?.directKeySecretEncrypted) {
+        throw new BadRequestException(
+          "Shopkeeper has not configured Razorpay Direct keys yet.",
+        );
+      }
+      // Per-shop kill switch — toggle is OFF in Settings. Customer should
+      // fall back to the QR flow, not see a Razorpay error.
+      if (shop.razorpay.directEnabled === false) {
+        throw new BadRequestException(
+          "Card payments are currently disabled for this shop. Please use the QR code option.",
+        );
+      }
+    } else {
+      if (!shop.razorpay?.accountId) {
+        throw new BadRequestException(
+          "Shopkeeper has not completed payment-gateway onboarding.",
+        );
+      }
+      if (shop.razorpay.status !== "active") {
+        throw new BadRequestException(
+          `Shopkeeper KYC is ${shop.razorpay.status}. Card payments unavailable until KYC is approved.`,
+        );
+      }
     }
 
-    const country = (shop.country || shop.razorpay.country || "IN").toUpperCase();
+    const country = (shop.country || shop.razorpay?.country || "IN").toUpperCase();
     const gateway = this.gatewayFactory.forCountry(country);
     const currency = (dto.currency || COUNTRY_TO_CURRENCY[country] || "INR") as
       | "INR"
       | "SGD";
 
+    // SECURITY: amount comes from the persisted order, never the client.
+    // Tampering protection — without this a customer can POST any amount.
+    const amount = (order as any).totalAmount;
+    if (typeof amount !== "number" || amount < 1) {
+      throw new BadRequestException("Order has no valid total amount.");
+    }
     const commissionPct = (shop as any).commissionPercentage ?? 2;
-    const commission = Math.round(dto.amount * commissionPct) / 100;
-    const netAmount = Math.round((dto.amount - commission) * 100) / 100;
+    const commission = Math.round(amount * commissionPct) / 100;
+    const netAmount = Math.round((amount - commission) * 100) / 100;
 
-    const result = await gateway.createOrder({
-      amount: dto.amount,
-      currency,
-      receipt: `kc_${order.orderId}`.slice(0, 40),
-      notes: {
-        kioscart_order_id: order.orderId,
-        shopkeeper_id: dto.shopkeeperId,
-        ...(customerUserId ? { user_id: customerUserId } : {}),
+    const directCreds: RazorpayCreds = isDirect
+      ? {
+          keyId: shop.razorpay!.directKeyId!,
+          keySecret: decryptSecret(shop.razorpay!.directKeySecretEncrypted!),
+        }
+      : undefined;
+
+    const result = await gateway.createOrder(
+      {
+        amount,
+        currency,
+        receipt: `kc_${order.orderId}`.slice(0, 40),
+        notes: {
+          kioscart_order_id: order.orderId,
+          shopkeeper_id: dto.shopkeeperId,
+          ...(customerUserId ? { user_id: customerUserId } : {}),
+        },
       },
-    });
+      directCreds,
+    );
 
     const payment = await this.paymentModel.create({
       orderId: order._id,
       shopkeeperId: new Types.ObjectId(dto.shopkeeperId),
       gateway: gateway.providerName,
+      gatewayMode: isDirect ? "direct" : "route",
       gatewayOrderId: result.gatewayOrderId,
-      amount: dto.amount,
+      amount,
       commissionAmount: commission,
       netAmount,
       currency,
       country,
       status: PaymentStatus.Created,
-      transferStatus: TransferStatus.Pending,
+      transferStatus: isDirect ? TransferStatus.Released : TransferStatus.Pending,
     });
 
     await this.orderModel.findByIdAndUpdate(order._id, {
@@ -104,10 +142,13 @@ export class CheckoutService {
     return {
       paymentId: payment._id,
       gatewayOrderId: result.gatewayOrderId,
-      amount: dto.amount,
+      amount,
       currency,
-      keyId: process.env.RAZORPAY_PARTNER_KEY_ID,
-      shopkeeperAccountId: shop.razorpay.accountId,
+      keyId: isDirect
+        ? shop.razorpay!.directKeyId
+        : process.env.RAZORPAY_PARTNER_KEY_ID,
+      shopkeeperAccountId: isDirect ? undefined : shop.razorpay?.accountId,
+      mode: isDirect ? "direct" : "route",
       customer: {
         name: dto.customerName,
         email: dto.customerEmail,
@@ -128,12 +169,28 @@ export class CheckoutService {
     });
     if (!payment) throw new NotFoundException("Payment not found");
 
+    const shop = await this.shopkeeperModel.findById(payment.shopkeeperId);
+    const isDirect =
+      (payment as any).gatewayMode === "direct" ||
+      shop?.razorpay?.mode === "direct";
+
+    const directCreds: RazorpayCreds =
+      isDirect && shop?.razorpay?.directKeyId && shop?.razorpay?.directKeySecretEncrypted
+        ? {
+            keyId: shop.razorpay.directKeyId,
+            keySecret: decryptSecret(shop.razorpay.directKeySecretEncrypted),
+          }
+        : undefined;
+
     const gateway = this.gatewayFactory.forProvider(payment.gateway);
-    const ok = gateway.verifyPaymentSignature({
-      gatewayOrderId: dto.razorpayOrderId,
-      gatewayPaymentId: dto.razorpayPaymentId,
-      signature: dto.razorpaySignature,
-    });
+    const ok = gateway.verifyPaymentSignature(
+      {
+        gatewayOrderId: dto.razorpayOrderId,
+        gatewayPaymentId: dto.razorpayPaymentId,
+        signature: dto.razorpaySignature,
+      },
+      directCreds,
+    );
     if (!ok) throw new BadRequestException("Invalid payment signature");
 
     if (payment.status !== PaymentStatus.Captured) {
@@ -141,6 +198,10 @@ export class CheckoutService {
       payment.gatewaySignature = dto.razorpaySignature;
       payment.status = PaymentStatus.Captured;
       payment.capturedAt = new Date();
+      if (isDirect) {
+        payment.transferStatus = TransferStatus.Released;
+        payment.releasedAt = new Date();
+      }
       await payment.save();
 
       await this.orderModel.findByIdAndUpdate(payment.orderId, {
@@ -149,12 +210,22 @@ export class CheckoutService {
       });
     }
 
+    let transferError: string | undefined;
     if (
+      !isDirect &&
       !payment.transferId &&
       payment.transferStatus !== TransferStatus.OnHold &&
       payment.transferStatus !== TransferStatus.Released
     ) {
-      await this.createOnHoldTransferForPayment(payment);
+      try {
+        await this.createOnHoldTransferForPayment(payment);
+      } catch (err: any) {
+        transferError = err?.message || "Transfer creation failed";
+        this.logger.warn(
+          `Payment ${payment._id} captured but on-hold transfer failed: ${transferError}. ` +
+            `Will be retried by webhook handler.`,
+        );
+      }
     }
 
     return {
@@ -162,6 +233,7 @@ export class CheckoutService {
       paymentId: payment._id,
       transferId: payment.transferId,
       transferStatus: payment.transferStatus,
+      ...(transferError ? { transferError } : {}),
     };
   }
 

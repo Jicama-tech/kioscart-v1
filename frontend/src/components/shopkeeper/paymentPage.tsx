@@ -37,6 +37,8 @@ import { Item } from "@radix-ui/react-select";
 import { Separator } from "../ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useRazorpayCheckout } from "@/hooks/useRazorpayCheckout";
+import { CreditCard } from "lucide-react";
 
 // Type definition for UPI Apps
 interface UpiApp {
@@ -86,6 +88,8 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [transactionId, setTransactionId] = useState("");
   const [timeLeft, setTimeLeft] = useState(24 * 60 * 60); // 24 hours in seconds
+  const [razorpayActive, setRazorpayActive] = useState(false);
+  const { openCheckout, scriptReady } = useRazorpayCheckout();
 
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isAndroid = /Android/i.test(navigator.userAgent);
@@ -208,6 +212,21 @@ export default function PaymentPage() {
         setDynamicQR(data?.data?.dynamicQR);
         setMobileId(data?.data.phone);
         setCountry(data?.data.country);
+        const rzp = data?.data?.razorpay;
+        const shopCountry = (data?.data?.country || "").toUpperCase();
+        // Direct mode: configured AND not toggled off. Route mode: existing
+        // accountId + status check. Either path requires India for now.
+        const directReady =
+          rzp?.mode === "direct" &&
+          !!rzp?.directKeyId &&
+          rzp?.directEnabled !== false;
+        const routeReady =
+          rzp?.mode !== "direct" &&
+          !!rzp?.accountId &&
+          rzp?.status === "active";
+        if ((directReady || routeReady) && shopCountry === "IN") {
+          setRazorpayActive(true);
+        }
       }
     } catch (error) {
       console.error("Error fetching shopkeeper details:", error);
@@ -585,6 +604,94 @@ Thank you!`,
 
     const phone = state.whatsAppNumber.replace(/\D/g, "");
     return `https://wa.me/${phone}?text=${text}`;
+  }
+
+  async function handleRazorpayPay(
+    methodPreference?: "card" | "upi" | "netbanking" | "wallet",
+  ) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const sanitizedItems = (state.cartItems || []).map((it: any) => ({
+        productId: it.productId,
+        productName: it.productName,
+        price: it.price,
+        quantity: it.quantity,
+        variantTitle: it.variantTitle,
+        subcategoryName: it.subcategoryName,
+        image: it.image,
+        trackQuantity: !!it.trackQuantity,
+        optionTitle: it.optionTitle,
+        optionPrice: it.optionPrice,
+      }));
+      const orderData = {
+        orderId: state.orderId,
+        userId: state.userId,
+        shopkeeperId: state.shopkeeperId,
+        items: sanitizedItems,
+        totalAmount: state.total || 0,
+        orderType: state.orderType,
+        instructions: state.instructions,
+        deliveryAddress: state.deliveryAddress,
+        pickupDate: state.pickupDate,
+        pickupTime: state.pickupTime,
+        paymentConfirmed: false,
+        whatsAppNumber: state.userWhatsApp,
+        fullName: state.fullName,
+        couponCode: state.appliedCoupon?._id,
+      };
+      const res = await fetch(`${apiUrl}/orders/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.message || "Failed to create order");
+      }
+      const created = await res.json();
+      const mongoOrderId = created?._id || created?.id || created?.data?._id;
+      if (!mongoOrderId) throw new Error("Server did not return order id");
+
+      await openCheckout({
+        orderId: mongoOrderId,
+        shopkeeperId: state.shopkeeperId,
+        amount: state.total,
+        shopName: state.merchantName,
+        customerName: state.fullName,
+        customerPhone: state.userWhatsApp,
+        ...(methodPreference ? { methods: [methodPreference] } : {}),
+        onSuccess: (paymentId) => {
+          setTransactionId(paymentId);
+          setPaymentSubmitted(true);
+          clearCart(state.shopkeeperId);
+          toast({
+            duration: 6000,
+            title: "Payment successful",
+            description: `Razorpay payment ${paymentId} captured.`,
+          });
+          setIsSubmitting(false);
+        },
+        onFailure: (err) => {
+          setIsSubmitting(false);
+          toast({
+            duration: 5000,
+            title: "Payment failed",
+            description: err?.message || "Please try again",
+            variant: "destructive",
+          });
+        },
+        onDismiss: () => setIsSubmitting(false),
+      });
+    } catch (err: any) {
+      setIsSubmitting(false);
+      toast({
+        duration: 5000,
+        title: "Error",
+        description: err.message || "Could not start Razorpay payment",
+        variant: "destructive",
+      });
+    }
   }
 
   async function handlePaymentCompletion() {
@@ -1001,6 +1108,178 @@ Thank you!`,
     return <LoadingScreen />;
   }
 
+  if (paymentSubmitted) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-10 px-4">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Success headline */}
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
+              <CheckCircle className="w-10 h-10 text-green-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Order placed — thanks!
+            </h1>
+            <p className="text-sm text-slate-600">
+              The shop has been notified. Below is your temporary order quote.
+            </p>
+          </div>
+
+          {/* Receipt */}
+          <div className="rounded-xl border-2 border-dashed border-green-300 bg-white overflow-hidden shadow-sm">
+            <div className="bg-green-50 px-4 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-green-700 font-semibold">
+                  Customer Quote
+                </p>
+                <p className="text-sm font-bold text-slate-800">
+                  Order #{state.orderId}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] text-slate-500">Total</p>
+                <p className="text-base font-bold text-green-700">
+                  {formatPrice(state.total)}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-4 py-3 space-y-3 text-sm text-slate-700">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
+                  {state.orderType === "delivery" ? "Delivery" : "Pickup"}
+                </p>
+                {state.orderType === "delivery" && state.deliveryAddress ? (
+                  <p className="leading-relaxed">
+                    {[
+                      state.deliveryAddress.street,
+                      state.deliveryAddress.city,
+                      state.deliveryAddress.state,
+                      state.deliveryAddress.zipCode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+                ) : (
+                  <p className="leading-relaxed">
+                    {state.pickupDate}
+                    {state.pickupTime ? ` · ${state.pickupTime}` : ""}
+                    {pickupAddress ? (
+                      <span className="block text-slate-500 text-xs">
+                        {pickupAddress}
+                      </span>
+                    ) : null}
+                  </p>
+                )}
+                {state.instructions && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Note: {state.instructions}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
+                  Items
+                </p>
+                <ul className="space-y-1">
+                  {(state.cartItems || []).map((it: any, idx: number) => {
+                    const extras = [
+                      it.optionTitle,
+                      it.subcategoryName,
+                      it.variantTitle,
+                    ]
+                      .filter((v: string) => v && v !== "Default")
+                      .join(" · ");
+                    return (
+                      <li key={idx} className="flex justify-between gap-3">
+                        <span className="flex-1">
+                          {it.productName}
+                          {extras ? (
+                            <span className="text-xs text-slate-500">
+                              {" "}
+                              ({extras})
+                            </span>
+                          ) : null}
+                          <span className="text-slate-500">
+                            {" "}
+                            ×{it.quantity}
+                          </span>
+                        </span>
+                        <span className="whitespace-nowrap">
+                          {formatPrice(it.price * it.quantity)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div className="border-t pt-2 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>{formatPrice(state.subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Delivery</span>
+                  <span>{formatPrice(state.deliveryFee)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax {state.taxPercentage}%</span>
+                  <span>{formatPrice(state.tax)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Discount {state.discountPercentage}%</span>
+                  <span>-{formatPrice(state.discount)}</span>
+                </div>
+                {state.appliedCoupon && (
+                  <div className="flex justify-between">
+                    <span>Coupon ({state.appliedCoupon.code})</span>
+                    <span>-{formatPrice(state.couponDiscount)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border-t px-4 py-2.5 text-[11px] text-slate-600 leading-snug">
+              Keep this as a temporary quote. The vendor will generate and share
+              the official receipt PDF on their side once payment is verified.
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <Button
+              onClick={handleDownloadReceipt}
+              variant="outline"
+              className="w-full"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+            {state.whatsAppNumber && (
+              <a
+                href={getWhatsappLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full h-10 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium"
+              >
+                <FaWhatsapp size={18} />
+                Send to Shopkeeper
+              </a>
+            )}
+            <Button
+              onClick={backToStore}
+              className="w-full bg-primary text-white"
+            >
+              Back to Store
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 overflow-x-hidden">
       <div className="max-w-7xl mx-auto w-full">
@@ -1209,16 +1488,142 @@ Thank you!`,
                   </div>
                 </CardHeader>
                 <CardContent className="text-center space-y-6">
-                  {/* Download QR — placed above the QR so it's always visible,
-                      including while the QR itself is still generating. */}
-                  <Button
-                    onClick={handleDownload}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download QR
-                  </Button>
+                  {razorpayActive && country === "IN" && (
+                    <div className="rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white text-left">
+                      {/* Branded header */}
+                      <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-5 py-4 text-white">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide opacity-80">
+                              Secure Checkout
+                            </p>
+                            <p className="font-semibold text-lg">
+                              {state.merchantName || "KiosCart"}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs opacity-80">Amount to pay</p>
+                            <p className="text-2xl font-bold">
+                              {formatPrice(state.total)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Customer info preview */}
+                      <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 text-sm text-slate-700">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900">
+                            {state.fullName || "Customer"}
+                          </span>
+                          <span className="text-slate-400">·</span>
+                          <span>{state.userWhatsApp}</span>
+                        </div>
+                      </div>
+
+                      {/* Method tiles */}
+                      <div className="p-5 space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Choose payment method
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleRazorpayPay("card")}
+                            disabled={isSubmitting || !scriptReady}
+                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <CreditCard className="h-6 w-6 text-indigo-600" />
+                            <span className="text-sm font-semibold text-slate-800">
+                              Cards
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              Visa · Mastercard · RuPay
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRazorpayPay("upi")}
+                            disabled={isSubmitting || !scriptReady}
+                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Scan className="h-6 w-6 text-indigo-600" />
+                            <span className="text-sm font-semibold text-slate-800">
+                              UPI
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              GPay · PhonePe · Paytm
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRazorpayPay("netbanking")}
+                            disabled={isSubmitting || !scriptReady}
+                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Store className="h-6 w-6 text-indigo-600" />
+                            <span className="text-sm font-semibold text-slate-800">
+                              Netbanking
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              All major banks
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRazorpayPay("wallet")}
+                            disabled={isSubmitting || !scriptReady}
+                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ShoppingCart className="h-6 w-6 text-indigo-600" />
+                            <span className="text-sm font-semibold text-slate-800">
+                              Wallets
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              Mobikwik · Freecharge
+                            </span>
+                          </button>
+                        </div>
+
+                        <Button
+                          className="w-full py-6 text-base font-semibold bg-indigo-600 hover:bg-indigo-700 mt-2"
+                          onClick={() => handleRazorpayPay()}
+                          disabled={isSubmitting || !scriptReady}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader className="mr-2 h-5 w-5 animate-spin" />
+                              Opening secure checkout…
+                            </>
+                          ) : (
+                            <>
+                              Pay {formatPrice(state.total)}
+                              <ArrowLeft className="ml-2 h-4 w-4 rotate-180" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Trust footer */}
+                      <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-600">
+                        <span className="flex items-center gap-1.5">
+                          <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                          256-bit SSL · PCI-DSS compliant
+                        </span>
+                        <span className="font-semibold text-slate-700">
+                          Powered by Razorpay
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {razorpayActive && country === "IN" && (
+                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                      <div className="flex-1 h-px bg-slate-200" />
+                      <span>Or scan QR to pay manually</span>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+                  )}
                   <div ref={qrContainerRef} className="space-y-6">
                   {/* Dynamic QR Code */}
                   {dynamicQR && country === "IN" && (

@@ -21,6 +21,7 @@ import { extname } from "path";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { CreateRazorpayLinkedAccountDto } from "./dto/razorpay.dto";
 import { CreateRazorpayStakeholderDto } from "./dto/razorpay-stakeholder.dto";
+import { SaveDirectKeysDto, ToggleDirectDto } from "./dto/razorpay-direct.dto";
 import { UpdateShopkeeperDto } from "./dto/updateShopkeeper.dto";
 
 // DTO for OTP requests
@@ -99,7 +100,7 @@ export class ShopkeepersController {
     @Body() dto: CreateRazorpayLinkedAccountDto,
     @Req() req: any,
   ) {
-    const shopkeeperId = req.user.sub;
+    const shopkeeperId = req.user.userId || req.user.sub;
     return this.shopkeepersService.createRazorpayLinkedAccount(
       shopkeeperId,
       dto,
@@ -118,7 +119,10 @@ export class ShopkeepersController {
     @Body() dto: CreateRazorpayStakeholderDto,
     @Req() req: any,
   ) {
-    return this.shopkeepersService.createRazorpayStakeholder(req.user.sub, dto);
+    return this.shopkeepersService.createRazorpayStakeholder(
+      req.user.userId || req.user.sub,
+      dto,
+    );
   }
 
   @Post("razorpay/documents/:slot")
@@ -147,7 +151,7 @@ export class ShopkeepersController {
       throw new BadRequestException(`Invalid document slot: ${slot}`);
     }
     return this.shopkeepersService.uploadRazorpayKycDocument(
-      req.user.sub,
+      req.user.userId || req.user.sub,
       slot as any,
       file as any,
     );
@@ -156,7 +160,44 @@ export class ShopkeepersController {
   @Post("razorpay/submit-for-review")
   @UseGuards(AuthGuard("jwt"))
   async submitRazorpayForReview(@Req() req: any) {
-    return this.shopkeepersService.submitRazorpayForReview(req.user.sub);
+    return this.shopkeepersService.submitRazorpayForReview(
+      req.user.userId || req.user.sub,
+    );
+  }
+
+  /** Direct mode: shopkeeper saves their own Razorpay account keys. */
+  @Post("razorpay/direct/save")
+  @UseGuards(AuthGuard("jwt"))
+  async saveRazorpayDirectKeys(
+    @Body() body: SaveDirectKeysDto,
+    @Req() req: any,
+  ) {
+    const shopkeeperId = req.user.userId || req.user.sub;
+    return this.shopkeepersService.saveDirectRazorpayKeys(
+      shopkeeperId,
+      body.keyId,
+      body.keySecret,
+    );
+  }
+
+  @Get("razorpay/direct/status")
+  @UseGuards(AuthGuard("jwt"))
+  async getRazorpayDirectStatus(@Req() req: any) {
+    const shopkeeperId = req.user.userId || req.user.sub;
+    return this.shopkeepersService.getDirectRazorpayStatus(shopkeeperId);
+  }
+
+  @Post("razorpay/direct/toggle")
+  @UseGuards(AuthGuard("jwt"))
+  async toggleRazorpayDirect(
+    @Body() body: ToggleDirectDto,
+    @Req() req: any,
+  ) {
+    const shopkeeperId = req.user.userId || req.user.sub;
+    return this.shopkeepersService.setDirectRazorpayEnabled(
+      shopkeeperId,
+      !!body.enabled,
+    );
   }
 
   @Post("resend-otp")

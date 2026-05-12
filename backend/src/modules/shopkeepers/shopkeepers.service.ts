@@ -29,6 +29,7 @@ import {
 } from "../operators/entities/operator.entity";
 import { Plan, PlanDocument } from "../plans/entities/plan.entity";
 import { PaymentGatewayFactory } from "../payment-gateways/gateway.factory";
+import { encryptSecret } from "../../common/secrets.util";
 
 @Injectable()
 export class ShopkeepersService {
@@ -155,6 +156,106 @@ export class ShopkeepersService {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Direct mode: shopkeeper pastes their own Razorpay test/live keys.
+   * We verify the keys against Razorpay's /v1/payments endpoint before saving,
+   * encrypt the secret, and flip the shop into "direct" mode so customer
+   * checkout uses these keys instead of platform Route credentials.
+   */
+  async saveDirectRazorpayKeys(
+    shopkeeperId: string,
+    keyId: string,
+    keySecret: string,
+  ) {
+    if (!keyId || !keySecret) {
+      throw new BadRequestException("Both Key ID and Secret are required.");
+    }
+    if (!keyId.startsWith("rzp_test_") && !keyId.startsWith("rzp_live_")) {
+      throw new BadRequestException(
+        "Key ID must start with rzp_test_ or rzp_live_.",
+      );
+    }
+
+    const gateway: any = this.gatewayFactory.forProvider("razorpay");
+    const probe = await gateway.verifyDirectCredentials(keyId, keySecret);
+    if (!probe.ok) {
+      throw new BadRequestException(
+        `Razorpay rejected these credentials: ${probe.error}`,
+      );
+    }
+
+    const shop = await this.shopModel.findById(shopkeeperId);
+    if (!shop) throw new BadRequestException("Shopkeeper not found");
+
+    const next = {
+      ...(shop.razorpay ? (shop.razorpay as any).toObject?.() ?? shop.razorpay : {}),
+      mode: "direct",
+      directKeyId: keyId,
+      directKeySecretEncrypted: encryptSecret(keySecret),
+      directKeyVerifiedAt: new Date(),
+      status: "active",
+      country: (shop.country || "IN").toUpperCase(),
+    };
+
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, { razorpay: next });
+
+    this.logger.log(
+      `Direct Razorpay keys saved for shopkeeper ${shopkeeperId} (${keyId})`,
+    );
+
+    return {
+      mode: "direct",
+      keyId,
+      verifiedAt: next.directKeyVerifiedAt,
+      message: "Razorpay Direct keys verified and saved.",
+    };
+  }
+
+  /** Lookup helper — frontend uses this to know what's already configured.
+   * Never returns the secret, only the key id + verification metadata. */
+  async getDirectRazorpayStatus(shopkeeperId: string) {
+    const shop = await this.shopModel.findById(shopkeeperId).lean();
+    const r = (shop as any)?.razorpay;
+    return {
+      mode: r?.mode || "route",
+      configured: !!r?.directKeyId,
+      // Undefined directEnabled => treated as enabled when configured.
+      enabled: r?.directKeyId ? r?.directEnabled !== false : false,
+      keyId: r?.directKeyId
+        ? `${r.directKeyId.slice(0, 12)}…${r.directKeyId.slice(-4)}`
+        : null,
+      verifiedAt: r?.directKeyVerifiedAt || null,
+    };
+  }
+
+  /** Flip the per-shop kill switch for Razorpay Direct customer checkout.
+   * Turning ON without saved keys is rejected — frontend should guide the
+   * shopkeeper to save keys first. */
+  async setDirectRazorpayEnabled(shopkeeperId: string, enabled: boolean) {
+    const shop = await this.shopModel.findById(shopkeeperId);
+    if (!shop) throw new BadRequestException("Shopkeeper not found");
+
+    if (enabled && !shop.razorpay?.directKeyId) {
+      throw new BadRequestException(
+        "Save your Razorpay Key ID and Secret first before enabling card payments.",
+      );
+    }
+
+    const next = {
+      ...(shop.razorpay
+        ? (shop.razorpay as any).toObject?.() ?? shop.razorpay
+        : {}),
+      directEnabled: enabled,
+    };
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, { razorpay: next });
+
+    this.logger.log(
+      `Razorpay Direct ${enabled ? "ENABLED" : "DISABLED"} for shop ${shopkeeperId}`,
+    );
+
+    return { enabled, configured: !!shop.razorpay?.directKeyId };
   }
 
   async createRazorpayLinkedAccount(

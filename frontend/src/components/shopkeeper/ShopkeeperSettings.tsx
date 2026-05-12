@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { GmailPaymentSection } from "./GmailPaymentSection";
 import { RazorpayOnboarding } from "./RazorpayOnboarding";
+import { RazorpayDirectSetup } from "./RazorpayDirectSetup";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -875,6 +876,85 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     // ...other methods
   });
 
+  // Tracks Razorpay Direct configuration + enabled state for this shopkeeper.
+  // configured = keys are saved; enabled = customer-facing toggle is ON.
+  // Toggle ON-without-keys is rejected at Save time.
+  const [razorpayConfigured, setRazorpayConfigured] = useState(false);
+  const [razorpayToggleSaving, setRazorpayToggleSaving] = useState(false);
+  // Ref mirrors razorpayConfigured so the toggle handler always sees the
+  // latest value (closure-captured state would go stale across renders).
+  const razorpayConfiguredRef = useRef(false);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+    if (!token) return;
+    fetch(`${__API_URL__}/shopkeepers/razorpay/direct/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.configured && d?.mode === "direct") {
+          setRazorpayConfigured(true);
+          razorpayConfiguredRef.current = true;
+          // Reflect persisted enabled state (defaults to true on existing data).
+          setPaymentMethods((prev) => ({
+            ...prev,
+            razorpayCards: d.enabled !== false,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function persistRazorpayToggle(enabled: boolean) {
+    const token =
+      sessionStorage.getItem("token") || localStorage.getItem("token");
+    if (!token) return;
+    setRazorpayToggleSaving(true);
+    try {
+      const res = await fetch(
+        `${__API_URL__}/shopkeepers/razorpay/direct/toggle`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ enabled }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        // Revert UI state on backend rejection.
+        setPaymentMethods((prev) => ({ ...prev, razorpayCards: !enabled }));
+        toast({
+          duration: 5000,
+          title: "Could not change setting",
+          description: data?.message || "Try again",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        duration: 3500,
+        title: enabled ? "Card payments enabled" : "Card payments disabled",
+        description: enabled
+          ? "Customers can now pay with cards/UPI/netbanking."
+          : "Customers will only see the manual QR option.",
+      });
+    } catch (e: any) {
+      setPaymentMethods((prev) => ({ ...prev, razorpayCards: !enabled }));
+      toast({
+        duration: 5000,
+        title: "Network error",
+        description: e?.message || "Could not save toggle.",
+        variant: "destructive",
+      });
+    } finally {
+      setRazorpayToggleSaving(false);
+    }
+  }
+
   const [razorpaySettings, setRazorpaySettings] = useState({
     isConnected: false,
     razorpayAccountId: "",
@@ -1285,6 +1365,18 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
   const handleSave = async () => {
     try {
+      // Guard: Card Payments toggle ON but Razorpay keys never saved.
+      if (paymentMethods.razorpayCards && !razorpayConfigured) {
+        toast({
+          duration: 6000,
+          title: "Razorpay not configured",
+          description:
+            "Enter your Razorpay Key ID and Secret in the Razorpay Payment Setup section, then click Save & Verify before saving the page.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const token = sessionStorage.getItem("token");
       if (!token) {
         toast({
@@ -3436,32 +3528,56 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             label="Card Payments — not in your plan"
             onUpgrade={openChangePlan}
           ><>
-          {/* 🔘 RAZORPAY CARD PAYMENTS TOGGLE */}
+          {/* 🔘 RAZORPAY CARD PAYMENTS TOGGLE — controls customer visibility.
+              When configured, persists immediately to backend via PATCH. */}
           <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
             <div className="flex items-center gap-3">
               <CreditCard className="w-5 h-5 text-indigo-600" />
               <div>
-                <Label className="font-semibold text-slate-900">
+                <Label className="font-semibold text-slate-900 flex items-center gap-2">
                   Credit Cards Payments
+                  {razorpayConfigured && paymentMethods.razorpayCards && (
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border border-green-200 text-[10px] uppercase tracking-wide">
+                      Live
+                    </Badge>
+                  )}
+                  {razorpayConfigured && !paymentMethods.razorpayCards && (
+                    <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 text-[10px] uppercase tracking-wide">
+                      Configured · Off
+                    </Badge>
+                  )}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Accept cards, UPI, netbanking via Razorpay
+                  {razorpayConfigured
+                    ? paymentMethods.razorpayCards
+                      ? "Customers see the Razorpay card on checkout. Toggle off to hide it without removing your keys."
+                      : "Keys are saved but customers won't see the Razorpay option. Toggle on to re-enable."
+                    : "Accept cards, UPI, netbanking via Razorpay"}
                 </p>
               </div>
             </div>
             <Switch
               checked={paymentMethods.razorpayCards}
-              onCheckedChange={(checked) =>
+              disabled={razorpayToggleSaving}
+              onCheckedChange={(checked) => {
                 setPaymentMethods((prev) => ({
                   ...prev,
                   razorpayCards: checked,
-                }))
-              }
+                }));
+                // Reading from a ref instead of closure-state — `razorpayConfigured`
+                // closure can be stale if the user clicks before status fetch lands.
+                if (razorpayConfiguredRef.current) {
+                  persistRazorpayToggle(checked);
+                }
+              }}
             />
           </div>
 
-          {/* Razorpay Route onboarding (KYC + linked account + KYC docs) */}
-          {paymentMethods.razorpayCards && (
+          {/* Razorpay setup card. Always visible when keys are already saved
+              (so the shopkeeper can update / inspect them) OR when the toggle
+              is ON (so they can enter keys for the first time). Route flow
+              hidden until Partner enrollment. */}
+          {(paymentMethods.razorpayCards || razorpayConfigured) && (
             <Card className="border-indigo-200 animate-in slide-in-from-top">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-indigo-900">
@@ -3469,12 +3585,23 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   Razorpay Payment Setup
                 </CardTitle>
                 <CardDescription>
-                  Onboarding for accepting cards/UPI/netbanking through KiosCart.
-                  Funds are held in our partner account until released by admin.
+                  Connect your own Razorpay account to accept cards, UPI and
+                  netbanking. Money lands directly in your bank on T+2.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <RazorpayOnboarding shopProfile={shopProfile as any} />
+                <RazorpayDirectSetup
+                  onStatusChange={(configured) => {
+                    setRazorpayConfigured(configured);
+                    razorpayConfiguredRef.current = configured;
+                    if (configured) {
+                      setPaymentMethods((prev) => ({
+                        ...prev,
+                        razorpayCards: true,
+                      }));
+                    }
+                  }}
+                />
               </CardContent>
             </Card>
           )}

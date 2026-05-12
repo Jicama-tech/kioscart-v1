@@ -30,6 +30,13 @@ export class Payment {
   @Prop({ required: true, default: "razorpay" })
   gateway: string;
 
+  @Prop({
+    type: String,
+    enum: ["route", "direct"],
+    default: "route",
+  })
+  gatewayMode?: string;
+
   @Prop({ required: true })
   gatewayOrderId: string;
 

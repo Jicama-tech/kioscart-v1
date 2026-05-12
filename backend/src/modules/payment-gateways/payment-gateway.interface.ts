@@ -130,13 +130,19 @@ export interface PaymentGateway {
     accountId: string,
   ): Promise<{ productConfigId: string; raw: any }>;
 
-  createOrder(input: CreateOrderInput): Promise<CreateOrderResult>;
+  createOrder(
+    input: CreateOrderInput,
+    creds?: { keyId: string; keySecret: string },
+  ): Promise<CreateOrderResult>;
 
-  verifyPaymentSignature(input: {
-    gatewayOrderId: string;
-    gatewayPaymentId: string;
-    signature: string;
-  }): boolean;
+  verifyPaymentSignature(
+    input: {
+      gatewayOrderId: string;
+      gatewayPaymentId: string;
+      signature: string;
+    },
+    creds?: { keyId: string; keySecret: string },
+  ): boolean;
 
   createOnHoldTransfer(
     input: CreateOnHoldTransferInput,
@@ -149,11 +155,14 @@ export interface PaymentGateway {
     amount?: number,
   ): Promise<{ reversalId: string; raw: any }>;
 
-  refundPayment(input: {
-    gatewayPaymentId: string;
-    amount?: number;
-    notes?: Record<string, string>;
-  }): Promise<{ refundId: string; raw: any }>;
+  refundPayment(
+    input: {
+      gatewayPaymentId: string;
+      amount?: number;
+      notes?: Record<string, string>;
+    },
+    creds?: { keyId: string; keySecret: string },
+  ): Promise<{ refundId: string; raw: any }>;
 
   verifyWebhook(input: VerifyWebhookInput): boolean;
 }
