@@ -9,8 +9,11 @@ import { webpImageMiddleware } from "./middleware/webp-image.middleware";
 
 dotenv.config();
 
-// Cache allowed domains - no need to recompute on every request
-const ALLOWED_DOMAINS = new Set([
+// Cache allowed domains - no need to recompute on every request.
+// Localhost origins are only added outside production so a misconfigured
+// prod box can never accept requests from a local attacker tunnel.
+const IS_PROD = process.env.NODE_ENV === "production";
+const ALLOWED_DOMAINS = new Set<string>([
   "https://kioscart.com",
   "https://www.kioscart.com",
   "https://thefoxsg.com",
@@ -18,13 +21,32 @@ const ALLOWED_DOMAINS = new Set([
   "https://xcionasia.com",
   "https://www.xcionasia.com",
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
-  "http://localhost:8080",
-  "http://localhost:8081",
-  "http://localhost:8082",
+  ...(IS_PROD
+    ? []
+    : ["http://localhost:8080", "http://localhost:8081", "http://localhost:8082"]),
 ]);
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Capture raw body for webhook signature verification (Razorpay etc).
+  // Must be registered before global JSON parsing.
+  app.use(
+    "/webhooks",
+    express.json({
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf?.toString("utf8") || "";
+      },
+      limit: "1mb",
+    }),
+  );
+
+  // Global body parsers for every other route. The webhook-scoped parser
+  // above suppresses Nest's default JSON parser, so we must re-register
+  // explicitly here or every non-webhook POST sees an empty body.
+  // 1mb is generous for our payload shapes — multipart uploads use multer.
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
   // Enable gzip compression for all responses
   app.use(compression());

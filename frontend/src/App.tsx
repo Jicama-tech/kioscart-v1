@@ -42,6 +42,7 @@ const AgentDashboard = lazy(() =>
 );
 const AgentsPage = lazy(() => import('./pages/admin/AgentsPage'));
 const ShopkeepersPage = lazy(() => import('./pages/admin/ShopkeepersPage'));
+const AdminPaymentsPage = lazy(() => import('./pages/admin/PaymentsPage'));
 
 // Lazy load all heavy page components for code splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -319,6 +320,7 @@ function AppContent() {
                 <Routes>
                   <Route path="/" element={<Navigate to="/admin-dashboard" replace />} />
                   <Route path="/admin-dashboard" element={<AdminDashboard onLogout={logout} />} />
+                  <Route path="/admin-dashboard/payments" element={<AdminPaymentsPage onLogout={logout} />} />
                   <Route path="/estore-register" element={<ShopKeeperRegister />} />
                   <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
                 </Routes>

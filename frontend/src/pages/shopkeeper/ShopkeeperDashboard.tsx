@@ -108,6 +108,7 @@ import {
 } from "@/context/SubscriptionContext";
 import { ModuleGate } from "@/components/ui/ModuleGate";
 import { ChatbotWidget } from "@/components/shopkeeper/ChatbotWidget";
+import { EarningsWidget } from "@/components/shopkeeper/EarningsWidget";
 import { Lock } from "lucide-react";
 
 interface ShopkeeperDashboardProps {
@@ -999,6 +1000,11 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                         </Card>
                       ))}
                     </div>
+
+                    {/* Razorpay earnings (held vs released) */}
+                    {shopkeeperId && (
+                      <EarningsWidget shopkeeperId={shopkeeperId} />
+                    )}
 
                     {/* Quick Actions */}
                     <Card>

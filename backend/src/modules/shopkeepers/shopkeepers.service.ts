@@ -20,19 +20,20 @@ import { MailService } from "../roles/mail.service";
 import { CreateShopkeeperDto } from "./dto/createShopkeeper.dto";
 import { Otp } from "../otp/entities/otp.entity";
 import { Types } from "mongoose";
-import Razorpay from "razorpay";
 import { CreateRazorpayLinkedAccountDto } from "./dto/razorpay.dto";
+import { CreateRazorpayStakeholderDto } from "./dto/razorpay-stakeholder.dto";
 import { UpdateShopkeeperDto } from "./dto/updateShopkeeper.dto";
 import {
   Operator,
   OperatorDocument,
 } from "../operators/entities/operator.entity";
 import { Plan, PlanDocument } from "../plans/entities/plan.entity";
+import { PaymentGatewayFactory } from "../payment-gateways/gateway.factory";
+import { encryptSecret } from "../../common/secrets.util";
 
 @Injectable()
 export class ShopkeepersService {
   private logger = new Logger(ShopkeepersService.name);
-  private razorPay: Razorpay;
   constructor(
     @InjectModel(Shopkeeper.name) private shopModel: Model<ShopkeeperDocument>,
     @InjectModel(Otp.name) private otpModel: Model<Otp>,
@@ -41,13 +42,8 @@ export class ShopkeepersService {
     @InjectModel("Product") private productModel: Model<any>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-  ) {
-    const Razorpay = require("razorpay");
-    this.razorPay = new Razorpay({
-      key_id: process.env.RAZORPAY_PARTNER_KEY_ID,
-      key_secret: process.env.RAZORPAY_PARTNER_SECRET,
-    });
-  }
+    private readonly gatewayFactory: PaymentGatewayFactory,
+  ) {}
 
   private normalizeEmail(email: string): string {
     return email.toLowerCase().trim();
@@ -162,136 +158,323 @@ export class ShopkeepersService {
     }
   }
 
+  /**
+   * Direct mode: shopkeeper pastes their own Razorpay test/live keys.
+   * We verify the keys against Razorpay's /v1/payments endpoint before saving,
+   * encrypt the secret, and flip the shop into "direct" mode so customer
+   * checkout uses these keys instead of platform Route credentials.
+   */
+  async saveDirectRazorpayKeys(
+    shopkeeperId: string,
+    keyId: string,
+    keySecret: string,
+  ) {
+    if (!keyId || !keySecret) {
+      throw new BadRequestException("Both Key ID and Secret are required.");
+    }
+    if (!keyId.startsWith("rzp_test_") && !keyId.startsWith("rzp_live_")) {
+      throw new BadRequestException(
+        "Key ID must start with rzp_test_ or rzp_live_.",
+      );
+    }
+
+    const gateway: any = this.gatewayFactory.forProvider("razorpay");
+    const probe = await gateway.verifyDirectCredentials(keyId, keySecret);
+    if (!probe.ok) {
+      throw new BadRequestException(
+        `Razorpay rejected these credentials: ${probe.error}`,
+      );
+    }
+
+    const shop = await this.shopModel.findById(shopkeeperId);
+    if (!shop) throw new BadRequestException("Shopkeeper not found");
+
+    const next = {
+      ...(shop.razorpay ? (shop.razorpay as any).toObject?.() ?? shop.razorpay : {}),
+      mode: "direct",
+      directKeyId: keyId,
+      directKeySecretEncrypted: encryptSecret(keySecret),
+      directKeyVerifiedAt: new Date(),
+      status: "active",
+      country: (shop.country || "IN").toUpperCase(),
+    };
+
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, { razorpay: next });
+
+    this.logger.log(
+      `Direct Razorpay keys saved for shopkeeper ${shopkeeperId} (${keyId})`,
+    );
+
+    return {
+      mode: "direct",
+      keyId,
+      verifiedAt: next.directKeyVerifiedAt,
+      message: "Razorpay Direct keys verified and saved.",
+    };
+  }
+
+  /** Lookup helper — frontend uses this to know what's already configured.
+   * Never returns the secret, only the key id + verification metadata. */
+  async getDirectRazorpayStatus(shopkeeperId: string) {
+    const shop = await this.shopModel.findById(shopkeeperId).lean();
+    const r = (shop as any)?.razorpay;
+    return {
+      mode: r?.mode || "route",
+      configured: !!r?.directKeyId,
+      // Undefined directEnabled => treated as enabled when configured.
+      enabled: r?.directKeyId ? r?.directEnabled !== false : false,
+      keyId: r?.directKeyId
+        ? `${r.directKeyId.slice(0, 12)}…${r.directKeyId.slice(-4)}`
+        : null,
+      verifiedAt: r?.directKeyVerifiedAt || null,
+    };
+  }
+
+  /** Flip the per-shop kill switch for Razorpay Direct customer checkout.
+   * Turning ON without saved keys is rejected — frontend should guide the
+   * shopkeeper to save keys first. */
+  async setDirectRazorpayEnabled(shopkeeperId: string, enabled: boolean) {
+    const shop = await this.shopModel.findById(shopkeeperId);
+    if (!shop) throw new BadRequestException("Shopkeeper not found");
+
+    if (enabled && !shop.razorpay?.directKeyId) {
+      throw new BadRequestException(
+        "Save your Razorpay Key ID and Secret first before enabling card payments.",
+      );
+    }
+
+    const next = {
+      ...(shop.razorpay
+        ? (shop.razorpay as any).toObject?.() ?? shop.razorpay
+        : {}),
+      directEnabled: enabled,
+    };
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, { razorpay: next });
+
+    this.logger.log(
+      `Razorpay Direct ${enabled ? "ENABLED" : "DISABLED"} for shop ${shopkeeperId}`,
+    );
+
+    return { enabled, configured: !!shop.razorpay?.directKeyId };
+  }
+
   async createRazorpayLinkedAccount(
     shopkeeperId: string,
     dto: CreateRazorpayLinkedAccountDto,
   ) {
-    try {
-      this.logger.log(`Creating Razorpay linked account for: ${shopkeeperId}`);
+    if (!dto.businessName || !dto.bankAccountNumber) {
+      throw new BadRequestException("Missing required KYC fields");
+    }
+    if (dto.country === "IN" && !dto.panNumber) {
+      throw new BadRequestException("PAN is required for Indian merchants");
+    }
 
-      // Validate required fields
-      if (!dto.businessName || !dto.panNumber || !dto.bankAccountNumber) {
-        throw new BadRequestException("Missing required KYC fields");
-      }
+    const gateway = this.gatewayFactory.forCountry(dto.country);
 
-      // Call Razorpay Partner API
-      const linkedAccount = await this.razorPay.accounts.create({
-        email: dto.businessEmail,
-        phone: dto.businessPhone,
-        type: "route", // Enable Route for settlement splits
-        legal_business_name: dto.businessName,
-        business_type: dto.businessType,
+    const result = await gateway.createLinkedAccount({
+      shopkeeperId,
+      businessName: dto.businessName,
+      businessType: dto.businessType,
+      businessEmail: dto.businessEmail,
+      businessPhone: dto.businessPhone,
+      panNumber: dto.panNumber,
+      gstNumber: dto.gstNumber,
+      uenNumber: dto.uenNumber,
+      accountHolderName: dto.accountHolderName,
+      bankName: dto.bankName,
+      bankAccountNumber: dto.bankAccountNumber,
+      ifscCode: dto.ifscCode,
+      address: dto.address,
+      city: dto.city,
+      state: dto.state,
+      zipcode: dto.zipcode,
+      country: dto.country,
+    });
 
-        // Address
-        legal_address: {
-          street: dto.address,
-          city: dto.city,
-          state: dto.state,
-          postal_code: dto.zipcode,
-          country: dto.country === "IN" ? "IN" : "SG",
-        },
+    this.logger.log(`Linked account created: ${result.accountId}`);
 
-        // KYC Details
-        ...(dto.country === "IN" && {
-          pan: dto.panNumber,
-          gst: dto.gstNumber || null,
-        }),
-        ...(dto.country === "SG" && {
-          uen: dto.uenNumber,
-        }),
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, {
+      razorpay: {
+        accountId: result.accountId,
+        status: result.status,
+        businessName: dto.businessName,
+        businessType: dto.businessType,
+        panNumber: dto.panNumber,
+        gstNumber: dto.gstNumber,
+        uenNumber: dto.uenNumber,
+        bankAccountNumber: dto.bankAccountNumber,
+        bankIfscCode: dto.ifscCode,
+        bankName: dto.bankName,
+        accountHolderName: dto.accountHolderName,
+        businessEmail: dto.businessEmail,
+        businessPhone: dto.businessPhone,
+        address: dto.address,
+        city: dto.city,
+        state: dto.state,
+        zipcode: dto.zipcode,
+        country: dto.country,
+        documents: {},
+        createdAt: new Date(),
+      },
+    });
 
-        // Bank account for payouts
-        bank_account: {
-          ifsc_code: dto.ifscCode,
-          beneft_name: dto.accountHolderName,
-          account_number: dto.bankAccountNumber,
-          account_type: "savings",
-        },
+    return {
+      success: true,
+      accountId: result.accountId,
+      status: result.status,
+      message:
+        "Linked account created. Next: add stakeholder, upload KYC documents, then submit for review.",
+    };
+  }
 
-        // Internal notes
-        notes: {
-          shopkeeper_id: shopkeeperId,
-          platform: "KiosCart",
-          created_at: new Date().toISOString(),
-        },
-      } as any);
-
-      this.logger.log(`✅ Linked account created: ${linkedAccount.id}`);
-
-      // Save to database
-      const updated = await this.shopModel.findByIdAndUpdate(
-        shopkeeperId,
-        {
-          razorpay: {
-            accountId: linkedAccount.id,
-            status: linkedAccount.status || "pending_kyc",
-            kycStatus: (linkedAccount as any).kyc_status || "not_provided",
-            businessName: dto.businessName,
-            panNumber: dto.panNumber,
-            gstNumber: dto.gstNumber,
-            uenNumber: dto.uenNumber,
-            bankAccountNumber: dto.bankAccountNumber,
-            bankIfscCode: dto.ifscCode,
-            bankName: dto.bankName,
-            accountHolderName: dto.accountHolderName,
-            businessEmail: dto.businessEmail,
-            businessPhone: dto.businessPhone,
-            createdAt: new Date(),
-          },
-        },
-        { new: true },
+  async createRazorpayStakeholder(
+    shopkeeperId: string,
+    dto: CreateRazorpayStakeholderDto,
+  ) {
+    const shop = await this.shopModel.findById(shopkeeperId);
+    if (!shop?.razorpay?.accountId) {
+      throw new BadRequestException(
+        "Create a linked account before adding a stakeholder.",
       );
-
-      return {
-        success: true,
-        accountId: linkedAccount.id,
-        status: linkedAccount.status,
-        message:
-          "Account created. KYC review: 1-3 business days. Money will settle directly to your bank.",
-      };
-    } catch (error) {
-      this.logger.error(`Failed to create linked account: ${error.message}`);
-      throw new BadRequestException(`Razorpay setup failed: ${error.message}`);
     }
+    const gateway = this.gatewayFactory.forCountry(
+      shop.razorpay.country || "IN",
+    );
+    const result = await gateway.createStakeholder({
+      accountId: shop.razorpay.accountId,
+      name: dto.name,
+      email: dto.email,
+      phone: dto.phone,
+      pan: dto.pan,
+      addressLine1: dto.addressLine1,
+      city: dto.city,
+      state: dto.state,
+      postalCode: dto.postalCode,
+      country: dto.country,
+    });
+
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, {
+      "razorpay.stakeholderId": result.stakeholderId,
+    });
+
+    return { stakeholderId: result.stakeholderId };
   }
 
-  // ✅ NEW: Check Razorpay Account Status
+  async uploadRazorpayKycDocument(
+    shopkeeperId: string,
+    documentSlot:
+      | "panFront"
+      | "addressProof"
+      | "cancelledCheque"
+      | "gstCert",
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+  ) {
+    const shop = await this.shopModel.findById(shopkeeperId);
+    if (!shop?.razorpay?.accountId) {
+      throw new BadRequestException("Create a linked account first.");
+    }
+    if (!file?.buffer) {
+      throw new BadRequestException("File is required.");
+    }
+
+    const slotToType: Record<string, any> = {
+      panFront: "individual_proof_of_identification",
+      addressProof: "address_proof_url",
+      cancelledCheque: "bank_account_doc",
+      gstCert: "gst_certificate",
+    };
+
+    const gateway = this.gatewayFactory.forCountry(
+      shop.razorpay.country || "IN",
+    );
+    const result = await gateway.uploadDocument({
+      accountId: shop.razorpay.accountId,
+      documentType: slotToType[documentSlot],
+      fileBuffer: file.buffer,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+    });
+
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, {
+      [`razorpay.documents.${documentSlot}`]: result.documentId,
+    });
+
+    return { documentId: result.documentId, slot: documentSlot };
+  }
+
+  async submitRazorpayForReview(shopkeeperId: string) {
+    const shop = await this.shopModel.findById(shopkeeperId);
+    if (!shop?.razorpay?.accountId) {
+      throw new BadRequestException("No linked account to submit.");
+    }
+    const docs = shop.razorpay.documents || {};
+    if (!docs.panFront || !docs.cancelledCheque) {
+      throw new BadRequestException(
+        "PAN and cancelled cheque are required before submitting for review.",
+      );
+    }
+
+    const gateway = this.gatewayFactory.forCountry(
+      shop.razorpay.country || "IN",
+    );
+    const result = await gateway.requestProductConfiguration(
+      shop.razorpay.accountId,
+    );
+
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, {
+      "razorpay.productConfigId": result.productConfigId,
+      "razorpay.status": "under_review",
+      "razorpay.submittedAt": new Date(),
+    });
+
+    return {
+      productConfigId: result.productConfigId,
+      status: "under_review",
+      message: "Submitted to Razorpay. KYC review takes 1-3 business days.",
+    };
+  }
+
   async checkRazorpayAccountStatus(accountId: string) {
-    try {
-      const account = await this.razorPay.accounts.fetch(accountId);
-
-      return {
-        accountId: account.id,
-        status: account.status, // 'pending_kyc', 'active', 'rejected', 'suspended'
-        kycStatus: (account as any).kyc_status,
-        isActive: account.status === "active",
-      };
-    } catch (error) {
-      this.logger.error(`Failed to check account status: ${error.message}`);
-      throw new BadRequestException("Could not fetch account status");
-    }
+    const shop = await this.shopModel.findOne({
+      "razorpay.accountId": accountId,
+    });
+    const gateway = this.gatewayFactory.forCountry(
+      shop?.razorpay?.country || "IN",
+    );
+    const result = await gateway.fetchLinkedAccount(accountId);
+    return {
+      accountId: result.accountId,
+      status: result.status,
+      isActive: result.status === "active",
+      raw: result.raw,
+    };
   }
 
-  // ✅ NEW: Update Razorpay account status (called by cron/polling)
-  async updateRazorpayAccountStatus(shopkeeperId: string, accountId: string) {
-    try {
-      const status = await this.checkRazorpayAccountStatus(accountId);
+  async syncRazorpayAccountStatus(shopkeeperId: string, accountId: string) {
+    const status = await this.checkRazorpayAccountStatus(accountId);
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, {
+      "razorpay.status": status.status,
+      ...(status.isActive ? { "razorpay.verifiedAt": new Date() } : {}),
+    });
+    return status;
+  }
 
-      if (status.isActive) {
-        await this.shopModel.findByIdAndUpdate(shopkeeperId, {
-          "razorpay.status": "active",
-          "razorpay.verifiedAt": new Date(),
-        });
+  /** Called by webhook handler when Razorpay reports an account event. */
+  async applyRazorpayAccountWebhook(
+    accountId: string,
+    newStatus: "under_review" | "active" | "rejected" | "suspended",
+    reason?: string,
+  ) {
+    const update: any = { "razorpay.status": newStatus };
+    if (newStatus === "active") update["razorpay.verifiedAt"] = new Date();
+    if (newStatus === "rejected" && reason)
+      update["razorpay.kycRejectionReason"] = reason;
 
-        this.logger.log(`✅ Account activated: ${accountId}`);
-        return { isActive: true };
-      }
-
-      return { isActive: false, status: status.status };
-    } catch (error) {
-      this.logger.error(`Account status update failed: ${error.message}`);
-      throw error;
-    }
+    return this.shopModel.findOneAndUpdate(
+      { "razorpay.accountId": accountId },
+      update,
+      { new: true },
+    );
   }
 
   async list() {

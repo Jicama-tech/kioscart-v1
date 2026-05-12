@@ -19,6 +19,9 @@ import { CouponSchema } from "../coupon/entities/coupon.entity";
 import { PlatformPaymentSchema } from "./entities/platform-payment.entity";
 import { MailModule } from "../roles/mail.module";
 import { MailService } from "../roles/mail.service";
+import { Payment, PaymentSchema } from "../payments/schemas/payment.schema";
+import { AdminPaymentsService } from "./admin-payments.service";
+import { AdminPaymentsController } from "./admin-payments.controller";
 
 @Module({
   imports: [
@@ -35,6 +38,7 @@ import { MailService } from "../roles/mail.service";
       { name: "Plan", schema: PlanSchema },
       { name: "Coupon", schema: CouponSchema },
       { name: "PlatformPayment", schema: PlatformPaymentSchema },
+      { name: Payment.name, schema: PaymentSchema },
     ]),
     MailModule,
     JwtModule.register({
@@ -42,7 +46,7 @@ import { MailService } from "../roles/mail.service";
       signOptions: { expiresIn: "1d" },
     }),
   ],
-  controllers: [AdminController],
-  providers: [AdminService, MailService],
+  controllers: [AdminController, AdminPaymentsController],
+  providers: [AdminService, AdminPaymentsService, MailService],
 })
 export class AdminModule {}
