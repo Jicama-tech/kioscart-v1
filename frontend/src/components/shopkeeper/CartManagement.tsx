@@ -125,6 +125,8 @@ interface Order {
   customerEmail?: string;
   customerWhatsApp?: string;
   transactionId?: string;
+  paymentProvider?: string;
+  paymentStatus?: string;
 }
 
 interface ThermalPrintItem {
@@ -386,7 +388,7 @@ export function CartManagement({
           description: newOrders
             .map(
               (o) =>
-                `${o.userId?.name || "Customer"} — ${formatPrice(o.totalAmount)}`,
+                `${o.customerName || o.userId?.name || "Customer"} — ${formatPrice(o.totalAmount)}`,
             )
             .join(", "),
         });
@@ -1243,9 +1245,10 @@ Thank you for shopping with us.
 
     if (customerNameFilter) {
       const term = customerNameFilter.toLowerCase();
-      result = result.filter((order) =>
-        order.userId.name.toLowerCase().includes(term),
-      );
+      result = result.filter((order) => {
+        const name = order.customerName || order.userId?.name || "";
+        return name.toLowerCase().includes(term);
+      });
     }
 
     if (amountSort === "asc") {
@@ -1606,6 +1609,7 @@ Thank you for shopping with us.
                     <TableHead>Total Amount</TableHead>
                     <TableHead>Order Type</TableHead>
                     <TableHead>Order Date</TableHead>
+                    <TableHead>Paid via</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -1613,7 +1617,7 @@ Thank you for shopping with us.
                 <TableBody>
                   {paginatedOrders.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center">
+                      <TableCell colSpan={10} className="text-center">
                         No orders match the selected filters.
                       </TableCell>
                     </TableRow>
@@ -1640,7 +1644,7 @@ Thank you for shopping with us.
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <User className="h-3 w-3" />
-                            {order.userId.name}
+                            {order.customerName || order.userId?.name || "Customer"}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -1683,6 +1687,32 @@ Thank you for shopping with us.
                           <span className="capitalize">{order.orderType}</span>
                         </TableCell>
                         <TableCell>{formatDate(order.createdAt)}</TableCell>
+                        <TableCell>
+                          {(() => {
+                            const provider = order.paymentProvider;
+                            const paid = order.paymentStatus === "paid";
+                            if (provider === "razorpay") {
+                              return (
+                                <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100 border border-indigo-200">
+                                  <CreditCard className="h-3 w-3 mr-1" />
+                                  Razorpay {paid ? "" : "· Pending"}
+                                </Badge>
+                              );
+                            }
+                            if (provider === "manual" || !provider) {
+                              return (
+                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200">
+                                  UPI / QR
+                                </Badge>
+                              );
+                            }
+                            return (
+                              <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200">
+                                {provider}
+                              </Badge>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell>
                           <Select
                             value={order.status}
