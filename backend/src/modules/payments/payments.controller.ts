@@ -39,15 +39,22 @@ export class PaymentsController {
 
   // ---- Razorpay customer-checkout flow (India only for now) ----
 
+  // Guest-accessible. Auth comes from cart ownership: the orderId in the
+  // DTO must match an existing Order, and the amount is pulled from that
+  // persisted Order — never from the client — so a guest can only ever
+  // pay for an order that already exists at our backend.
   @Post("order")
-  @UseGuards(AuthGuard("jwt"))
   async createPaymentOrder(@Body() dto: CreatePaymentOrderDto, @Req() req: any) {
     const customerUserId = req.user?.userId || req.user?.sub;
     return this.checkoutService.createPaymentOrder(dto, customerUserId);
   }
 
+  // Guest-accessible. The Razorpay HMAC signature IS the authentication:
+  // anyone presenting a valid `{orderId}|{paymentId}` signature is proven
+  // authorized by Razorpay itself. A JWT layer on top adds no security
+  // and would break the in-modal handler callback which has no JWT
+  // context.
   @Post("verify")
-  @UseGuards(AuthGuard("jwt"))
   async verifyPayment(@Body() dto: VerifyPaymentDto) {
     return this.checkoutService.verifyPayment(dto);
   }

@@ -38,6 +38,7 @@ async function bootstrap() {
         req.rawBody = buf?.toString("utf8") || "";
       },
       limit: "1mb",
+    }),
   );
 
   // Global body parsers for every other route. The webhook-scoped parser
