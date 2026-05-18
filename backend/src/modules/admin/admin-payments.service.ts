@@ -121,6 +121,153 @@ export class AdminPaymentsService {
     return { items, total, page, limit };
   }
 
+  // --------------------------------------------------------------
+  //  PLATFORM-MODE payouts: customer pays into KiosCart's master
+  //  account, admin disburses to shopkeeper out-of-band (bank
+  //  transfer, UPI etc.), then marks the payment "paid out" with a
+  //  transfer reference.
+  // --------------------------------------------------------------
+
+  /** Aggregated view: total still-owed per shopkeeper, oldest-first.
+   *  Powers the top of the Pending Payouts admin page. */
+  async pendingPayoutSummary() {
+    const rows = await this.paymentModel.aggregate([
+      {
+        $match: {
+          gatewayMode: "platform",
+          status: PaymentStatus.Captured,
+          transferStatus: TransferStatus.None,
+        },
+      },
+      {
+        $group: {
+          _id: "$shopkeeperId",
+          totalOwed: { $sum: "$netAmount" },
+          count: { $sum: 1 },
+          oldest: { $min: "$capturedAt" },
+          newest: { $max: "$capturedAt" },
+          currency: { $first: "$currency" },
+        },
+      },
+      {
+        $lookup: {
+          from: "shopkeepers",
+          localField: "_id",
+          foreignField: "_id",
+          as: "shop",
+        },
+      },
+      { $unwind: { path: "$shop", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          shopkeeperId: "$_id",
+          shopName: "$shop.shopName",
+          name: "$shop.name",
+          whatsappNumber: "$shop.whatsappNumber",
+          totalOwed: 1,
+          count: 1,
+          oldest: 1,
+          newest: 1,
+          currency: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { oldest: 1 } },
+    ]);
+    return rows;
+  }
+
+  /** Per-shopkeeper detail list — what individual orders need disbursing.
+   *  Admin uses this to verify before clicking "Mark Paid Out". */
+  async listPendingPayouts(f: ListFilters) {
+    const page = Math.max(1, f.page || 1);
+    const limit = Math.min(200, f.limit || 50);
+    const q: any = {
+      gatewayMode: "platform",
+      status: PaymentStatus.Captured,
+      transferStatus: TransferStatus.None,
+    };
+    if (f.shopkeeperId) q.shopkeeperId = new Types.ObjectId(f.shopkeeperId);
+    if (f.country) q.country = f.country.toUpperCase();
+
+    const [items, total] = await Promise.all([
+      this.paymentModel
+        .find(q)
+        .populate({ path: "shopkeeperId", select: "name shopName country" })
+        .populate({
+          path: "orderId",
+          select: "orderId totalAmount customerName customerWhatsApp",
+        })
+        .sort({ capturedAt: 1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      this.paymentModel.countDocuments(q),
+    ]);
+    return { items, total, page, limit };
+  }
+
+  /** Admin records that they've manually transferred funds to the shop for
+   *  one platform-mode payment. transferStatus None → Released with the
+   *  bank reference / note attached for audit. */
+  async markPaidOut(
+    paymentId: string,
+    adminId: string,
+    opts: { reference?: string; note?: string },
+  ) {
+    const payment = await this.paymentModel.findById(paymentId);
+    if (!payment) throw new NotFoundException("Payment not found");
+    if (payment.gatewayMode !== "platform") {
+      throw new BadRequestException(
+        "Only platform-mode payments can be marked as paid out.",
+      );
+    }
+    if (payment.transferStatus === TransferStatus.Released) {
+      return { alreadyReleased: true, payment };
+    }
+    if (payment.transferStatus !== TransferStatus.None) {
+      throw new BadRequestException(
+        `Cannot mark paid out: transferStatus is ${payment.transferStatus}`,
+      );
+    }
+    payment.transferStatus = TransferStatus.Released;
+    payment.releasedAt = new Date();
+    payment.releasedBy = new Types.ObjectId(adminId);
+    const noteParts: string[] = [];
+    if (opts.reference) noteParts.push(`Ref: ${opts.reference}`);
+    if (opts.note) noteParts.push(opts.note);
+    if (noteParts.length) payment.releaseNote = noteParts.join(" | ");
+    await payment.save();
+    this.logger.log(
+      `Manual payout recorded for payment ${payment._id} (ref: ${opts.reference || "none"})`,
+    );
+    return { released: true, payment };
+  }
+
+  /** Same as markPaidOut, applied to a batch — admin does a single bulk bank
+   *  transfer for a shopkeeper, then marks all their pending payments at once. */
+  async bulkMarkPaidOut(
+    paymentIds: string[],
+    adminId: string,
+    opts: { reference?: string; note?: string },
+  ) {
+    const results: Array<{ paymentId: string; ok: boolean; error?: string }> = [];
+    for (const id of paymentIds) {
+      try {
+        await this.markPaidOut(id, adminId, opts);
+        results.push({ paymentId: id, ok: true });
+      } catch (err: any) {
+        results.push({ paymentId: id, ok: false, error: err.message });
+      }
+    }
+    return {
+      total: paymentIds.length,
+      ok: results.filter((r) => r.ok).length,
+      failed: results.filter((r) => !r.ok).length,
+      results,
+    };
+  }
+
   async releasePayment(paymentId: string, adminId: string, note?: string) {
     const payment = await this.paymentModel.findById(paymentId);
     if (!payment) throw new NotFoundException("Payment not found");

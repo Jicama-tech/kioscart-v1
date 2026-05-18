@@ -107,8 +107,8 @@ export class RazorpayLinkedAccount {
 
   @Prop({
     type: String,
-    enum: ["route", "direct"],
-    default: "route",
+    enum: ["platform", "standard", "route", "direct"],
+    default: "platform",
   })
   mode?: string;
 

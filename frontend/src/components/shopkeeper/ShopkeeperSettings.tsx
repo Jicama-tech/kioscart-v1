@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { GmailPaymentSection } from "./GmailPaymentSection";
 import { RazorpayOnboarding } from "./RazorpayOnboarding";
 import { RazorpayDirectSetup } from "./RazorpayDirectSetup";
+import { RazorpayPlatformSetup } from "./RazorpayPlatformSetup";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -3582,19 +3583,19 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-indigo-900">
                   <CreditCard className="w-5 h-5" />
-                  Razorpay Payment Setup
+                  Razorpay Payments
                 </CardTitle>
                 <CardDescription>
-                  Connect your own Razorpay account to accept cards, UPI and
-                  netbanking. Money lands directly in your bank on T+2.
+                  Accept cards, UPI and netbanking. KiosCart collects on your
+                  behalf and disburses your earnings to your bank.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <RazorpayDirectSetup
-                  onStatusChange={(configured) => {
-                    setRazorpayConfigured(configured);
-                    razorpayConfiguredRef.current = configured;
-                    if (configured) {
+                <RazorpayPlatformSetup
+                  onStatusChange={(enabled) => {
+                    setRazorpayConfigured(enabled);
+                    razorpayConfiguredRef.current = enabled;
+                    if (enabled) {
                       setPaymentMethods((prev) => ({
                         ...prev,
                         razorpayCards: true,

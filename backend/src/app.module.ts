@@ -27,6 +27,7 @@ import { PaymentEmailsModule } from "./modules/payment-emails/payment-emails.mod
 import { AgentsModule } from "./modules/agents/agents.module";
 import { ChatbotModule } from "./modules/chatbot/chatbot.module";
 import { PaymentGatewaysModule } from "./modules/payment-gateways/payment-gateways.module";
+import { AppFeedbackModule } from "./modules/app-feedback/app-feedback.module";
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { PaymentGatewaysModule } from "./modules/payment-gateways/payment-gatewa
     PaymentEmailsModule,
     AgentsModule,
     ChatbotModule,
+    AppFeedbackModule,
   ],
 })
 export class AppModule {}

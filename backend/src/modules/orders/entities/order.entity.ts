@@ -114,6 +114,13 @@ export class Order extends Document {
   @Prop({ type: String, default: "pending" })
   paymentStatus?: string; // pending | paid | failed | refunded
 
+  // Razorpay's order_xxx — set ONLY for orders that go through the
+  // lazy-creation Razorpay flow. Sparse unique below ensures two paths
+  // (verify endpoint + webhook fallback) can't both create an Order for
+  // the same Razorpay payment.
+  @Prop({ type: String })
+  gatewayOrderId?: string;
+
   @Prop({ default: false })
   isSoftDeleted: boolean;
 
@@ -130,3 +137,7 @@ OrderSchema.index({ status: 1 });
 OrderSchema.index({ createdAt: -1 });
 OrderSchema.index({ shopkeeperId: 1, createdAt: -1 });
 OrderSchema.index({ shopkeeperId: 1, status: 1 });
+// Sparse + unique so the lazy-creation flow is idempotent: a second
+// attempt to create an Order for the same Razorpay payment hard-fails
+// at the DB layer, no matter which path tried it.
+OrderSchema.index({ gatewayOrderId: 1 }, { unique: true, sparse: true });
