@@ -6,7 +6,10 @@ import {
   IsArray,
   IsObject,
   Min,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
+import { CreateOrderDto } from "../../orders/dto/create-order.dto";
 
 /**
  * Lazy-creation Razorpay flow: customer hits "Pay with Razorpay", frontend
@@ -93,10 +96,6 @@ export class InitiateRazorpayPaymentDto {
 export class CreatePaymentOrderDto {
   @IsString()
   @IsNotEmpty()
-  orderId: string;
-
-  @IsString()
-  @IsNotEmpty()
   shopkeeperId: string;
 
   @IsNumber()
@@ -118,6 +117,13 @@ export class CreatePaymentOrderDto {
   @IsString()
   @IsOptional()
   customerPhone?: string;
+
+  // Full cart payload. The Order is NOT created here — only after Razorpay
+  // confirms capture. This is the snapshot we'll materialize from.
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CreateOrderDto)
+  order: CreateOrderDto;
 }
 
 export class VerifyPaymentDto {

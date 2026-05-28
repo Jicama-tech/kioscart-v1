@@ -21,8 +21,17 @@ export enum TransferStatus {
 
 @Schema({ timestamps: true })
 export class Payment {
-  @Prop({ required: true, type: Types.ObjectId, ref: "Order" })
-  orderId: Types.ObjectId;
+  // Set only after Razorpay confirms capture and the Order is materialized.
+  // Until then the Payment record is an "intent" and `pendingOrderData`
+  // holds the cart payload that will be turned into an Order.
+  @Prop({ required: false, type: Types.ObjectId, ref: "Order" })
+  orderId?: Types.ObjectId;
+
+  // Full CreateOrderDto payload captured at /payments/order time.
+  // Cleared once the Order is created on capture. Lets us defer Order
+  // creation so customers who abandon the modal never produce a row.
+  @Prop({ type: Object })
+  pendingOrderData?: Record<string, any>;
 
   @Prop({ required: true, type: Types.ObjectId, ref: "Shopkeeper" })
   shopkeeperId: Types.ObjectId;

@@ -624,7 +624,6 @@ Thank you!`,
         optionTitle: it.optionTitle,
         optionPrice: it.optionPrice,
       }));
-
       // LAZY FLOW: do NOT create the Order yet — backend stashes the cart
       // in a CheckoutIntent, opens Razorpay, and only materializes the Order
       // on `verify-create` after payment captures. Customer abandons →
