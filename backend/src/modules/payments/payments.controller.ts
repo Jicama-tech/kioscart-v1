@@ -15,7 +15,11 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { AuthGuard } from "@nestjs/passport";
 import { PaymentsService } from "./payments.service";
 import { CheckoutService } from "./checkout.service";
-import { CreatePaymentOrderDto, VerifyPaymentDto } from "./dto/checkout.dto";
+import {
+  CreatePaymentOrderDto,
+  InitiateRazorpayPaymentDto,
+  VerifyPaymentDto,
+} from "./dto/checkout.dto";
 import * as path from "path";
 import { diskStorage } from "multer";
 
@@ -57,6 +61,26 @@ export class PaymentsController {
   @Post("verify")
   async verifyPayment(@Body() dto: VerifyPaymentDto) {
     return this.checkoutService.verifyPayment(dto);
+  }
+
+  // ---- Lazy-creation Razorpay flow (preferred new path) ----
+
+  /** Step 1: stash the cart + create a Razorpay order. NO Order/Payment
+   *  doc is written here — only on `verify-create` after the customer pays. */
+  @Post("initiate")
+  async initiateRazorpay(
+    @Body() dto: InitiateRazorpayPaymentDto,
+    @Req() req: any,
+  ) {
+    const customerUserId = req.user?.userId || req.user?.sub;
+    return this.checkoutService.initiateRazorpayPayment(dto, customerUserId);
+  }
+
+  /** Step 2: customer paid. Verify the signature and materialize the Order
+   *  + Payment from the intent. Idempotent w.r.t. the webhook fallback. */
+  @Post("verify-create")
+  async verifyAndCreate(@Body() dto: VerifyPaymentDto) {
+    return this.checkoutService.verifyAndCreateOrder(dto);
   }
 
   @Get("earnings/:shopkeeperId")

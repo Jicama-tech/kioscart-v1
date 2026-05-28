@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useCart } from "@/hooks/cartContext";
 import { useToast } from "@/components/ui/use-toast";
+import { generateOrderId } from "@/lib/orderId";
 import {
   X,
   Plus,
@@ -774,9 +775,7 @@ export function CartPage() {
 
       setWhatsappNumber(shop.whatsappNumber);
       const whatsAppNumber = shop.whatsappNumber;
-      const orderId = `ORDER-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
+      const orderId = generateOrderId(shop?.shopName);
       const paymentImageUrl = shop.paymentURL ? apiURL + shop.paymentURL : "";
       const userWhatsApp = countryCode + whatsapp;
 

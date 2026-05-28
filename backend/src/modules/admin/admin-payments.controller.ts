@@ -18,6 +18,56 @@ import { AdminPaymentsService } from "./admin-payments.service";
 export class AdminPaymentsController {
   constructor(private readonly service: AdminPaymentsService) {}
 
+  // ---- Platform-mode (KiosCart-collected) payouts ----
+
+  @Get("pending-payouts/summary")
+  pendingPayoutSummary() {
+    return this.service.pendingPayoutSummary();
+  }
+
+  @Get("pending-payouts")
+  pendingPayouts(
+    @Query("shopkeeperId") shopkeeperId?: string,
+    @Query("country") country?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.service.listPendingPayouts({
+      shopkeeperId,
+      country,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  @Patch(":id/mark-paid-out")
+  markPaidOut(
+    @Param("id") id: string,
+    @Req() req: any,
+    @Body() body: { reference?: string; note?: string },
+  ) {
+    return this.service.markPaidOut(id, req.user.sub, {
+      reference: body?.reference,
+      note: body?.note,
+    });
+  }
+
+  @Post("bulk-mark-paid-out")
+  bulkMarkPaidOut(
+    @Req() req: any,
+    @Body() body: { paymentIds: string[]; reference?: string; note?: string },
+  ) {
+    if (!Array.isArray(body?.paymentIds) || !body.paymentIds.length) {
+      throw new BadRequestException("paymentIds[] required");
+    }
+    return this.service.bulkMarkPaidOut(body.paymentIds, req.user.sub, {
+      reference: body.reference,
+      note: body.note,
+    });
+  }
+
+  // ---- Route-mode (on-hold transfer) lifecycle ----
+
   @Get("pending-releases")
   pendingReleases(
     @Query("shopkeeperId") shopkeeperId?: string,

@@ -41,8 +41,8 @@ export class Payment {
 
   @Prop({
     type: String,
-    enum: ["route", "direct"],
-    default: "route",
+    enum: ["route", "direct", "platform"],
+    default: "platform",
   })
   gatewayMode?: string;
 

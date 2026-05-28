@@ -107,6 +107,22 @@ export class ShopkeepersController {
     );
   }
 
+  /** One-click enable: switch shop to platform mode. All checkout payments
+   *  from this shop will collect into KiosCart's master Razorpay account. */
+  @Post("razorpay/enable-platform")
+  @UseGuards(AuthGuard("jwt"))
+  async enableRazorpayPlatform(@Req() req: any) {
+    const shopkeeperId = req.user.userId || req.user.sub;
+    return this.shopkeepersService.enableRazorpayPlatformMode(shopkeeperId);
+  }
+
+  @Get("razorpay/platform-status")
+  @UseGuards(AuthGuard("jwt"))
+  async getRazorpayPlatformStatus(@Req() req: any) {
+    const shopkeeperId = req.user.userId || req.user.sub;
+    return this.shopkeepersService.getRazorpayPlatformStatus(shopkeeperId);
+  }
+
   @Get("razorpay/status/:accountId")
   @UseGuards(AuthGuard("jwt"))
   async getRazorpayStatus(@Param("accountId") accountId: string) {

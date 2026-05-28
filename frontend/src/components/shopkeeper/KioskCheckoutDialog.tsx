@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { KioskCart } from "@/hooks/useKioskCarts";
+import { generateOrderId } from "@/lib/orderId";
 import { jwtDecode } from "jwt-decode";
 import QRCode from "react-qr-code";
 import jsQR from "jsqr";
@@ -251,7 +252,7 @@ export function KioskCheckoutDialog({
       if (!shopInfo) throw new Error("Shop info not loaded");
 
       const { date, time } = getNow();
-      const orderId = `ORDER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const orderId = generateOrderId(shopInfo?.shopName);
 
       const orderData = {
         orderId,
@@ -364,7 +365,7 @@ export function KioskCheckoutDialog({
       if (!shopInfo) throw new Error("Shop info not loaded");
 
       // Generate orderId upfront so it can be embedded in the QR code
-      const orderId = `ORDER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const orderId = generateOrderId(shopInfo?.shopName);
       setQrOrderId(orderId);
 
       // Generate QR data based on country

@@ -114,7 +114,11 @@ export class RazorpayLinkedAccount {
 
   @Prop({
     type: String,
-    enum: ["standard", "route", "direct"],
+    enum: ["platform", "standard", "route", "direct"],
+    // New shops default to Direct — they paste their own Razorpay keys
+    // and money lands in their own settlement account. "platform" is kept
+    // in the enum so admin can manually flip a shop to platform-pool mode
+    // if needed; "standard"/"route" are legacy Route-mode shops.
     default: "direct",
   })
   mode?: string;

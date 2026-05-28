@@ -159,6 +159,52 @@ export class ShopkeepersService {
   }
 
   /**
+   * Platform mode: customer payments at this shop's checkout collect into
+   * KiosCart's master Razorpay account. The shop never has to onboard with
+   * Razorpay or paste keys. KiosCart's admin handles disbursement to the
+   * shop out-of-band (see Pending Payouts admin page).
+   *
+   * Safe to call repeatedly — it's a state idempotent toggle.
+   */
+  async enableRazorpayPlatformMode(shopkeeperId: string) {
+    const shop = await this.shopModel.findById(shopkeeperId).lean();
+    if (!shop) throw new BadRequestException("Shopkeeper not found");
+
+    const next = {
+      ...((shop as any).razorpay ?? {}),
+      mode: "platform",
+      status: "active",
+      directEnabled: true,
+      country: ((shop as any).country || "IN").toUpperCase(),
+      updatedAt: new Date(),
+    };
+
+    await this.shopModel.findByIdAndUpdate(shopkeeperId, { razorpay: next });
+    this.logger.log(
+      `Shopkeeper ${shopkeeperId} switched to Razorpay platform mode.`,
+    );
+    return {
+      mode: "platform",
+      enabled: true,
+      message:
+        "Razorpay payments enabled. Customers will pay via KiosCart's secure checkout.",
+    };
+  }
+
+  /** Returns a small payload the shop-settings UI needs to render its toggle. */
+  async getRazorpayPlatformStatus(shopkeeperId: string) {
+    const shop = await this.shopModel.findById(shopkeeperId).lean();
+    if (!shop) throw new BadRequestException("Shopkeeper not found");
+    const r = (shop as any).razorpay;
+    return {
+      mode: r?.mode || null,
+      enabled: r?.mode === "platform" && r?.status === "active",
+      // Existing direct-mode shops keep their keys until they choose to migrate.
+      hasLegacyDirectKeys: !!r?.directKeyId,
+    };
+  }
+
+  /**
    * Direct mode: shopkeeper pastes their own Razorpay test/live keys.
    * We verify the keys against Razorpay's /v1/payments endpoint before saving,
    * encrypt the secret, and flip the shop into "direct" mode so customer
@@ -929,6 +975,17 @@ export class ShopkeepersService {
       status: "active",
       provider,
       providerId,
+      // Auto-enable Razorpay in PLATFORM mode: customer payments collect
+      // into KiosCart's master account using the platform's keys. No
+      // per-shop Razorpay onboarding required. Admin disburses to the
+      // shopkeeper out-of-band via the Pending Payouts page.
+      razorpay: {
+        mode: "platform",
+        status: "active",
+        country: (dto.country || "IN").toUpperCase(),
+        directEnabled: true,
+        createdAt: new Date(),
+      },
       ...subscriptionFields,
     }).save();
 
