@@ -5,8 +5,11 @@ import * as FormData from "form-data";
 import {
   PaymentGateway,
   CreateLinkedAccountInput,
+  CreateLinkedAccountMinimalInput,
   CreateLinkedAccountResult,
   CreateStakeholderInput,
+  UpdateLinkedAccountInput,
+  UpdateProductConfigInput,
   UploadDocumentInput,
   CreateOrderInput,
   CreateOrderResult,
@@ -115,6 +118,8 @@ export class RazorpayGateway implements PaymentGateway {
         return "rejected";
       case "suspended":
         return "suspended";
+      case "created":
+        return "created";
       default:
         return "pending_kyc";
     }
@@ -125,13 +130,13 @@ export class RazorpayGateway implements PaymentGateway {
   ): Promise<CreateLinkedAccountResult> {
     if (input.country !== "IN") {
       throw new BadRequestException(
-        "Razorpay Route currently supports only India-resident merchants.",
+        "Razorpay currently supports only India-resident merchants.",
       );
     }
     const payload = {
       email: input.businessEmail,
       phone: input.businessPhone,
-      type: "route",
+      type: input.accountType ?? "standard",
       reference_id: input.shopkeeperId,
       legal_business_name: input.businessName,
       business_type: input.businessType,
@@ -150,13 +155,53 @@ export class RazorpayGateway implements PaymentGateway {
           },
         },
       },
-      legal_info: {
-        pan: input.panNumber,
-        ...(input.gstNumber ? { gst: input.gstNumber } : {}),
-      },
+      ...(input.panNumber || input.gstNumber
+        ? {
+            legal_info: {
+              ...(input.panNumber ? { pan: input.panNumber } : {}),
+              ...(input.gstNumber ? { gst: input.gstNumber } : {}),
+            },
+          }
+        : {}),
       notes: {
         shopkeeper_id: input.shopkeeperId,
         platform: "KiosCart",
+      },
+    };
+
+    const account = await this.request<any>(
+      "POST",
+      `${RAZORPAY_API_BASE}/accounts`,
+      payload,
+    );
+
+    return {
+      accountId: account.id,
+      status: this.mapAccountStatus(account.status),
+      raw: account,
+    };
+  }
+
+  async createLinkedAccountMinimal(
+    input: CreateLinkedAccountMinimalInput,
+  ): Promise<CreateLinkedAccountResult> {
+    if (input.country !== "IN") {
+      throw new BadRequestException(
+        "Razorpay currently supports only India-resident merchants.",
+      );
+    }
+    const payload = {
+      email: input.businessEmail,
+      phone: input.businessPhone,
+      type: input.accountType ?? "standard",
+      reference_id: input.shopkeeperId,
+      legal_business_name: input.businessName,
+      business_type: input.businessType || "proprietorship",
+      contact_name: input.contactName,
+      notes: {
+        shopkeeper_id: input.shopkeeperId,
+        platform: "KiosCart",
+        onboarding: "soft",
       },
     };
 
@@ -250,14 +295,88 @@ export class RazorpayGateway implements PaymentGateway {
     }
   }
 
-  async requestProductConfiguration(accountId: string) {
-    const payload = { product_name: "route", tnc_accepted: true };
+  async requestProductConfiguration(
+    accountId: string,
+    productName: "payment_gateway" | "route" = "payment_gateway",
+  ) {
+    const payload = { product_name: productName, tnc_accepted: true };
     const product = await this.request<any>(
       "POST",
       `${RAZORPAY_API_BASE}/accounts/${accountId}/products`,
       payload,
     );
     return { productConfigId: product.id, raw: product };
+  }
+
+  async fetchProductConfiguration(accountId: string, productConfigId: string) {
+    const product = await this.request<any>(
+      "GET",
+      `${RAZORPAY_API_BASE}/accounts/${accountId}/products/${productConfigId}`,
+    );
+    return {
+      activationStatus: product.activation_status || product.status || "",
+      raw: product,
+    };
+  }
+
+  async updateProductConfiguration(input: UpdateProductConfigInput) {
+    const payload = {
+      settlements: {
+        account_number: input.settlements.accountNumber,
+        ifsc_code: input.settlements.ifscCode,
+        beneficiary_name: input.settlements.beneficiaryName,
+      },
+      ...(input.tncAccepted !== undefined
+        ? { tnc_accepted: input.tncAccepted }
+        : {}),
+    };
+    const product = await this.request<any>(
+      "PATCH",
+      `${RAZORPAY_API_BASE}/accounts/${input.accountId}/products/${input.productConfigId}`,
+      payload,
+    );
+    return {
+      activationStatus: product.activation_status || product.status || "",
+      raw: product,
+    };
+  }
+
+  async updateLinkedAccount(
+    input: UpdateLinkedAccountInput,
+  ): Promise<CreateLinkedAccountResult> {
+    const payload: any = {};
+    if (input.contactName) payload.contact_name = input.contactName;
+    if (input.businessType) payload.business_type = input.businessType;
+    if (input.panNumber || input.gstNumber) {
+      payload.legal_info = {
+        ...(input.panNumber ? { pan: input.panNumber } : {}),
+        ...(input.gstNumber ? { gst: input.gstNumber } : {}),
+      };
+    }
+    if (input.registeredAddress) {
+      payload.profile = {
+        addresses: {
+          registered: {
+            street1: input.registeredAddress.street1,
+            street2: input.registeredAddress.street2 || "",
+            city: input.registeredAddress.city,
+            state: input.registeredAddress.state,
+            postal_code: input.registeredAddress.postalCode,
+            country: "IN",
+          },
+        },
+      };
+    }
+    const account = await this.request<any>(
+      "PATCH",
+      `${RAZORPAY_API_BASE}/accounts/${input.accountId}`,
+      payload,
+    );
+    return {
+      accountId: account.id,
+      status: this.mapAccountStatus(account.status),
+      raw: account,
+    };
   }
 
   async createOrder(

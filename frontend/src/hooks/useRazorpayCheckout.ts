@@ -10,6 +10,8 @@ declare global {
 }
 
 interface CreateOrderArgs {
+  /** Human-readable cart tag used in Razorpay receipt + notes. The real
+   * Mongo Order is materialized server-side only after capture. */
   orderId: string;
   shopkeeperId: string;
   amount: number;
@@ -17,6 +19,10 @@ interface CreateOrderArgs {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  /** Full cart payload (CreateOrderDto shape). Backend stashes this on
+   * the Payment record and creates the Order only after Razorpay confirms
+   * capture, so abandoned modals don't leave ghost orders behind. */
+  order: any;
 }
 
 interface OpenCheckoutArgs extends CreateOrderArgs {
@@ -65,9 +71,9 @@ export function useRazorpayCheckout() {
   const createPaymentOrder = useCallback(async (args: CreateOrderArgs) => {
     const token = localStorage.getItem("token") || "";
     const body = {
-      orderId: args.orderId,
       shopkeeperId: args.shopkeeperId,
       amount: args.amount,
+      order: args.order,
       ...(args.currency ? { currency: args.currency } : {}),
       ...(args.customerName ? { customerName: args.customerName } : {}),
       ...(args.customerEmail ? { customerEmail: args.customerEmail } : {}),

@@ -327,6 +327,85 @@ export class ShopkeepersService {
     };
   }
 
+  /** Razorpay phone field expects 8-15 digits without country code.
+   * Strip non-digits and a leading 91 if the number then looks Indian. */
+  private normalizeIndianPhone(raw?: string): string {
+    const digits = (raw || "").replace(/\D+/g, "");
+    if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+    return digits;
+  }
+
+  /** Soft-onboarding: create a Razorpay linked account in `created` state
+   * with only the fields Razorpay strictly requires. The shopkeeper can sell
+   * immediately — funds park on the platform master, admin releases manually
+   * until they finish KYC. Idempotent and never throws — signup must never
+   * fail because Razorpay is slow or misconfigured. */
+  async ensureRazorpayLinkedAccount(shopkeeperId: string): Promise<void> {
+    let shop: any;
+    try {
+      shop = await this.shopModel.findById(shopkeeperId).lean();
+      if (!shop) return;
+      if (shop?.razorpay?.accountId) return;
+
+      const country = String(shop.country || "").toUpperCase();
+      if (country !== "IN") return;
+
+      const businessEmail = shop.businessEmail || shop.email;
+      const businessPhone = this.normalizeIndianPhone(
+        shop.whatsappNumber || shop.phone,
+      );
+      const businessName = (shop.shopName || "").trim();
+      const contactName = (shop.name || "").trim();
+
+      if (
+        !businessEmail ||
+        businessPhone.length < 8 ||
+        businessPhone.length > 15 ||
+        businessName.length < 4 ||
+        contactName.length < 4
+      ) {
+        this.logger.warn(
+          `Skipping soft-onboarding for ${shopkeeperId}: required fields missing or too short`,
+        );
+        return;
+      }
+
+      const gateway = this.gatewayFactory.forCountry("IN");
+      const result = await gateway.createLinkedAccountMinimal({
+        shopkeeperId,
+        businessName,
+        businessEmail,
+        businessPhone,
+        contactName,
+        country: "IN",
+        accountType: "standard",
+      });
+
+      await this.shopModel.findByIdAndUpdate(shopkeeperId, {
+        razorpay: {
+          accountId: result.accountId,
+          status: result.status,
+          mode: "standard",
+          businessName,
+          businessEmail,
+          businessPhone,
+          accountHolderName: contactName,
+          country: "IN",
+          documents: {},
+          createdAt: new Date(),
+        },
+      });
+
+      this.logger.log(
+        `Soft-onboarded shopkeeper ${shopkeeperId} → ${result.accountId} (${result.status})`,
+      );
+    } catch (err: any) {
+      this.logger.warn(
+        `ensureRazorpayLinkedAccount failed for ${shopkeeperId}: ${err?.message || err}`,
+      );
+    }
+  }
+
   async createRazorpayStakeholder(
     shopkeeperId: string,
     dto: CreateRazorpayStakeholderDto,

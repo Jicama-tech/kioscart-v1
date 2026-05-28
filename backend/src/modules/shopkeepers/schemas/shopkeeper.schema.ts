@@ -22,7 +22,14 @@ export class RazorpayLinkedAccount {
 
   @Prop({
     type: String,
-    enum: ["pending_kyc", "under_review", "active", "rejected", "suspended"],
+    enum: [
+      "created",
+      "pending_kyc",
+      "under_review",
+      "active",
+      "rejected",
+      "suspended",
+    ],
     default: "pending_kyc",
   })
   status: string;
@@ -107,8 +114,8 @@ export class RazorpayLinkedAccount {
 
   @Prop({
     type: String,
-    enum: ["route", "direct"],
-    default: "route",
+    enum: ["standard", "route", "direct"],
+    default: "direct",
   })
   mode?: string;
 

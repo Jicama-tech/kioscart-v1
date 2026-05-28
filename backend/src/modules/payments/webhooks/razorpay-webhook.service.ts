@@ -144,18 +144,18 @@ export class RazorpayWebhookService {
       this.logger.warn(`No Payment record for order ${entity.order_id}`);
       return;
     }
-    if (payment.status === PaymentStatus.Captured) return;
 
-    payment.gatewayPaymentId = entity.id;
-    payment.status = PaymentStatus.Captured;
-    payment.capturedAt = new Date();
-    await payment.save();
+    if (payment.status !== PaymentStatus.Captured) {
+      payment.gatewayPaymentId = entity.id;
+      payment.status = PaymentStatus.Captured;
+      payment.capturedAt = new Date();
+      await payment.save();
+    }
 
-    await this.orderModel.findByIdAndUpdate(payment.orderId, {
-      paymentId: payment._id,
-      paymentStatus: "paid",
-      transactionId: entity.id,
-    });
+    // Materialize the Order if the verify endpoint never ran (modal-close
+    // race, browser crash, network drop). Idempotent: skipped if orderId
+    // is already set.
+    await this.checkoutService.ensureOrderForPayment(payment, entity.id);
 
     // Create the on-hold Route transfer if the verify endpoint didn't.
     // Failures here shouldn't reject the webhook (Razorpay would retry the

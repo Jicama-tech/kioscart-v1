@@ -624,6 +624,10 @@ Thank you!`,
         optionTitle: it.optionTitle,
         optionPrice: it.optionPrice,
       }));
+      // Cart snapshot. We do NOT create the Order here anymore — the
+      // backend stashes this on the Payment intent and creates the real
+      // Order only after Razorpay confirms capture. Abandoned modals
+      // therefore leave no ghost orders behind.
       const orderData = {
         orderId: state.orderId,
         userId: state.userId,
@@ -640,26 +644,15 @@ Thank you!`,
         fullName: state.fullName,
         couponCode: state.appliedCoupon?._id,
       };
-      const res = await fetch(`${apiUrl}/orders/create-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
-      if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e.message || "Failed to create order");
-      }
-      const created = await res.json();
-      const mongoOrderId = created?._id || created?.id || created?.data?._id;
-      if (!mongoOrderId) throw new Error("Server did not return order id");
 
       await openCheckout({
-        orderId: mongoOrderId,
+        orderId: state.orderId,
         shopkeeperId: state.shopkeeperId,
         amount: state.total,
         shopName: state.merchantName,
         customerName: state.fullName,
         customerPhone: state.userWhatsApp,
+        order: orderData,
         ...(methodPreference ? { methods: [methodPreference] } : {}),
         onSuccess: (paymentId) => {
           setTransactionId(paymentId);

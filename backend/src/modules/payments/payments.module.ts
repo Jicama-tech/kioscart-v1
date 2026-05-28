@@ -10,6 +10,7 @@ import {
   ShopkeeperSchema,
 } from "../shopkeepers/schemas/shopkeeper.schema";
 import { ShopkeepersModule } from "../shopkeepers/shopkeepers.module";
+import { OrdersModule } from "../orders/orders.module";
 import { RazorpayWebhookController } from "./webhooks/razorpay-webhook.controller";
 import { RazorpayWebhookService } from "./webhooks/razorpay-webhook.service";
 
@@ -21,6 +22,7 @@ import { RazorpayWebhookService } from "./webhooks/razorpay-webhook.service";
       { name: Shopkeeper.name, schema: ShopkeeperSchema },
     ]),
     forwardRef(() => ShopkeepersModule),
+    forwardRef(() => OrdersModule),
   ],
   controllers: [PaymentsController, RazorpayWebhookController],
   providers: [PaymentsService, CheckoutService, RazorpayWebhookService],
