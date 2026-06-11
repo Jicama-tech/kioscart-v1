@@ -327,8 +327,8 @@ function AppContent() {
                   <Route path="/" element={<Navigate to="/admin-dashboard" replace />} />
                   <Route path="/admin-dashboard" element={<AdminDashboard onLogout={logout} />} />
                   <Route path="/admin-dashboard/payments" element={<AdminPaymentsPage onLogout={logout} />} />
-                  <Route path="/admin-dashboard/app-feedback" element={<AdminAppFeedbackPage onLogout={logout} />} />
-                  <Route path="/admin-dashboard/support-tickets" element={<AdminSupportTicketsPage onLogout={logout} />} />
+                  <Route path="/admin-dashboard/app-feedback" element={<AdminLayout onLogout={logout}><AdminAppFeedbackPage /></AdminLayout>} />
+                  <Route path="/admin-dashboard/support-tickets" element={<AdminLayout onLogout={logout}><AdminSupportTicketsPage /></AdminLayout>} />
                   <Route path="/admin-dashboard/pending-payouts" element={<AdminPendingPayoutsPage onLogout={logout} />} />
                   <Route path="/estore-register" element={<ShopKeeperRegister />} />
                   <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />

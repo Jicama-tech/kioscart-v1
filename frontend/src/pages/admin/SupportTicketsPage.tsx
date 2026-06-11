@@ -36,7 +36,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { AdminLayout } from "./AdminLayout";
 
 const apiURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -53,10 +52,6 @@ interface TicketRow {
   userId: string;
   shopkeeper: { name: string; shopName: string; email: string } | null;
   createdAt: string;
-}
-
-interface SupportTicketsPageProps {
-  onLogout: () => void;
 }
 
 const CATEGORY_META: Record<Category, { label: string; icon: any }> = {
@@ -110,9 +105,7 @@ function absUrl(p: string) {
   return `${apiURL}${p}`;
 }
 
-export default function SupportTicketsPage({
-  onLogout,
-}: SupportTicketsPageProps) {
+export default function SupportTicketsPage() {
   const [rows, setRows] = useState<TicketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -189,7 +182,7 @@ export default function SupportTicketsPage({
   );
 
   return (
-    <AdminLayout onLogout={onLogout}>
+    <>
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -442,6 +435,6 @@ export default function SupportTicketsPage({
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </>
   );
 }
