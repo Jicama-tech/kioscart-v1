@@ -9,9 +9,13 @@ export class Operator {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
-  whatsAppNumber: string;
+  // Optional now — operators sign in with Google (email), not WhatsApp OTP.
+  // Kept for back-compat / contact info.
+  @Prop()
+  whatsAppNumber?: string;
 
+  // Sign-in identity for Google auth. Looked up case-insensitively in the
+  // auth controller alongside shopkeeper emails.
   @Prop()
   email: string;
 

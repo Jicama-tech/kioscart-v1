@@ -25,8 +25,11 @@ const EShopLogin = lazy(() =>
 const AdminLogs = lazy(() =>
   import('./components/auth/loginAdmin').then((m) => ({ default: m.AdminLogs })),
 );
+// Shopkeeper login is now Google-only. The old WhatsApp-OTP screen
+// (shopKeeperLogin.tsx) is retired — every /login route renders the Google
+// sign-in (EShopLogin) so OTP never appears.
 const ShopkeeperLogin = lazy(() =>
-  import('./components/auth/shopKeeperLogin').then((m) => ({ default: m.ShopkeeperLogin })),
+  import('./components/auth/E-ShopLogin').then((m) => ({ default: m.EShopLogin })),
 );
 const CartAuthReturn = lazy(() =>
   import('./components/auth/CartAuthReturn').then((m) => ({ default: m.CartAuthReturn })),
@@ -43,6 +46,8 @@ const AgentDashboard = lazy(() =>
 const AgentsPage = lazy(() => import('./pages/admin/AgentsPage'));
 const ShopkeepersPage = lazy(() => import('./pages/admin/ShopkeepersPage'));
 const AdminPaymentsPage = lazy(() => import('./pages/admin/PaymentsPage'));
+const AdminAppFeedbackPage = lazy(() => import('./pages/admin/AppFeedbackPage'));
+const AdminPendingPayoutsPage = lazy(() => import('./pages/admin/PendingPayoutsPage'));
 
 // Lazy load all heavy page components for code splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -321,6 +326,8 @@ function AppContent() {
                   <Route path="/" element={<Navigate to="/admin-dashboard" replace />} />
                   <Route path="/admin-dashboard" element={<AdminDashboard onLogout={logout} />} />
                   <Route path="/admin-dashboard/payments" element={<AdminPaymentsPage onLogout={logout} />} />
+                  <Route path="/admin-dashboard/app-feedback" element={<AdminAppFeedbackPage onLogout={logout} />} />
+                  <Route path="/admin-dashboard/pending-payouts" element={<AdminPendingPayoutsPage onLogout={logout} />} />
                   <Route path="/estore-register" element={<ShopKeeperRegister />} />
                   <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
                 </Routes>

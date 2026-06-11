@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useCart } from "@/hooks/cartContext";
 import { useToast } from "@/components/ui/use-toast";
+import { generateOrderId } from "@/lib/orderId";
 import {
   X,
   Plus,
@@ -92,13 +93,8 @@ export function CartPage() {
   const [lastName, setLastName] = useState("");
   const [customerWhatsAppNumber, setCustomerWhatsAppNumber] = useState("");
 
-  // State for shopkeeper verification
-  const [shopkeeperWhatsAppNumber, setShopkeeperWhatsAppNumber] = useState("");
-  const [shopkeeperOtp, setShopkeeperOtp] = useState("");
-  const [isShopkeeperOtpSent, setIsShopkeeperOtpSent] = useState(false);
+  // State for shopkeeper verification (used by the "self" tab order gating)
   const [isShopkeeperVerified, setIsShopkeeperVerified] = useState(false);
-  const [isShopkeeperVerifying, setIsShopkeeperVerifying] = useState(false);
-  const [countdown, setCountdown] = useState(60);
   const [completeWhatsAppNumber, setCompleteWhatsAppNumber] = useState("");
   const [country, setCountry] = useState<"IN" | "SG">("IN");
   const { formatPrice, getSymbol } = useCurrency(country);
@@ -458,111 +454,6 @@ export function CartPage() {
     }
   }
 
-  // Shopkeeper OTP functions
-  const handleRequestShopkeeperOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!shopkeeperWhatsAppNumber || shopkeeperWhatsAppNumber.length < 6) {
-      toast({
-        duration: 5000,
-        title: "Invalid Number",
-        description: "Please enter a valid WhatsApp number",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsShopkeeperVerifying(true);
-    try {
-      const fullNumber = `${countryCode}${shopkeeperWhatsAppNumber}`;
-      const response = await fetch(`${apiURL}/otp/send-whatsapp-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          whatsappNumber: fullNumber,
-          role: "shopkeeper",
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to send OTP");
-      }
-
-      toast({
-        duration: 5000,
-        title: "OTP Sent Successfully",
-        description: `OTP sent to WhatsApp number ${fullNumber}`,
-      });
-
-      setIsShopkeeperOtpSent(true);
-      setCountdown(60);
-    } catch (err: any) {
-      toast({
-        duration: 5000,
-        title: "Error",
-        description: err.message || "Failed to send OTP. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsShopkeeperVerifying(false);
-    }
-  };
-
-  const handleVerifyShopkeeperOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const otpString = shopkeeperOtp;
-    if (otpString.length !== 6) {
-      toast({
-        duration: 5000,
-        title: "Invalid OTP",
-        description: "Please enter all 6 digits",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsShopkeeperVerifying(true);
-    try {
-      const fullNumber = `${countryCode}${shopkeeperWhatsAppNumber}`;
-      const response = await fetch(`${apiURL}/otp/verify-chat-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          whatsappNumber: fullNumber,
-          otp: otpString,
-          role: "shopkeeper",
-          shopId: shopName,
-          emailId: emailId,
-        }),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "OTP verification failed");
-      }
-      const data = await response.json();
-      if (data.data) {
-        sessionStorage.setItem("token", data.data);
-        sessionStorage.removeItem("userToken");
-        setIsShopkeeperVerified(true);
-        toast({
-          duration: 5000,
-          title: "Shopkeeper Verified",
-          description: "You can now place the order for the customer.",
-        });
-      } else {
-        throw new Error("No token received");
-      }
-    } catch (err: any) {
-      toast({
-        duration: 5000,
-        title: "Verification Failed",
-        description: err.message || "Invalid OTP. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsShopkeeperVerifying(false);
-    }
-  };
-
   // Order options state
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState({
@@ -774,9 +665,7 @@ export function CartPage() {
 
       setWhatsappNumber(shop.whatsappNumber);
       const whatsAppNumber = shop.whatsappNumber;
-      const orderId = `ORDER-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
+      const orderId = generateOrderId(shop?.shopName);
       const paymentImageUrl = shop.paymentURL ? apiURL + shop.paymentURL : "";
       const userWhatsApp = countryCode + whatsapp;
 

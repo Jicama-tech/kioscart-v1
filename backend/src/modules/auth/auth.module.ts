@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
+import { MongooseModule } from "@nestjs/mongoose";
 import { UsersModule } from "../users/users.module";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
@@ -11,6 +12,8 @@ import { GoogleShopkeeperStrategy } from "./strategies/shopkeeper-google.strateg
 import { RolesModule } from "../roles/roles.module";
 import { GoogleOrganizerStrategy } from "./strategies/organizer-google.strategy";
 import { GoogleBuyerStrategy } from "./strategies/buyer-google.strategy";
+import { ShopkeeperSchema } from "../shopkeepers/schemas/shopkeeper.schema";
+import { OperatorSchema } from "../operators/entities/operator.entity";
 
 @Module({
   imports: [
@@ -19,6 +22,10 @@ import { GoogleBuyerStrategy } from "./strategies/buyer-google.strategy";
       secret: process.env.JWT_ACCESS_SECRET || "secret",
       signOptions: { expiresIn: process.env.JWT_ACCESS_EXPIRY || "900s" },
     }),
+    MongooseModule.forFeature([
+      { name: "Shopkeeper", schema: ShopkeeperSchema },
+      { name: "Operator", schema: OperatorSchema },
+    ]),
     UsersModule,
     RolesModule,
   ],

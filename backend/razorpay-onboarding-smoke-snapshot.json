@@ -1,0 +1,19 @@
+{
+  "stamp": 1778931639536,
+  "ref": "smoke_1778931639536",
+  "email": "smoke+1778931639536@kioscart.io",
+  "phone": "9931639536",
+  "steps": {
+    "createLinkedAccountMinimal": {
+      "error": "Razorpay: Access Denied"
+    }
+  },
+  "accountId": null,
+  "results": [
+    {
+      "name": "createLinkedAccountMinimal",
+      "ok": false,
+      "error": "Razorpay: Access Denied"
+    }
+  ]
+}

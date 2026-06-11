@@ -52,8 +52,10 @@ import {
   HelpCircle,
   PanelLeftClose,
   PanelLeftOpen,
+  LifeBuoy,
 } from "lucide-react";
 // Lazy load heavy tab components - only loaded when tab is active
+const SupportPanel = lazy(() => import("@/components/shopkeeper/SupportPanel"));
 const ProductManagement = lazy(() =>
   import("@/components/shopkeeper/ProductManagement").then((m) => ({
     default: m.ProductManagement,
@@ -178,7 +180,9 @@ const NAVIGATION_ITEMS = [
   { id: "products", label: "Products", icon: Package },
   { id: "storefront", label: "Storefront", icon: Globe, isAction: true },
   { id: "settings", label: "Settings", icon: Settings },
+  { id: "support", label: "Support", icon: LifeBuoy },
 ];
+
 
 const SHOPKEEPER_FAQS = [
   {
@@ -278,12 +282,41 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     key: number;
   } | null>(null);
 
+  // Derive shopkeeperId, operatorId, accessTabs from JWT.
+  // Must be declared BEFORE hasTabAccess / the redirect effect below, which
+  // reference isOperator + accessTabs (otherwise: TDZ ReferenceError).
+  const { shopkeeperId, isOperator, accessTabs } = useMemo(() => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        return {
+          shopkeeperId: decoded.sub as string,
+          isOperator: !!decoded.operatorId,
+          accessTabs: decoded.accessTabs as string[] | undefined,
+        };
+      }
+    } catch {}
+    return { shopkeeperId: "", isOperator: false, accessTabs: undefined };
+  }, []);
+
   // Check if current user has access to a tab
   const hasTabAccess = (tabId: string) => {
     if (!isOperator) return true; // Shopkeepers have full access
     if (!accessTabs) return true; // No restrictions set
     return accessTabs.includes(tabId);
   };
+
+  // If a restricted operator lands on a tab they can't access (e.g. the
+  // default "chat" tab isn't in their accessTabs), redirect them to the
+  // first tab they are allowed to see.
+  useEffect(() => {
+    if (!hasTabAccess(activeTab)) {
+      const firstAllowed = NAVIGATION_ITEMS.find((i) => hasTabAccess(i.id));
+      if (firstAllowed) setActiveTab(firstAllowed.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isOperator, accessTabs]);
   const [showStorefront, setShowStorefront] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Desktop-only collapse: hides the sidebar on lg+ so the main content
@@ -314,22 +347,6 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   const { formatPrice, getSymbol } = useCurrency(
     shopkeeperInfo?.country || "IN",
   );
-
-  // Derive shopkeeperId, operatorId, accessTabs from JWT
-  const { shopkeeperId, isOperator, accessTabs } = useMemo(() => {
-    try {
-      const token = sessionStorage.getItem("token");
-      if (token) {
-        const decoded: any = jwtDecode(token);
-        return {
-          shopkeeperId: decoded.sub as string,
-          isOperator: !!decoded.operatorId,
-          accessTabs: decoded.accessTabs as string[] | undefined,
-        };
-      }
-    } catch {}
-    return { shopkeeperId: "", isOperator: false, accessTabs: undefined };
-  }, []);
 
   // Payment email notification polling
   const knownPaymentIdsRef = useRef<Set<string>>(new Set());
@@ -495,7 +512,9 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
   async function logout() {
     sessionStorage.removeItem("token");
-    navigate(`/${slug}`);
+    // Send the user to the landing page (not the shop's storefront) and do a
+    // full reload so AuthProvider re-initializes with no token / no user.
+    window.location.href = "/";
   }
 
   // Fetch all dashboard data on mount - parallelized for speed
@@ -923,7 +942,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
         >
           <div className="h-full flex flex-col">
             <nav className="p-3 sm:p-4 space-y-1 sm:space-y-2 flex-1 overflow-y-auto">
-              {NAVIGATION_ITEMS.map((item) => {
+              {NAVIGATION_ITEMS.filter((item) => hasTabAccess(item.id)).map((item) => {
                 const navToModule: Record<string, string> = {
                   orders: "orders",
                   products: "products",
@@ -2018,6 +2037,16 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     <div className="space-y-4">
                       <ShopkeeperSettings onSave={handleSaveSettings} />
                     </div>
+                  </Suspense>
+                ) : (
+                  <NoAccessOverlay />
+                )}
+              </TabsContent>
+
+              <TabsContent value="support" className="mt-0">
+                {hasTabAccess("support") ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <SupportPanel />
                   </Suspense>
                 ) : (
                   <NoAccessOverlay />

@@ -38,6 +38,8 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
+import { AppFeedbackForm } from "@/components/feedback/AppFeedbackForm";
+import { AppFeedbackCarousel } from "@/components/feedback/AppFeedbackCarousel";
 import {
   motion,
   useScroll,
@@ -235,6 +237,7 @@ const LandingPage = () => {
   const [openDropdowns, setOpenDropdowns] = useState({});
   const [activeStep, setActiveStep] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const toggleDropdown = (categoryName) => {
     setOpenDropdowns((prev) => ({
@@ -721,6 +724,33 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {/* --- TESTIMONIALS / APP FEEDBACK CAROUSEL --- */}
+      <section className="py-24 bg-background relative overflow-hidden" id="testimonials">
+        <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-landing/5 rounded-full blur-3xl" />
+        <div className="container mx-auto px-4 relative z-10">
+          <SectionHeader
+            title="What Our Users Say"
+            subtitle="Real stories from real merchants using KiosCart every day."
+          />
+
+          <div className="mt-12">
+            <AppFeedbackCarousel />
+          </div>
+
+          <div className="mt-10 flex justify-center">
+            <Button
+              size="lg"
+              onClick={() => setFeedbackOpen(true)}
+              className="h-12 px-8 rounded-full bg-landing hover:bg-landing/90 text-white"
+            >
+              Share Your Experience
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <AppFeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
       {/* --- FAQ SECTION --- */}
       <section className="py-24 bg-muted/30" id="faq">

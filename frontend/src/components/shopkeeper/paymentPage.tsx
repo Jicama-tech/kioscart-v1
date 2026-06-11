@@ -89,7 +89,7 @@ export default function PaymentPage() {
   const [transactionId, setTransactionId] = useState("");
   const [timeLeft, setTimeLeft] = useState(24 * 60 * 60); // 24 hours in seconds
   const [razorpayActive, setRazorpayActive] = useState(false);
-  const { openCheckout, scriptReady } = useRazorpayCheckout();
+  const { openCheckoutLazy, scriptReady } = useRazorpayCheckout();
 
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isAndroid = /Android/i.test(navigator.userAgent);
@@ -624,9 +624,12 @@ Thank you!`,
         optionTitle: it.optionTitle,
         optionPrice: it.optionPrice,
       }));
-      const orderData = {
+      // LAZY FLOW: do NOT create the Order yet — backend stashes the cart
+      // in a CheckoutIntent, opens Razorpay, and only materializes the Order
+      // on `verify-create` after payment captures. Customer abandons →
+      // CheckoutIntent TTL-expires → DB stays clean.
+      await openCheckoutLazy({
         orderId: state.orderId,
-        userId: state.userId,
         shopkeeperId: state.shopkeeperId,
         items: sanitizedItems,
         totalAmount: state.total || 0,
@@ -635,33 +638,13 @@ Thank you!`,
         deliveryAddress: state.deliveryAddress,
         pickupDate: state.pickupDate,
         pickupTime: state.pickupTime,
-        paymentConfirmed: false,
-        whatsAppNumber: state.userWhatsApp,
-        fullName: state.fullName,
         couponCode: state.appliedCoupon?._id,
-      };
-      const res = await fetch(`${apiUrl}/orders/create-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
-      if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e.message || "Failed to create order");
-      }
-      const created = await res.json();
-      const mongoOrderId = created?._id || created?.id || created?.data?._id;
-      if (!mongoOrderId) throw new Error("Server did not return order id");
-
-      await openCheckout({
-        orderId: mongoOrderId,
-        shopkeeperId: state.shopkeeperId,
-        amount: state.total,
-        shopName: state.merchantName,
+        customerWhatsApp: state.userWhatsApp,
         customerName: state.fullName,
-        customerPhone: state.userWhatsApp,
+        fullName: state.fullName,
+        shopName: state.merchantName,
         ...(methodPreference ? { methods: [methodPreference] } : {}),
-        onSuccess: (paymentId) => {
+        onSuccess: ({ paymentId }) => {
           setTransactionId(paymentId);
           setPaymentSubmitted(true);
           clearCart(state.shopkeeperId);
@@ -1490,16 +1473,20 @@ Thank you!`,
                 <CardContent className="text-center space-y-6">
                   {razorpayActive && country === "IN" && (
                     <div className="rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white text-left">
-                      {/* Branded header */}
+                      {/* Branded header — platform identity is KiosCart;
+                          the shop name appears as the order context below. */}
                       <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-5 py-4 text-white">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs uppercase tracking-wide opacity-80">
                               Secure Checkout
                             </p>
-                            <p className="font-semibold text-lg">
-                              {state.merchantName || "KiosCart"}
-                            </p>
+                            <p className="font-semibold text-lg">KiosCart</p>
+                            {state.merchantName && (
+                              <p className="text-xs opacity-80 mt-0.5">
+                                Order from {state.merchantName}
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="text-xs opacity-80">Amount to pay</p>

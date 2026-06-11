@@ -8,6 +8,9 @@ import {
   Res,
   ConflictException,
   InternalServerErrorException,
+  UnauthorizedException,
+  ForbiddenException,
+  NotFoundException,
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { LocalDto } from "./dto/local.dto";
@@ -20,6 +23,8 @@ import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
 import { RoleService } from "../roles/roles.service";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
 
 @Controller("auth")
 export class AuthController {
@@ -41,6 +46,8 @@ export class AuthController {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly rolesService: RoleService,
+    @InjectModel("Shopkeeper") private readonly shopkeeperModel: Model<any>,
+    @InjectModel("Operator") private readonly operatorModel: Model<any>,
   ) {
     this.frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
   }
@@ -148,45 +155,193 @@ export class AuthController {
     const FRONTEND = this.frontendUrl;
     try {
       const userFromGoogle = req.user as any;
-
-      if (!userFromGoogle) {
+      if (!userFromGoogle?.email) {
         return res.redirect(`${FRONTEND}/estore/login?error=auth_failed`);
       }
+      const email = String(userFromGoogle.email).toLowerCase();
+      const name = userFromGoogle.name || "";
 
-      // Find or create user record
-      let user = await this.usersService.findByEmail(userFromGoogle.email);
+      // Case-insensitive match — operator emails aren't normalized, so a
+      // plain equality check would silently miss them.
+      const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const emailRegex = new RegExp(`^${escaped}$`, "i");
 
-      if (!user) {
-        const createUserDto: CreateUserDto = {
-          name: userFromGoogle.name,
-          email: userFromGoogle.email,
-          password: userFromGoogle.password || "oauth-" + userFromGoogle.oauthId,
-          provider: userFromGoogle.oauthProvider,
-          providerId: userFromGoogle.oauthId,
-        };
-        user = await this.usersService.create(createUserDto);
+      // Gather every shopkeeper + (non-deleted) operator tied to this email.
+      const [shopkeepers, operators] = await Promise.all([
+        this.shopkeeperModel.find({ email: emailRegex }).lean(),
+        this.operatorModel
+          .find({ email: emailRegex, isSoftDeleted: { $ne: true } })
+          .lean(),
+      ]);
+
+      // Resolve parent shopkeepers for any operator hits.
+      const parentIds = Array.from(
+        new Set(
+          operators
+            .filter((o: any) => o.shopkeeperId)
+            .map((o: any) => String(o.shopkeeperId)),
+        ),
+      );
+      const parentShops = parentIds.length
+        ? await this.shopkeeperModel.find({ _id: { $in: parentIds } }).lean()
+        : [];
+      const parentLookup = new Map<string, any>(
+        parentShops.map((p: any) => [String(p._id), p]),
+      );
+
+      // Unified account list. Pending shops stay in but flagged approved=false
+      // so the picker can grey them out; operators inherit parent approval.
+      const accounts: Array<{
+        accountId: string;
+        accountType: "shopkeeper" | "operator";
+        shopName: string;
+        approved: boolean;
+      }> = [];
+      for (const shop of shopkeepers as any[]) {
+        accounts.push({
+          accountId: String(shop._id),
+          accountType: "shopkeeper",
+          shopName: shop.shopName || shop.name || "My Shop",
+          approved: !!shop.approved && !shop.rejected,
+        });
+      }
+      for (const op of operators as any[]) {
+        if (!op.shopkeeperId) continue;
+        const parent = parentLookup.get(String(op.shopkeeperId));
+        if (!parent) continue;
+        accounts.push({
+          accountId: String(op._id),
+          accountType: "operator",
+          shopName: `${parent.shopName || parent.name} (Operator: ${op.name})`,
+          approved: !!parent.approved && !parent.rejected,
+        });
       }
 
-      const payload = {
-        name: user.name,
-        email: user.email,
-        sub: user._id,
-        roles: user.roles,
-      };
+      // 0 accounts → this Google user isn't a shopkeeper or operator yet.
+      // Send them to the registration form (admin-approval gate preserved),
+      // prefilling what Google told us.
+      if (accounts.length === 0) {
+        return res.redirect(
+          `${FRONTEND}/estore-register?google=1&email=${encodeURIComponent(
+            email,
+          )}&name=${encodeURIComponent(name)}`,
+        );
+      }
 
-      const token = this.jwtService.sign(payload, {
-        secret: process.env.JWT_ACCESS_SECRET,
-        expiresIn: "1h",
-      });
+      // 1 → direct login (or pending block).
+      if (accounts.length === 1) {
+        const only = accounts[0];
+        if (!only.approved) {
+          return res.redirect(`${FRONTEND}/estore/login?error=pending_approval`);
+        }
+        const token = await this.mintShopkeeperToken(
+          only.accountId,
+          only.accountType,
+        );
+        return res.redirect(
+          `${FRONTEND}/estore/login?token=${encodeURIComponent(token)}&direct=1`,
+        );
+      }
 
-      // Redirect to estore login — frontend checks shopkeeper role and routes accordingly
+      // 2+ → mint short-lived selection token, send user to the picker UI.
+      const selToken = this.jwtService.sign(
+        { typ: "shopkeeper-select", email, name, accounts },
+        { secret: process.env.JWT_ACCESS_SECRET, expiresIn: "5m" } as any,
+      );
       return res.redirect(
-        `${FRONTEND}/estore/login?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}`,
+        `${FRONTEND}/estore/login?selToken=${encodeURIComponent(selToken)}`,
       );
     } catch (error) {
-      const FRONTEND = this.frontendUrl;
       return res.redirect(`${FRONTEND}/estore/login?error=auth_failed`);
     }
+  }
+
+  // Exchange a selection token + chosen account for the real shopkeeper JWT.
+  // Used by the multi-account dropdown after Google sign-in.
+  @Post("select-shopkeeper-account")
+  async selectShopkeeperAccount(
+    @Body()
+    body: {
+      selToken: string;
+      accountId: string;
+      accountType: "shopkeeper" | "operator";
+    },
+  ) {
+    if (!body?.selToken || !body?.accountId || !body?.accountType) {
+      throw new UnauthorizedException("Missing selection payload");
+    }
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(body.selToken, {
+        secret: process.env.JWT_ACCESS_SECRET,
+      });
+    } catch {
+      throw new UnauthorizedException(
+        "Selection link expired. Please sign in again.",
+      );
+    }
+    if (payload?.typ !== "shopkeeper-select") {
+      throw new UnauthorizedException("Invalid selection token");
+    }
+    const match = (payload.accounts || []).find(
+      (a: any) =>
+        a.accountId === body.accountId && a.accountType === body.accountType,
+    );
+    if (!match) {
+      throw new UnauthorizedException("Account not in selection list");
+    }
+    if (!match.approved) {
+      throw new ForbiddenException(
+        "This account is awaiting approval and cannot be used yet.",
+      );
+    }
+    const token = await this.mintShopkeeperToken(
+      body.accountId,
+      body.accountType,
+    );
+    return { token };
+  }
+
+  // Mint the dashboard JWT for either a shopkeeper or an operator (which
+  // logs in under the parent shopkeeper's identity, with tab restrictions).
+  private async mintShopkeeperToken(
+    accountId: string,
+    accountType: "shopkeeper" | "operator",
+  ): Promise<string> {
+    if (accountType === "shopkeeper") {
+      const shop: any = await this.shopkeeperModel.findById(accountId).lean();
+      if (!shop) throw new NotFoundException("Shopkeeper not found");
+      return this.jwtService.sign(
+        {
+          name: shop.name,
+          email: shop.email,
+          sub: shop._id.toString(),
+          country: shop.country,
+          shopName: shop.shopName,
+          roles: ["shopkeeper"],
+        },
+        { secret: process.env.JWT_ACCESS_SECRET, expiresIn: "24h" } as any,
+      );
+    }
+    const op: any = await this.operatorModel.findById(accountId).lean();
+    if (!op?.shopkeeperId) throw new NotFoundException("Operator not found");
+    const parent: any = await this.shopkeeperModel
+      .findById(op.shopkeeperId)
+      .lean();
+    if (!parent) throw new NotFoundException("Parent shop not found");
+    return this.jwtService.sign(
+      {
+        name: op.name,
+        email: op.email,
+        sub: parent._id.toString(),
+        operatorId: op._id.toString(),
+        accessTabs: op.accessTabs || [],
+        country: parent.country,
+        shopName: parent.shopName,
+        roles: ["shopkeeper"],
+      },
+      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: "24h" } as any,
+    );
   }
 
   // Google OAuth for buyers (cart checkout)

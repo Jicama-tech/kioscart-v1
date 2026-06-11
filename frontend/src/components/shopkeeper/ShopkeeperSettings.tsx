@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { GmailPaymentSection } from "./GmailPaymentSection";
-import { RazorpayOnboarding } from "./RazorpayOnboarding";
 import { RazorpayDirectSetup } from "./RazorpayDirectSetup";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,8 +106,9 @@ interface Operator {
   _id?: string;
   name: string;
   email: string;
-  whatsAppNumber: string;
+  whatsAppNumber?: string;
   shopkeeperId?: string;
+  accessTabs?: string[];
 }
 
 interface Country {
@@ -1202,10 +1202,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
   // ✅ Create operator via POST
   const handleSubmitOperator = async () => {
-    if (!operatorForm.name.trim() || !operatorForm.operatorLocalNumber.trim()) {
+    // Operators sign in with email, so name + email are the required identity.
+    if (!operatorForm.name.trim() || !operatorForm.operatorEmail.trim()) {
       toast({
         duration: 3000,
-        title: "Please fill all fields",
+        title: "Name and email are required",
         variant: "destructive",
       });
       return;
@@ -1217,9 +1218,6 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (!token) throw new Error("Please login");
       const decoded = jwtDecode<{ sub: string }>(token);
       const shopkeeperId = decoded.sub;
-
-      const fullWhatsApp =
-        operatorForm.operatorCountryCode + operatorForm.operatorLocalNumber;
 
       const isEditing = editingOperatorIndex !== null;
       const editingOperator = isEditing
@@ -1240,9 +1238,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         },
         body: JSON.stringify({
           name: operatorForm.name,
-          whatsAppNumber: fullWhatsApp,
           email: operatorForm.operatorEmail,
           accessTabs: operatorForm.accessTabs,
+          shopkeeperId,
         }),
       });
 
@@ -2989,8 +2987,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         <div>
                           <p className="font-semibold">{op.name}</p>
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {op.whatsAppNumber}
+                            <Mail className="w-3 h-3" />
+                            {op.email}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2998,23 +2996,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              // Split stored number back into country code + local
-                              let splitCode = "+91";
-                              let splitLocal = op.whatsAppNumber;
-                              for (const c of countries) {
-                                if (op.whatsAppNumber.startsWith(c.dialCode)) {
-                                  splitCode = c.dialCode;
-                                  splitLocal = op.whatsAppNumber.slice(
-                                    c.dialCode.length,
-                                  );
-                                  break;
-                                }
-                              }
                               setOperatorForm({
                                 name: op.name,
-                                operatorCountryCode: splitCode,
+                                operatorCountryCode: countryCode,
                                 operatorEmail: op.email,
-                                operatorLocalNumber: splitLocal,
+                                operatorLocalNumber: "",
                                 accessTabs: op.accessTabs || [...ALL_TABS],
                               });
                               setEditingOperatorIndex(index);
@@ -3072,65 +3058,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>WhatsApp Number *</Label>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-32">
-                      <Select
-                        value={operatorForm.operatorCountryCode}
-                        onValueChange={(val) =>
-                          setOperatorForm((prev) => ({
-                            ...prev,
-                            operatorCountryCode: val,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Code" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {loadingCountries ? (
-                            <SelectItem value="loading" disabled>
-                              Loading...
-                            </SelectItem>
-                          ) : (
-                            countries
-                              .filter(
-                                (c) => c.dialCode && c.dialCode.trim() !== "",
-                              )
-                              .map((c) => (
-                                <SelectItem
-                                  key={`${c.code}-${c.dialCode}`}
-                                  value={c.dialCode}
-                                >
-                                  {c.name} {c.dialCode}
-                                </SelectItem>
-                              ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Input
-                      type="tel"
-                      placeholder="Enter number"
-                      maxLength={10}
-                      value={operatorForm.operatorLocalNumber}
-                      onChange={(e) =>
-                        setOperatorForm((prev) => ({
-                          ...prev,
-                          operatorLocalNumber: e.target.value.replace(
-                            /\D/g,
-                            "",
-                          ),
-                        }))
-                      }
-                      className="flex-grow"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
                   <Label>Operator Email *</Label>
                   <Input
-                    placeholder="e.g. John Doe"
+                    type="email"
+                    placeholder="e.g. operator@example.com"
                     value={operatorForm.operatorEmail}
                     onChange={(e) =>
                       setOperatorForm((prev) => ({
@@ -3582,19 +3513,20 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-indigo-900">
                   <CreditCard className="w-5 h-5" />
-                  Razorpay Payment Setup
+                  Razorpay Payments
                 </CardTitle>
                 <CardDescription>
-                  Connect your own Razorpay account to accept cards, UPI and
-                  netbanking. Money lands directly in your bank on T+2.
+                  Accept cards, UPI and netbanking with your own Razorpay
+                  account. Payments settle directly to your bank — KiosCart
+                  never holds your money.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <RazorpayDirectSetup
-                  onStatusChange={(configured) => {
-                    setRazorpayConfigured(configured);
-                    razorpayConfiguredRef.current = configured;
-                    if (configured) {
+                  onStatusChange={(enabled) => {
+                    setRazorpayConfigured(enabled);
+                    razorpayConfiguredRef.current = enabled;
+                    if (enabled) {
                       setPaymentMethods((prev) => ({
                         ...prev,
                         razorpayCards: true,

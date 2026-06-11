@@ -5,10 +5,14 @@ import { toast } from "sonner";
 import { useRazorpayCheckout } from "@/hooks/useRazorpayCheckout";
 
 interface Props {
-  /** Internal Mongo Order id (must already exist before clicking). */
+  /** Human-readable cart tag used for Razorpay's receipt + notes. The real
+   * Mongo Order is created server-side only after capture. */
   orderId: string;
   shopkeeperId: string;
   amount: number;
+  /** Full cart payload (CreateOrderDto shape) — required by the backend
+   * so the Order can be materialized after capture. */
+  order: any;
   shopName?: string;
   customerName?: string;
   customerEmail?: string;
@@ -25,6 +29,7 @@ export function RazorpayPayButton({
   orderId,
   shopkeeperId,
   amount,
+  order,
   shopName,
   customerName,
   customerEmail,
@@ -54,6 +59,7 @@ export function RazorpayPayButton({
         orderId,
         shopkeeperId,
         amount,
+        order,
         shopName,
         customerName,
         customerEmail,
