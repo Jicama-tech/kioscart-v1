@@ -16,9 +16,11 @@ import {
   SupportTicket,
   SupportTicketDocument,
 } from "./entities/support-ticket.entity";
+import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
 import { CreateAppFeedbackDto } from "./dto/create-app-feedback.dto";
 import { UpdateAppFeedbackDto } from "./dto/update-app-feedback.dto";
 import { CreateSupportTicketDto } from "./dto/create-support-ticket.dto";
+import { UpdateSupportTicketDto } from "./dto/update-support-ticket.dto";
 
 // Hardcoded app identifier — every read/write below pins itself to this so
 // the shared database stays tenant-safe regardless of what the client sends.
@@ -37,6 +39,8 @@ export class AppFeedbackService {
     private readonly model: Model<AppFeedbackDocument>,
     @InjectModel(SupportTicket.name)
     private readonly supportModel: Model<SupportTicketDocument>,
+    @InjectModel(Shopkeeper.name)
+    private readonly shopkeeperModel: Model<Shopkeeper>,
   ) {}
 
   async create(dto: CreateAppFeedbackDto, imageRelativePath: string) {
@@ -144,5 +148,52 @@ export class AppFeedbackService {
       .sort({ createdAt: -1 })
       .lean();
     return { items };
+  }
+
+  /**
+   * Admin view: every support ticket, newest first, enriched with the
+   * submitting shopkeeper's identity. A ticket's `userId` is the shopkeeper's
+   * `_id` (their JWT `sub`), so we batch-resolve those ids to shop/name/email
+   * in one query rather than per-row. Tickets whose author can't be resolved
+   * (e.g. a non-shopkeeper account) still appear, just without shop details.
+   */
+  async findAllSupportTicketsForAdmin(): Promise<{ items: any[] }> {
+    const items = await this.supportModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const ids = [...new Set(items.map((t) => String(t.userId)).filter(Boolean))];
+    const shopkeepers = ids.length
+      ? await this.shopkeeperModel
+          .find({ _id: { $in: ids } })
+          .select("name shopName email")
+          .lean()
+      : [];
+    const byId = new Map(
+      shopkeepers.map((s: any) => [String(s._id), s]),
+    );
+
+    const enriched = items.map((t) => {
+      const s: any = byId.get(String(t.userId));
+      return {
+        ...t,
+        shopkeeper: s
+          ? { name: s.name, shopName: s.shopName, email: s.email }
+          : null,
+      };
+    });
+    return { items: enriched };
+  }
+
+  /** Admin updates a ticket's status (open → in_progress → resolved). */
+  async updateSupportTicket(id: string, dto: UpdateSupportTicketDto) {
+    const updated = await this.supportModel
+      .findByIdAndUpdate(id, { $set: dto }, { new: true })
+      .lean();
+    if (!updated) {
+      throw new NotFoundException("Support ticket not found");
+    }
+    return { success: true, data: updated };
   }
 }
