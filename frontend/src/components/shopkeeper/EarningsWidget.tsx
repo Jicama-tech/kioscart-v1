@@ -12,14 +12,17 @@ interface CurrencyTotals {
 }
 
 function fmt(amount: number, currency: string) {
+  const n = Number(amount) || 0;
   try {
     return new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", {
       style: "currency",
       currency,
       maximumFractionDigits: 2,
-    }).format(amount);
+    }).format(n);
   } catch {
-    return `${currency} ${amount.toFixed(2)}`;
+    // Bogus currency code (e.g. if the API returned an error body) — fall
+    // back to a plain string instead of throwing.
+    return `${currency} ${n.toFixed(2)}`;
   }
 }
 
@@ -29,12 +32,21 @@ export function EarningsWidget({ shopkeeperId }: { shopkeeperId: string }) {
 
   useEffect(() => {
     if (!shopkeeperId) return;
-    const token = localStorage.getItem("token") || "";
+    // Token lives in sessionStorage (see useAuth) — reading localStorage here
+    // sent an empty Bearer token, which 401'd this endpoint.
+    const token =
+      sessionStorage.getItem("token") || localStorage.getItem("token") || "";
     fetch(`${apiURL}/payments/earnings/${shopkeeperId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
-      .then((d) => setData(d || {}))
+      // Only treat a 2xx body as earnings data. On 401/500 the body is an
+      // error object ({message, statusCode, …}) — storing that would make
+      // Object.keys() yield "message"/"statusCode" as fake "currencies" and
+      // crash fmt() on the bogus currency + undefined amount.
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) =>
+        setData(d && typeof d === "object" && !Array.isArray(d) ? d : {}),
+      )
       .catch(() => setData({}))
       .finally(() => setLoading(false));
   }, [shopkeeperId]);
