@@ -66,8 +66,9 @@ export class Plan {
     operators?: { enabled: boolean; limit: number };
     // Communication
     whatsappQR?: { enabled: boolean };
-    // Chatbot
+    // Assistant & Support
     chatbot?: { enabled: boolean };
+    support?: { enabled: boolean };
   };
 
   @Prop({ required: true, default: "shopkeeper" })

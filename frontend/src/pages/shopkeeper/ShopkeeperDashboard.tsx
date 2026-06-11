@@ -952,6 +952,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                   crm: "crm",
                   storefront: "storefront",
                   kiosk: "kiosk",
+                  chat: "chatbot",
+                  support: "support",
                 };
                 const moduleKey = navToModule[item.id];
                 const locked = moduleKey ? !isModuleEnabled(moduleKey) : false;
@@ -2009,6 +2011,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                 forceMount
                 className="mt-0 p-0 -mx-4 -my-4 md:-mx-6 md:-my-6 data-[state=inactive]:hidden"
               >
+                <ModuleGate moduleKey="chatbot">
                 <ChatbotWidget
                   mode="page"
                   onNavigate={(tab, extras) => {
@@ -2041,6 +2044,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     setActiveTab(tab);
                   }}
                 />
+                </ModuleGate>
               </TabsContent>
 
               <TabsContent value="settings" className="mt-0">
@@ -2057,9 +2061,11 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
               <TabsContent value="support" className="mt-0">
                 {hasTabAccess("support") ? (
-                  <Suspense fallback={<TabLoadingFallback />}>
-                    <SupportPanel />
-                  </Suspense>
+                  <ModuleGate moduleKey="support">
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <SupportPanel />
+                    </Suspense>
+                  </ModuleGate>
                 ) : (
                   <NoAccessOverlay />
                 )}
