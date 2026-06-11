@@ -38,6 +38,8 @@ import {
   Settings,
   Menu,
   Package,
+  MessageSquare,
+  LifeBuoy,
 } from "lucide-react";
 import { useFetchWithLoading } from "@/hooks/useFetchWithLoading";
 
@@ -48,6 +50,8 @@ const UsersPage = lazy(() =>
   import("./UsersPage").then((m) => ({ default: m.UsersPage })),
 );
 const SubscriptionsPage = lazy(() => import("./SubscriptionsPage"));
+const AppFeedbackPage = lazy(() => import("./AppFeedbackPage"));
+const SupportTicketsPage = lazy(() => import("./SupportTicketsPage"));
 
 const NAVIGATION_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -55,6 +59,8 @@ const NAVIGATION_ITEMS = [
   { id: "agents", label: "Agents", icon: Briefcase },
   { id: "users", label: "Users", icon: Users },
   { id: "subscriptions", label: "Subscriptions", icon: Package },
+  { id: "app-feedback", label: "App Feedback", icon: MessageSquare },
+  { id: "support-tickets", label: "Support & Bugs", icon: LifeBuoy },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -612,6 +618,20 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               <TabsContent value="subscriptions" className="mt-0">
                 <Suspense fallback={<TabLoadingFallback />}>
                   <SubscriptionsPage />
+                </Suspense>
+              </TabsContent>
+
+              {/* App Feedback Tab */}
+              <TabsContent value="app-feedback" className="mt-0">
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <AppFeedbackPage />
+                </Suspense>
+              </TabsContent>
+
+              {/* Support & Bugs Tab */}
+              <TabsContent value="support-tickets" className="mt-0">
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <SupportTicketsPage />
                 </Suspense>
               </TabsContent>
 

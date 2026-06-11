@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, MessageSquare, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { AdminLayout } from "./AdminLayout";
 
 const apiURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -38,10 +37,6 @@ interface FeedbackRow {
   showOnMainPage: boolean;
   status: string;
   createdAt: string;
-}
-
-interface AppFeedbackPageProps {
-  onLogout: () => void;
 }
 
 function authHeaders() {
@@ -63,7 +58,7 @@ function formatDate(iso: string) {
   }
 }
 
-export default function AppFeedbackPage({ onLogout }: AppFeedbackPageProps) {
+export default function AppFeedbackPage() {
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -138,7 +133,7 @@ export default function AppFeedbackPage({ onLogout }: AppFeedbackPageProps) {
   const publishedCount = rows.filter((r) => r.showOnMainPage).length;
 
   return (
-    <AdminLayout onLogout={onLogout}>
+    <>
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -305,6 +300,6 @@ export default function AppFeedbackPage({ onLogout }: AppFeedbackPageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </>
   );
 }
