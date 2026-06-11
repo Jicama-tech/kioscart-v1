@@ -187,9 +187,11 @@ export function EShopLogin() {
     setIsLoading({ ...isLoading, google: true });
     try {
       // ✅ USE SHOPKEEPER-SPECIFIC GOOGLE FLOW
-      const API = `${apiURL}/auth/google-shopkeeper`;
-
-      window.location.href = `${apiURL}/auth/google-shopkeeper`;
+      // Pass the current origin so the backend can redirect the token back to
+      // THIS domain (e.g. a custom domain like thefoxsg.com) instead of the
+      // fixed FRONTEND_URL — otherwise custom-domain logins land token-less.
+      const origin = encodeURIComponent(window.location.origin);
+      window.location.href = `${apiURL}/auth/google-shopkeeper?origin=${origin}`;
     } catch (error) {
       toast({
         duration: 5000,
