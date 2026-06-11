@@ -161,14 +161,14 @@ async function buildQrValue(action: {
     const now = new Date();
     const expiry = new Date(now.getTime() + 90 * 60 * 60 * 1000);
     const formatted = `${expiry.getFullYear()}/${String(expiry.getMonth() + 1).padStart(2, "0")}/${String(expiry.getDate()).padStart(2, "0")} ${String(expiry.getHours()).padStart(2, "0")}:${String(expiry.getMinutes()).padStart(2, "0")}`;
-    return `https://www.sgqrcode.com/paynow?mobile=${clean}&uen=&editable=0&amount=${action.amount.toFixed(2)}&expiry=${encodeURIComponent(formatted)}&ref_id=${encodeURIComponent(action.orderId)}&company=`;
+    return `https://www.sgqrcode.com/paynow?mobile=${clean}&uen=&editable=0&amount=${(Number(action.amount) || 0).toFixed(2)}&expiry=${encodeURIComponent(formatted)}&ref_id=${encodeURIComponent(action.orderId)}&company=`;
   }
   // India — extract UPI from the shopkeeper's payment image
   const upi = action.paymentURL
     ? await extractUpiFromImage(apiURL + action.paymentURL)
     : "";
   if (!upi) return "";
-  return `upi://pay?pa=${upi}&pn=${encodeURIComponent(action.shopName || "Payment")}&am=${action.amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent("KiosAI Order - " + action.orderId)}`;
+  return `upi://pay?pa=${upi}&pn=${encodeURIComponent(action.shopName || "Payment")}&am=${(Number(action.amount) || 0).toFixed(2)}&cu=INR&tn=${encodeURIComponent("KiosAI Order - " + action.orderId)}`;
 }
 
 interface ChatbotWidgetProps {
@@ -819,7 +819,7 @@ function InlineOrderForm({
 
   const subtotal = cart.reduce((s, c) => s + c.unitPrice * c.quantity, 0);
   const fmtMoney = (n: number) =>
-    `${country === "SG" ? "S$" : "₹"}${n.toFixed(2)}`;
+    `${country === "SG" ? "S$" : "₹"}${(Number(n) || 0).toFixed(2)}`;
 
   const searchCustomer = async () => {
     if (!name.trim()) {
@@ -2450,7 +2450,7 @@ export function ChatbotWidget({
                             <div className="text-[11px] text-slate-500 mb-1.5">
                               Cash received
                               {msg.receipt.amount
-                                ? ` · Total ${msg.receipt.country === "SG" ? "S$" : "₹"}${msg.receipt.amount.toFixed(2)}`
+                                ? ` · Total ${msg.receipt.country === "SG" ? "S$" : "₹"}${(Number(msg.receipt.amount) || 0).toFixed(2)}`
                                 : ""}
                             </div>
                             {state === "downloading" ? (
@@ -2521,7 +2521,7 @@ export function ChatbotWidget({
                         <div className="text-xs text-gray-500 mb-2">
                           {msg.qr.shopName || ""} ·{" "}
                           {msg.qr.country === "SG" ? "S$" : "₹"}
-                          {msg.qr.amount.toFixed(2)}
+                          {(Number(msg.qr.amount) || 0).toFixed(2)}
                         </div>
                         <div className="bg-white p-2 rounded">
                           <QRCode value={msg.qr.qrValue} size={160} />
