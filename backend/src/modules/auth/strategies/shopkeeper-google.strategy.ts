@@ -15,10 +15,20 @@ export class GoogleShopkeeperStrategy extends PassportStrategy(
         process.env.GOOGLE_SHOPKEEPER_REDIRECT_URI ||
         `${process.env.BACKEND_URL || "http://localhost:3000"}/auth/google-shopkeeper/redirect`,
       scope: ["email", "profile"],
+      passReqToCallback: true,
     });
   }
 
+  // Forward the frontend's ?origin=<domain> through Google as the OAuth
+  // `state` param so the redirect handler can send the token back to the same
+  // domain (custom domains included), mirroring the buyer strategy.
+  authenticate(req: any, options: any) {
+    const origin = req.query?.origin || "";
+    super.authenticate(req, { ...options, state: origin });
+  }
+
   async validate(
+    req: any,
     accessToken: string,
     refreshToken: string,
     profile: any,

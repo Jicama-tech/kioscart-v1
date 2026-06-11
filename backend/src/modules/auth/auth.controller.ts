@@ -152,7 +152,9 @@ export class AuthController {
   @Get("google-shopkeeper/redirect")
   @UseGuards(AuthGuard("google-shopkeeper"))
   async googleShopkeeperRedirect(@Req() req: Request, @Res() res: Response) {
-    const FRONTEND = this.frontendUrl;
+    // Redirect back to the domain the login was started from (custom domains
+    // included, validated against allowedOrigins) — not the fixed FRONTEND_URL.
+    const FRONTEND = this.getRedirectOrigin(req);
     try {
       const userFromGoogle = req.user as any;
       if (!userFromGoogle?.email) {

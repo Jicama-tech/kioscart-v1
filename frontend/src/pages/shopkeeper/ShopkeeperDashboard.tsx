@@ -555,7 +555,10 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
             headers,
             signal,
           }),
-          fetch(`${apiUrl}/orders/customers/${shopkeeperId}`, { signal }),
+          fetch(`${apiUrl}/orders/customers/${shopkeeperId}`, {
+            headers,
+            signal,
+          }),
         ]);
 
       // Process shopkeeper info — shop name comes from here (settings profile)
@@ -1134,7 +1137,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                 <CardContent>
                                   <div className="text-2xl font-bold">
                                     {analyticsData.currencySymbol}
-                                    {analyticsData.totalRevenue.toLocaleString()}
+                                    {(analyticsData.totalRevenue ?? 0).toLocaleString()}
                                   </div>
                                 </CardContent>
                               </Card>
@@ -1161,7 +1164,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                 <CardContent>
                                   <div className="text-2xl font-bold">
                                     {analyticsData.currencySymbol}
-                                    {analyticsData.avgOrderValue.toLocaleString()}
+                                    {(analyticsData.avgOrderValue ?? 0).toLocaleString()}
                                   </div>
                                 </CardContent>
                               </Card>
@@ -1249,9 +1252,9 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                         cy="50%"
                                         labelLine={false}
                                         label={({ productName, percentage }) =>
-                                          `${productName}: ${percentage.toFixed(
-                                            1,
-                                          )}%`
+                                          `${productName}: ${(
+                                            percentage ?? 0
+                                          ).toFixed(1)}%`
                                         }
                                         outerRadius={100}
                                         fill="#8884d8"
@@ -1335,10 +1338,15 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                               </td>
                                               <td className="px-4 py-3 text-right font-semibold">
                                                 {analyticsData.currencySymbol}
-                                                {product.totalRevenue.toLocaleString()}
+                                                {(
+                                                  product.totalRevenue ?? 0
+                                                ).toLocaleString()}
                                               </td>
                                               <td className="px-4 py-3 text-right">
-                                                {product.percentage.toFixed(1)}%
+                                                {(product.percentage ?? 0).toFixed(
+                                                  1,
+                                                )}
+                                                %
                                               </td>
                                             </tr>
                                           ),
@@ -1371,7 +1379,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                         cy="50%"
                                         labelLine={false}
                                         label={({ category, percentage }) =>
-                                          `${category}: ${percentage.toFixed(1)}%`
+                                          `${category}: ${(percentage ?? 0).toFixed(1)}%`
                                         }
                                         outerRadius={100}
                                         fill="#8884d8"
@@ -1449,10 +1457,14 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                               </td>
                                               <td className="px-4 py-3 text-right font-semibold">
                                                 {analyticsData.currencySymbol}
-                                                {category.revenue.toLocaleString()}
+                                                {(
+                                                  category.revenue ?? 0
+                                                ).toLocaleString()}
                                               </td>
                                               <td className="px-4 py-3 text-right">
-                                                {category.percentage.toFixed(1)}
+                                                {(category.percentage ?? 0).toFixed(
+                                                  1,
+                                                )}
                                                 %
                                               </td>
                                             </tr>
@@ -1526,7 +1538,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                           cy="50%"
                                           labelLine={false}
                                           label={({ status, percentage }) =>
-                                            `${status}: ${percentage.toFixed(1)}%`
+                                            `${status}: ${(percentage ?? 0).toFixed(1)}%`
                                           }
                                           outerRadius={80}
                                           fill="#8884d8"
@@ -1607,7 +1619,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                             </p>
                                             <p className="text-sm font-bold text-emerald-600">
                                               {analyticsData.currencySymbol}
-                                              {customer.totalSpent.toLocaleString()}
+                                              {(customer.totalSpent ?? 0).toLocaleString()}
                                             </p>
                                           </div>
                                           <div>
@@ -1624,7 +1636,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                             </p>
                                             <p className="text-sm font-bold text-gray-900">
                                               {analyticsData.currencySymbol}
-                                              {customer.avgOrderValue.toLocaleString()}
+                                              {(customer.avgOrderValue ?? 0).toLocaleString()}
                                             </p>
                                           </div>
                                           <div>
@@ -1697,7 +1709,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                                 </p>
                                                 <p className="text-sm font-bold text-gray-900">
                                                   {analyticsData.currencySymbol}
-                                                  {customer.totalSpent.toLocaleString()}
+                                                  {(customer.totalSpent ?? 0).toLocaleString()}
                                                 </p>
                                               </div>
                                               <div>
@@ -1714,7 +1726,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                                 </p>
                                                 <p className="text-sm font-bold text-gray-900">
                                                   {analyticsData.currencySymbol}
-                                                  {customer.avgOrderValue.toLocaleString()}
+                                                  {(customer.avgOrderValue ?? 0).toLocaleString()}
                                                 </p>
                                               </div>
                                               <div>
@@ -1856,11 +1868,11 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                               </td>
                                               <td className="px-4 py-3 text-right font-bold text-emerald-600">
                                                 {analyticsData.currencySymbol}
-                                                {customer.totalSpent.toLocaleString()}
+                                                {(customer.totalSpent ?? 0).toLocaleString()}
                                               </td>
                                               <td className="px-4 py-3 text-right font-semibold">
                                                 {analyticsData.currencySymbol}
-                                                {customer.avgOrderValue.toLocaleString()}
+                                                {(customer.avgOrderValue ?? 0).toLocaleString()}
                                               </td>
 
                                               {/* <td className="px-4 py-3 text-center text-gray-600">
