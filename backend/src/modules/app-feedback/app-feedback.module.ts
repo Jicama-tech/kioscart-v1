@@ -7,11 +7,16 @@ import {
   AppFeedback,
   AppFeedbackSchema,
 } from "./entities/app-feedback.entity";
+import {
+  SupportTicket,
+  SupportTicketSchema,
+} from "./entities/support-ticket.entity";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: AppFeedback.name, schema: AppFeedbackSchema },
+      { name: SupportTicket.name, schema: SupportTicketSchema },
     ]),
     AuthModule,
   ],

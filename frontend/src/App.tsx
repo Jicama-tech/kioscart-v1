@@ -25,8 +25,11 @@ const EShopLogin = lazy(() =>
 const AdminLogs = lazy(() =>
   import('./components/auth/loginAdmin').then((m) => ({ default: m.AdminLogs })),
 );
+// Shopkeeper login is now Google-only. The old WhatsApp-OTP screen
+// (shopKeeperLogin.tsx) is retired — every /login route renders the Google
+// sign-in (EShopLogin) so OTP never appears.
 const ShopkeeperLogin = lazy(() =>
-  import('./components/auth/shopKeeperLogin').then((m) => ({ default: m.ShopkeeperLogin })),
+  import('./components/auth/E-ShopLogin').then((m) => ({ default: m.EShopLogin })),
 );
 const CartAuthReturn = lazy(() =>
   import('./components/auth/CartAuthReturn').then((m) => ({ default: m.CartAuthReturn })),

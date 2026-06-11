@@ -12,7 +12,6 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { ShopkeepersService } from "./shopkeepers.service";
-import { LoginDto } from "../admin/dto/login.dto";
 import { CreateShopkeeperDto } from "./dto/createShopkeeper.dto";
 import { AuthGuard } from "@nestjs/passport";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -23,16 +22,6 @@ import { CreateRazorpayLinkedAccountDto } from "./dto/razorpay.dto";
 import { CreateRazorpayStakeholderDto } from "./dto/razorpay-stakeholder.dto";
 import { SaveDirectKeysDto, ToggleDirectDto } from "./dto/razorpay-direct.dto";
 import { UpdateShopkeeperDto } from "./dto/updateShopkeeper.dto";
-
-// DTO for OTP requests
-class RequestOTPDto {
-  email: string;
-}
-
-class VerifyOTPDto {
-  email: string;
-  otp: string;
-}
 
 function qrStorage() {
   return diskStorage({
@@ -74,25 +63,9 @@ export class ShopkeepersController {
     }
   }
 
-  // New OTP-based authentication endpoints
-  @Post("request-otp")
-  async requestOTP(@Body() body: any) {
-    try {
-      console.log(body, "vansh Sharm a");
-      return await this.shopkeepersService.requestOTP(body.email);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Post("verify-otp")
-  async verifyOTP(@Body() body: any) {
-    try {
-      return await this.shopkeepersService.verifyOTP(body.email, body.otp);
-    } catch (error) {
-      throw error;
-    }
-  }
+  // OTP-based shopkeeper authentication has been removed — sign-in is now
+  // Google-only via /auth/google-shopkeeper (operator-aware). The legacy
+  // request-otp / verify-otp / resend-otp / login endpoints are retired.
 
   @Post("razorpay/setup")
   @UseGuards(AuthGuard("jwt"))
@@ -214,25 +187,6 @@ export class ShopkeepersController {
       shopkeeperId,
       !!body.enabled,
     );
-  }
-
-  @Post("resend-otp")
-  async resendOTP(@Body() body: RequestOTPDto) {
-    try {
-      return await this.shopkeepersService.resendOTP(body.email);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Original login method (keeping for backward compatibility)
-  @Post("login")
-  async login(@Body() body: LoginDto) {
-    try {
-      return await this.shopkeepersService.login(body);
-    } catch (error) {
-      throw error;
-    }
   }
 
   @Get("profile")

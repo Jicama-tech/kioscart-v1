@@ -7,9 +7,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FaGoogle, FaInstagram } from "react-icons/fa";
+import { jwtDecode } from "jwt-decode";
 import {
   Calendar,
   ShoppingBag,
@@ -26,103 +35,153 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
+type AccountChoice = {
+  accountId: string;
+  accountType: "shopkeeper" | "operator";
+  shopName: string;
+  approved: boolean;
+};
+
+type SelectionTokenPayload = {
+  typ: "shopkeeper-select";
+  email: string;
+  name?: string;
+  accounts: AccountChoice[];
+  exp?: number;
+};
+
 export function EShopLogin() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const apiURL = __API_URL__;
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState({
     google: false,
     instagram: false,
   });
-  const [isChecking, setIsChecking] = useState(false); // ← ADD THIS
+  const [isChecking, setIsChecking] = useState(false);
   const [searchParams] = useSearchParams();
+
+  // Multi-account selection state (post-Google sign-in path).
+  const [selToken, setSelToken] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<AccountChoice[]>([]);
+  const [selectedAccountKey, setSelectedAccountKey] = useState<string>("");
+  const [isSubmittingSelection, setIsSubmittingSelection] = useState(false);
 
   useEffect(() => {
     const token = searchParams.get("token");
-    const email = searchParams.get("email");
-    const name = searchParams.get("name") || "";
+    const direct = searchParams.get("direct");
+    const errorCode = searchParams.get("error");
+    const selTokenParam = searchParams.get("selToken");
 
-    // If no token/email in URL, show normal login UI
-    if (!token || !email) {
+    if (errorCode === "auth_failed") {
+      toast({
+        duration: 6000,
+        title: "Sign-in failed",
+        description: "Couldn't sign you in with Google. Please try again.",
+        variant: "destructive",
+      });
+      setIsChecking(false);
+      return;
+    }
+    if (errorCode === "pending_approval") {
+      toast({
+        duration: 8000,
+        title: "Approval pending",
+        description:
+          "Your shop account is awaiting admin approval. You'll be able to sign in once it's approved.",
+        variant: "destructive",
+      });
       setIsChecking(false);
       return;
     }
 
-    setIsChecking(true);
-    sessionStorage.setItem("token", token);
+    // Backend already minted the shopkeeper JWT — log in directly.
+    if (token && direct === "1") {
+      sessionStorage.setItem("token", token);
+      login(token);
+      toast({
+        duration: 3000,
+        title: "Welcome back!",
+        description: "Signed in via Google.",
+      });
+      navigate("/estore-dashboard", { replace: true });
+      return;
+    }
 
-    (async () => {
+    // Multi-account path — backend redirected here with a short-lived
+    // selection token. Decode locally to render the dropdown.
+    if (selTokenParam) {
       try {
-        const res = await fetch(`${apiURL}/auth/check-role`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            email,
-            name,
-            role: "shopkeeper",
-          }),
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to check role");
+        const decoded = jwtDecode<SelectionTokenPayload>(selTokenParam);
+        if (
+          decoded?.typ !== "shopkeeper-select" ||
+          !Array.isArray(decoded.accounts)
+        ) {
+          throw new Error("malformed selection token");
         }
-
-        const data = await res.json();
-
-        console.log(data, "Data");
-
-        // CASE 1: Shopkeeper found, OTP sent
-        if (data.found && data.data?.role === "shopkeeper") {
-          toast({
-            duration: 5000,
-            title: "Shopkeeper Found",
-            description: data.message,
-          });
-          navigate("/login", {
-            replace: true,
-            state: { email },
-          });
-          return;
-        }
-
-        // CASE 2: Shopkeeper found but OTP failed
-        if (data.found && data.data?.role === "shopkeeper") {
-          toast({
-            duration: 5000,
-            title: "New Shopkeeper",
-            description: data.message,
-          });
-          setIsChecking(false);
-          return;
-        }
-
-        // CASE 3: No shopkeeper yet -> go to registration
-        if (!data.found) {
-          toast({
-            duration: 5000,
-            title: "Complete Registration",
-            description: data.message,
-          });
-          navigate("/register", {
-            replace: true,
-            state: { email, name },
-          });
-        }
-      } catch (error: any) {
-        console.error("Check role error:", error);
+        setSelToken(selTokenParam);
+        setAccounts(decoded.accounts);
+      } catch {
         toast({
-          duration: 5000,
-          title: "Error",
-          description: "Could not verify shopkeeper availability.",
+          duration: 6000,
+          title: "Selection link invalid",
+          description: "Please sign in with Google again.",
           variant: "destructive",
         });
-        setIsChecking(false);
       }
-    })();
-  }, [searchParams, apiURL, navigate, toast]);
+      setIsChecking(false);
+      return;
+    }
+
+    // No token, no error → show the normal login screen.
+    setIsChecking(false);
+  }, [searchParams, navigate, toast, login]);
+
+  const accountKey = (a: AccountChoice) => `${a.accountType}:${a.accountId}`;
+
+  const handleConfirmSelection = async () => {
+    if (!selToken || !selectedAccountKey) return;
+    const chosen = accounts.find((a) => accountKey(a) === selectedAccountKey);
+    if (!chosen || !chosen.approved) return;
+
+    setIsSubmittingSelection(true);
+    try {
+      const response = await fetch(
+        `${apiURL}/auth/select-shopkeeper-account`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            selToken,
+            accountId: chosen.accountId,
+            accountType: chosen.accountType,
+          }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Could not complete sign-in");
+      }
+      sessionStorage.setItem("token", result.token);
+      login(result.token);
+      toast({
+        duration: 3000,
+        title: "Welcome back!",
+        description: `Signed in to ${chosen.shopName}`,
+      });
+      navigate("/estore-dashboard", { replace: true });
+    } catch (err: any) {
+      toast({
+        duration: 6000,
+        title: "Sign-in failed",
+        description: err?.message || "Please try signing in again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingSelection(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setIsLoading({ ...isLoading, google: true });
@@ -234,6 +293,72 @@ export function EShopLogin() {
               </CardHeader>
 
               <CardContent className="space-y-6">
+                {accounts.length > 0 ? (
+                  <div className="space-y-4">
+                    <Label className="text-gray-700">
+                      Multiple accounts found — pick one to continue
+                    </Label>
+                    <Select
+                      value={selectedAccountKey}
+                      onValueChange={setSelectedAccountKey}
+                    >
+                      <SelectTrigger className="h-12">
+                        <SelectValue placeholder="Choose a shop..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((a) => {
+                          const key = accountKey(a);
+                          return (
+                            <SelectItem
+                              key={key}
+                              value={key}
+                              disabled={!a.approved}
+                            >
+                              <div className="flex items-center justify-between w-full gap-2">
+                                <span
+                                  className={
+                                    a.approved ? "" : "text-muted-foreground"
+                                  }
+                                >
+                                  {a.shopName}
+                                </span>
+                                {!a.approved && (
+                                  <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                    Pending Approval
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      onClick={handleConfirmSelection}
+                      disabled={!selectedAccountKey || isSubmittingSelection}
+                      className="w-full h-12 text-base font-semibold"
+                    >
+                      {isSubmittingSelection && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Enter Dashboard
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      className="w-full h-10"
+                      onClick={() => {
+                        setSelToken(null);
+                        setAccounts([]);
+                        setSelectedAccountKey("");
+                      }}
+                    >
+                      Use a different Google account
+                    </Button>
+                  </div>
+                ) : (
                 <div className="space-y-4">
                   <Button
                     variant="buttonOutline"
@@ -269,6 +394,7 @@ export function EShopLogin() {
                     )}
                   </Button> */}
                 </div>
+                )}
 
                 {/* Trust Indicators */}
                 <div className="flex items-center justify-center space-x-6 pt-4 border-t border-gray-200">

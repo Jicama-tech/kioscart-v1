@@ -12,8 +12,13 @@ import {
   AppFeedback,
   AppFeedbackDocument,
 } from "./entities/app-feedback.entity";
+import {
+  SupportTicket,
+  SupportTicketDocument,
+} from "./entities/support-ticket.entity";
 import { CreateAppFeedbackDto } from "./dto/create-app-feedback.dto";
 import { UpdateAppFeedbackDto } from "./dto/update-app-feedback.dto";
+import { CreateSupportTicketDto } from "./dto/create-support-ticket.dto";
 
 // Hardcoded app identifier — every read/write below pins itself to this so
 // the shared database stays tenant-safe regardless of what the client sends.
@@ -30,6 +35,8 @@ export class AppFeedbackService {
   constructor(
     @InjectModel(AppFeedback.name)
     private readonly model: Model<AppFeedbackDocument>,
+    @InjectModel(SupportTicket.name)
+    private readonly supportModel: Model<SupportTicketDocument>,
   ) {}
 
   async create(dto: CreateAppFeedbackDto, imageRelativePath: string) {
@@ -101,5 +108,41 @@ export class AppFeedbackService {
       });
     }
     return { success: true, message: "Feedback deleted" };
+  }
+
+  // ---- Support tickets ----
+
+  /**
+   * Create a support ticket on behalf of the authenticated caller. Identity
+   * comes from the JWT (`userId`), never from the body. `description` maps to
+   * the stored `comment` field.
+   */
+  async createSupportTicket(
+    dto: CreateSupportTicketDto,
+    userId: string,
+    attachments: string[],
+  ) {
+    if (!userId) {
+      throw new BadRequestException("Authenticated user required");
+    }
+    const doc = await this.supportModel.create({
+      subject: dto.subject,
+      category: dto.category || "general",
+      status: "open",
+      comment: dto.description,
+      attachments,
+      userId,
+    });
+    this.logger.log(`New SupportTicket ${doc._id} from ${userId}`);
+    return doc.toObject();
+  }
+
+  /** The caller's own tickets, newest first. */
+  async findMySupportTickets(userId: string) {
+    const items = await this.supportModel
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+    return { items };
   }
 }

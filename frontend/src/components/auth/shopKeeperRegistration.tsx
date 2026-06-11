@@ -76,8 +76,13 @@ export function ShopKeeperRegister() {
   const apiURL = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
   const location = useLocation();
-  const { name: initialName = "", email: initialEmail = "" } =
-    location.state || {};
+  // Prefill identity from the Google sign-in redirect
+  // (/estore-register?google=1&email=&name=) or, as a fallback, router state.
+  const _qs = new URLSearchParams(location.search);
+  const { name: stateName = "", email: stateEmail = "" } =
+    (location.state as any) || {};
+  const initialName = _qs.get("name") || stateName || "";
+  const initialEmail = _qs.get("email") || stateEmail || "";
   const { toast } = useToast();
 
   // Country selection
@@ -562,20 +567,20 @@ export function ShopKeeperRegister() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!emailVerified) {
+    if (!profile.businessEmail) {
       toast({
         duration: 5000,
         title: "Error",
-        description: "Please verify your business email",
+        description: "Business email is required",
       });
       return;
     }
 
-    if (!waVerified) {
+    if (!profile.whatsappNumber) {
       toast({
         duration: 5000,
         title: "Error",
-        description: "Please verify your WhatsApp number",
+        description: "WhatsApp number is required",
       });
       return;
     }
@@ -630,12 +635,12 @@ export function ShopKeeperRegister() {
       }
 
       toast({
-        duration: 5000,
+        duration: 6000,
         title: "Registration Success",
         description:
-          "Registration complete! You can now login with your WhatsApp number.",
+          "Registration submitted! Once approved, sign in with Google using this email.",
       });
-      navigate("/login");
+      navigate("/estore/login");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -649,7 +654,9 @@ export function ShopKeeperRegister() {
 
   // Determine if form is blurred
   const isFormBlurred = !selectedCountry;
-  const shouldDisableFollowingFields = !emailVerified && !waVerified;
+  // Fields unlock once a country is chosen — Google already verified identity,
+  // so there's no OTP step gating the rest of the form anymore.
+  const shouldDisableFollowingFields = !selectedCountry;
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
@@ -830,38 +837,9 @@ export function ShopKeeperRegister() {
                     handleChange("businessEmail", e.target.value)
                   }
                   placeholder="business@example.com"
+                  disabled={shouldDisableFollowingFields}
                 />
-                <Button
-                  type="button"
-                  onClick={sendOtpToBusinessEmail}
-                  disabled={
-                    sendingOtp || !profile.businessEmail || emailVerified
-                  }
-                >
-                  {sendingOtp
-                    ? "Sending..."
-                    : emailVerified
-                      ? "Verified"
-                      : "Send OTP"}
-                </Button>
               </div>
-              {otpSent && !emailVerified && (
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="Enter OTP"
-                  />
-                  <Button
-                    type="button"
-                    onClick={verifyOtpForBusinessEmail}
-                    disabled={verifyingOtp}
-                  >
-                    {verifyingOtp ? "Verifying..." : "Verify"}
-                  </Button>
-                </div>
-              )}
-              {otpError && <p className="text-sm text-red-600">{otpError}</p>}
             </div>
 
             {/* WhatsApp Number with OTP */}
@@ -890,7 +868,7 @@ export function ShopKeeperRegister() {
                   country={selectedCountry?.toLowerCase() || "in"}
                   value={profile.whatsappNumber}
                   onChange={(value) => handleChange("whatsappNumber", value)}
-                  disabled={waVerified || !emailVerified}
+                  disabled={shouldDisableFollowingFields}
                   // This locks the dropdown to ONLY the selected country
                   onlyCountries={
                     selectedCountry
@@ -902,39 +880,7 @@ export function ShopKeeperRegister() {
                   inputStyle={{ width: "100%" }}
                   dropdownStyle={{ zIndex: 100 }}
                 />
-                <Button
-                  type="button"
-                  onClick={sendOtpToWhatsApp}
-                  disabled={
-                    sendingWaOtp || !profile.whatsappNumber || waVerified
-                  }
-                >
-                  {sendingWaOtp
-                    ? "Sending..."
-                    : waVerified
-                      ? "Verified"
-                      : "Send OTP"}
-                </Button>
               </div>
-              {waOtpSent && !waVerified && (
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={waOtp}
-                    onChange={(e) => setWaOtp(e.target.value)}
-                    placeholder="Enter WhatsApp OTP"
-                  />
-                  <Button
-                    type="button"
-                    onClick={verifyOtpForWhatsApp}
-                    disabled={verifyingWaOtp}
-                  >
-                    {verifyingWaOtp ? "Verifying..." : "Verify"}
-                  </Button>
-                </div>
-              )}
-              {waOtpError && (
-                <p className="text-sm text-red-600">{waOtpError}</p>
-              )}
             </div>
 
             {/* Owner Name */}
@@ -1085,9 +1031,7 @@ export function ShopKeeperRegister() {
                 disabled={
                   isSubmitting ||
                   !profile.businessEmail ||
-                  !emailVerified ||
                   !profile.whatsappNumber ||
-                  !waVerified ||
                   !profile.businessCategory
                 }
               >
