@@ -220,8 +220,21 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   const [editingOperatorIndex, setEditingOperatorIndex] = useState<
     number | null
   >(null);
-  const ALL_TABS = ["dashboard", "orders", "products", "crm", "kiosk", "storefront", "settings"];
+  // Keep in sync with the dashboard's NAVIGATION_ITEMS ids so operators can be
+  // granted access to every tab the shopkeeper sees (incl. Chat & Support).
+  const ALL_TABS = [
+    "chat",
+    "dashboard",
+    "orders",
+    "products",
+    "crm",
+    "kiosk",
+    "storefront",
+    "settings",
+    "support",
+  ];
   const TAB_LABELS: Record<string, string> = {
+    chat: "Chat (Assistant)",
     dashboard: "Dashboard",
     orders: "Orders & Payments",
     products: "Products",
@@ -229,6 +242,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     kiosk: "Kiosk Mode",
     storefront: "Storefront",
     settings: "Settings",
+    support: "Support",
   };
 
   const [operatorForm, setOperatorForm] = useState<{
