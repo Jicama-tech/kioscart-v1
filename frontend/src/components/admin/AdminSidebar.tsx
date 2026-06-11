@@ -11,6 +11,7 @@ import {
   Shield,
   Wallet,
   MessageSquare,
+  LifeBuoy,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +34,7 @@ const navigationItems = [
   { title: "Payments", url: "/admin-dashboard/payments", icon: Wallet },
   { title: "Pending Payouts", url: "/admin-dashboard/pending-payouts", icon: Wallet },
   { title: "App Feedback", url: "/admin-dashboard/app-feedback", icon: MessageSquare },
+  { title: "Support & Bugs", url: "/admin-dashboard/support-tickets", icon: LifeBuoy },
   { title: "Pricing", url: "/admin/pricing", icon: DollarSign },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
   { title: "Settings", url: "/admin/settings", icon: Settings },

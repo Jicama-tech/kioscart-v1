@@ -20,10 +20,12 @@ import { diskStorage } from "multer";
 import { extname } from "path";
 import * as fs from "fs";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AdminGuard } from "../auth/guards/admin.guard";
 import { AppFeedbackService } from "./app-feedback.service";
 import { CreateAppFeedbackDto } from "./dto/create-app-feedback.dto";
 import { UpdateAppFeedbackDto } from "./dto/update-app-feedback.dto";
 import { CreateSupportTicketDto } from "./dto/create-support-ticket.dto";
+import { UpdateSupportTicketDto } from "./dto/update-support-ticket.dto";
 
 // Ensure the support upload directory exists before multer writes to it.
 const SUPPORT_UPLOAD_DIR = "./uploads/support";
@@ -123,6 +125,24 @@ export class AppFeedbackController {
   async findMySupportTickets(@Req() req: any) {
     const userId = req?.user?.sub || req?.user?.userId;
     return this.service.findMySupportTickets(userId);
+  }
+
+  // ---- Support tickets: admin only ----
+  // Admin-only so a shopkeeper token can't enumerate every shop's tickets.
+
+  @Get("support/admin")
+  @UseGuards(AdminGuard)
+  async findAllSupportTicketsForAdmin() {
+    return this.service.findAllSupportTicketsForAdmin();
+  }
+
+  @Patch("support/admin/:id")
+  @UseGuards(AdminGuard)
+  async updateSupportTicket(
+    @Param("id") id: string,
+    @Body() dto: UpdateSupportTicketDto,
+  ) {
+    return this.service.updateSupportTicket(id, dto);
   }
 
   // ---- Admin endpoints (JWT-guarded) ----
