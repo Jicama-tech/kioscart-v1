@@ -538,4 +538,70 @@ export class MailService {
 
     await this.sendMail({ to: email, subject, html });
   }
+
+  async sendNewOrderAlertToShopkeeper(
+    shopkeeperName: string,
+    email: string,
+    orderId: string,
+    amount: string,
+    orderType: string,
+    customerName: string,
+    items: { productName: string; quantity: number; price: number }[],
+  ) {
+    const subject = `🛎️ New Order Received — ${orderId}`;
+    const dashboardUrl = `${process.env.FRONTEND_URL || "https://kioscart.com"}/login`;
+
+    const itemRows = items
+      .map(
+        (item) =>
+          `<tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;">${item.productName}</td><td style="padding: 6px 0; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td><td style="padding: 6px 0; border-bottom: 1px solid #eee; text-align: right;">${item.price}</td></tr>`,
+      )
+      .join("");
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #6366f1; margin: 0;">New Order Received! 🛎️</h1>
+            <p style="color: #666; margin: 10px 0;">Hi ${shopkeeperName}, you have a new order waiting for approval.</p>
+          </div>
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #6366f1; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #333;">📋 Order Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 8px 0; font-weight: bold;">Order ID:</td><td style="padding: 8px 0;">${orderId}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold;">Customer:</td><td style="padding: 8px 0;">${customerName}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold;">Type:</td><td style="padding: 8px 0; text-transform: capitalize;">${orderType}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold;">Total:</td><td style="padding: 8px 0; font-weight: bold; color: #6366f1;">${amount}</td></tr>
+            </table>
+          </div>
+          ${
+            items.length > 0
+              ? `<div style="margin: 20px 0;">
+              <h3 style="color: #333;">📦 Items</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 2px solid #ddd;"><th style="text-align: left; padding: 8px 0;">Item</th><th style="text-align: center; padding: 8px 0;">Qty</th><th style="text-align: right; padding: 8px 0;">Price</th></tr>
+                ${itemRows}
+              </table>
+            </div>`
+              : ""
+          }
+          <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #92400e;">⏳ This order is pending your confirmation. Please login to your dashboard and approve it so the customer gets notified.</p>
+          </div>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${dashboardUrl}" style="display: inline-block; background: #6366f1; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: bold;">Login to Dashboard</a>
+          </div>
+          <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p style="color: #666; font-size: 14px;">Thank you for using KiosCart!</p>
+            <p style="color: #888; font-size: 12px;">This is an automated message, please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>`;
+
+    await this.sendMail({ to: email, subject, html });
+  }
 }

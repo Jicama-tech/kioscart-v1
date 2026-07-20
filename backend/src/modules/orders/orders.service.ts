@@ -204,7 +204,29 @@ export class OrdersService {
       }
     }
 
-    // 3. WhatsApp to shopkeeper (new order alert)
+    // 3. Email to shopkeeper (new order alert — approve in dashboard)
+    if (shopkeeper?.businessEmail) {
+      try {
+        const items = (dto.items || []).map((item) => ({
+          productName: [item.productName, item.optionTitle, item.subcategoryName, item.variantTitle].filter((v) => v && v !== "Default").join(" · "),
+          quantity: item.quantity,
+          price: item.price || 0,
+        }));
+        await this.mailService.sendNewOrderAlertToShopkeeper(
+          shopkeeperName,
+          shopkeeper.businessEmail,
+          order.orderId,
+          formattedAmount,
+          dto.orderType || "pickup",
+          dto.fullName || user?.name || "Customer",
+          items,
+        );
+      } catch (err) {
+        console.error("Shopkeeper new-order email failed:", err.message);
+      }
+    }
+
+    // 4. WhatsApp to shopkeeper (new order alert)
     if (shopkeeper?.whatsappNumber) {
       try {
         await this.sendWhatsAppToShopkeeper(
