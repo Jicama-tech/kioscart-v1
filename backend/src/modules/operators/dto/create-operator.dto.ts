@@ -5,9 +5,10 @@ export class CreateOperatorDto {
   @IsNotEmpty()
   name: string;
 
+  // Optional — operators sign in with Google (email), not WhatsApp OTP.
   @IsString()
-  @IsNotEmpty()
-  whatsAppNumber: string;
+  @IsOptional()
+  whatsAppNumber?: string;
 
   @IsString()
   @IsOptional()

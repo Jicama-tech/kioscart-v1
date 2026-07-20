@@ -17,6 +17,10 @@ import {
   OrganizerDocument,
 } from "../organizers/schemas/organizer.schema";
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 @Injectable()
 export class OperatorsService {
   constructor(
@@ -42,15 +46,32 @@ export class OperatorsService {
         throw new NotFoundException("Shopkeeper Not Found");
       }
 
-      const existingOperator = await this.operatorModel.findOne({
-        whatsAppNumber: createOperatorDto.whatsAppNumber,
-        shopkeeperId: shopkeeperId,
-      });
+      // Operators sign in with email, so uniqueness is keyed on email;
+      // whatsAppNumber is optional contact info and only checked when given.
+      if (createOperatorDto.email) {
+        const existingByEmail = await this.operatorModel.findOne({
+          email: { $regex: `^${escapeRegExp(createOperatorDto.email)}$`, $options: "i" },
+          shopkeeperId: shopkeeperId,
+          isSoftDeleted: { $ne: true },
+        });
+        if (existingByEmail) {
+          throw new BadRequestException(
+            "Operator with this email already exists for this Shopkeeper",
+          );
+        }
+      }
 
-      if (existingOperator) {
-        throw new BadRequestException(
-          "Operator with this WhatsApp number already exists for this Shopkeeper",
-        );
+      if (createOperatorDto.whatsAppNumber) {
+        const existingByNumber = await this.operatorModel.findOne({
+          whatsAppNumber: createOperatorDto.whatsAppNumber,
+          shopkeeperId: shopkeeperId,
+          isSoftDeleted: { $ne: true },
+        });
+        if (existingByNumber) {
+          throw new BadRequestException(
+            "Operator with this WhatsApp number already exists for this Shopkeeper",
+          );
+        }
       }
 
       const newOperator = new this.operatorModel({
@@ -87,15 +108,17 @@ export class OperatorsService {
         throw new NotFoundException("Organizer Not Found");
       }
 
-      const existingOperator = await this.operatorModel.findOne({
-        whatsAppNumber: createOperatorDto.whatsAppNumber,
-        organizerId: organizerId,
-      });
-
-      if (existingOperator) {
-        throw new BadRequestException(
-          "Operator with this WhatsApp number already exists for this Organizer",
-        );
+      if (createOperatorDto.whatsAppNumber) {
+        const existingOperator = await this.operatorModel.findOne({
+          whatsAppNumber: createOperatorDto.whatsAppNumber,
+          organizerId: organizerId,
+          isSoftDeleted: { $ne: true },
+        });
+        if (existingOperator) {
+          throw new BadRequestException(
+            "Operator with this WhatsApp number already exists for this Organizer",
+          );
+        }
       }
 
       const newOperator = new this.operatorModel({
