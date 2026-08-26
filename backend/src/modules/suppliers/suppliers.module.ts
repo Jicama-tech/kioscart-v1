@@ -15,6 +15,7 @@ import {
 import { ProductSchema } from "../products/entities/product.entity";
 import { ShopkeeperSchema } from "../shopkeepers/schemas/shopkeeper.schema";
 import { OrderSchema } from "../orders/entities/order.entity";
+import { MailModule } from "../roles/mail.module";
 
 @Module({
   imports: [
@@ -27,6 +28,8 @@ import { OrderSchema } from "../orders/entities/order.entity";
       // Read-only: sums recent order line items for requirement suggestions.
       { name: "Order", schema: OrderSchema },
     ]),
+    // Lifecycle notifications go out on every quotation/payment/status event.
+    MailModule,
     // JwtAuthGuard injects JwtService; it verifies with JWT_ACCESS_SECRET.
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET || "your_jwt_access_secret",

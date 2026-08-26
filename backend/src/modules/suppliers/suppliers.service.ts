@@ -25,6 +25,7 @@ import { UpdateSupplierStatusDto } from "./dto/update-supplier-status.dto";
 import { SupplierRespondDto } from "./dto/supplier-respond.dto";
 import { RecordSupplierPaymentDto } from "./dto/record-supplier-payment.dto";
 import { AddSupplierNoteDto } from "./dto/add-supplier-note.dto";
+import { MailService } from "../roles/mail.service";
 
 function parseJson<T>(raw: unknown, fallback: T): T {
   if (raw == null || raw === "") return fallback;
@@ -41,11 +42,11 @@ function parseJson<T>(raw: unknown, fallback: T): T {
  * re-keyed to shopkeeper/product. The workflow shape — quotation, negotiate,
  * approve, pay in instalments, check goods in/out — is kept identical.
  *
- * Deliberately dropped in this port: lifecycle email notifications
- * (eventsh-v1's `notify()`/MailService integration) and the organizer store
- * slug-based shareable link path — kioscart's mail infra differs and this
- * keeps the port scoped to the actual workflow/data model. Both can be added
- * later without touching the state machine below.
+ * Deliberately dropped in this port: the shopkeeper-store slug-based
+ * shareable link path (kioscart builds it client-side instead) and the
+ * per-organizer custom-SMTP resolver (kioscart's MailService uses one fixed
+ * transporter for everyone). Lifecycle email notifications themselves are
+ * ported below via `notify()`.
  */
 @Injectable()
 export class SuppliersService {
@@ -63,7 +64,80 @@ export class SuppliersService {
     // Recent orders drive the auto-filled requirement list (what's actually
     // selling), mirroring eventsh-v1's Stall.selectedAddOns suggestions.
     @InjectModel("Order") private orderModel: Model<any>,
+    private readonly mailService: MailService,
   ) {}
+
+  // ============ NOTIFICATIONS ============
+
+  /**
+   * Send a lifecycle update. `audience` decides who hears about it: the
+   * supplier, the shopkeeper, or both.
+   *
+   * Never throws — a bounced notification must not roll back the state
+   * change that triggered it.
+   */
+  private async notify(
+    req: SupplierRequestDocument,
+    audience: "supplier" | "shopkeeper" | "both",
+    payload: {
+      heading: string;
+      summary: string;
+      rows?: Array<[string, string]>;
+      note?: string;
+    },
+  ) {
+    try {
+      const [product, shopkeeper] = await Promise.all([
+        this.productModel.findById(req.productId).select("name").lean(),
+        this.shopkeeperModel
+          .findById(req.shopkeeperId)
+          .select("email businessEmail shopName name country")
+          .lean(),
+      ]);
+
+      // The request may arrive unpopulated depending on the caller.
+      const supplierDoc: any =
+        req.supplierId && (req.supplierId as any).name
+          ? req.supplierId
+          : await this.supplierModel.findById(req.supplierId).lean();
+
+      const to: string[] = [];
+      if (audience === "supplier" || audience === "both") {
+        if (supplierDoc?.email) to.push(supplierDoc.email);
+        if (supplierDoc?.businessEmail) to.push(supplierDoc.businessEmail);
+      }
+      if (audience === "shopkeeper" || audience === "both") {
+        if ((shopkeeper as any)?.email) to.push((shopkeeper as any).email);
+        if ((shopkeeper as any)?.businessEmail)
+          to.push((shopkeeper as any).businessEmail);
+      }
+      if (to.length === 0) return;
+
+      const country = (shopkeeper as any)?.country;
+      const sym = country === "SG" ? "SG$" : "₹";
+      const money = (n: number) => `${sym}${Number(n || 0).toLocaleString()}`;
+
+      const fe = process.env.FRONTEND_URL || "http://localhost:8080";
+
+      await this.mailService.sendSupplierUpdate({
+        to,
+        heading: payload.heading,
+        summary: payload.summary,
+        supplierName: supplierDoc?.companyName || supplierDoc?.name || "Supplier",
+        productName: (product as any)?.name || "your product",
+        status: req.status,
+        rows: [["Amount payable", money(this.payable(req))], ...(payload.rows || [])],
+        note: payload.note,
+        shopName: (shopkeeper as any)?.shopName || (shopkeeper as any)?.name,
+        ctaLabel: "Open dashboard",
+        ctaUrl: `${fe}/login`,
+      });
+    } catch (err: any) {
+      this.logger.warn(
+        `Supplier notification failed for ${req._id}: ${err?.message || err}`,
+      );
+    }
+  }
 
   /**
    * What the shopkeeper actually owes: the negotiated figure once one has
@@ -608,6 +682,24 @@ export class SuppliersService {
       changedBy: by,
     } as any);
     await req.save();
+
+    const reply =
+      dto.status === "Approved"
+        ? {
+            heading: "Supplier accepted your terms",
+            summary: `${by} has accepted the current offer.`,
+          }
+        : dto.status === "Rejected"
+          ? {
+              heading: "Supplier declined",
+              summary: `${by} has declined and won't be proceeding.`,
+            }
+          : {
+              heading: "Supplier sent a counter-offer",
+              summary: `${by} has replied with new terms — negotiation continues.`,
+            };
+    this.notify(req, "shopkeeper", { ...reply, note: dto.note });
+
     return req;
   }
 
@@ -649,6 +741,14 @@ export class SuppliersService {
       changedBy: by,
     } as any);
     await req.save();
+
+    this.notify(req, "shopkeeper", {
+      heading: "Supplier confirmed your payment",
+      summary: `${by} has acknowledged the payment and uploaded their invoice.`,
+      rows: invoicePath ? [["Invoice", "Attached to the quotation"]] : [],
+      note,
+    });
+
     return req;
   }
 
@@ -746,6 +846,12 @@ export class SuppliersService {
         submittedAt: new Date(),
       });
 
+      this.notify(created, "shopkeeper", {
+        heading: "New supplier quotation received",
+        summary: `${supplier.companyName || supplier.name} has submitted a quotation for your product.`,
+        rows: dto.quotationNotes ? [["Supplier note", dto.quotationNotes]] : [],
+      });
+
       return created;
     } catch (err: any) {
       // Unique (productId, supplierId) race → already submitted.
@@ -808,6 +914,31 @@ export class SuppliersService {
       changedBy: dto.changedBy || "Shopkeeper",
     } as any);
     await req.save();
+
+    const DECISIONS: Record<string, { heading: string; summary: string }> = {
+      Approved: {
+        heading: "Your quotation was approved",
+        summary: "The shopkeeper has accepted your quotation.",
+      },
+      Rejected: {
+        heading: "Your quotation was declined",
+        summary: "The shopkeeper has declined your quotation.",
+      },
+      Negotiating: {
+        heading: "The shopkeeper sent a counter-offer",
+        summary: "Your quotation is being negotiated — see their message below.",
+      },
+      Completed: {
+        heading: "Engagement marked complete",
+        summary: "The shopkeeper has marked this booking as completed.",
+      },
+      Cancelled: {
+        heading: "Your booking was cancelled",
+        summary: "The shopkeeper has cancelled this engagement.",
+      },
+    };
+    const decision = DECISIONS[dto.status] || DECISIONS.Negotiating;
+    this.notify(req, "supplier", { ...decision, note: dto.notes || dto.rejectionReason });
 
     // Re-populate before returning: the shopkeeper UI merges this response
     // into the row it already holds, so an unpopulated supplierId would wipe
@@ -915,6 +1046,29 @@ export class SuppliersService {
     } as any);
 
     await req.save();
+
+    // Currency for the notification figures — the shopkeeper's country, same
+    // convention as the rest of the app.
+    const payShop: any = await this.shopkeeperModel
+      .findById(req.shopkeeperId)
+      .select("country")
+      .lean();
+    const sym = payShop?.country === "SG" ? "SG$" : "₹";
+    const fmt = (n: number) => `${sym}${Number(n || 0).toLocaleString()}`;
+    this.notify(req, "supplier", {
+      heading: settled ? "You have been paid in full" : "A part payment has been made to you",
+      summary: settled
+        ? "The shopkeeper has settled your quotation in full."
+        : "The shopkeeper has paid part of your quotation — the balance is shown below.",
+      rows: [
+        ["Paid now", fmt(amount)],
+        ["Paid to date", fmt(amountPaid)],
+        ["Balance due", fmt(balanceDue)],
+        ...(dto.reference ? ([["Reference", dto.reference]] as Array<[string, string]>) : []),
+      ],
+      note: dto.notes,
+    });
+
     return req.populate("supplierId");
   }
 
@@ -1095,6 +1249,23 @@ export class SuppliersService {
 
     req.markModified("quotationItems");
     await req.save();
+
+    this.notify(req, "supplier", {
+      heading: direction === "in" ? "Your delivery was received" : "Items were checked out",
+      summary:
+        direction === "in"
+          ? "The shopkeeper has confirmed receipt of items at the shop."
+          : "The shopkeeper has recorded items leaving the shop.",
+      rows: (req.quotationItems || []).map(
+        (i: any) =>
+          [
+            i.requirementLabel,
+            `${i.checkedInQty || 0} in / ${i.checkedOutQty || 0} out of ${i.quantity || 0}`,
+          ] as [string, string],
+      ),
+      note,
+    });
+
     return req.populate("supplierId");
   }
 
