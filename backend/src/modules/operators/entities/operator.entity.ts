@@ -27,7 +27,17 @@ export class Operator {
 
   @Prop({
     type: [String],
-    default: ["dashboard", "orders", "products", "crm", "kiosk", "storefront", "settings", "expenses"],
+    default: [
+      "dashboard",
+      "orders",
+      "products",
+      "crm",
+      "kiosk",
+      "storefront",
+      "settings",
+      "expenses",
+      "suppliers",
+    ],
   })
   accessTabs: string[];
 

@@ -54,6 +54,7 @@ import {
   PanelLeftOpen,
   LifeBuoy,
   Receipt,
+  Truck,
 } from "lucide-react";
 // Lazy load heavy tab components - only loaded when tab is active
 const SupportPanel = lazy(() => import("@/components/shopkeeper/SupportPanel"));
@@ -90,6 +91,11 @@ const ExpenseManagement = lazy(() =>
 const PnLReport = lazy(() =>
   import("@/components/shopkeeper/PnLReport").then((m) => ({
     default: m.PnLReport,
+  })),
+);
+const SupplierManagement = lazy(() =>
+  import("@/components/shopkeeper/SupplierManagement").then((m) => ({
+    default: m.SupplierManagement,
   })),
 );
 import { StorefrontTemplate } from "./StorefrontTemplate";
@@ -190,6 +196,7 @@ const NAVIGATION_ITEMS = [
   { id: "crm", label: "CRM", icon: Users },
   { id: "products", label: "Products", icon: Package },
   { id: "expenses", label: "Expenses", icon: Receipt },
+  { id: "suppliers", label: "Suppliers", icon: Truck },
   { id: "storefront", label: "Storefront", icon: Globe, isAction: true },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "support", label: "Support", icon: LifeBuoy },
@@ -2093,6 +2100,16 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                 {hasTabAccess("expenses") ? (
                   <Suspense fallback={<TabLoadingFallback />}>
                     <ExpenseManagement />
+                  </Suspense>
+                ) : (
+                  <NoAccessOverlay />
+                )}
+              </TabsContent>
+
+              <TabsContent value="suppliers" className="mt-0">
+                {hasTabAccess("suppliers") ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <SupplierManagement />
                   </Suspense>
                 ) : (
                   <NoAccessOverlay />
