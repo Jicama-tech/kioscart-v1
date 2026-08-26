@@ -1,24 +1,32 @@
-import { ArrayNotEmpty, IsArray, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
-import { Type } from "class-transformer";
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
-export class SupplierProductLinkDto {
-  @IsString()
-  @IsNotEmpty()
-  productId: string;
-
-  @IsNumber()
-  @Min(0)
-  costPrice: number;
-}
-
+/**
+ * Shopkeeper-side create of a Supplier identity (the "Add Supplier" form).
+ * The supplier persists across products; per-product quotations are separate
+ * (SupplierRequest).
+ */
 export class CreateSupplierDto {
-  @IsString()
   @IsNotEmpty()
+  @IsString()
   name: string;
 
   @IsOptional()
   @IsString()
-  contactPerson?: string;
+  companyName?: string;
+
+  // "Service provided" — free-text category (packaging, ingredients, …).
+  @IsOptional()
+  @IsString()
+  serviceCategory?: string;
+
+  // Personal / login email (the Gmail the supplier signs in with).
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  businessEmail?: string;
 
   @IsOptional()
   @IsString()
@@ -26,19 +34,25 @@ export class CreateSupplierDto {
 
   @IsOptional()
   @IsString()
-  email?: string;
+  countryCode?: string;
 
   @IsOptional()
   @IsString()
-  address?: string;
+  whatsAppNumber?: string;
 
   @IsOptional()
   @IsString()
-  gstin?: string;
+  description?: string;
 
   @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => SupplierProductLinkDto)
-  products?: SupplierProductLinkDto[];
+  @IsString()
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

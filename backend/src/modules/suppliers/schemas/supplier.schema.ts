@@ -1,50 +1,79 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Document, Types } from "mongoose";
 
 export type SupplierDocument = Supplier & Document;
 
-class SupplierProductLink {
-  @Prop({ required: true })
-  productId: string;
-
-  @Prop({ required: true, min: 0 })
-  costPrice: number;
-}
-
-@Schema({ timestamps: true })
+/**
+ * Supplier identity — a 3rd-party vendor (packaging, raw materials,
+ * ingredients, etc.) that a shopkeeper works with. Lives in its own
+ * `suppliers` collection and persists across products: the Supplier is the
+ * identity, a SupplierRequest is the per-product quotation. Ported from
+ * eventsh-v1's organizer/event-scoped supplier module, re-keyed to
+ * shopkeeper/product.
+ */
+@Schema({ collection: "suppliers", timestamps: true })
 export class Supplier {
-  @Prop({ required: true })
-  shopkeeperId: string;
+  // Owning shopkeeper — the supplier belongs to the shopkeeper whose product
+  // link they submitted through. Lets a shopkeeper reuse a supplier across
+  // products.
+  @Prop({ type: Types.ObjectId, ref: "Shopkeeper", required: false, index: true })
+  shopkeeperId?: Types.ObjectId;
 
   @Prop({ required: true })
   name: string;
 
+  // Personal / login email — the Gmail a supplier signs in with on the
+  // quotation form. Kept lowercase for lookups.
   @Prop()
-  contactPerson?: string;
+  email: string;
 
+  // Separate business/company email. The Gmail login also matches against
+  // this so either address lets them in.
   @Prop()
-  phone?: string;
-
-  @Prop()
-  email?: string;
-
-  @Prop()
-  address?: string;
+  businessEmail: string;
 
   @Prop()
-  gstin?: string;
-
-  @Prop({ type: [SupplierProductLink], default: [] })
-  products: SupplierProductLink[];
-
-  @Prop({ default: false })
-  isSoftDeleted: boolean;
+  phone: string;
 
   @Prop()
-  softDeletedAt?: Date;
+  countryCode: string;
+
+  @Prop()
+  whatsAppNumber: string;
+
+  @Prop()
+  companyName: string;
+
+  // Free-text/custom service category (packaging, ingredients, printing, …).
+  @Prop()
+  serviceCategory: string;
+
+  @Prop()
+  description: string;
+
+  @Prop()
+  website: string;
+
+  @Prop()
+  country: string;
+
+  /**
+   * Where the shopkeeper pays this supplier. Captured the first time they
+   * fill a quotation and reused on every later one, so they never retype it.
+   * Refreshed whenever a newer quotation supplies different details.
+   */
+  @Prop({ type: Object, default: {} })
+  accountDetails?: {
+    accountHolderName?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscSwiftUen?: string;
+    upiPaynowId?: string;
+    country?: string;
+  };
+
+  @Prop({ default: true })
+  isActive: boolean;
 }
 
 export const SupplierSchema = SchemaFactory.createForClass(Supplier);
-
-SupplierSchema.index({ shopkeeperId: 1 });
-SupplierSchema.index({ "products.productId": 1 });

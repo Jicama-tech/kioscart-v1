@@ -13,6 +13,7 @@
     "smoke:chatbot": "node chatbot-smoke.mjs"
   },
   "dependencies": {
+    "uuid": "^9.0.1",
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",

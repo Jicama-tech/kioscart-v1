@@ -1,25 +1,40 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { JwtModule } from "@nestjs/jwt";
 import { SuppliersService } from "./suppliers.service";
 import { SuppliersController } from "./suppliers.controller";
-import { PurchaseOrdersService } from "./purchase-orders.service";
-import { PurchaseOrdersController } from "./purchase-orders.controller";
-import { SupplierSchema } from "./schemas/supplier.schema";
-import { PurchaseOrderSchema } from "./schemas/purchase-order.schema";
+import { Supplier, SupplierSchema } from "./schemas/supplier.schema";
+import {
+  SupplierProductConfig,
+  SupplierProductConfigSchema,
+} from "./schemas/supplier-product-config.schema";
+import {
+  SupplierRequest,
+  SupplierRequestSchema,
+} from "./entities/supplier-request.entity";
 import { ProductSchema } from "../products/entities/product.entity";
-import { ExpensesModule } from "../expenses/expenses.module";
+import { ShopkeeperSchema } from "../shopkeepers/schemas/shopkeeper.schema";
+import { OrderSchema } from "../orders/entities/order.entity";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: "Supplier", schema: SupplierSchema },
-      { name: "PurchaseOrder", schema: PurchaseOrderSchema },
+      { name: Supplier.name, schema: SupplierSchema },
+      { name: SupplierRequest.name, schema: SupplierRequestSchema },
+      { name: SupplierProductConfig.name, schema: SupplierProductConfigSchema },
       { name: "Product", schema: ProductSchema },
+      { name: "Shopkeeper", schema: ShopkeeperSchema },
+      // Read-only: sums recent order line items for requirement suggestions.
+      { name: "Order", schema: OrderSchema },
     ]),
-    ExpensesModule,
+    // JwtAuthGuard injects JwtService; it verifies with JWT_ACCESS_SECRET.
+    JwtModule.register({
+      secret: process.env.JWT_ACCESS_SECRET || "your_jwt_access_secret",
+      signOptions: { expiresIn: "1d" },
+    }),
   ],
-  controllers: [SuppliersController, PurchaseOrdersController],
-  providers: [SuppliersService, PurchaseOrdersService],
-  exports: [SuppliersService, PurchaseOrdersService],
+  controllers: [SuppliersController],
+  providers: [SuppliersService],
+  exports: [SuppliersService],
 })
 export class SuppliersModule {}
