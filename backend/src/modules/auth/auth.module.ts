@@ -12,6 +12,7 @@ import { GoogleShopkeeperStrategy } from "./strategies/shopkeeper-google.strateg
 import { RolesModule } from "../roles/roles.module";
 import { GoogleOrganizerStrategy } from "./strategies/organizer-google.strategy";
 import { GoogleBuyerStrategy } from "./strategies/buyer-google.strategy";
+import { GoogleSupplierStrategy } from "./strategies/supplier-google.strategy";
 import { ShopkeeperSchema } from "../shopkeepers/schemas/shopkeeper.schema";
 import { OperatorSchema } from "../operators/entities/operator.entity";
 
@@ -37,6 +38,7 @@ import { OperatorSchema } from "../operators/entities/operator.entity";
     GoogleBuyerStrategy,
     InstagramStrategy,
     GoogleOrganizerStrategy,
+    GoogleSupplierStrategy,
   ],
   controllers: [AuthController],
   exports: [AuthService, JwtModule],

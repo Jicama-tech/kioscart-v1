@@ -346,6 +346,36 @@ export class AuthController {
     );
   }
 
+  // ===== Google Supplier Auth (public supplier quotation form popup) =====
+  // Backend-mediated OAuth, ported from eventsh-v1's "google-member" flow.
+  // Verifies the supplier's Gmail without creating any account — flow:
+  // frontend opens this URL in a popup → Google → /google-supplier/redirect
+  // → backend redirects to a frontend-hosted static callback page that
+  // postMessages {email, name, picture} back to the opener and closes
+  // itself. Living on the frontend origin keeps `window.opener.postMessage`
+  // reliable even under strict Cross-Origin-Opener-Policy.
+  @Get("google-supplier")
+  @UseGuards(AuthGuard("google-supplier"))
+  async googleSupplierAuth() {
+    // Passport handles the Google consent redirect.
+  }
+
+  @Get("google-supplier/redirect")
+  @UseGuards(AuthGuard("google-supplier"))
+  async googleSupplierRedirect(@Req() req: Request, @Res() res: Response) {
+    const user = (req.user as any) || {};
+    const params = new URLSearchParams({
+      email: user.email || "",
+      name: user.name || "",
+      picture: user.picture || "",
+    });
+    res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+    res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+    return res.redirect(
+      `${this.frontendUrl}/kioscart-google-supplier-callback?${params.toString()}`,
+    );
+  }
+
   // Google OAuth for buyers (cart checkout)
   @Get("google-buyer")
   @UseGuards(AuthGuard("google-buyer"))
