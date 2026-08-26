@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ArrowLeft } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -168,7 +169,10 @@ export function ProductManagement({
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showDialog, setShowDialog] = useState(false);
+  // "list" = the product table/filters screen; "form" = the full-screen
+  // Add/Edit Product view (replaces the old Dialog — matches the
+  // singadvisor convention of entity forms getting their own screen).
+  const [view, setView] = useState<"list" | "form">("list");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -392,7 +396,7 @@ export function ProductManagement({
       });
       setShouldRefresh((prev) => !prev);
       setEditingProduct(null);
-      setShowDialog(false);
+      setView("list");
     } catch (error: any) {
       toast({
         duration: 5000,
@@ -454,16 +458,16 @@ export function ProductManagement({
 
   const openAddDialog = () => {
     setEditingProduct(null);
-    setShowDialog(true);
+    setView("form");
   };
 
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
-    setShowDialog(true);
+    setView("form");
   };
 
   const closeDialog = () => {
-    setShowDialog(false);
+    setView("list");
     setEditingProduct(null);
   };
 
@@ -1009,6 +1013,41 @@ export function ProductManagement({
     }
   };
 
+  // Full-screen Add/Edit Product view — replaces the list entirely while
+  // active, matching the singadvisor convention: entity create/edit forms
+  // get their own screen, not a Dialog.
+  if (view === "form") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="buttonOutline" size="sm" onClick={closeDialog}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Products
+          </Button>
+          <div>
+            <h2 className="text-lg font-semibold">
+              {editingProduct ? "Edit Product" : "Add New Product"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {editingProduct
+                ? "Update product information, subcategories, and variants."
+                : "Create a new product with subcategories and variants."}
+            </p>
+          </div>
+        </div>
+        <ProductForm
+          product={editingProduct}
+          onSave={(savedProduct: any) => {
+            handleProductSave(savedProduct);
+            setView("list");
+            setEditingProduct(null);
+          }}
+          onClose={closeDialog}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Stats */}
@@ -1241,30 +1280,6 @@ export function ProductManagement({
               <SupplierRequests productId={suppliersProduct._id} />
             </Suspense>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Add/Edit Product Dialog */}
-      <Dialog open={showDialog} onOpenChange={closeDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingProduct ? "Edit Product" : "Add New Product"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingProduct
-                ? "Update product information, subcategories, and variants."
-                : "Create a new product with subcategories and variants."}
-            </DialogDescription>
-          </DialogHeader>
-          <ProductForm
-            product={editingProduct}
-            onSave={(savedProduct) => {
-              handleProductSave(savedProduct);
-              setShowDialog(false);
-              setEditingProduct(null);
-            }}
-          />
         </DialogContent>
       </Dialog>
     </div>

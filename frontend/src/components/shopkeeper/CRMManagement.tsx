@@ -67,6 +67,7 @@ import {
   ChevronRight,
   ChevronDown,
   Edit2,
+  ArrowLeft,
 } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import {
@@ -579,7 +580,6 @@ interface Customer {
 }
 
 interface AddCustomerDialogProps {
-  isOpen: boolean;
   onClose: () => void;
   onCustomerAdded?: (customer: any) => void;
   shopkeeperId?: string;
@@ -952,7 +952,6 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
 }
 
 export function AddCustomerDialog({
-  isOpen,
   onClose,
   onCustomerAdded,
   shopkeeperId,
@@ -986,7 +985,6 @@ export function AddCustomerDialog({
   const [loadingCountries, setLoadingCountries] = useState(true);
 
   useEffect(() => {
-    if (!isOpen) return;
     setCountries(
       COUNTRY_CODES.map((c) => ({
         name: c.name,
@@ -995,11 +993,11 @@ export function AddCustomerDialog({
       })),
     );
     setLoadingCountries(false);
-  }, [isOpen]);
+  }, []);
 
   // NEW: Pre-fill form for edit mode
   useEffect(() => {
-    if (isOpen && customerToEdit && mode === "edit" && countries.length > 0) {
+    if (customerToEdit && mode === "edit" && countries.length > 0) {
       const [first, ...rest] = customerToEdit.name.split(" ");
 
       const rawWhatsapp = customerToEdit.whatsapp || "";
@@ -1029,7 +1027,7 @@ export function AddCustomerDialog({
       });
 
       setErrors({});
-    } else if (isOpen && mode === "add" && countries.length > 0) {
+    } else if (mode === "add" && countries.length > 0) {
       // Apply bot-supplied prefill if present; otherwise reset to empty.
       if (prefill && (prefill.firstName || prefill.lastName || prefill.whatsapp || prefill.email)) {
         const raw = prefill.whatsapp || "";
@@ -1053,7 +1051,7 @@ export function AddCustomerDialog({
         resetForm();
       }
     }
-  }, [isOpen, customerToEdit, mode, countries, prefill]);
+  }, [customerToEdit, mode, countries, prefill]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -1233,19 +1231,25 @@ export function AddCustomerDialog({
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-md p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl md:text-2xl font-semibold">
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Button variant="outline" size="sm" onClick={handleClose}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Customers
+        </Button>
+        <div>
+          <h2 className="text-lg font-semibold">
             {mode === "edit" ? "Edit Customer" : "Add New Customer"}
-          </DialogTitle>
-          <DialogDescription className="text-sm sm:text-base text-muted-foreground">
+          </h2>
+          <p className="text-sm text-muted-foreground">
             {mode === "edit"
               ? "Update customer details."
               : "Enter customer details to add them to your customer list."}
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+        </div>
+      </div>
 
+      <Card className="max-w-md">
+        <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* First Name */}
           <div>
@@ -1441,8 +1445,9 @@ export function AddCustomerDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -2690,6 +2695,20 @@ export function CRMManagement({
     );
   }
 
+  // Full-screen Add/Edit Customer view — replaces the CRM screen entirely
+  // while active, matching the singadvisor convention: entity create/edit
+  // forms get their own screen, not a Dialog.
+  if (showAddCustomer) {
+    return (
+      <AddCustomerDialog
+        onClose={closeAddCustomer}
+        customerToEdit={customerToEdit}
+        mode={customerToEdit ? "edit" : "add"}
+        prefill={addPrefill}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* CRM Stats Cards */}
@@ -3040,15 +3059,6 @@ export function CRMManagement({
         />
       )}
 
-      {showAddCustomer && (
-        <AddCustomerDialog
-          isOpen={showAddCustomer}
-          onClose={closeAddCustomer}
-          customerToEdit={customerToEdit} // New prop
-          mode={customerToEdit ? "edit" : "add"} // New prop
-          prefill={addPrefill}
-        />
-      )}
     </div>
   );
 }

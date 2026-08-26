@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, FileText, CheckCircle2, XCircle, Clock, Receipt } from "lucide-react";
+import { Loader2, Plus, FileText, CheckCircle2, XCircle, Clock, Receipt, ArrowLeft, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { jwtDecode } from "jwt-decode";
 
@@ -73,7 +73,9 @@ export function ExpenseManagement() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOperator, setIsOperator] = useState(false);
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  // "list" = the expenses table; "form" = the full-screen Add Expense view
+  // (replaces the old Dialog — entity create forms get their own screen).
+  const [view, setView] = useState<"list" | "form">("list");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -161,7 +163,7 @@ export function ExpenseManagement() {
           ? "Sent to the store owner for approval."
           : "Expense recorded and auto-approved.",
       });
-      setShowAddDialog(false);
+      setView("list");
       resetForm();
       fetchExpenses();
     } catch (err: any) {
@@ -208,6 +210,102 @@ export function ExpenseManagement() {
     .reduce((sum, e) => sum + e.amount, 0);
   const pendingCount = expenses.filter((e) => e.status === "pending").length;
 
+  // Full-screen Add Expense view — replaces the list entirely while active,
+  // matching the singadvisor convention: entity create/edit forms get their
+  // own screen, not a Dialog.
+  if (view === "form") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => setView("list")}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Expenses
+          </Button>
+          <div>
+            <h2 className="text-lg font-semibold">Add Expense</h2>
+            <p className="text-sm text-muted-foreground">
+              Record a business expense to feed into your P&amp;L report.
+            </p>
+          </div>
+        </div>
+
+        <Card className="max-w-2xl">
+          <CardContent className="pt-6 space-y-4">
+            <div>
+              <Label>Category</Label>
+              <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Party name</Label>
+              <Input
+                value={form.partyName}
+                onChange={(e) => setForm((f) => ({ ...f, partyName: e.target.value }))}
+                placeholder="Vendor / supplier / payee name"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  value={form.amount}
+                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={form.expenseDate}
+                  onChange={(e) => setForm((f) => ({ ...f, expenseDate: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Invoice (PDF/JPG/PNG)</Label>
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setForm((f) => ({ ...f, invoice: e.target.files?.[0] || null }))}
+              />
+            </div>
+            {isOperator && (
+              <p className="text-xs text-muted-foreground">
+                This expense will be sent to the store owner for approval before it counts in the P&amp;L.
+              </p>
+            )}
+            <div className="flex items-center gap-3 pt-2">
+              <Button onClick={handleSubmit} disabled={submitting}>
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Expense
+              </Button>
+              <Button variant="outline" onClick={() => setView("list")}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -219,7 +317,7 @@ export function ExpenseManagement() {
             Track business expenses feeding into your P&amp;L report.
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
+        <Button onClick={() => setView("form")}>
           <Plus className="h-4 w-4 mr-2" /> Add Expense
         </Button>
       </div>
@@ -323,87 +421,6 @@ export function ExpenseManagement() {
           )}
         </CardContent>
       </Card>
-
-      {/* Add Expense dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Expense</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Category</Label>
-              <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Party name</Label>
-              <Input
-                value={form.partyName}
-                onChange={(e) => setForm((f) => ({ ...f, partyName: e.target.value }))}
-                placeholder="Vendor / supplier / payee name"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Amount</Label>
-                <Input
-                  type="number"
-                  value={form.amount}
-                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={form.expenseDate}
-                  onChange={(e) => setForm((f) => ({ ...f, expenseDate: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Description (optional)</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>Invoice (PDF/JPG/PNG)</Label>
-              <Input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => setForm((f) => ({ ...f, invoice: e.target.files?.[0] || null }))}
-              />
-            </div>
-            {isOperator && (
-              <p className="text-xs text-muted-foreground">
-                This expense will be sent to the store owner for approval before it counts in the P&amp;L.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Save Expense
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Reject dialog */}
       <Dialog open={!!rejectingId} onOpenChange={(open) => !open && setRejectingId(null)}>

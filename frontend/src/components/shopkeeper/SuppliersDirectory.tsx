@@ -58,6 +58,7 @@ import {
   Mail,
   Building2,
   Truck,
+  ArrowLeft,
 } from "lucide-react";
 
 const apiURL = __API_URL__;
@@ -163,7 +164,10 @@ export default function SuppliersDirectory() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  // "list" = the directory table; "form" = the full-screen Add/Edit Supplier
+  // view (replaces the old Dialog — entity create/edit forms get their own
+  // screen, matching the singadvisor convention).
+  const [view, setView] = useState<"list" | "form">("list");
   const [editing, setEditing] = useState<Supplier | null>(null);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -222,7 +226,7 @@ export default function SuppliersDirectory() {
 
   const openAdd = () => {
     setEditing(null);
-    setDialogOpen(true);
+    setView("form");
   };
   // Runs only after the shopkeeper confirms in the dialog. A refusal from the
   // server (supplier still has quotations) stays on screen inside the dialog
@@ -284,8 +288,24 @@ export default function SuppliersDirectory() {
 
   const openEdit = (s: Supplier) => {
     setEditing(s);
-    setDialogOpen(true);
+    setView("form");
   };
+
+  // Full-screen Add/Edit Supplier view — replaces the directory entirely
+  // while active, matching the singadvisor convention: entity create/edit
+  // forms get their own screen, not a Dialog.
+  if (view === "form") {
+    return (
+      <SupplierFormScreen
+        supplierToEdit={editing}
+        onCancel={() => setView("list")}
+        onSaved={() => {
+          setView("list");
+          load();
+        }}
+      />
+    );
+  }
 
   return (
     <Card>
@@ -421,16 +441,6 @@ export default function SuppliersDirectory() {
           </Table>
         )}
       </CardContent>
-
-      <SupplierFormDialog
-        isOpen={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        supplierToEdit={editing}
-        onSaved={() => {
-          setDialogOpen(false);
-          load();
-        }}
-      />
 
       {/* ── Confirm removal ────────────────────────────────────── */}
       <AlertDialog
@@ -604,16 +614,14 @@ export default function SuppliersDirectory() {
   );
 }
 
-// ── Add / Edit dialog ────────────────────────────────────────────────
-function SupplierFormDialog({
-  isOpen,
-  onClose,
+// ── Add / Edit full-screen form ─────────────────────────────────────
+function SupplierFormScreen({
   supplierToEdit,
+  onCancel,
   onSaved,
 }: {
-  isOpen: boolean;
-  onClose: () => void;
   supplierToEdit: Supplier | null;
+  onCancel: () => void;
   onSaved: () => void;
 }) {
   const mode: "add" | "edit" = supplierToEdit ? "edit" : "add";
@@ -622,7 +630,6 @@ function SupplierFormDialog({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
     if (supplierToEdit) {
       const { dialCode, number } = splitPhone(supplierToEdit.phone);
       setForm({
@@ -638,7 +645,7 @@ function SupplierFormDialog({
       setForm({ ...EMPTY_FORM });
     }
     setErrors({});
-  }, [isOpen, supplierToEdit]);
+  }, [supplierToEdit]);
 
   const set = (patch: Partial<typeof form>) =>
     setForm((f) => ({ ...f, ...patch }));
@@ -718,18 +725,24 @@ function SupplierFormDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Button variant="outline" size="sm" onClick={onCancel}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Suppliers
+        </Button>
+        <div>
+          <h2 className="text-lg font-semibold">
             {mode === "edit" ? "Edit Supplier" : "Add Supplier"}
-          </DialogTitle>
-          <DialogDescription>
+          </h2>
+          <p className="text-sm text-muted-foreground">
             Service providers you work with — reused across all your products.
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+        </div>
+      </div>
 
-        <form onSubmit={submit} className="grid gap-4 py-2">
+      <Card className="max-w-lg">
+        <CardContent className="pt-6">
+        <form onSubmit={submit} className="grid gap-4">
           <div className="grid gap-1.5">
             <Label>Name *</Label>
             <Input
@@ -818,17 +831,18 @@ function SupplierFormDialog({
             )}
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
+          <div className="flex items-center gap-3 pt-2">
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === "edit" ? "Save changes" : "Add supplier"}
             </Button>
-          </DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
