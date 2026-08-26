@@ -113,6 +113,14 @@ const ProductForm = lazy(() =>
     default: m.ProductForm,
   })),
 );
+const SupplierRequestForm = lazy(
+  () => import('./pages/SupplierRequestForm'),
+);
+const SupplierGoogleCallback = lazy(() =>
+  import('./components/shopkeeper/SupplierGoogleCallback').then((m) => ({
+    default: m.SupplierGoogleCallback,
+  })),
+);
 const ProductManagement = lazy(() =>
   import('./components/shopkeeper/ProductManagement').then((m) => ({
     default: m.ProductManagement,
@@ -282,6 +290,42 @@ function AppContent() {
   }, [navigate]);
 
   const { user, logout, loading } = useAuth();
+
+  // Short-circuit the Google-supplier popup callback BEFORE any auth / role
+  // gating runs. The popup needs to read its query params, post the profile
+  // to its opener, and close itself — auth state of the current browser
+  // session is irrelevant. Without this, a logged-in shopkeeper (or any
+  // user) would route the popup through the role branch's catch-all
+  // redirect and the callback component would never mount.
+  if (
+    typeof window !== 'undefined' &&
+    window.location.pathname === '/kioscart-google-supplier-callback'
+  ) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <SupplierGoogleCallback />
+      </Suspense>
+    );
+  }
+
+  // Same short-circuit for the public supplier quotation form — it must be
+  // reachable by a supplier who isn't signed into kioscart at all, and
+  // regardless of whatever role IS signed in on this browser.
+  if (
+    typeof window !== 'undefined' &&
+    /^\/products\/[^/]+\/supplier\/?$/.test(window.location.pathname)
+  ) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          <Route
+            path="/products/:productId/supplier"
+            element={<SupplierRequestForm />}
+          />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   if (loading) {
     return <LoadingScreen />;

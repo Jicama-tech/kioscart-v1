@@ -93,10 +93,8 @@ const PnLReport = lazy(() =>
     default: m.PnLReport,
   })),
 );
-const SupplierManagement = lazy(() =>
-  import("@/components/shopkeeper/SupplierManagement").then((m) => ({
-    default: m.SupplierManagement,
-  })),
+const SuppliersDirectory = lazy(
+  () => import("@/components/shopkeeper/SuppliersDirectory"),
 );
 import { StorefrontTemplate } from "./StorefrontTemplate";
 import { useToast } from "@/hooks/use-toast";
@@ -2109,7 +2107,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
               <TabsContent value="suppliers" className="mt-0">
                 {hasTabAccess("suppliers") ? (
                   <Suspense fallback={<TabLoadingFallback />}>
-                    <SupplierManagement />
+                    <SuppliersDirectory />
                   </Suspense>
                 ) : (
                   <NoAccessOverlay />
