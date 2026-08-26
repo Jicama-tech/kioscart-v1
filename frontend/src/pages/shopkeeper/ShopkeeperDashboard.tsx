@@ -87,6 +87,11 @@ const ExpenseManagement = lazy(() =>
     default: m.ExpenseManagement,
   })),
 );
+const PnLReport = lazy(() =>
+  import("@/components/shopkeeper/PnLReport").then((m) => ({
+    default: m.PnLReport,
+  })),
+);
 import { StorefrontTemplate } from "./StorefrontTemplate";
 import { useToast } from "@/hooks/use-toast";
 import { jwtDecode } from "jwt-decode";
@@ -1904,6 +1909,12 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                           )}
                       </CardContent>
                     </Card>
+
+                    {shopkeeperId && (
+                      <Suspense fallback={<TabLoadingFallback />}>
+                        <PnLReport shopkeeperId={shopkeeperId} period={selectedPeriod} />
+                      </Suspense>
+                    )}
                   </div>
                 ) : (
                   <NoAccessOverlay />

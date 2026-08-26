@@ -608,4 +608,62 @@ export class ShopkeeperAnalyticsController {
       timestamp: new Date(),
     };
   }
+
+  /**
+   * Profit & Loss report for a given period — revenue (from orders) minus
+   * approved expenses, broken down by category.
+   *
+   * Endpoint: GET /shopkeeper/analytics/:shopkeeperId/pnl/:period
+   */
+  @Get(":shopkeeperId/pnl/:period")
+  @HttpCode(HttpStatus.OK)
+  async getPnLReport(
+    @Param("shopkeeperId") shopkeeperId: string,
+    @Param("period") period: string,
+  ) {
+    if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
+      throw new BadRequestException(
+        `Invalid period. Use: ${Object.values(ReportPeriod).join(", ")}`,
+      );
+    }
+
+    const report = await this.analyticsService.generatePnLReport(
+      shopkeeperId,
+      period as ReportPeriod,
+    );
+
+    return { success: true, data: report, timestamp: new Date() };
+  }
+
+  /**
+   * Download the P&L report as a PDF.
+   *
+   * Endpoint: GET /shopkeeper/analytics/:shopkeeperId/pnl/export/pdf/:period
+   */
+  @Get(":shopkeeperId/pnl/export/pdf/:period")
+  @HttpCode(HttpStatus.OK)
+  async exportPnLPdf(
+    @Param("shopkeeperId") shopkeeperId: string,
+    @Param("period") period: string,
+    @Res() res: Response,
+  ) {
+    if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        error: `Invalid period. Use: ${Object.values(ReportPeriod).join(", ")}`,
+        timestamp: new Date(),
+      });
+    }
+
+    try {
+      await this.analyticsService.exportPnLPdf(shopkeeperId, period as ReportPeriod, res);
+    } catch (error) {
+      console.error("P&L PDF export error:", error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: error.message || "Failed to generate P&L PDF",
+        timestamp: new Date(),
+      });
+    }
+  }
 }

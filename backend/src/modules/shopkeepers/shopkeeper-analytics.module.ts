@@ -9,6 +9,7 @@ import {
   Shopkeeper,
   ShopkeeperSchema,
 } from "../shopkeepers/schemas/shopkeeper.schema";
+import { ExpensesModule } from "../expenses/expenses.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import {
       { name: User.name, schema: UserSchema },
       { name: Shopkeeper.name, schema: ShopkeeperSchema },
     ]),
+    ExpensesModule,
   ],
   controllers: [ShopkeeperAnalyticsController],
   providers: [ShopkeeperAnalyticsService],
