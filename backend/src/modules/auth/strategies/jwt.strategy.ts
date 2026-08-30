@@ -18,6 +18,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       name: payload.name,
       email: payload.email,
       roles: payload.roles,
+      // Present only on operator-minted tokens (see auth.controller
+      // mintShopkeeperToken) — userId/sub above is the parent owner's id.
+      operatorId: payload.operatorId,
+      accessTabs: payload.accessTabs,
     };
   }
 }

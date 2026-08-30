@@ -25,7 +25,20 @@ export class Operator {
   @Prop()
   organizerId?: string;
 
-  @Prop({ type: [String], default: ["dashboard", "orders", "products", "crm", "kiosk", "storefront", "settings"] })
+  @Prop({
+    type: [String],
+    default: [
+      "dashboard",
+      "orders",
+      "products",
+      "crm",
+      "kiosk",
+      "storefront",
+      "settings",
+      "expenses",
+      "suppliers",
+    ],
+  })
   accessTabs: string[];
 
   @Prop({ default: false })

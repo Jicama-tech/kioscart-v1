@@ -53,6 +53,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LifeBuoy,
+  Receipt,
+  Truck,
 } from "lucide-react";
 // Lazy load heavy tab components - only loaded when tab is active
 const SupportPanel = lazy(() => import("@/components/shopkeeper/SupportPanel"));
@@ -80,6 +82,19 @@ const KioskMode = lazy(() =>
   import("@/components/shopkeeper/KioskMode").then((m) => ({
     default: m.KioskMode,
   })),
+);
+const ExpenseManagement = lazy(() =>
+  import("@/components/shopkeeper/ExpenseManagement").then((m) => ({
+    default: m.ExpenseManagement,
+  })),
+);
+const PnLReport = lazy(() =>
+  import("@/components/shopkeeper/PnLReport").then((m) => ({
+    default: m.PnLReport,
+  })),
+);
+const SuppliersDirectory = lazy(
+  () => import("@/components/shopkeeper/SuppliersDirectory"),
 );
 import { StorefrontTemplate } from "./StorefrontTemplate";
 import { useToast } from "@/hooks/use-toast";
@@ -178,6 +193,8 @@ const NAVIGATION_ITEMS = [
   { id: "orders", label: "Orders & Payments", icon: ShoppingCart },
   { id: "crm", label: "CRM", icon: Users },
   { id: "products", label: "Products", icon: Package },
+  { id: "expenses", label: "Expenses", icon: Receipt },
+  { id: "suppliers", label: "Suppliers", icon: Truck },
   { id: "storefront", label: "Storefront", icon: Globe, isAction: true },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "support", label: "Support", icon: LifeBuoy },
@@ -1897,6 +1914,12 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                           )}
                       </CardContent>
                     </Card>
+
+                    {shopkeeperId && (
+                      <Suspense fallback={<TabLoadingFallback />}>
+                        <PnLReport shopkeeperId={shopkeeperId} period={selectedPeriod} />
+                      </Suspense>
+                    )}
                   </div>
                 ) : (
                   <NoAccessOverlay />
@@ -2066,6 +2089,26 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                       <SupportPanel />
                     </Suspense>
                   </ModuleGate>
+                ) : (
+                  <NoAccessOverlay />
+                )}
+              </TabsContent>
+
+              <TabsContent value="expenses" className="mt-0">
+                {hasTabAccess("expenses") ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <ExpenseManagement />
+                  </Suspense>
+                ) : (
+                  <NoAccessOverlay />
+                )}
+              </TabsContent>
+
+              <TabsContent value="suppliers" className="mt-0">
+                {hasTabAccess("suppliers") ? (
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <SuppliersDirectory />
+                  </Suspense>
                 ) : (
                   <NoAccessOverlay />
                 )}

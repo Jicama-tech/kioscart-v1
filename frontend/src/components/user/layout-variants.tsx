@@ -636,9 +636,9 @@ export const MinimalLayout = ({
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar */}
-          <div className="col-span-1">
+          <div className="lg:col-span-1">
             <div className="space-y-4">
               <h3 className="font-bold text-lg mb-4">Filters</h3>
 
@@ -680,7 +680,7 @@ export const MinimalLayout = ({
           </div>
 
           {/* Main Content - 2 Columns */}
-          <div className="col-span-3">
+          <div className="lg:col-span-3">
             <div className="grid grid-cols-2 gap-6">
               {filteredProducts?.map((product) => (
                 <div

@@ -25,6 +25,9 @@ import {
 } from "./dto/analytics-report.dto";
 import * as moment from "moment-timezone";
 import * as ExcelJS from "exceljs";
+import * as PDFKit from "pdfkit";
+import { Response } from "express";
+import { ExpensesService } from "../expenses/expenses.service";
 
 @Injectable()
 export class ShopkeeperAnalyticsService {
@@ -33,6 +36,7 @@ export class ShopkeeperAnalyticsService {
     @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Shopkeeper.name) private shopkeeperModel: Model<Shopkeeper>,
+    private readonly expensesService: ExpensesService,
   ) {}
 
   // ============= CURRENCY & DATE HELPERS =============
@@ -1142,5 +1146,109 @@ export class ShopkeeperAnalyticsService {
     }
 
     return obj;
+  }
+
+  // ============= P&L REPORT =============
+
+  async generatePnLReport(shopkeeperId: string, period: ReportPeriod) {
+    const shopkeeper = await this.shopkeeperModel.findById(shopkeeperId).lean();
+    if (!shopkeeper) {
+      throw new NotFoundException("Shopkeeper not found");
+    }
+
+    const { start, end } = this.getDateRange(period);
+    const currencyConfig = this.getCurrencyConfig(shopkeeper.country || "IN");
+
+    const orders = await this.orderModel
+      .find({
+        shopkeeperId,
+        status: { $nin: ["Cancelled", "cancelled"] },
+        createdAt: { $gte: start, $lte: end },
+      })
+      .lean()
+      .exec();
+
+    const revenue = orders.reduce((sum, o: any) => sum + (o.totalAmount || 0), 0);
+
+    const expenseSummary = await this.expensesService.summarizeApproved(
+      shopkeeperId,
+      "shopkeeper",
+      start,
+      end,
+    );
+
+    const netProfit = revenue - expenseSummary.total;
+    const marginPct = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+
+    return {
+      shopName: shopkeeper.shopName || shopkeeper.name,
+      currency: currencyConfig.code,
+      currencySymbol: currencyConfig.symbol,
+      period,
+      startDate: start,
+      endDate: end,
+      revenue,
+      totalExpenses: expenseSummary.total,
+      expensesByCategory: expenseSummary.byCategory,
+      expenseCount: expenseSummary.count,
+      netProfit,
+      marginPct,
+      generatedAt: new Date(),
+    };
+  }
+
+  async exportPnLPdf(shopkeeperId: string, period: ReportPeriod, res: Response) {
+    const report = await this.generatePnLReport(shopkeeperId, period);
+    const PDFDocument = (PDFKit as any).default || PDFKit;
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="pnl_${period}_${shopkeeperId}.pdf"`,
+    );
+    doc.pipe(res);
+
+    doc.fontSize(18).font("Helvetica-Bold").text(`${report.shopName} — Profit & Loss`, {
+      align: "center",
+    });
+    doc
+      .fontSize(10)
+      .font("Helvetica")
+      .text(
+        `Period: ${period.toUpperCase()}  (${new Date(report.startDate).toLocaleDateString()} - ${new Date(
+          report.endDate,
+        ).toLocaleDateString()})`,
+        { align: "center" },
+      );
+    doc.moveDown(1);
+
+    const fmt = (n: number) => `${report.currencySymbol}${n.toLocaleString()}`;
+
+    doc.fontSize(12).font("Helvetica-Bold").text("Revenue");
+    doc.font("Helvetica").text(`Total Revenue: ${fmt(report.revenue)}`);
+    doc.moveDown(0.5);
+
+    doc.font("Helvetica-Bold").text("Expenses (approved only)");
+    doc.font("Helvetica");
+    if (report.expensesByCategory.length === 0) {
+      doc.text("No approved expenses in this period.");
+    } else {
+      for (const row of report.expensesByCategory) {
+        doc.text(`${row.category}: ${fmt(row.amount)}`);
+      }
+    }
+    doc.text(`Total Expenses: ${fmt(report.totalExpenses)}`, { underline: true });
+    doc.moveDown(0.5);
+
+    doc.font("Helvetica-Bold").fontSize(13);
+    doc.text(`Net Profit: ${fmt(report.netProfit)}`);
+    doc.font("Helvetica").fontSize(11);
+    doc.text(`Margin: ${report.marginPct.toFixed(1)}%`);
+    doc.moveDown(1);
+
+    doc.fontSize(8).fillColor("gray").text(`Generated on ${new Date().toLocaleString()}`);
+
+    doc.end();
   }
 }

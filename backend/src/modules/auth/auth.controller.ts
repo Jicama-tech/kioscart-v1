@@ -23,6 +23,10 @@ import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
 import { RoleService } from "../roles/roles.service";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import {
+  SUPPLIER_FORM_TOKEN_TTL,
+  SUPPLIER_FORM_TOKEN_TYPE,
+} from "./guards/supplier-form.guard";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 
@@ -343,6 +347,51 @@ export class AuthController {
         roles: ["shopkeeper"],
       },
       { secret: process.env.JWT_ACCESS_SECRET, expiresIn: "24h" } as any,
+    );
+  }
+
+  // ===== Google Supplier Auth (public supplier quotation form popup) =====
+  // Backend-mediated OAuth, ported from eventsh-v1's "google-member" flow.
+  // Verifies the supplier's Gmail without creating any account — flow:
+  // frontend opens this URL in a popup → Google → /google-supplier/redirect
+  // → backend redirects to a frontend-hosted static callback page that
+  // postMessages {email, name, picture} back to the opener and closes
+  // itself. Living on the frontend origin keeps `window.opener.postMessage`
+  // reliable even under strict Cross-Origin-Opener-Policy.
+  @Get("google-supplier")
+  @UseGuards(AuthGuard("google-supplier"))
+  async googleSupplierAuth() {
+    // Passport handles the Google consent redirect.
+  }
+
+  @Get("google-supplier/redirect")
+  @UseGuards(AuthGuard("google-supplier"))
+  async googleSupplierRedirect(@Req() req: Request, @Res() res: Response) {
+    const user = (req.user as any) || {};
+    const email = String(user.email || "").trim().toLowerCase();
+    // Proof, for the supplier endpoints, that Google vouched for this
+    // address — without it the email is just a string in a URL that anyone
+    // could type. Deliberately carries no `sub`, so it is useless against
+    // the shopkeeper routes even though the signing secret is shared.
+    const supplierToken = email
+      ? await this.jwtService.signAsync(
+          { typ: SUPPLIER_FORM_TOKEN_TYPE, email },
+          {
+            secret: process.env.JWT_ACCESS_SECRET,
+            expiresIn: SUPPLIER_FORM_TOKEN_TTL,
+          } as any,
+        )
+      : "";
+    const params = new URLSearchParams({
+      email: user.email || "",
+      name: user.name || "",
+      picture: user.picture || "",
+      token: supplierToken,
+    });
+    res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+    res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+    return res.redirect(
+      `${this.frontendUrl}/kioscart-google-supplier-callback?${params.toString()}`,
     );
   }
 

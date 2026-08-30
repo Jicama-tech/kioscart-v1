@@ -28,6 +28,8 @@ import { AgentsModule } from "./modules/agents/agents.module";
 import { ChatbotModule } from "./modules/chatbot/chatbot.module";
 import { PaymentGatewaysModule } from "./modules/payment-gateways/payment-gateways.module";
 import { AppFeedbackModule } from "./modules/app-feedback/app-feedback.module";
+import { ExpensesModule } from "./modules/expenses/expenses.module";
+import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 
 @Module({
   imports: [
@@ -62,6 +64,8 @@ import { AppFeedbackModule } from "./modules/app-feedback/app-feedback.module";
     AgentsModule,
     ChatbotModule,
     AppFeedbackModule,
+    ExpensesModule,
+    SuppliersModule,
   ],
 })
 export class AppModule {}

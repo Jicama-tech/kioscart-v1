@@ -340,6 +340,80 @@ export class MailService {
     });
   }
 
+  // ✉️ Lifecycle update for the supplier management workflow (quotation
+  // submitted, approved/rejected/negotiated, payment recorded, items
+  // checked in/out, payment confirmed). Ported from eventsh-v1's
+  // sendSupplierUpdate, minus the per-organizer custom-SMTP resolver —
+  // kioscart's MailService uses one fixed transporter for everyone.
+  async sendSupplierUpdate(data: {
+    to: string[];
+    heading: string;
+    /** One-line summary of what just happened. */
+    summary: string;
+    supplierName: string;
+    productName: string;
+    /** Row label for `productName` — "Business" for shop-wide quotes. */
+    subjectLabel?: string;
+    status: string;
+    /** Label → value rows rendered as a table (already formatted). */
+    rows?: Array<[string, string]>;
+    /** Free-text note from whoever made the change. */
+    note?: string;
+    shopName?: string;
+    ctaLabel?: string;
+    ctaUrl?: string;
+  }): Promise<void> {
+    const recipients = [
+      ...new Set(
+        (data.to || [])
+          .map((e) => String(e || "").trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+    if (recipients.length === 0) return;
+
+    const row = ([label, value]: [string, string]) =>
+      `<tr><td style="padding:5px 14px 5px 0;color:#64748b">${label}</td><td style="padding:5px 0;font-weight:600;color:#0f172a">${value || "—"}</td></tr>`;
+
+    const subject = `${data.heading} — ${data.productName}`;
+    const html = `
+      <div style="font-family: sans-serif; max-width: 620px; color: #1f2937; line-height: 1.6;">
+        <h2 style="margin-bottom:4px;">${data.heading}</h2>
+        <p style="margin-top:0;color:#6b7280;">${data.summary}</p>
+        <table style="border-collapse:collapse;margin:14px 0;">
+          ${row(["Supplier", data.supplierName])}
+          ${row([data.subjectLabel || "Product", data.productName])}
+          ${row(["Status", data.status])}
+          ${(data.rows || []).map(row).join("")}
+        </table>
+        ${
+          data.note
+            ? `<p style="background:#f1f5f9;border-radius:8px;padding:10px 12px;margin:12px 0;"><strong>Note:</strong> ${data.note}</p>`
+            : ""
+        }
+        ${
+          data.ctaUrl
+            ? `<p style="margin:18px 0;"><a href="${data.ctaUrl}" style="background:#008080;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;">${data.ctaLabel || "Open"}</a></p>`
+            : ""
+        }
+        <p style="color:#6b7280;font-size:13px;">— ${data.shopName || "KiosCart"}</p>
+      </div>`;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"KiosCart" <${process.env.SMTP_USER}>`,
+        to: recipients.join(", "),
+        subject,
+        html,
+      });
+    } catch (err) {
+      console.error("Failed to send supplier update email:", err);
+      // Never throw — a bounced notification must not roll back the state
+      // change that triggered it. Callers already wrap this in a try/catch
+      // for the same reason, but stay defensive here too.
+    }
+  }
+
   async sendMail(options: { to: string; subject: string; html: string }) {
     try {
       await this.transporter.sendMail({

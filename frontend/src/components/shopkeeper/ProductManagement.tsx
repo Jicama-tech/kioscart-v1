@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ArrowLeft } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -54,10 +55,17 @@ import {
   XCircle,
   FileSpreadsheet,
   Warehouse,
+  Truck,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import { jwtDecode } from "jwt-decode";
+
+// Per-product supplier quotations (requirements + link + quotations table),
+// ported from eventsh-v1's MyEvents "manage suppliers" dialog.
+const SupplierRequests = lazy(
+  () => import("./SupplierRequests"),
+);
 
 interface ProductOptionItem {
   id: number;
@@ -161,7 +169,10 @@ export function ProductManagement({
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showDialog, setShowDialog] = useState(false);
+  // "list" = the product table/filters screen; "form" = the full-screen
+  // Add/Edit Product view (replaces the old Dialog — matches the
+  // singadvisor convention of entity forms getting their own screen).
+  const [view, setView] = useState<"list" | "form">("list");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -169,6 +180,10 @@ export function ProductManagement({
   const [statusFilter, setStatusFilter] = useState("all");
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const [shopkeeperInfo, setShopkeeperInfo] = useState<any>(null);
+  // Which product's supplier quotations dialog is open (null = closed).
+  const [suppliersProduct, setSuppliersProduct] = useState<Product | null>(
+    null,
+  );
   const { formatPrice, getSymbol } = useCurrency(
     shopkeeperInfo?.country || "IN",
   );
@@ -381,7 +396,7 @@ export function ProductManagement({
       });
       setShouldRefresh((prev) => !prev);
       setEditingProduct(null);
-      setShowDialog(false);
+      setView("list");
     } catch (error: any) {
       toast({
         duration: 5000,
@@ -443,16 +458,16 @@ export function ProductManagement({
 
   const openAddDialog = () => {
     setEditingProduct(null);
-    setShowDialog(true);
+    setView("form");
   };
 
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
-    setShowDialog(true);
+    setView("form");
   };
 
   const closeDialog = () => {
-    setShowDialog(false);
+    setView("list");
     setEditingProduct(null);
   };
 
@@ -668,6 +683,14 @@ export function ProductManagement({
                 onClick={() => openEditDialog(product)}
               >
                 <Edit className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="buttonOutline"
+                size="sm"
+                onClick={() => setSuppliersProduct(product)}
+                title="Manage suppliers"
+              >
+                <Truck className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -990,6 +1013,41 @@ export function ProductManagement({
     }
   };
 
+  // Full-screen Add/Edit Product view — replaces the list entirely while
+  // active, matching the singadvisor convention: entity create/edit forms
+  // get their own screen, not a Dialog.
+  if (view === "form") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="buttonOutline" size="sm" onClick={closeDialog}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Products
+          </Button>
+          <div>
+            <h2 className="text-lg font-semibold">
+              {editingProduct ? "Edit Product" : "Add New Product"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {editingProduct
+                ? "Update product information, subcategories, and variants."
+                : "Create a new product with subcategories and variants."}
+            </p>
+          </div>
+        </div>
+        <ProductForm
+          product={editingProduct}
+          onSave={(savedProduct: any) => {
+            handleProductSave(savedProduct);
+            setView("list");
+            setEditingProduct(null);
+          }}
+          onClose={closeDialog}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Stats */}
@@ -1100,18 +1158,18 @@ export function ProductManagement({
           />
 
           {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search products, SKU, or description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 max-w-xs"
+                className="pl-10 w-full sm:max-w-xs"
               />
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
@@ -1124,7 +1182,7 @@ export function ProductManagement({
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -1194,27 +1252,34 @@ export function ProductManagement({
         </CardContent>
       </Card>
 
-      {/* Add/Edit Product Dialog */}
-      <Dialog open={showDialog} onOpenChange={closeDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      {/* Manage suppliers for one product — requirements, private link, and
+          incoming quotations. */}
+      <Dialog
+        open={!!suppliersProduct}
+        onOpenChange={(o) => !o && setSuppliersProduct(null)}
+      >
+        <DialogContent className="max-h-[90vh] w-[95vw] max-w-5xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingProduct ? "Edit Product" : "Add New Product"}
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-primary" /> Suppliers —{" "}
+              {suppliersProduct?.name}
             </DialogTitle>
             <DialogDescription>
-              {editingProduct
-                ? "Update product information, subcategories, and variants."
-                : "Create a new product with subcategories and variants."}
+              Set what you need, share the private link, and review incoming
+              quotations for this product.
             </DialogDescription>
           </DialogHeader>
-          <ProductForm
-            product={editingProduct}
-            onSave={(savedProduct) => {
-              handleProductSave(savedProduct);
-              setShowDialog(false);
-              setEditingProduct(null);
-            }}
-          />
+          {suppliersProduct && (
+            <Suspense
+              fallback={
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              }
+            >
+              <SupplierRequests productId={suppliersProduct._id} />
+            </Suspense>
+          )}
         </DialogContent>
       </Dialog>
     </div>
