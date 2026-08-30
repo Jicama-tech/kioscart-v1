@@ -13,8 +13,13 @@ const buttonVariants = cva(
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
           "border-2 border-destructive text-destructive hover:bg-destructive/90 hover:text-white/90",
+        // `hover:bg-white/30` used to sit here. On a light page that reads as
+        // a faint lift, but over a dark surface a 30% white wash turns flat
+        // grey — and with hover:text-primary on top it came out grey-with-blue.
+        // A primary tint works in both themes and matches the solid primary of
+        // the active/default variant.
         buttonOutline:
-          "border border-input bg-background hover:bg-white/30 hover:text-primary",
+          "border border-input bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/40",
         outline: "border border-input bg-background hover:bg-seconday/80",
         outline1: "bg-background hover:bg-seconday/80",
         secondary:
