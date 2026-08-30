@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, useCallback, lazy, Suspense } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,14 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ArrowLeft } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -55,17 +47,10 @@ import {
   XCircle,
   FileSpreadsheet,
   Warehouse,
-  Truck,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import { jwtDecode } from "jwt-decode";
-
-// Per-product supplier quotations (requirements + link + quotations table),
-// ported from eventsh-v1's MyEvents "manage suppliers" dialog.
-const SupplierRequests = lazy(
-  () => import("./SupplierRequests"),
-);
 
 interface ProductOptionItem {
   id: number;
@@ -181,9 +166,6 @@ export function ProductManagement({
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const [shopkeeperInfo, setShopkeeperInfo] = useState<any>(null);
   // Which product's supplier quotations dialog is open (null = closed).
-  const [suppliersProduct, setSuppliersProduct] = useState<Product | null>(
-    null,
-  );
   const { formatPrice, getSymbol } = useCurrency(
     shopkeeperInfo?.country || "IN",
   );
@@ -685,14 +667,6 @@ export function ProductManagement({
                 <Edit className="w-4 h-4" />
               </Button>
               <Button
-                variant="buttonOutline"
-                size="sm"
-                onClick={() => setSuppliersProduct(product)}
-                title="Manage suppliers"
-              >
-                <Truck className="w-4 h-4" />
-              </Button>
-              <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDeleteProduct(product._id)}
@@ -1019,22 +993,8 @@ export function ProductManagement({
   if (view === "form") {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="buttonOutline" size="sm" onClick={closeDialog}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Products
-          </Button>
-          <div>
-            <h2 className="text-lg font-semibold">
-              {editingProduct ? "Edit Product" : "Add New Product"}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {editingProduct
-                ? "Update product information, subcategories, and variants."
-                : "Create a new product with subcategories and variants."}
-            </p>
-          </div>
-        </div>
+        {/* No header here: ProductForm carries its own sticky title bar with
+            the Cancel / Save actions, and a second one just repeated it. */}
         <ProductForm
           product={editingProduct}
           onSave={(savedProduct: any) => {
@@ -1252,36 +1212,6 @@ export function ProductManagement({
         </CardContent>
       </Card>
 
-      {/* Manage suppliers for one product — requirements, private link, and
-          incoming quotations. */}
-      <Dialog
-        open={!!suppliersProduct}
-        onOpenChange={(o) => !o && setSuppliersProduct(null)}
-      >
-        <DialogContent className="max-h-[90vh] w-[95vw] max-w-5xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-primary" /> Suppliers —{" "}
-              {suppliersProduct?.name}
-            </DialogTitle>
-            <DialogDescription>
-              Set what you need, share the private link, and review incoming
-              quotations for this product.
-            </DialogDescription>
-          </DialogHeader>
-          {suppliersProduct && (
-            <Suspense
-              fallback={
-                <div className="flex justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              }
-            >
-              <SupplierRequests productId={suppliersProduct._id} />
-            </Suspense>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
