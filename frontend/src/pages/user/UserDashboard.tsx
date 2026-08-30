@@ -230,7 +230,7 @@ export function UserDashboard() {
               <h2 className="text-3xl font-bold">My Wishlist</h2>
               <Card className="py-12">
                 <CardContent className="text-center">
-                  <Heart className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                  <Heart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                   <h3 className="text-xl font-semibold mb-2">
                     Your Wishlist is Empty
                   </h3>

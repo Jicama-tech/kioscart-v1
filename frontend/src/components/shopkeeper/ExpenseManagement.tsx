@@ -29,6 +29,7 @@ import { Loader2, Plus, FileText, CheckCircle2, XCircle, Clock, Receipt, ArrowLe
 import { useToast } from "@/hooks/use-toast";
 import { jwtDecode } from "jwt-decode";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = __API_URL__;
 
 const CATEGORIES = [
@@ -63,9 +64,9 @@ interface Expense {
 }
 
 const STATUS_BADGE: Record<Expense["status"], { label: string; className: string; icon: any }> = {
-  pending: { label: "Pending", className: "bg-amber-100 text-amber-700", icon: Clock },
-  approved: { label: "Approved", className: "bg-emerald-100 text-emerald-700", icon: CheckCircle2 },
-  rejected: { label: "Rejected", className: "bg-red-100 text-red-700", icon: XCircle },
+  pending: { label: i18nT("Pending"), className: "bg-amber-100 text-amber-700", icon: Clock },
+  approved: { label: i18nT("Approved"), className: "bg-emerald-100 text-emerald-700", icon: CheckCircle2 },
+  rejected: { label: i18nT("Rejected"), className: "bg-red-100 text-red-700", icon: XCircle },
 };
 
 export function ExpenseManagement() {
@@ -114,7 +115,7 @@ export function ExpenseManagement() {
       const data = await res.json();
       setExpenses(data);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: i18nT("Error"), description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -132,7 +133,7 @@ export function ExpenseManagement() {
 
   const handleSubmit = async () => {
     if (!form.category || !form.partyName || !form.amount || !form.expenseDate) {
-      toast({ title: "Missing fields", description: "Category, party, amount and date are required.", variant: "destructive" });
+      toast({ title: i18nT("Missing fields"), description: i18nT("Category, party, amount and date are required."), variant: "destructive" });
       return;
     }
     setSubmitting(true);
@@ -158,7 +159,7 @@ export function ExpenseManagement() {
       if (!res.ok) throw new Error((await res.json()).message || "Failed to add expense");
 
       toast({
-        title: "Expense added",
+        title: i18nT("Expense added"),
         description: isOperator
           ? "Sent to the store owner for approval."
           : "Expense recorded and auto-approved.",
@@ -167,7 +168,7 @@ export function ExpenseManagement() {
       resetForm();
       fetchExpenses();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: i18nT("Error"), description: err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -180,10 +181,10 @@ export function ExpenseManagement() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error((await res.json()).message || "Failed to approve");
-      toast({ title: "Expense approved" });
+      toast({ title: i18nT("Expense approved") });
       fetchExpenses();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: i18nT("Error"), description: err.message, variant: "destructive" });
     }
   };
 
@@ -196,12 +197,12 @@ export function ExpenseManagement() {
         body: JSON.stringify({ reason: rejectReason }),
       });
       if (!res.ok) throw new Error((await res.json()).message || "Failed to reject");
-      toast({ title: "Expense rejected" });
+      toast({ title: i18nT("Expense rejected") });
       setRejectingId(null);
       setRejectReason("");
       fetchExpenses();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: i18nT("Error"), description: err.message, variant: "destructive" });
     }
   };
 
@@ -218,12 +219,12 @@ export function ExpenseManagement() {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => setView("list")}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Expenses
+            <ArrowLeft className="h-4 w-4 mr-2" /> {i18nT("Back to Expenses")}
           </Button>
           <div>
-            <h2 className="text-lg font-semibold">Add Expense</h2>
+            <h2 className="text-lg font-semibold">{i18nT("Add Expense")}</h2>
             <p className="text-sm text-muted-foreground">
-              Record a business expense to feed into your P&amp;L report.
+              {i18nT("Record a business expense to feed into your P&amp;L report.")}
             </p>
           </div>
         </div>
@@ -231,10 +232,10 @@ export function ExpenseManagement() {
         <Card>
           <CardContent className="pt-6 grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>Category</Label>
+              <Label>{i18nT("Category")}</Label>
               <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder={i18nT("Select category")} />
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => (
@@ -246,7 +247,7 @@ export function ExpenseManagement() {
               </Select>
             </div>
             <div>
-              <Label>Party name</Label>
+              <Label>{i18nT("Party name")}</Label>
               <Input
                 value={form.partyName}
                 onChange={(e) => setForm((f) => ({ ...f, partyName: e.target.value }))}
@@ -255,7 +256,7 @@ export function ExpenseManagement() {
             </div>
             <div className="grid grid-cols-2 gap-4 sm:col-span-2">
               <div>
-                <Label>Amount</Label>
+                <Label>{i18nT("Amount")}</Label>
                 <Input
                   type="number"
                   value={form.amount}
@@ -263,7 +264,7 @@ export function ExpenseManagement() {
                 />
               </div>
               <div>
-                <Label>Date</Label>
+                <Label>{i18nT("Date")}</Label>
                 <Input
                   type="date"
                   value={form.expenseDate}
@@ -288,7 +289,7 @@ export function ExpenseManagement() {
             </div>
             {isOperator && (
               <p className="text-xs text-muted-foreground sm:col-span-2">
-                This expense will be sent to the store owner for approval before it counts in the P&amp;L.
+                {i18nT("This expense will be sent to the store owner for approval before it counts in the P&amp;L.")}
               </p>
             )}
             <div className="flex items-center gap-3 pt-2 sm:col-span-2">
@@ -297,7 +298,7 @@ export function ExpenseManagement() {
                 Save Expense
               </Button>
               <Button variant="outline" onClick={() => setView("list")}>
-                Cancel
+                {i18nT("Cancel")}
               </Button>
             </div>
           </CardContent>
@@ -311,27 +312,27 @@ export function ExpenseManagement() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Receipt className="h-6 w-6" /> Expenses
+            <Receipt className="h-6 w-6" /> {i18nT("Expenses")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Track business expenses feeding into your P&amp;L report.
+            {i18nT("Track business expenses feeding into your P&amp;L report.")}
           </p>
         </div>
         <Button onClick={() => setView("form")}>
-          <Plus className="h-4 w-4 mr-2" /> Add Expense
+          <Plus className="h-4 w-4 mr-2" /> {i18nT("Add Expense")}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Approved expenses</CardDescription>
+            <CardDescription>{i18nT("Approved expenses")}</CardDescription>
             <CardTitle className="text-2xl">₹{totalApproved.toLocaleString()}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Pending approval</CardDescription>
+            <CardDescription>{i18nT("Pending approval")}</CardDescription>
             <CardTitle className="text-2xl">{pendingCount}</CardTitle>
           </CardHeader>
         </Card>
@@ -344,20 +345,20 @@ export function ExpenseManagement() {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : expenses.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">No expenses recorded yet.</div>
+            <div className="text-center py-12 text-muted-foreground">{i18nT("No expenses recorded yet.")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40">
                   <tr className="text-left">
-                    <th className="p-3">Date</th>
-                    <th className="p-3">Category</th>
-                    <th className="p-3">Party</th>
-                    <th className="p-3">Amount</th>
-                    <th className="p-3">Invoice</th>
-                    <th className="p-3">Added by</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Approved by</th>
+                    <th className="p-3">{i18nT("Date")}</th>
+                    <th className="p-3">{i18nT("Category")}</th>
+                    <th className="p-3">{i18nT("Party")}</th>
+                    <th className="p-3">{i18nT("Amount")}</th>
+                    <th className="p-3">{i18nT("Invoice")}</th>
+                    <th className="p-3">{i18nT("Added by")}</th>
+                    <th className="p-3">{i18nT("Status")}</th>
+                    <th className="p-3">{i18nT("Approved by")}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -379,7 +380,7 @@ export function ExpenseManagement() {
                               rel="noreferrer"
                               className="inline-flex items-center gap-1 text-blue-600 hover:underline"
                             >
-                              <FileText className="h-4 w-4" /> View
+                              <FileText className="h-4 w-4" /> {i18nT("View")}
                             </a>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -404,10 +405,10 @@ export function ExpenseManagement() {
                           {e.status === "pending" && !isOperator && (
                             <div className="flex gap-2">
                               <Button size="sm" variant="outline" onClick={() => approve(e._id)}>
-                                Approve
+                                {i18nT("Approve")}
                               </Button>
                               <Button size="sm" variant="outline" onClick={() => setRejectingId(e._id)}>
-                                Reject
+                                {i18nT("Reject")}
                               </Button>
                             </div>
                           )}
@@ -426,19 +427,19 @@ export function ExpenseManagement() {
       <Dialog open={!!rejectingId} onOpenChange={(open) => !open && setRejectingId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Expense</DialogTitle>
+            <DialogTitle>{i18nT("Reject Expense")}</DialogTitle>
           </DialogHeader>
           <Textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Reason for rejection"
+            placeholder={i18nT("Reason for rejection")}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectingId(null)}>
-              Cancel
+              {i18nT("Cancel")}
             </Button>
             <Button variant="destructive" onClick={reject} disabled={!rejectReason.trim()}>
-              Reject
+              {i18nT("Reject")}
             </Button>
           </DialogFooter>
         </DialogContent>

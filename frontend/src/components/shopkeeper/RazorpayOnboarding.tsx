@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, AlertCircle, Upload } from "lucide-react";
 import { toast } from "sonner";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 type Country = "IN" | "SG";
@@ -246,7 +247,7 @@ export function RazorpayOnboarding({ shopProfile, onUpdated }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Razorpay Route Onboarding</h3>
+          <h3 className="text-lg font-semibold">{i18nT("Razorpay Route Onboarding")}</h3>
           <p className="text-sm text-muted-foreground">
             Customers pay through KiosCart. Funds are held in our partner account
             until the admin releases them to your bank.
@@ -263,22 +264,22 @@ export function RazorpayOnboarding({ shopProfile, onUpdated }: Props) {
 
       {!hasAccount && (
         <section className="border rounded-lg p-4 space-y-3">
-          <h4 className="font-medium">Step 1 — Business details</h4>
+          <h4 className="font-medium">{i18nT("Step 1 — Business details")}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field label="Legal business name" value={form.businessName}
               onChange={(v) => setForm({ ...form, businessName: v })} />
             <div>
-              <Label className="text-xs">Business type</Label>
+              <Label className="text-xs">{i18nT("Business type")}</Label>
               <Select
                 value={form.businessType}
                 onValueChange={(v) => setForm({ ...form, businessType: v as any })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="proprietorship">Proprietorship</SelectItem>
-                  <SelectItem value="partnership">Partnership</SelectItem>
-                  <SelectItem value="private_limited">Private Limited</SelectItem>
-                  <SelectItem value="llp">LLP</SelectItem>
+                  <SelectItem value="proprietorship">{i18nT("Proprietorship")}</SelectItem>
+                  <SelectItem value="partnership">{i18nT("Partnership")}</SelectItem>
+                  <SelectItem value="private_limited">{i18nT("Private Limited")}</SelectItem>
+                  <SelectItem value="llp">{i18nT("LLP")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -328,7 +329,7 @@ export function RazorpayOnboarding({ shopProfile, onUpdated }: Props) {
 
       {hasAccount && !account?.stakeholderId && (
         <section className="border rounded-lg p-4 space-y-3">
-          <h4 className="font-medium">Step 2 — Add stakeholder</h4>
+          <h4 className="font-medium">{i18nT("Step 2 — Add stakeholder")}</h4>
           <p className="text-sm text-muted-foreground">
             The person legally responsible for the business (usually the
             proprietor or a director).
@@ -360,7 +361,7 @@ export function RazorpayOnboarding({ shopProfile, onUpdated }: Props) {
 
       {hasAccount && account?.stakeholderId && status !== "active" && (
         <section className="border rounded-lg p-4 space-y-3">
-          <h4 className="font-medium">Step 3 — Upload KYC documents</h4>
+          <h4 className="font-medium">{i18nT("Step 3 — Upload KYC documents")}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(Object.keys(DOC_LABELS) as DocSlot[]).map((slot) => (
               <DocUpload
@@ -385,7 +386,7 @@ export function RazorpayOnboarding({ shopProfile, onUpdated }: Props) {
           </Button>
           {!docsReady && (
             <p className="text-xs text-muted-foreground">
-              PAN and cancelled cheque are required to submit.
+              {i18nT("PAN and cancelled cheque are required to submit.")}
             </p>
           )}
         </section>
@@ -395,7 +396,7 @@ export function RazorpayOnboarding({ shopProfile, onUpdated }: Props) {
         <div className="p-4 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-2">
           <CheckCircle2 className="w-5 h-5" />
           <div>
-            <div className="font-medium">KYC active — accepting payments</div>
+            <div className="font-medium">{i18nT("KYC active — accepting payments")}</div>
             <div className="text-sm">
               Customers can pay through KiosCart. Funds settle to your bank
               after KiosCart admin releases each payment.
@@ -432,7 +433,7 @@ function Field({
 
 function StatusBadge({ status }: { status: LinkedAccountStatus }) {
   const tone: Record<LinkedAccountStatus, string> = {
-    pending_kyc: "bg-slate-100 text-slate-700",
+    pending_kyc: "bg-muted text-foreground",
     under_review: "bg-amber-100 text-amber-800",
     active: "bg-emerald-100 text-emerald-800",
     rejected: "bg-red-100 text-red-800",
@@ -463,7 +464,7 @@ function DocUpload({
 }) {
   return (
     <label
-      className={`border rounded-md p-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition ${
+      className={`border rounded-md p-3 flex items-center justify-between cursor-pointer hover:bg-muted transition ${
         uploaded ? "border-emerald-300 bg-emerald-50" : "border-dashed"
       }`}
     >
@@ -480,9 +481,9 @@ function DocUpload({
       {uploaded ? (
         <CheckCircle2 className="w-5 h-5 text-emerald-600" />
       ) : uploading ? (
-        <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       ) : (
-        <Upload className="w-5 h-5 text-slate-500" />
+        <Upload className="w-5 h-5 text-muted-foreground" />
       )}
       <input
         type="file"

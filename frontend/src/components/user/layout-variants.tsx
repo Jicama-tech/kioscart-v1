@@ -111,7 +111,7 @@ export const MagazineLayout = ({
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-40">
+      <nav className="bg-card shadow-sm border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex items-center space-x-3">
@@ -140,11 +140,11 @@ export const MagazineLayout = ({
 
             <div className="flex items-center space-x-3">
               {features.showWishlist && (
-                <button className="p-2 hover:bg-gray-100 rounded-lg">♡</button>
+                <button className="p-2 hover:bg-muted rounded-lg">♡</button>
               )}
               <button
                 onClick={handleCartClick}
-                className="relative p-2 hover:bg-gray-100 rounded-lg"
+                className="relative p-2 hover:bg-muted rounded-lg"
               >
                 🛒
                 {cartCount > 0 && (
@@ -205,7 +205,7 @@ export const MagazineLayout = ({
 
         {/* Magazine Featured - Full Width Article Style */}
         {featuredProduct && (
-          <section className="py-16 bg-gradient-to-r from-gray-50 to-white">
+          <section className="py-16 bg-gradient-to-r from-muted to-background">
             <div className="max-w-6xl mx-auto px-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
                 {/* Large Image Left */}
@@ -233,7 +233,7 @@ export const MagazineLayout = ({
                     >
                       {featuredProduct.name}
                     </h2>
-                    <p className="text-gray-600 text-lg">
+                    <p className="text-muted-foreground text-lg">
                       {featuredProduct.description}
                     </p>
                   </div>
@@ -315,7 +315,7 @@ export const MagazineLayout = ({
                     />
                   </div>
                   <h3 className="font-bold text-lg mb-2">{product.name}</h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                  <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
                     {product.description}
                   </p>
                   <div className="flex justify-between items-center">
@@ -442,7 +442,7 @@ export const MagazineLayout = ({
                       href={general.contactInfo.instagramLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center rounded-lg p-2 border border-gray-200 text-current hover:bg-gray transition-colors"
+                      className="inline-flex items-center justify-center rounded-lg p-2 border border-border text-current hover:bg-gray transition-colors"
                       aria-label="Instagram"
                     >
                       <Instagram className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -561,7 +561,7 @@ export const MagazineLayout = ({
               </p>
               <a
                 href="/shopkeeper-login"
-                className="text-black font-semibold hover:underline mt-2 md:mt-0"
+                className="text-foreground font-semibold hover:underline mt-2 md:mt-0"
               >
                 Admin Login
               </a>
@@ -616,7 +616,7 @@ export const MinimalLayout = ({
   getBannerHeight,
 }: any) => {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-card">
       {/* Minimal Header */}
       <header className="border-b py-4">
         <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
@@ -696,7 +696,7 @@ export const MinimalLayout = ({
                   />
                   <div className="p-4">
                     <h3 className="font-semibold mb-2">{product.name}</h3>
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-1">
+                    <p className="text-muted-foreground text-sm mb-3 line-clamp-1">
                       {product.description}
                     </p>
                     <div className="flex justify-between items-center">
@@ -711,7 +711,7 @@ export const MinimalLayout = ({
                           e.stopPropagation();
                           handleProductClick(product._id);
                         }}
-                        className="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+                        className="px-3 py-1 bg-muted rounded text-sm hover:bg-gray-300"
                       >
                         Add
                       </button>
@@ -725,8 +725,8 @@ export const MinimalLayout = ({
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-50 border-t mt-12 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-600">
+      <footer className="bg-muted/50 border-t mt-12 py-8">
+        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>&copy; 2025 {general.storeName}</p>
         </div>
       </footer>
@@ -779,7 +779,7 @@ export const GridLayout = ({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white shadow">
+      <header className="sticky top-0 z-40 bg-card shadow">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">{general.storeName}</h1>
           <button
@@ -824,7 +824,7 @@ export const GridLayout = ({
       <div style={themeStyles}>
         {/* Featured Spotlight */}
         {featuredProduct && (
-          <section className="py-16 bg-gradient-to-r from-white to-gray-50">
+          <section className="py-16 bg-gradient-to-r from-background to-muted">
             <div className="max-w-7xl mx-auto px-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 <img
@@ -843,7 +843,7 @@ export const GridLayout = ({
                   <h2 className="text-4xl font-bold mb-4">
                     {featuredProduct.name}
                   </h2>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-muted-foreground mb-6">
                     {featuredProduct.description}
                   </p>
                   <div
@@ -906,7 +906,7 @@ export const GridLayout = ({
                 <div
                   key={product._id}
                   onClick={() => handleProductClick(product._id)}
-                  className="group bg-white rounded-xl overflow-hidden shadow hover:shadow-xl transition cursor-pointer"
+                  className="group bg-card rounded-xl overflow-hidden shadow hover:shadow-xl transition cursor-pointer"
                 >
                   <div className="relative overflow-hidden h-48">
                     <img
@@ -920,7 +920,7 @@ export const GridLayout = ({
                     <h3 className="font-bold mb-2 line-clamp-1">
                       {product.name}
                     </h3>
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                       {product.description}
                     </p>
                     <div className="flex justify-between items-center">
@@ -954,22 +954,22 @@ export const GridLayout = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
               <div>
                 <h3 className="font-bold mb-4">About</h3>
-                <p className="text-gray-400 text-sm">{general.description}</p>
+                <p className="text-muted-foreground text-sm">{general.description}</p>
               </div>
               <div>
                 <h3 className="font-bold mb-4">Contact</h3>
-                <p className="text-gray-400 text-sm">
+                <p className="text-muted-foreground text-sm">
                   {general.contactInfo.phone}
                 </p>
               </div>
               <div>
                 <h3 className="font-bold mb-4">Hours</h3>
-                <p className="text-gray-400 text-sm">
+                <p className="text-muted-foreground text-sm">
                   {general.contactInfo.hours}
                 </p>
               </div>
             </div>
-            <div className="border-t pt-8 text-center text-gray-400 text-sm">
+            <div className="border-t pt-8 text-center text-muted-foreground text-sm">
               <p>&copy; 2025 {general.storeName}. All rights reserved.</p>
             </div>
           </div>

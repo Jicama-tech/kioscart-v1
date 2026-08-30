@@ -17,6 +17,7 @@ import { KioskCartPanel } from "./KioskCartPanel";
 import { KioskParkedCarts } from "./KioskParkedCarts";
 import { KioskCheckoutDialog } from "./KioskCheckoutDialog";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = __API_URL__;
 
 interface KioskModeProps {
@@ -99,15 +100,15 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Monitor className="h-5 w-5 text-slate-600" />
-          <h2 className="text-xl font-bold text-slate-800">Kiosk Mode</h2>
+          <Monitor className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-xl font-bold text-foreground">{i18nT("Kiosk Mode")}</h2>
         </div>
         <Button
           onClick={() => setNewCartDialogOpen(true)}
           className="h-9"
         >
           <Plus className="h-4 w-4 mr-1.5" />
-          New Cart
+          {i18nT("New Cart")}
         </Button>
       </div>
 
@@ -127,9 +128,9 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
       {/* Main Split Layout */}
       <div className="flex-1 flex gap-4 min-h-0">
         {/* Left: Product Browser */}
-        <div className="flex-1 min-w-0 border rounded-lg p-3 bg-white overflow-hidden flex flex-col">
-          <h3 className="text-sm font-semibold text-slate-600 mb-2">
-            Products
+        <div className="flex-1 min-w-0 border rounded-lg p-3 bg-card overflow-hidden flex flex-col">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+            {i18nT("Products")}
           </h3>
           <div className="flex-1 overflow-hidden">
             <KioskProductBrowser
@@ -141,8 +142,8 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
         </div>
 
         {/* Right: Active Cart */}
-        <div className="w-80 flex-shrink-0 border rounded-lg p-3 bg-white flex flex-col">
-          <h3 className="text-sm font-semibold text-slate-600 mb-2">
+        <div className="w-80 flex-shrink-0 border rounded-lg p-3 bg-card flex flex-col">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">
             {activeCart ? `Cart — ${activeCart.customerName}` : "Cart"}
           </h3>
           <div className="flex-1 overflow-hidden">
@@ -164,15 +165,15 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
       <Dialog open={newCartDialogOpen} onOpenChange={setNewCartDialogOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>New Kiosk Cart</DialogTitle>
+            <DialogTitle>{i18nT("New Kiosk Cart")}</DialogTitle>
             <DialogDescription>
-              Enter customer name or leave blank for walk-in
+              {i18nT("Enter customer name or leave blank for walk-in")}
             </DialogDescription>
           </DialogHeader>
           <div>
-            <Label className="text-xs text-slate-500">Customer Name</Label>
+            <Label className="text-xs text-muted-foreground">{i18nT("Customer Name")}</Label>
             <Input
-              placeholder="e.g., Vansh Sharma"
+              placeholder={i18nT("e.g., Vansh Sharma")}
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               className="mt-1"
@@ -190,11 +191,11 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
                 setCustomerName("");
               }}
             >
-              Cancel
+              {i18nT("Cancel")}
             </Button>
             <Button onClick={handleCreateCart}>
               <Plus className="h-4 w-4 mr-1" />
-              Create Cart
+              {i18nT("Create Cart")}
             </Button>
           </div>
         </DialogContent>

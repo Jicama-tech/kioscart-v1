@@ -85,6 +85,7 @@ import { Separator } from "@radix-ui/react-separator";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 
+import { t as i18nT } from "@/i18n/t";
 // Mock WhatsApp icon
 // const FaWhatsapp = ({ className = "" }) => (
 //   <div className={`${className} text-green-600`}>📱</div>
@@ -309,7 +310,7 @@ function OrderDetailDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Order Details</DialogTitle>
+          <DialogTitle>{i18nT("Order Details")}</DialogTitle>
           <DialogDescription>
             Information for order <strong>{order.orderId}</strong>
           </DialogDescription>
@@ -317,41 +318,41 @@ function OrderDetailDialog({
 
         <div className="space-y-4 px-4 pb-4">
           <p>
-            <strong>Order Date:</strong>{" "}
+            <strong>{i18nT("Order Date:")}</strong>{" "}
             {/* {new Date(order.createdAt).toLocaleString()} */}
             {formatDateTime(order.createdAt)}
           </p>
           <p>
-            <strong>Total Amount:</strong> {formatPrice(order.totalAmount)}
+            <strong>{i18nT("Total Amount:")}</strong> {formatPrice(order.totalAmount)}
           </p>
           <p>
-            <strong>Status:</strong>{" "}
+            <strong>{i18nT("Status:")}</strong>{" "}
             <Badge variant="buttonOutline">{order.status}</Badge>
           </p>
           <p>
-            <strong>Order Type:</strong> {order.orderType}
+            <strong>{i18nT("Order Type:")}</strong> {order.orderType}
           </p>
           {order.deliveryAddress && (
             <p>
-              <strong>Delivery Address:</strong> {order.deliveryAddress}
+              <strong>{i18nT("Delivery Address:")}</strong> {order.deliveryAddress}
             </p>
           )}
           {order.pickupDate && (
             <p>
-              <strong>Pickup Date:</strong> {formatDate(order.pickupDate)} at{" "}
+              <strong>{i18nT("Pickup Date:")}</strong> {formatDate(order.pickupDate)} at{" "}
               {order.pickupTime}
             </p>
           )}
           {order.transactionId && (
             <p>
-              <strong>Transaction ID:</strong>{" "}
-              <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm">
+              <strong>{i18nT("Transaction ID:")}</strong>{" "}
+              <span className="font-mono bg-muted px-2 py-0.5 rounded text-sm">
                 {order.transactionId}
               </span>
             </p>
           )}
           <Separator />
-          <h3 className="text-lg font-semibold">Items Purchased</h3>
+          <h3 className="text-lg font-semibold">{i18nT("Items Purchased")}</h3>
 
           {order.items.map((item, idx) => (
             <div
@@ -387,7 +388,7 @@ function OrderDetailDialog({
 
         <div className="flex justify-end px-4 pb-4">
           <Button variant="buttonOutline" onClick={onClose}>
-            Close
+            {i18nT("Close")}
           </Button>
         </div>
       </DialogContent>
@@ -432,7 +433,7 @@ export function CustomerDetailModal({
           <DialogHeader>
             <DialogTitle>{customer.name}</DialogTitle>
             <DialogDescription>
-              Detailed information and order history for this customer.
+              {i18nT("Detailed information and order history for this customer.")}
             </DialogDescription>
           </DialogHeader>
 
@@ -440,11 +441,11 @@ export function CustomerDetailModal({
             {/* Customer Details */}
             <Card>
               <CardHeader>
-                <CardTitle>Customer Details</CardTitle>
+                <CardTitle>{i18nT("Customer Details")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <Label>Email</Label>
+                  <Label>{i18nT("Email")}</Label>
                   <a
                     href={`mailto:${customer.email}`}
                     className="text-sm text-blue-600 hover:underline"
@@ -453,7 +454,7 @@ export function CustomerDetailModal({
                   </a>
                 </div>
                 <div className="flex justify-between items-center">
-                  <Label>WhatsApp</Label>
+                  <Label>{i18nT("WhatsApp")}</Label>
                   <a
                     href={`https://wa.me/${customer.whatsapp.replace(
                       /\D/g,
@@ -467,24 +468,24 @@ export function CustomerDetailModal({
                   </a>
                 </div>
                 <div className="flex justify-between items-center">
-                  <Label>Total Orders</Label>
+                  <Label>{i18nT("Total Orders")}</Label>
                   <p className="text-sm font-medium">{customer.totalOrders}</p>
                 </div>
                 <div className="flex justify-between items-center">
-                  <Label>Total Spent</Label>
+                  <Label>{i18nT("Total Spent")}</Label>
                   <p className="text-sm font-medium">
                     {formatPrice(customer.totalSpent)}
                     {/* ${customer.totalSpent.toFixed(2)} */}
                   </p>
                 </div>
                 <div className="flex justify-between items-center">
-                  <Label>Average Order Value</Label>
+                  <Label>{i18nT("Average Order Value")}</Label>
                   <p className="text-sm font-medium">
                     {formatPrice(customer.averageOrderValue)}
                   </p>
                 </div>
                 <div className="flex justify-between items-center">
-                  <Label>Last Order</Label>
+                  <Label>{i18nT("Last Order")}</Label>
                   <p className="text-sm text-muted-foreground">
                     {customer.lastOrderDate}
                   </p>
@@ -544,7 +545,7 @@ export function CustomerDetailModal({
 
           <div className="flex justify-end space-x-2 mt-4">
             <Button variant="buttonOutline" onClick={onClose}>
-              Close
+              {i18nT("Close")}
             </Button>
           </div>
         </DialogContent>
@@ -622,7 +623,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
       } catch {
         toast({
           duration: 5000,
-          title: "Error decoding token",
+          title: i18nT("Error decoding token"),
           variant: "destructive",
         });
       }
@@ -656,7 +657,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
       } catch (error) {
         toast({
           duration: 5000,
-          title: "Error fetching products",
+          title: i18nT("Error fetching products"),
           description: error.message,
           variant: "destructive",
         });
@@ -736,7 +737,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
     if (!customer.whatsapp || !selectedProduct) {
       toast({
         duration: 5000,
-        title: "Cannot send message: Missing customer phone or product.",
+        title: i18nT("Cannot send message: Missing customer phone or product."),
         variant: "destructive",
       });
       return;
@@ -752,7 +753,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
     if (!selectedProduct) {
       toast({
         duration: 5000,
-        title: "Select a product",
+        title: i18nT("Select a product"),
         variant: "destructive",
       });
       return;
@@ -760,7 +761,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
     if (selectedVariants.size === 0) {
       toast({
         duration: 5000,
-        title: "Select at least one variant",
+        title: i18nT("Select at least one variant"),
         variant: "destructive",
       });
       return;
@@ -768,7 +769,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
     if (selectedCustomers.size === 0) {
       toast({
         duration: 5000,
-        title: "Select at least one customer",
+        title: i18nT("Select at least one customer"),
         variant: "destructive",
       });
       return;
@@ -776,7 +777,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
     if (!message.trim()) {
       toast({
         duration: 5000,
-        title: "Message cannot be empty",
+        title: i18nT("Message cannot be empty"),
         variant: "destructive",
       });
       return;
@@ -785,7 +786,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
     setTimeout(() => {
       toast({
         duration: 5000,
-        title: "Messages Sent",
+        title: i18nT("Messages Sent"),
         description: `Sent marketing message to ${selectedCustomers.size} customers.`,
       });
       setSending(false);
@@ -805,7 +806,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
       >
         <DialogHeader>
           <DialogTitle className="text-lg sm:text-xl md:text-2xl font-semibold">
-            Product Marketing Campaign
+            {i18nT("Product Marketing Campaign")}
           </DialogTitle>
           <DialogDescription className="text-sm sm:text-base text-muted-foreground">
             Select a product, choose variants, write your message, and send it
@@ -816,7 +817,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Products List */}
           <div className="w-full lg:w-1/4">
-            <Label className="font-medium mb-2">Products</Label>
+            <Label className="font-medium mb-2">{i18nT("Products")}</Label>
             <ScrollArea className="border rounded-md max-h-[300px] sm:max-h-[400px]">
               {products?.map((product) => (
                 <div
@@ -824,7 +825,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
                   className={`p-3 cursor-pointer border-b last:border-b-0 ${
                     selectedProduct?.id === product.id
                       ? "bg-blue-50 border-blue-400"
-                      : "border-gray-200"
+                      : "border-border"
                   }`}
                   onClick={() => handleProductSelect(product)}
                 >
@@ -836,17 +837,17 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
 
           {/* Subcategories & Variants */}
           <div className="w-full lg:w-1/3">
-            <Label className="font-medium mb-2">Subcategories & Variants</Label>
+            <Label className="font-medium mb-2">{i18nT("Subcategories & Variants")}</Label>
             {!selectedProduct ? (
-              <p className="text-sm text-gray-500">
-                Select a product to see variants
+              <p className="text-sm text-muted-foreground">
+                {i18nT("Select a product to see variants")}
               </p>
             ) : (
               <ScrollArea className="border rounded-md max-h-[300px] sm:max-h-[400px] p-3">
                 {selectedProduct.subcategories.map((subcat) => (
                   <div key={subcat.id} className="mb-4">
                     <div
-                      className="flex items-center justify-between cursor-pointer font-semibold bg-gray-100 p-2 rounded"
+                      className="flex items-center justify-between cursor-pointer font-semibold bg-muted p-2 rounded"
                       onClick={() => toggleSubcategory(subcat.id)}
                     >
                       <span>{subcat.name}</span>
@@ -889,12 +890,12 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
           {/* Message & Customers */}
           <div className="w-full lg:w-2/5 flex flex-col gap-4">
             <div>
-              <Label className="font-medium mb-2">Message</Label>
+              <Label className="font-medium mb-2">{i18nT("Message")}</Label>
               <Textarea
                 rows={4}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Enter your marketing message..."
+                placeholder={i18nT("Enter your marketing message...")}
                 className="resize-none mb-2"
               />
               {selectedProduct && (
@@ -906,7 +907,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="font-medium">Customers List</Label>
+                <Label className="font-medium">{i18nT("Customers List")}</Label>
                 {/* <button
                   type="button"
                   onClick={handleSelectAllCustomers}
@@ -930,7 +931,7 @@ export function ProductMarketingDialog({ isOpen, onClose, customers }) {
                       onClick={() => handleCustomerWhatsApp(customer)}
                       className="px-2 py-1 rounded bg-green-500 hover:bg-green-600 text-white text-xs"
                     >
-                      WhatsApp
+                      {i18nT("WhatsApp")}
                     </button>
                   </div>
                 ))}
@@ -1118,8 +1119,8 @@ export function AddCustomerDialog({
     const token = sessionStorage.getItem("token");
     if (!token) {
       toast({
-        title: "Error",
-        description: "No authentication token found",
+        title: i18nT("Error"),
+        description: i18nT("No authentication token found"),
         variant: "destructive",
       });
       return;
@@ -1130,8 +1131,8 @@ export function AddCustomerDialog({
     if (!validateForm()) {
       toast({
         duration: 5000,
-        title: "Validation Error",
-        description: "Please fix the errors in the form",
+        title: i18nT("Validation Error"),
+        description: i18nT("Please fix the errors in the form"),
         variant: "destructive",
       });
       return;
@@ -1183,7 +1184,7 @@ export function AddCustomerDialog({
 
       toast({
         duration: 5000,
-        title: "Success",
+        title: i18nT("Success"),
         description: `Customer ${mode === "edit" ? "updated" : "added"} successfully`,
       });
 
@@ -1196,7 +1197,7 @@ export function AddCustomerDialog({
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description:
           error.message ||
           `Failed to ${mode === "edit" ? "update" : "add"} customer`,
@@ -1239,7 +1240,7 @@ export function AddCustomerDialog({
           onClick={handleClose}
           className="w-full sm:w-auto self-start"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Customers
+          <ArrowLeft className="h-4 w-4 mr-2" /> {i18nT("Back to Customers")}
         </Button>
         <div>
           <h2 className="text-lg font-semibold">
@@ -1267,7 +1268,7 @@ export function AddCustomerDialog({
               type="text"
               value={formData.firstName}
               onChange={(e) => handleChange("firstName", e.target.value)}
-              placeholder="Enter first name"
+              placeholder={i18nT("Enter first name")}
               className={errors.firstName ? "border-red-500" : ""}
               disabled={submitting}
             />
@@ -1286,7 +1287,7 @@ export function AddCustomerDialog({
               type="text"
               value={formData.lastName}
               onChange={(e) => handleChange("lastName", e.target.value)}
-              placeholder="Enter last name"
+              placeholder={i18nT("Enter last name")}
               className={errors.lastName ? "border-red-500" : ""}
               disabled={submitting}
             />
@@ -1345,7 +1346,7 @@ export function AddCustomerDialog({
                 <SelectContent>
                   <div className="p-2">
                     <Input
-                      placeholder="Search country..."
+                      placeholder={i18nT("Search country...")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="mb-2"
@@ -1367,7 +1368,7 @@ export function AddCustomerDialog({
                           <span className="font-medium">
                             {country.dialCode}
                           </span>
-                          <span className="text-gray-500 text-sm">
+                          <span className="text-muted-foreground text-sm">
                             {country.name}
                           </span>
                         </div>
@@ -1399,7 +1400,7 @@ export function AddCustomerDialog({
               </p>
             )}
             {selectedCountry && formData.whatsAppNumber && (
-              <p className="text-gray-500 text-xs mt-1">
+              <p className="text-muted-foreground text-xs mt-1">
                 Full number: {selectedCountry.dialCode}
                 {formData.whatsAppNumber}
               </p>
@@ -1410,7 +1411,7 @@ export function AddCustomerDialog({
           <div>
             <Label htmlFor="email" className="font-medium mb-2 block">
               Email{" "}
-              <span className="text-gray-400 text-xs font-normal">
+              <span className="text-muted-foreground text-xs font-normal">
                 (Optional)
               </span>
             </Label>
@@ -1419,7 +1420,7 @@ export function AddCustomerDialog({
               type="email"
               value={formData.email}
               onChange={(e) => handleChange("email", e.target.value)}
-              placeholder="customer@example.com"
+              placeholder={i18nT("customer@example.com")}
               className={errors.email ? "border-red-500" : ""}
               disabled={submitting}
             />
@@ -1438,7 +1439,7 @@ export function AddCustomerDialog({
               disabled={submitting}
               className="w-full sm:w-auto sm:min-w-[140px]"
             >
-              Cancel
+              {i18nT("Cancel")}
             </Button>
             <Button
               type="submit"
@@ -1620,7 +1621,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
       console.error("Error fetching stall requests:", error);
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: error.message || "Failed to fetch stall requests",
         variant: "destructive",
       });
@@ -1671,7 +1672,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
       Completed: "bg-green-100 text-green-800 border-green-300",
       Cancelled: "bg-red-100 text-red-800 border-red-300",
     };
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800";
+    return colors[status as keyof typeof colors] || "bg-muted text-foreground";
   };
 
   // Payment badge color
@@ -1682,7 +1683,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
       Paid: "bg-green-100 text-green-800 border-green-300",
     };
     return (
-      colors[payment as keyof typeof colors] || "bg-gray-100 text-gray-800"
+      colors[payment as keyof typeof colors] || "bg-muted text-foreground"
     );
   };
 
@@ -1706,64 +1707,64 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
       {/*<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
          <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total Requests</CardDescription>
+            <CardDescription>{i18nT("Total Requests")}</CardDescription>
             <CardTitle className="text-3xl">{stats.totalRequests}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              All stall booking requests
+              {i18nT("All stall booking requests")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Confirmed Bookings</CardDescription>
+            <CardDescription>{i18nT("Confirmed Bookings")}</CardDescription>
             <CardTitle className="text-3xl">
               {stats.confirmedBookings}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              Active and completed bookings
+              {i18nT("Active and completed bookings")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total Revenue</CardDescription>
+            <CardDescription>{i18nT("Total Revenue")}</CardDescription>
             <CardTitle className="text-3xl">
               ${stats.totalRevenue.toLocaleString()}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-muted-foreground">From paid bookings</p>
+            <p className="text-xs text-muted-foreground">{i18nT("From paid bookings")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Pending Requests</CardDescription>
+            <CardDescription>{i18nT("Pending Requests")}</CardDescription>
             <CardTitle className="text-3xl">{stats.pendingRequests}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              Awaiting organizer approval
+              {i18nT("Awaiting organizer approval")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Events Participated</CardDescription>
+            <CardDescription>{i18nT("Events Participated")}</CardDescription>
             <CardTitle className="text-3xl">
               {stats.eventsParticipated}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              Unique events joined
+              {i18nT("Unique events joined")}
             </p>
           </CardContent>
         </Card>
@@ -1773,9 +1774,9 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
       {/* {eventsParticipated.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Events Participated</CardTitle>
+            <CardTitle>{i18nT("Events Participated")}</CardTitle>
             <CardDescription>
-              Events where you have confirmed or completed stall bookings
+              {i18nT("Events where you have confirmed or completed stall bookings")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1796,7 +1797,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                       }}
                     />
                     <div className="absolute top-2 right-2">
-                      <Badge className="bg-white/90 text-gray-800">
+                      <Badge className="bg-card/90 text-foreground">
                         {
                           stallRequests.filter(
                             (r) => r.eventId._id === event._id
@@ -1831,41 +1832,41 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
       {/* Stall Requests Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Stall Booking Requests</CardTitle>
+          <CardTitle>{i18nT("Stall Booking Requests")}</CardTitle>
           <CardDescription>
-            Manage all your stall booking requests across different events
+            {i18nT("Manage all your stall booking requests across different events")}
           </CardDescription>
 
           {/* Filters */}
           <div className="flex flex-wrap gap-4 mt-4">
             <div className="flex items-center space-x-2">
-              <Label htmlFor="status-filter">Status:</Label>
+              <Label htmlFor="status-filter">{i18nT("Status:")}</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger id="status-filter" className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Confirmed">Confirmed</SelectItem>
-                  <SelectItem value="Processing">Processing</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  <SelectItem value="all">{i18nT("All Status")}</SelectItem>
+                  <SelectItem value="Pending">{i18nT("Pending")}</SelectItem>
+                  <SelectItem value="Confirmed">{i18nT("Confirmed")}</SelectItem>
+                  <SelectItem value="Processing">{i18nT("Processing")}</SelectItem>
+                  <SelectItem value="Completed">{i18nT("Completed")}</SelectItem>
+                  <SelectItem value="Cancelled">{i18nT("Cancelled")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex items-center space-x-2">
-              <Label htmlFor="payment-filter">Payment:</Label>
+              <Label htmlFor="payment-filter">{i18nT("Payment:")}</Label>
               <Select value={paymentFilter} onValueChange={setPaymentFilter}>
                 <SelectTrigger id="payment-filter" className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Payments</SelectItem>
-                  <SelectItem value="Unpaid">Unpaid</SelectItem>
-                  <SelectItem value="Partial">Partial</SelectItem>
-                  <SelectItem value="Paid">Paid</SelectItem>
+                  <SelectItem value="all">{i18nT("All Payments")}</SelectItem>
+                  <SelectItem value="Unpaid">{i18nT("Unpaid")}</SelectItem>
+                  <SelectItem value="Partial">{i18nT("Partial")}</SelectItem>
+                  <SelectItem value="Paid">{i18nT("Paid")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1876,7 +1877,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
             <div className="text-center py-12">
               <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                No Stall Requests Found
+                {i18nT("No Stall Requests Found")}
               </h3>
               <p className="text-muted-foreground">
                 {statusFilter !== "all" || paymentFilter !== "all"
@@ -1889,13 +1890,13 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Request Date</TableHead>
-                    <TableHead>Tables</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{i18nT("Event")}</TableHead>
+                    <TableHead>{i18nT("Request Date")}</TableHead>
+                    <TableHead>{i18nT("Tables")}</TableHead>
+                    <TableHead>{i18nT("Amount")}</TableHead>
+                    <TableHead>{i18nT("Status")}</TableHead>
+                    <TableHead>{i18nT("Payment")}</TableHead>
+                    <TableHead>{i18nT("Actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1932,7 +1933,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                           <span>{request.selectedTables.length} table(s)</span>
                         ) : (
                           <span className="text-muted-foreground">
-                            Not selected
+                            {i18nT("Not selected")}
                           </span>
                         )}
                       </TableCell>
@@ -1958,7 +1959,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                           onClick={() => handleViewDetails(request)}
                         >
                           <Eye className="h-4 w-4 mr-1" />
-                          View
+                          {i18nT("View")}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -1975,9 +1976,9 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
         <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
           <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Stall Booking Details</DialogTitle>
+              <DialogTitle>{i18nT("Stall Booking Details")}</DialogTitle>
               <DialogDescription>
-                Complete information about your stall booking request
+                {i18nT("Complete information about your stall booking request")}
               </DialogDescription>
             </DialogHeader>
 
@@ -2017,7 +2018,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                 selectedRequest.eventId.gallery.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-3">
-                      Event Gallery
+                      {i18nT("Event Gallery")}
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {selectedRequest.eventId.gallery.map((img, idx) => (
@@ -2041,21 +2042,21 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                 {/* Booking Information */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Booking Information</CardTitle>
+                    <CardTitle>{i18nT("Booking Information")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex justify-between">
-                      <Label>Request ID</Label>
+                      <Label>{i18nT("Request ID")}</Label>
                       <p className="text-sm font-mono">{selectedRequest._id}</p>
                     </div>
                     <div className="flex justify-between items-center">
-                      <Label>Status</Label>
+                      <Label>{i18nT("Status")}</Label>
                       <Badge className={getStatusBadge(selectedRequest.status)}>
                         {selectedRequest.status}
                       </Badge>
                     </div>
                     <div className="flex justify-between items-center">
-                      <Label>Payment Status</Label>
+                      <Label>{i18nT("Payment Status")}</Label>
                       <Badge
                         className={getPaymentBadge(
                           selectedRequest.paymentStatus,
@@ -2065,7 +2066,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                       </Badge>
                     </div>
                     <div className="flex justify-between">
-                      <Label>Request Date</Label>
+                      <Label>{i18nT("Request Date")}</Label>
                       <p className="text-sm">
                         {/* {new Date(selectedRequest.requestDate).toLocaleString()} */}
                         {formatDateTime(selectedRequest.requestDate)}
@@ -2073,7 +2074,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                     </div>
                     {selectedRequest.confirmationDate && (
                       <div className="flex justify-between">
-                        <Label>Confirmation Date</Label>
+                        <Label>{i18nT("Confirmation Date")}</Label>
                         <p className="text-sm">
                           {/* {new Date(
                             selectedRequest.confirmationDate
@@ -2084,7 +2085,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                     )}
                     {selectedRequest.selectionDate && (
                       <div className="flex justify-between">
-                        <Label>Table Selection Date</Label>
+                        <Label>{i18nT("Table Selection Date")}</Label>
                         <p className="text-sm">
                           {/* {new Date(
                             selectedRequest.selectionDate
@@ -2095,7 +2096,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                     )}
                     {selectedRequest.paymentDate && (
                       <div className="flex justify-between">
-                        <Label>Payment Date</Label>
+                        <Label>{i18nT("Payment Date")}</Label>
                         <p className="text-sm">
                           {/* {new Date(
                             selectedRequest.paymentDate
@@ -2106,7 +2107,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                     )}
                     {selectedRequest.completionDate && (
                       <div className="flex justify-between">
-                        <Label>Completion Date</Label>
+                        <Label>{i18nT("Completion Date")}</Label>
                         <p className="text-sm">
                           {/* {new Date(
                             selectedRequest.completionDate
@@ -2117,7 +2118,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                     )}
                     {selectedRequest.notes && (
                       <div>
-                        <Label>Notes</Label>
+                        <Label>{i18nT("Notes")}</Label>
                         <p className="text-sm text-muted-foreground">
                           {selectedRequest.notes}
                         </p>
@@ -2125,7 +2126,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                     )}
                     {selectedRequest.cancellationReason && (
                       <div>
-                        <Label>Cancellation Reason</Label>
+                        <Label>{i18nT("Cancellation Reason")}</Label>
                         <p className="text-sm text-red-600">
                           {selectedRequest.cancellationReason}
                         </p>
@@ -2144,7 +2145,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                   <CardContent>
                     {selectedRequest.selectedTables.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        No tables selected yet
+                        {i18nT("No tables selected yet")}
                       </p>
                     ) : (
                       <div className="space-y-3">
@@ -2212,25 +2213,25 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
               {/* Price Breakdown */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Price Breakdown</CardTitle>
+                  <CardTitle>{i18nT("Price Breakdown")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span>Tables Rental</span>
+                      <span>{i18nT("Tables Rental")}</span>
                       <span className="font-semibold">
                         {formatPrice(selectedRequest.tablesTotal)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Deposit</span>
+                      <span>{i18nT("Deposit")}</span>
                       <span className="font-semibold">
                         {formatPrice(selectedRequest.depositTotal)}
                       </span>
                     </div>
                     {selectedRequest.addOnsTotal > 0 && (
                       <div className="flex justify-between">
-                        <span>Add-ons</span>
+                        <span>{i18nT("Add-ons")}</span>
                         <span className="font-semibold">
                           {formatPrice(selectedRequest.addOnsTotal)}
                         </span>
@@ -2238,7 +2239,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                     )}
                     <Separator className="my-2" />
                     <div className="flex justify-between text-lg font-bold">
-                      <span>Grand Total</span>
+                      <span>{i18nT("Grand Total")}</span>
                       <span>{formatPrice(selectedRequest.grandTotal)}</span>
                     </div>
                   </div>
@@ -2249,32 +2250,32 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
               {selectedRequest.organizerId && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Organizer Information</CardTitle>
+                    <CardTitle>{i18nT("Organizer Information")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="flex justify-between">
-                      <Label>Organization</Label>
+                      <Label>{i18nT("Organization")}</Label>
                       <p className="text-sm">
                         {selectedRequest.organizerId.organizationName}
                       </p>
                     </div>
                     <div className="flex justify-between">
-                      <Label>Contact Person</Label>
+                      <Label>{i18nT("Contact Person")}</Label>
                       <p className="text-sm">
                         {selectedRequest.organizerId.name}
                       </p>
                     </div>
                     <div className="flex justify-between">
-                      <Label>WhatsApp Number</Label>
+                      <Label>{i18nT("WhatsApp Number")}</Label>
                       <a
                         href={`tel:${selectedRequest.organizerId.whatsAppNumber}`}
-                        className="text-sm text-gray-700 hover:text-green-600"
+                        className="text-sm text-foreground hover:text-green-600"
                       >
                         {selectedRequest.organizerId.whatsAppNumber}
                       </a>
                     </div>
                     <div className="flex justify-between">
-                      <Label>Email</Label>
+                      <Label>{i18nT("Email")}</Label>
                       <a
                         href={`mailto:${selectedRequest.organizerId.businessEmail}`}
                         className="text-sm text-blue-600 hover:underline"
@@ -2292,7 +2293,7 @@ function OrganizerManagementTab({ shopkeeperId }: OrganizerManagementTabProps) {
                 variant="buttonOutline"
                 onClick={() => setShowDetailDialog(false)}
               >
-                Close
+                {i18nT("Close")}
               </Button>
             </div>
           </DialogContent>
@@ -2416,7 +2417,7 @@ export function CRMManagement({
       console.error("Error fetching stall requests:", error);
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: error.message || "Failed to fetch stall requests",
         variant: "destructive",
       });
@@ -2606,7 +2607,7 @@ export function CRMManagement({
       console.error("Error fetching customers:", error);
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description:
           error instanceof Error
             ? error.message
@@ -2682,8 +2683,8 @@ export function CRMManagement({
   const handleApplyToEvent = (eventId: number) => {
     toast({
       duration: 5000,
-      title: "Feature Coming Soon",
-      description: "Event applications will be available in the next update.",
+      title: i18nT("Feature Coming Soon"),
+      description: i18nT("Event applications will be available in the next update."),
     });
   };
 
@@ -2699,7 +2700,7 @@ export function CRMManagement({
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Loading customer data...</p>
+          <p>{i18nT("Loading customer data...")}</p>
         </div>
       </div>
     );
@@ -2726,7 +2727,7 @@ export function CRMManagement({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Customers
+              {i18nT("Total Customers")}
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -2738,7 +2739,7 @@ export function CRMManagement({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Active Customers
+              {i18nT("Active Customers")}
             </CardTitle>
             <FaUsers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -2750,7 +2751,7 @@ export function CRMManagement({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Local Customers
+              {i18nT("Local Customers")}
             </CardTitle>
             <FaMapMarkerAlt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -2762,7 +2763,7 @@ export function CRMManagement({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              International Customers
+              {i18nT("International Customers")}
             </CardTitle>
             <FaMapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -2776,7 +2777,7 @@ export function CRMManagement({
         {/* <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Events Participated
+              {i18nT("Events Participated")}
             </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -2791,9 +2792,9 @@ export function CRMManagement({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
             <TabsList className="grid w-full md:w-auto grid-cols-1 mb-4 md:mb-0">
-              <TabsTrigger value="users">Customer Management</TabsTrigger>
+              <TabsTrigger value="users">{i18nT("Customer Management")}</TabsTrigger>
               {/* <TabsTrigger value="organizers" className="relative">
-                Organizer Management
+                {i18nT("Organizer Management")}
               </TabsTrigger> */}
             </TabsList>
           </div>
@@ -2804,14 +2805,14 @@ export function CRMManagement({
               className="w-full md:w-auto mr-2"
             >
               <Send className="mr-2 h-4 w-4" />
-              Product Marketing
+              {i18nT("Product Marketing")}
             </Button>
             <Button
               onClick={() => addNewCustomer()}
               className="w-full md:w-auto"
             >
               <Plus className="h-4 w-4" />
-              Add Customer
+              {i18nT("Add Customer")}
             </Button>
           </div>
         </div>
@@ -2823,16 +2824,16 @@ export function CRMManagement({
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 {/* Left: Title */}
                 <div>
-                  <CardTitle>Customer Database</CardTitle>
+                  <CardTitle>{i18nT("Customer Database")}</CardTitle>
                   <CardDescription>
-                    Manage your customer relationships and view order history.
+                    {i18nT("Manage your customer relationships and view order history.")}
                   </CardDescription>
                 </div>
 
                 {/* Right: Rows per page */}
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    Rows per page:
+                    {i18nT("Rows per page:")}
                   </span>
 
                   <Select
@@ -2861,12 +2862,12 @@ export function CRMManagement({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Orders</TableHead>
-                      <TableHead>Total Spent</TableHead>
-                      <TableHead>Last Order</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>{i18nT("Customer")}</TableHead>
+                      <TableHead>{i18nT("Contact")}</TableHead>
+                      <TableHead>{i18nT("Orders")}</TableHead>
+                      <TableHead>{i18nT("Total Spent")}</TableHead>
+                      <TableHead>{i18nT("Last Order")}</TableHead>
+                      <TableHead>{i18nT("Actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2977,7 +2978,7 @@ export function CRMManagement({
                               {customer.lastOrderDate}
                             </div>
                           ) : (
-                            <Badge variant="secondary">No orders</Badge>
+                            <Badge variant="secondary">{i18nT("No orders")}</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -3008,10 +3009,10 @@ export function CRMManagement({
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">
-                    No customers found
+                    {i18nT("No customers found")}
                   </h3>
                   <p className="text-muted-foreground">
-                    Your customers will appear here once you receive orders.
+                    {i18nT("Your customers will appear here once you receive orders.")}
                   </p>
                 </div>
               )}
@@ -3024,7 +3025,7 @@ export function CRMManagement({
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage((p) => p - 1)}
                   >
-                    Previous
+                    {i18nT("Previous")}
                   </Button>
 
                   <span className="text-sm">
@@ -3038,7 +3039,7 @@ export function CRMManagement({
                     disabled={currentPage === totalPages || totalPages === 0}
                     onClick={() => setCurrentPage((p) => p + 1)}
                   >
-                    Next
+                    {i18nT("Next")}
                   </Button>
                 </div>
               </div>

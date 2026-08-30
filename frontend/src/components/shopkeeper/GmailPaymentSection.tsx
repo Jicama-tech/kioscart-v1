@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { t as i18nT } from "@/i18n/t";
 import {
   Mail,
   CheckCircle,
@@ -102,7 +103,7 @@ export function GmailPaymentSection() {
     return (
       <Card className="mt-4">
         <CardContent className="py-6 text-center text-muted-foreground">
-          Loading Gmail connection...
+          {i18nT("Loading Gmail connection...")}
         </CardContent>
       </Card>
     );
@@ -113,7 +114,7 @@ export function GmailPaymentSection() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Mail className="h-5 w-5" />
-          Payment Email Tracking
+          {i18nT("Payment Email Tracking")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -125,7 +126,7 @@ export function GmailPaymentSection() {
         {!connected ? (
           <Button onClick={handleConnect} variant="buttonOutline">
             <Mail className="h-4 w-4 mr-2" />
-            Connect Gmail
+            {i18nT("Connect Gmail")}
           </Button>
         ) : (
           <div className="space-y-4">
@@ -145,7 +146,7 @@ export function GmailPaymentSection() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs">Active</Label>
+                  <Label className="text-xs">{i18nT("Active")}</Label>
                   <Switch
                     checked={connection?.isActive ?? false}
                     onCheckedChange={handleToggle}

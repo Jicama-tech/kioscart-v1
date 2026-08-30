@@ -175,7 +175,7 @@ export function FollowedProductsSection({
     }
     const remainingStars = 5 - fullStars;
     for (let i = 0; i < remainingStars; i++) {
-      stars.push(<Star key={`empty-${i}`} className="w-3 h-3 text-gray-300" />);
+      stars.push(<Star key={`empty-${i}`} className="w-3 h-3 text-muted-foreground" />);
     }
     return stars;
   };
@@ -198,10 +198,10 @@ export function FollowedProductsSection({
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="animate-pulse">
-              <div className="aspect-square bg-gray-200"></div>
+              <div className="aspect-square bg-muted"></div>
               <CardHeader>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-muted rounded w-3/4"></div>
+                <div className="h-3 bg-muted rounded w-1/2"></div>
               </CardHeader>
             </Card>
           ))}
@@ -245,10 +245,10 @@ export function FollowedProductsSection({
             {visibleProducts.map((product) => (
               <Card
                 key={product.id}
-                className="group hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-gray-300 cursor-pointer flex-shrink-0 w-full max-w-[270px] min-w-[220px]"
+                className="group hover:shadow-lg transition-all duration-200 border border-border hover:border-border cursor-pointer flex-shrink-0 w-full max-w-[270px] min-w-[220px]"
                 onClick={() => handleNavigateToStorefront(product)}
               >
-                <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
+                <div className="aspect-square bg-muted/50 flex items-center justify-center relative overflow-hidden">
                   {product.images.length > 0 ? (
                     <img
                       src={
@@ -264,7 +264,7 @@ export function FollowedProductsSection({
                       }}
                     />
                   ) : (
-                    <Package className="h-12 w-12 text-gray-400" />
+                    <Package className="h-12 w-12 text-muted-foreground" />
                   )}
 
                   <div className="absolute top-2 left-2">
@@ -309,7 +309,7 @@ export function FollowedProductsSection({
                       className={`p-1 h-auto ${
                         product.isFollowing
                           ? "text-red-500 hover:text-red-600"
-                          : "text-gray-400 hover:text-red-500"
+                          : "text-muted-foreground hover:text-red-500"
                       }`}
                       title={
                         product.isFollowing
@@ -342,7 +342,7 @@ export function FollowedProductsSection({
                   </p>
 
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg text-slate-800">
+                    <span className="font-bold text-lg text-foreground">
                       ${product.price}
                     </span>
                     {product.originalPrice && (

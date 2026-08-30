@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet, Clock, CheckCircle2 } from "lucide-react";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface CurrencyTotals {
@@ -56,7 +57,7 @@ export function EarningsWidget({ shopkeeperId }: { shopkeeperId: string }) {
     return (
       <Card>
         <CardContent className="p-6 text-sm text-muted-foreground">
-          Loading earnings…
+          {i18nT("Loading earnings…")}
         </CardContent>
       </Card>
     );
@@ -65,10 +66,10 @@ export function EarningsWidget({ shopkeeperId }: { shopkeeperId: string }) {
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Earnings</CardTitle>
+          <CardTitle className="text-sm">{i18nT("Earnings")}</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          No payments through KiosCart yet.
+          {i18nT("No payments through KiosCart yet.")}
         </CardContent>
       </Card>
     );
@@ -96,7 +97,7 @@ export function EarningsWidget({ shopkeeperId }: { shopkeeperId: string }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Lifetime released</span>
+                  <span>{i18nT("Lifetime released")}</span>
                 </div>
                 <div className="font-semibold">{fmt(t.released, cur)}</div>
               </div>

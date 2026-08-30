@@ -10,6 +10,8 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
+import { ThemeProvider } from '@/components/theme-provider';
+import { I18nProvider } from '@/i18n';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { CartProvider } from './hooks/cartContext';
 import { useEffect, lazy, Suspense, Component } from 'react';
@@ -508,6 +510,15 @@ const queryClient = new QueryClient({
 const App = () => (
   <ErrorBoundary>
     <HelmetProvider>
+      {/* Light/dark for the dashboard and storefront. The landing page and
+          sign-in screen opt out by injecting their own stylesheet. */}
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="light"
+        enableSystem
+        disableTransitionOnChange
+      >
+      <I18nProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
@@ -521,6 +532,8 @@ const App = () => (
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
+      </I18nProvider>
+      </ThemeProvider>
     </HelmetProvider>
   </ErrorBoundary>
 );

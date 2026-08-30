@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { t as i18nT } from "@/i18n/t";
 import {
   Plus,
   Trash2,
@@ -149,7 +150,7 @@ const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-green-100 text-green-700",
   Completed: "bg-green-100 text-green-700",
   Rejected: "bg-red-100 text-red-700",
-  Cancelled: "bg-stone-200 text-stone-600",
+  Cancelled: "bg-muted text-muted-foreground",
 };
 
 // Paid-so-far / outstanding for a quotation. Prefers the balance the backend
@@ -255,7 +256,7 @@ export default function SupplierRequests(
     if (entries.length === 0) {
       toast({
         variant: "destructive",
-        title: "Enter how many you're checking " + direction,
+        title: i18nT("Enter how many you're checking ") + direction,
       });
       return;
     }
@@ -282,7 +283,7 @@ export default function SupplierRequests(
     } catch (e: any) {
       toast({
         variant: "destructive",
-        title: "Couldn't update the items",
+        title: i18nT("Couldn't update the items"),
         description: e?.message || undefined,
       });
     } finally {
@@ -341,7 +342,7 @@ export default function SupplierRequests(
       setReqs(saved.length > 0 ? saved : suggested);
       setPrefilled(saved.length === 0 && suggested.length > 0);
     } catch {
-      toast({ variant: "destructive", title: "Couldn't load suppliers" });
+      toast({ variant: "destructive", title: i18nT("Couldn't load suppliers") });
     } finally {
       setLoading(false);
     }
@@ -353,8 +354,8 @@ export default function SupplierRequests(
   const syncFromBookings = () => {
     if (suggestions.length === 0) {
       toast({
-        title: "Nothing sold yet",
-        description: "No recent orders were found for this product yet.",
+        title: i18nT("Nothing sold yet"),
+        description: i18nT("No recent orders were found for this product yet."),
       });
       return;
     }
@@ -367,7 +368,7 @@ export default function SupplierRequests(
       return [...byId.values()];
     });
     toast({
-      title: "Requirements updated from sales",
+      title: i18nT("Requirements updated from sales"),
       description: `${suggestionMeta?.lineTypes ?? 0} item(s) across ${suggestionMeta?.ordersCounted ?? 0} order(s)`,
     });
   };
@@ -412,9 +413,9 @@ export default function SupplierRequests(
       setConfig(j.data);
       setReqs(j.data.requirements || []);
       setPrefilled(false);
-      toast({ title: "Requirements saved" });
+      toast({ title: i18nT("Requirements saved") });
     } catch {
-      toast({ variant: "destructive", title: "Couldn't save requirements" });
+      toast({ variant: "destructive", title: i18nT("Couldn't save requirements") });
     } finally {
       setSaving(false);
     }
@@ -435,7 +436,7 @@ export default function SupplierRequests(
       const j = await res.json();
       setConfig(j.data);
     } catch {
-      toast({ variant: "destructive", title: "Couldn't update the link" });
+      toast({ variant: "destructive", title: i18nT("Couldn't update the link") });
       load();
     }
   };
@@ -451,7 +452,7 @@ export default function SupplierRequests(
     navigator.clipboard?.writeText(linkUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
-    toast({ title: "Private link copied" });
+    toast({ title: i18nT("Private link copied") });
   };
 
   // Approve / Reject / Negotiate — sends the shopkeeper's decision + note to
@@ -505,7 +506,7 @@ export default function SupplierRequests(
       setActionNote("");
       setActionAmount("");
     } catch {
-      toast({ variant: "destructive", title: "Couldn't update the quotation" });
+      toast({ variant: "destructive", title: i18nT("Couldn't update the quotation") });
     } finally {
       setActionBusy(false);
     }
@@ -549,7 +550,7 @@ export default function SupplierRequests(
     } catch (e: any) {
       toast({
         variant: "destructive",
-        title: "Couldn't record the payment",
+        title: i18nT("Couldn't record the payment"),
         description: e?.message || undefined,
       });
     } finally {
@@ -600,12 +601,12 @@ export default function SupplierRequests(
 
           <div>
             <Label className="text-xs text-muted-foreground">
-              Instructions (optional)
+              {i18nT("Instructions (optional)")}
             </Label>
             <Textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              placeholder="e.g. All quotes should include GST and delivery."
+              placeholder={i18nT("e.g. All quotes should include GST and delivery.")}
               className="mt-1 min-h-[60px]"
             />
           </div>
@@ -627,22 +628,22 @@ export default function SupplierRequests(
                   <Input
                     value={r.label}
                     onChange={(e) => updateReq(i, { label: e.target.value })}
-                    placeholder="Requirement (e.g. Packaging)"
+                    placeholder={i18nT("Requirement (e.g. Packaging)")}
                     className="flex-1 font-medium"
                   />
                   <Input
                     value={r.quantity || ""}
                     onChange={(e) => updateReq(i, { quantity: e.target.value })}
-                    placeholder="Qty (e.g. 200)"
+                    placeholder={i18nT("Qty (e.g. 200)")}
                     className="w-32 shrink-0 text-sm"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 text-stone-400 hover:text-red-600"
+                    className="shrink-0 text-muted-foreground hover:text-red-600"
                     onClick={() => removeReq(i)}
-                    title="Remove"
+                    title={i18nT("Remove")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -652,7 +653,7 @@ export default function SupplierRequests(
                   onChange={(e) =>
                     updateReq(i, { description: e.target.value })
                   }
-                  placeholder="Description (optional)"
+                  placeholder={i18nT("Description (optional)")}
                   className="text-sm"
                 />
 
@@ -713,7 +714,7 @@ export default function SupplierRequests(
 
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={addReq}>
-              <Plus className="mr-1 h-4 w-4" /> Add requirement
+              <Plus className="mr-1 h-4 w-4" /> {i18nT("Add requirement")}
             </Button>
             {!isBusiness && (
               <Button
@@ -721,9 +722,9 @@ export default function SupplierRequests(
                 variant="outline"
                 size="sm"
                 onClick={syncFromBookings}
-                title="Re-count what's been sold recently for this product"
+                title={i18nT("Re-count what's been sold recently for this product")}
               >
-                <Sparkles className="mr-1 h-4 w-4" /> Sync from sales
+                <Sparkles className="mr-1 h-4 w-4" /> {i18nT("Sync from sales")}
               </Button>
             )}
             <Button
@@ -748,14 +749,14 @@ export default function SupplierRequests(
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Link2 className="h-5 w-5 text-primary" />
-            Private supplier link
+            {i18nT("Private supplier link")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Share this link with as many suppliers as you like (WhatsApp
             broadcast, email, etc.) — each supplier fills their own quotation.
-            It is <strong>not</strong> shown on your public storefront. Turn
+            It is <strong>{i18nT("not")}</strong> shown on your public storefront. Turn
             it off any time to stop accepting new quotations.
           </p>
 
@@ -796,14 +797,14 @@ export default function SupplierRequests(
           <CardTitle className="flex items-center justify-between gap-2 text-base">
             <span className="flex items-center gap-2">
               <Inbox className="h-5 w-5 text-primary" />
-              Supplier quotations
+              {i18nT("Supplier quotations")}
             </span>
             <Button
               type="button"
               size="sm"
               variant="outline"
               onClick={load}
-              title="Refresh"
+              title={i18nT("Refresh")}
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -812,19 +813,19 @@ export default function SupplierRequests(
         <CardContent>
           {quotes.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No quotations yet. Share the link above with your suppliers.
+              {i18nT("No quotations yet. Share the link above with your suppliers.")}
             </p>
           ) : (
             <div className="app-scroll overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-2 py-2">Supplier</th>
-                    <th className="px-2 py-2">Service</th>
-                    <th className="px-2 py-2 text-right">Quote</th>
-                    <th className="px-2 py-2 text-center">Status</th>
-                    <th className="px-2 py-2">Submitted</th>
-                    <th className="px-2 py-2 text-center">View</th>
+                    <th className="px-2 py-2">{i18nT("Supplier")}</th>
+                    <th className="px-2 py-2">{i18nT("Service")}</th>
+                    <th className="px-2 py-2 text-right">{i18nT("Quote")}</th>
+                    <th className="px-2 py-2 text-center">{i18nT("Status")}</th>
+                    <th className="px-2 py-2">{i18nT("Submitted")}</th>
+                    <th className="px-2 py-2 text-center">{i18nT("View")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -853,7 +854,7 @@ export default function SupplierRequests(
                       </td>
                       <td className="px-2 py-3 text-center">
                         <Badge
-                          className={`${STATUS_STYLES[q.status] || "bg-stone-100 text-stone-600"} hover:bg-transparent`}
+                          className={`${STATUS_STYLES[q.status] || "bg-muted text-muted-foreground"} hover:bg-transparent`}
                         >
                           {q.status}
                         </Badge>
@@ -875,7 +876,7 @@ export default function SupplierRequests(
                             setActionNote("");
                             setActionAmount("");
                           }}
-                          title="View quotation"
+                          title={i18nT("View quotation")}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -908,7 +909,7 @@ export default function SupplierRequests(
                 <DialogTitle className="flex flex-wrap items-center gap-2">
                   {selected.supplierId?.name || "Supplier"}
                   <Badge
-                    className={`${STATUS_STYLES[selected.status] || "bg-stone-100 text-stone-600"} hover:bg-transparent`}
+                    className={`${STATUS_STYLES[selected.status] || "bg-muted text-muted-foreground"} hover:bg-transparent`}
                   >
                     {selected.status}
                   </Badge>
@@ -963,7 +964,7 @@ export default function SupplierRequests(
                   </h4>
                   {reqs.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
-                      No specific requirements were listed.
+                      {i18nT("No specific requirements were listed.")}
                     </p>
                   ) : (
                     <ul className="space-y-1.5">
@@ -986,7 +987,7 @@ export default function SupplierRequests(
 
                 {/* The quotation */}
                 <section className="rounded-xl border p-3">
-                  <h4 className="mb-2 font-semibold">Quotation</h4>
+                  <h4 className="mb-2 font-semibold">{i18nT("Quotation")}</h4>
                   {selected.quotationItems &&
                   selected.quotationItems.length > 0 ? (
                     <div className="space-y-1.5">
@@ -1017,26 +1018,26 @@ export default function SupplierRequests(
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      No line items — see notes below.
+                      {i18nT("No line items — see notes below.")}
                     </p>
                   )}
                   <div className="mt-2 space-y-1 border-t pt-2">
                     {selected.agreedTotal ? (
                       <>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Original quote</span>
+                          <span>{i18nT("Original quote")}</span>
                           <span className="line-through">
                             {money(selected.quotationTotal, currency)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between font-semibold text-primary">
-                          <span>Agreed after negotiation</span>
+                          <span>{i18nT("Agreed after negotiation")}</span>
                           <span>{money(selected.agreedTotal, currency)}</span>
                         </div>
                       </>
                     ) : (
                       <div className="flex items-center justify-between font-semibold">
-                        <span>Total quote</span>
+                        <span>{i18nT("Total quote")}</span>
                         <span>{money(selected.quotationTotal, currency)}</span>
                       </div>
                     )}
@@ -1053,7 +1054,7 @@ export default function SupplierRequests(
                       rel="noreferrer"
                       className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
                     >
-                      <Paperclip className="h-3.5 w-3.5" /> View attachment
+                      <Paperclip className="h-3.5 w-3.5" /> {i18nT("View attachment")}
                     </a>
                   )}
                 </section>
@@ -1103,7 +1104,7 @@ export default function SupplierRequests(
                                     : undefined
                                 }
                                 className="h-8 w-24"
-                                placeholder="Qty"
+                                placeholder={i18nT("Qty")}
                                 value={checkQty[it.requirementLabel] || ""}
                                 onChange={(e) =>
                                   setCheckQty((p) => ({
@@ -1138,7 +1139,7 @@ export default function SupplierRequests(
                           onClick={() => submitCheck("out")}
                           disabled={checkBusy !== null || !anyToReturn}
                         >
-                          Check out
+                          {i18nT("Check out")}
                         </Button>
                       </div>
                       {/* Say why a button is off rather than leaving it dead. */}
@@ -1150,7 +1151,7 @@ export default function SupplierRequests(
                       )}
                       {allReceived && (
                         <p className="mt-1.5 text-[11px] text-muted-foreground">
-                          Every item has been fully checked in.
+                          {i18nT("Every item has been fully checked in.")}
                         </p>
                       )}
                     </section>
@@ -1199,25 +1200,25 @@ export default function SupplierRequests(
                     selected.payment.amountPaid) && (
                     <section className="rounded-xl border p-3">
                       <h4 className="mb-2 flex items-center gap-1.5 font-semibold">
-                        <Wallet className="h-4 w-4 text-primary" /> Payment
+                        <Wallet className="h-4 w-4 text-primary" /> {i18nT("Payment")}
                       </h4>
                       <div className="space-y-1.5 text-xs">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">
-                            Total quote
+                            {i18nT("Total quote")}
                           </span>
                           <span>{money(selectedPay.total, currency)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">
-                            Paid so far
+                            {i18nT("Paid so far")}
                           </span>
                           <span className="font-medium text-green-700">
                             {money(selectedPay.paid, currency)}
                           </span>
                         </div>
                         <div className="flex justify-between border-t pt-1.5 font-semibold">
-                          <span>Balance due</span>
+                          <span>{i18nT("Balance due")}</span>
                           <span
                             className={
                               selectedPay.balance > 0
@@ -1248,7 +1249,7 @@ export default function SupplierRequests(
                                       target="_blank"
                                       rel="noreferrer"
                                       className="ml-1.5 inline-flex items-center text-primary hover:underline"
-                                      title="View proof"
+                                      title={i18nT("View proof")}
                                     >
                                       <Paperclip className="h-3 w-3" />
                                     </a>
@@ -1299,7 +1300,7 @@ export default function SupplierRequests(
                 {/* Status timeline */}
                 <section className="rounded-xl border p-3">
                   <h4 className="mb-2 flex items-center gap-1.5 font-semibold">
-                    <Clock className="h-4 w-4 text-primary" /> Timeline
+                    <Clock className="h-4 w-4 text-primary" /> {i18nT("Timeline")}
                   </h4>
                   {selected.statusHistory &&
                   selected.statusHistory.length > 0 ? (
@@ -1350,7 +1351,7 @@ export default function SupplierRequests(
                     </ol>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      No history yet.
+                      {i18nT("No history yet.")}
                     </p>
                   )}
                 </section>
@@ -1368,7 +1369,7 @@ export default function SupplierRequests(
                       setAction("Approved");
                     }}
                   >
-                    <CheckCircle2 className="mr-1.5 h-4 w-4" /> Approve
+                    <CheckCircle2 className="mr-1.5 h-4 w-4" /> {i18nT("Approve")}
                   </Button>
                   <Button
                     variant="outline"
@@ -1379,7 +1380,7 @@ export default function SupplierRequests(
                       setAction("Negotiating");
                     }}
                   >
-                    <Handshake className="mr-1.5 h-4 w-4" /> Negotiate
+                    <Handshake className="mr-1.5 h-4 w-4" /> {i18nT("Negotiate")}
                   </Button>
                   <Button
                     variant="outline"
@@ -1390,7 +1391,7 @@ export default function SupplierRequests(
                       setAction("Rejected");
                     }}
                   >
-                    <XCircle className="mr-1.5 h-4 w-4" /> Reject
+                    <XCircle className="mr-1.5 h-4 w-4" /> {i18nT("Reject")}
                   </Button>
                 </DialogFooter>
               )}
@@ -1455,17 +1456,17 @@ export default function SupplierRequests(
             {selectedPay.total > 0 && (
               <div className="space-y-1 rounded-lg bg-muted/40 p-2.5 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total quote</span>
+                  <span className="text-muted-foreground">{i18nT("Total quote")}</span>
                   <span>{money(selectedPay.total, currency)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Paid so far</span>
+                  <span className="text-muted-foreground">{i18nT("Paid so far")}</span>
                   <span className="text-green-700">
                     {money(selectedPay.paid, currency)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t pt-1 font-semibold">
-                  <span>Balance due</span>
+                  <span>{i18nT("Balance due")}</span>
                   <span
                     className={
                       selectedPay.balance > 0
@@ -1480,7 +1481,7 @@ export default function SupplierRequests(
             )}
             {selectedPay.balance > 0 && (
               <div>
-                <Label className="text-xs">Amount paid now</Label>
+                <Label className="text-xs">{i18nT("Amount paid now")}</Label>
                 <Input
                   type="number"
                   value={payAmount}
@@ -1503,7 +1504,7 @@ export default function SupplierRequests(
             </div>
             <div>
               <Label className="text-xs">
-                Payment screenshot (image or PDF)
+                {i18nT("Payment screenshot (image or PDF)")}
               </Label>
               <Input
                 type="file"
@@ -1516,13 +1517,13 @@ export default function SupplierRequests(
               <Textarea
                 value={payNote}
                 onChange={(e) => setPayNote(e.target.value)}
-                placeholder="Anything the supplier should know."
+                placeholder={i18nT("Anything the supplier should know.")}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayOpen(false)}>
-              Cancel
+              {i18nT("Cancel")}
             </Button>
             <Button onClick={submitPayment} disabled={payBusy}>
               {payBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1587,7 +1588,7 @@ export default function SupplierRequests(
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setAction(null)}>
-              Cancel
+              {i18nT("Cancel")}
             </Button>
             <Button onClick={submitAction} disabled={actionBusy}>
               {actionBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

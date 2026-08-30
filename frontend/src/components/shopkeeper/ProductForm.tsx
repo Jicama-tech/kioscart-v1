@@ -34,6 +34,7 @@ import { jwtDecode } from "jwt-decode";
 import { FaDollarSign, FaRupeeSign } from "react-icons/fa";
 import { BlurWrapper } from "../ui/BlurWrapper";
 
+import { t as i18nT } from "@/i18n/t";
 // Interfaces
 interface ProductOption {
   id: number;
@@ -218,14 +219,14 @@ export function ProductForm({ product, onSave, onClose }: any) {
 
   // Status options
   const statusOptions = [
-    { value: "active", label: "Active" },
-    { value: "draft", label: "Draft" },
-    { value: "archived", label: "Archived" },
+    { value: "active", label: i18nT("Active") },
+    { value: "draft", label: i18nT("Draft") },
+    { value: "archived", label: i18nT("Archived") },
   ];
 
   // Track Quantity options
   const trackQuantityOptions = [
-    { value: true, label: "Yes" },
+    { value: true, label: i18nT("Yes") },
     { value: false, label: "No" },
   ];
 
@@ -497,8 +498,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
   // Check if subcategories or product-level variants exist
   const hasSubcategories =
     formData.subcategories && formData.subcategories.length > 0;
-  const hasVariants =
-    formData.variants && formData.variants.length > 0;
+  const hasVariants = formData.variants && formData.variants.length > 0;
 
   // Validation
   const isValid = formData.name && formData.category && formData.sku;
@@ -529,8 +529,8 @@ export function ProductForm({ product, onSave, onClose }: any) {
       if (existingImageUrls.length + newFiles.length > 3) {
         toast({
           duration: 5000,
-          title: "Too Many Images",
-          description: "Maximum 3 images are allowed per product",
+          title: i18nT("Too Many Images"),
+          description: i18nT("Maximum 3 images are allowed per product"),
           variant: "destructive",
         });
         setIsSubmitting(false);
@@ -538,28 +538,39 @@ export function ProductForm({ product, onSave, onClose }: any) {
       }
 
       // When options are enabled, use the first option's price as the product base price
-      const firstOption = formData.hasOptions && formData.productOptions?.length > 0
-        ? formData.productOptions[0]
-        : null;
+      const firstOption =
+        formData.hasOptions && formData.productOptions?.length > 0
+          ? formData.productOptions[0]
+          : null;
 
       // Build productData matching your schema
       const productData = {
         ...formData,
         images: existingImageUrls,
         // Set product-level price from first option when options are enabled
-        price: firstOption ? (Number(firstOption.price) || 0) : (Number(formData.price) || 0),
-        isDiscounted: firstOption ? (firstOption.isDiscounted || false) : formData.isDiscounted,
-        discountedPrice: firstOption ? (Number(firstOption.discountedPrice) || 0) : (Number(formData.discountedPrice) || 0),
+        price: firstOption
+          ? Number(firstOption.price) || 0
+          : Number(formData.price) || 0,
+        isDiscounted: firstOption
+          ? firstOption.isDiscounted || false
+          : formData.isDiscounted,
+        discountedPrice: firstOption
+          ? Number(firstOption.discountedPrice) || 0
+          : Number(formData.discountedPrice) || 0,
         // Product options
         hasOptions: formData.hasOptions || false,
         optionsLabel: formData.hasOptions ? formData.optionsLabel : undefined,
         productOptions: formData.hasOptions ? formData.productOptions : [],
         // Include product-level inventory only if no subcategories, no variants, and no options
-        inventory: hasSubcategories || hasVariants || formData.hasOptions ? undefined : (formData.inventory ?? 0),
+        inventory:
+          hasSubcategories || hasVariants || formData.hasOptions
+            ? undefined
+            : (formData.inventory ?? 0),
         trackQuantity: formData.trackQuantity ?? false,
-        lowstockThreshold: hasSubcategories || hasVariants || formData.hasOptions
-          ? undefined
-          : (formData.lowstockThreshold ?? 10),
+        lowstockThreshold:
+          hasSubcategories || hasVariants || formData.hasOptions
+            ? undefined
+            : (formData.lowstockThreshold ?? 10),
         subcategories: formData.subcategories || [],
         variants: formData.variants || [],
         weight: formData.weight || undefined,
@@ -610,7 +621,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: error.message,
         variant: "destructive",
       });
@@ -621,12 +632,12 @@ export function ProductForm({ product, onSave, onClose }: any) {
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-0 z-20 bg-white pb-4">
+      <div className="sticky top-0 z-20 border-b bg-background pb-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">
             {product ? "Edit Product" : "Add New Product"}
           </h3>
-          <div className="flex gap-2">
+          <div className="flex mt-1 gap-2">
             {/* The way back to the list — this replaces the old "Back to
                 Products" header, so it sits with the other actions. */}
             {onClose && (
@@ -635,7 +646,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                 onClick={onClose}
                 disabled={isSubmitting}
               >
-                Cancel
+                {i18nT("Cancel")}
               </Button>
             )}
             <Button onClick={handleSubmit} disabled={!isValid || isSubmitting}>
@@ -652,39 +663,39 @@ export function ProductForm({ product, onSave, onClose }: any) {
 
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="sticky top-12 z-20 grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
-          <TabsTrigger value="basic">Basic</TabsTrigger>
+          <TabsTrigger value="basic">{i18nT("Basic")}</TabsTrigger>
           <TabsTrigger value="images">Images (Max 3)</TabsTrigger>
-          <TabsTrigger value="shipping">Shipping</TabsTrigger>
-          <TabsTrigger value="seo">SEO</TabsTrigger>
+          <TabsTrigger value="shipping">{i18nT("Shipping")}</TabsTrigger>
+          <TabsTrigger value="seo">{i18nT("SEO")}</TabsTrigger>
         </TabsList>
 
         {/* Basic Information */}
         <TabsContent value="basic" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Product Information</CardTitle>
+              <CardTitle>{i18nT("Product Information")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Product Name *</Label>
+                  <Label htmlFor="name">{i18nT("Product Name *")}</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
-                    placeholder="Enter product name"
+                    placeholder={i18nT("Enter product name")}
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category *</Label>
+                  <Label htmlFor="category">{i18nT("Category *")}</Label>
                   <Select
                     value={formData.category}
                     onValueChange={(v) => handleInputChange("category", v)}
                     disabled={isSubmitting}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder={i18nT("Select category")} />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => (
@@ -698,14 +709,14 @@ export function ProductForm({ product, onSave, onClose }: any) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{i18nT("Description")}</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) =>
                     handleInputChange("description", e.target.value)
                   }
-                  placeholder="Describe your product..."
+                  placeholder={i18nT("Describe your product...")}
                   rows={4}
                   disabled={isSubmitting}
                 />
@@ -713,13 +724,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                 <div className="space-y-2">
-                  <Label htmlFor="sku">SKU *</Label>
+                  <Label htmlFor="sku">{i18nT("SKU *")}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="sku"
                       value={formData.sku}
                       onChange={(e) => handleInputChange("sku", e.target.value)}
-                      placeholder="Product SKU"
+                      placeholder={i18nT("Product SKU")}
                       disabled={isSubmitting}
                     />
                     <Button
@@ -728,19 +739,19 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       onClick={generateSKU}
                       disabled={isSubmitting}
                     >
-                      Generate
+                      {i18nT("Generate")}
                     </Button>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="barcode">Barcode</Label>
+                  <Label htmlFor="barcode">{i18nT("Barcode")}</Label>
                   <Input
                     id="barcode"
                     value={formData.barcode || ""}
                     onChange={(e) =>
                       handleInputChange("barcode", e.target.value)
                     }
-                    placeholder="Product barcode"
+                    placeholder={i18nT("Product barcode")}
                     disabled={isSubmitting}
                   />
                 </div>
@@ -748,12 +759,12 @@ export function ProductForm({ product, onSave, onClose }: any) {
 
               {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price *</Label>
+                  <Label htmlFor="price">{i18nT("Price *")}</Label>
                   <Input
                     id="price"
                     type="number"
                     step="0.01"
-                    placeholder="Enter price"
+                    placeholder={i18nT("Enter price")}
                     value={formData.price}
                     onChange={(e) =>
                       handleInputChange(
@@ -765,12 +776,12 @@ export function ProductForm({ product, onSave, onClose }: any) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="compareAtPrice">Compare At Price</Label>
+                  <Label htmlFor="compareAtPrice">{i18nT("Compare At Price")}</Label>
                   <Input
                     id="compareAtPrice"
                     type="number"
                     step="0.01"
-                    placeholder="Original price"
+                    placeholder={i18nT("Original price")}
                     value={formData.compareAtPrice || ""}
                     onChange={(e) =>
                       handleInputChange(
@@ -784,14 +795,14 @@ export function ProductForm({ product, onSave, onClose }: any) {
               </div> */}
 
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status">{i18nT("Status")}</Label>
                 <Select
                   value={formData.status}
                   onValueChange={(value) => handleInputChange("status", value)}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder={i18nT("Select status")} />
                   </SelectTrigger>
                   <SelectContent>
                     {statusOptions.map((option) => (
@@ -807,7 +818,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
               {!hasSubcategories && !hasVariants && !formData.hasOptions && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Price & Inventory Management</CardTitle>
+                    <CardTitle>{i18nT("Price & Inventory Management")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-4">
@@ -829,26 +840,31 @@ export function ProductForm({ product, onSave, onClose }: any) {
                             type="number"
                             step="0.01"
                             min="0"
-                            placeholder="Enter price"
+                            placeholder={i18nT("Enter price")}
                             value={formData.price ?? ""}
                             onChange={(e) => {
-                              handleInputChange("price", e.target.value === "" ? "" : parseFloat(e.target.value));
+                              handleInputChange(
+                                "price",
+                                e.target.value === ""
+                                  ? ""
+                                  : parseFloat(e.target.value),
+                              );
                             }}
                             onWheel={(e) => e.currentTarget.blur()}
                             disabled={isSubmitting}
                           />
                           {/* Optional: Keep this info text if needed, or remove to save space */}
-                          <p className="text-[10px] text-gray-500 leading-tight">
-                            Handled per variant if subcategory is selected.
+                          <p className="text-[10px] text-muted-foreground leading-tight">
+                            {i18nT("Handled per variant if subcategory is selected.")}
                           </p>
                         </div>
 
                         {/* Unit Field (Half Width) */}
                         <div className="flex-1 space-y-2">
-                          <Label htmlFor="product-measurement">Unit</Label>
+                          <Label htmlFor="product-measurement">{i18nT("Unit")}</Label>
                           <Input
                             id="product-measurement"
-                            placeholder="e.g. kg, pc, Unit"
+                            placeholder={i18nT("e.g. kg, pc, Unit")}
                             value={formData.measurement}
                             onChange={(e) =>
                               handleInputChange("measurement", e.target.value)
@@ -872,9 +888,9 @@ export function ProductForm({ product, onSave, onClose }: any) {
                           />
                           <label
                             htmlFor="discountToggle"
-                            className="text-sm text-gray-700 cursor-pointer"
+                            className="text-sm text-foreground cursor-pointer"
                           >
-                            Add discounted price
+                            {i18nT("Add discounted price")}
                           </label>
                         </div>
 
@@ -896,10 +912,15 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                placeholder="Discounted price"
+                                placeholder={i18nT("Discounted price")}
                                 value={formData.discountedPrice ?? ""}
                                 onChange={(e) => {
-                                  handleInputChange("discountedPrice", e.target.value === "" ? "" : parseFloat(e.target.value));
+                                  handleInputChange(
+                                    "discountedPrice",
+                                    e.target.value === ""
+                                      ? ""
+                                      : parseFloat(e.target.value),
+                                  );
                                 }}
                                 onWheel={(e) => e.currentTarget.blur()}
                                 disabled={isSubmitting}
@@ -911,7 +932,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="trackQuantity">Track quantity</Label>
+                      <Label htmlFor="trackQuantity">{i18nT("Track quantity")}</Label>
                       <Switch
                         id="trackQuantity"
                         checked={formData.trackQuantity ?? false}
@@ -925,7 +946,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       <>
                         <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="inventory">Quantity</Label>
+                            <Label htmlFor="inventory">{i18nT("Quantity")}</Label>
                             <Input
                               id="inventory"
                               type="text"
@@ -957,7 +978,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="lowstockThreshold">
-                              Low Stock Threshold
+                              {i18nT("Low Stock Threshold")}
                             </Label>
                             <Input
                               id="lowstockThreshold"
@@ -999,7 +1020,9 @@ export function ProductForm({ product, onSave, onClose }: any) {
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Product Options (Size / Quantity / Pack)</CardTitle>
+                    <CardTitle className="text-base">
+                      Product Options (Size / Quantity / Pack)
+                    </CardTitle>
                     <Switch
                       checked={formData.hasOptions || false}
                       onCheckedChange={(checked) => {
@@ -1016,18 +1039,21 @@ export function ProductForm({ product, onSave, onClose }: any) {
                 {formData.hasOptions && (
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Options Label</Label>
+                      <Label>{i18nT("Options Label")}</Label>
                       <Input
-                        placeholder="e.g. Size, Quantity, Pack"
+                        placeholder={i18nT("e.g. Size, Quantity, Pack")}
                         value={formData.optionsLabel || ""}
-                        onChange={(e) => handleInputChange("optionsLabel", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("optionsLabel", e.target.value)
+                        }
                         disabled={isSubmitting}
                       />
                     </div>
 
                     <div className="mb-3 p-3 bg-blue-50 rounded-lg">
                       <p className="text-sm text-blue-800">
-                        <strong>Note:</strong> Each option has its own price which becomes the base price when selected.
+                        <strong>{i18nT("Note:")}</strong> Each option has its own price
+                        which becomes the base price when selected.
                       </p>
                     </div>
 
@@ -1035,7 +1061,8 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       <Card key={option.id} className="p-4 border rounded">
                         <div className="flex justify-between items-center mb-3">
                           <span className="text-sm font-medium">
-                            {formData.optionsLabel || "Option"} {oi + 1} - {option.title || "(No title)"}
+                            {formData.optionsLabel || "Option"} {oi + 1} -{" "}
+                            {option.title || "(No title)"}
                           </span>
                           <Button
                             variant="buttonOutline"
@@ -1048,16 +1075,18 @@ export function ProductForm({ product, onSave, onClose }: any) {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <Label className="text-xs">Title *</Label>
+                            <Label className="text-xs">{i18nT("Title *")}</Label>
                             <Input
-                              placeholder="e.g. Small, 250g, Pack of 3"
+                              placeholder={i18nT("e.g. Small, 250g, Pack of 3")}
                               value={option.title}
-                              onChange={(e) => handleOptionChange(oi, "title", e.target.value)}
+                              onChange={(e) =>
+                                handleOptionChange(oi, "title", e.target.value)
+                              }
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Price *</Label>
+                            <Label className="text-xs">{i18nT("Price *")}</Label>
                             <Input
                               type="number"
                               step="0.01"
@@ -1065,50 +1094,76 @@ export function ProductForm({ product, onSave, onClose }: any) {
                               placeholder="0"
                               value={option.price ?? ""}
                               onChange={(e) => {
-                                handleOptionChange(oi, "price", e.target.value === "" ? "" : parseFloat(e.target.value));
+                                handleOptionChange(
+                                  oi,
+                                  "price",
+                                  e.target.value === ""
+                                    ? ""
+                                    : parseFloat(e.target.value),
+                                );
                               }}
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Inventory</Label>
+                            <Label className="text-xs">{i18nT("Inventory")}</Label>
                             <Input
                               type="number"
                               placeholder="0"
                               value={option.inventory ?? 0}
-                              onChange={(e) => handleOptionChange(oi, "inventory", parseInt(e.target.value) || 0)}
+                              onChange={(e) =>
+                                handleOptionChange(
+                                  oi,
+                                  "inventory",
+                                  parseInt(e.target.value) || 0,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Low Stock Threshold</Label>
+                            <Label className="text-xs">
+                              {i18nT("Low Stock Threshold")}
+                            </Label>
                             <Input
                               type="number"
                               placeholder="10"
                               value={option.lowstockThreshold ?? 10}
-                              onChange={(e) => handleOptionChange(oi, "lowstockThreshold", parseInt(e.target.value) || 10)}
+                              onChange={(e) =>
+                                handleOptionChange(
+                                  oi,
+                                  "lowstockThreshold",
+                                  parseInt(e.target.value) || 10,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="flex items-center gap-2 col-span-2">
                             <Switch
                               checked={option.trackQuantity}
-                              onCheckedChange={(v) => handleOptionChange(oi, "trackQuantity", v)}
+                              onCheckedChange={(v) =>
+                                handleOptionChange(oi, "trackQuantity", v)
+                              }
                               disabled={isSubmitting}
                             />
-                            <Label className="text-xs">Track Quantity</Label>
+                            <Label className="text-xs">{i18nT("Track Quantity")}</Label>
                           </div>
                           <div className="flex items-center gap-2 col-span-2">
                             <Switch
                               checked={option.isDiscounted || false}
-                              onCheckedChange={(v) => handleOptionChange(oi, "isDiscounted", v)}
+                              onCheckedChange={(v) =>
+                                handleOptionChange(oi, "isDiscounted", v)
+                              }
                               disabled={isSubmitting}
                             />
-                            <Label className="text-xs">Discounted</Label>
+                            <Label className="text-xs">{i18nT("Discounted")}</Label>
                           </div>
                           {option.isDiscounted && (
                             <div className="space-y-1 col-span-2">
-                              <Label className="text-xs">Discounted Price</Label>
+                              <Label className="text-xs">
+                                {i18nT("Discounted Price")}
+                              </Label>
                               <Input
                                 type="number"
                                 step="0.01"
@@ -1116,7 +1171,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                 placeholder="0"
                                 value={option.discountedPrice ?? ""}
                                 onChange={(e) => {
-                                  handleOptionChange(oi, "discountedPrice", e.target.value === "" ? "" : parseFloat(e.target.value));
+                                  handleOptionChange(
+                                    oi,
+                                    "discountedPrice",
+                                    e.target.value === ""
+                                      ? ""
+                                      : parseFloat(e.target.value),
+                                  );
                                 }}
                                 disabled={isSubmitting}
                               />
@@ -1144,7 +1205,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Variants</CardTitle>
+                    <CardTitle className="text-base">{i18nT("Variants")}</CardTitle>
                     <Button
                       type="button"
                       variant="buttonOutline"
@@ -1153,7 +1214,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       disabled={isSubmitting}
                     >
                       <Plus className="mr-2 h-4 w-4" />
-                      Add Variant
+                      {i18nT("Add Variant")}
                     </Button>
                   </div>
                 </CardHeader>
@@ -1161,7 +1222,8 @@ export function ProductForm({ product, onSave, onClose }: any) {
                   <CardContent className="space-y-4">
                     <div className="mb-3 p-3 bg-blue-50 rounded-lg">
                       <p className="text-sm text-blue-800">
-                        <strong>Note:</strong> Each variant has its own price, inventory, and SKU.
+                        <strong>{i18nT("Note:")}</strong> Each variant has its own price,
+                        inventory, and SKU.
                       </p>
                     </div>
 
@@ -1182,24 +1244,36 @@ export function ProductForm({ product, onSave, onClose }: any) {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <Label className="text-xs">Title *</Label>
+                            <Label className="text-xs">{i18nT("Title *")}</Label>
                             <Input
-                              placeholder="e.g. Red, Large, 500ml"
+                              placeholder={i18nT("e.g. Red, Large, 500ml")}
                               value={variant.title}
-                              onChange={(e) => handleProductVariantChange(vi, "title", e.target.value)}
+                              onChange={(e) =>
+                                handleProductVariantChange(
+                                  vi,
+                                  "title",
+                                  e.target.value,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">SKU</Label>
+                            <Label className="text-xs">{i18nT("SKU")}</Label>
                             <Input
                               value={variant.sku || ""}
-                              onChange={(e) => handleProductVariantChange(vi, "sku", e.target.value)}
+                              onChange={(e) =>
+                                handleProductVariantChange(
+                                  vi,
+                                  "sku",
+                                  e.target.value,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Price *</Label>
+                            <Label className="text-xs">{i18nT("Price *")}</Label>
                             <Input
                               type="number"
                               step="0.01"
@@ -1207,59 +1281,99 @@ export function ProductForm({ product, onSave, onClose }: any) {
                               placeholder="0"
                               value={variant.price ?? ""}
                               onChange={(e) => {
-                                handleProductVariantChange(vi, "price", e.target.value === "" ? "" : parseFloat(e.target.value));
+                                handleProductVariantChange(
+                                  vi,
+                                  "price",
+                                  e.target.value === ""
+                                    ? ""
+                                    : parseFloat(e.target.value),
+                                );
                               }}
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Unit</Label>
+                            <Label className="text-xs">{i18nT("Unit")}</Label>
                             <Input
-                              placeholder="e.g. kg, pc, ml"
+                              placeholder={i18nT("e.g. kg, pc, ml")}
                               value={variant.measurement || ""}
-                              onChange={(e) => handleProductVariantChange(vi, "measurement", e.target.value)}
+                              onChange={(e) =>
+                                handleProductVariantChange(
+                                  vi,
+                                  "measurement",
+                                  e.target.value,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Inventory</Label>
+                            <Label className="text-xs">{i18nT("Inventory")}</Label>
                             <Input
                               type="number"
                               placeholder="0"
                               value={variant.inventory ?? 0}
-                              onChange={(e) => handleProductVariantChange(vi, "inventory", parseInt(e.target.value) || 0)}
+                              onChange={(e) =>
+                                handleProductVariantChange(
+                                  vi,
+                                  "inventory",
+                                  parseInt(e.target.value) || 0,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Low Stock Threshold</Label>
+                            <Label className="text-xs">
+                              {i18nT("Low Stock Threshold")}
+                            </Label>
                             <Input
                               type="number"
                               placeholder="10"
                               value={variant.lowstockThreshold ?? 10}
-                              onChange={(e) => handleProductVariantChange(vi, "lowstockThreshold", parseInt(e.target.value) || 10)}
+                              onChange={(e) =>
+                                handleProductVariantChange(
+                                  vi,
+                                  "lowstockThreshold",
+                                  parseInt(e.target.value) || 10,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
                           </div>
                           <div className="flex items-center gap-2 col-span-2">
                             <Switch
                               checked={variant.trackQuantity}
-                              onCheckedChange={(v) => handleProductVariantChange(vi, "trackQuantity", v)}
+                              onCheckedChange={(v) =>
+                                handleProductVariantChange(
+                                  vi,
+                                  "trackQuantity",
+                                  v,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
-                            <Label className="text-xs">Track Quantity</Label>
+                            <Label className="text-xs">{i18nT("Track Quantity")}</Label>
                           </div>
                           <div className="flex items-center gap-2 col-span-2">
                             <Switch
                               checked={variant.isDiscounted || false}
-                              onCheckedChange={(v) => handleProductVariantChange(vi, "isDiscounted", v)}
+                              onCheckedChange={(v) =>
+                                handleProductVariantChange(
+                                  vi,
+                                  "isDiscounted",
+                                  v,
+                                )
+                              }
                               disabled={isSubmitting}
                             />
-                            <Label className="text-xs">Discounted</Label>
+                            <Label className="text-xs">{i18nT("Discounted")}</Label>
                           </div>
                           {variant.isDiscounted && (
                             <div className="space-y-1 col-span-2">
-                              <Label className="text-xs">Discounted Price</Label>
+                              <Label className="text-xs">
+                                {i18nT("Discounted Price")}
+                              </Label>
                               <Input
                                 type="number"
                                 step="0.01"
@@ -1267,7 +1381,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                 placeholder="0"
                                 value={variant.discountedPrice ?? ""}
                                 onChange={(e) => {
-                                  handleProductVariantChange(vi, "discountedPrice", e.target.value === "" ? "" : parseFloat(e.target.value));
+                                  handleProductVariantChange(
+                                    vi,
+                                    "discountedPrice",
+                                    e.target.value === ""
+                                      ? ""
+                                      : parseFloat(e.target.value),
+                                  );
                                 }}
                                 disabled={isSubmitting}
                               />
@@ -1284,7 +1404,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <Label className="text-lg font-semibold">
-                    Subcategories & Variants (Optional)
+                    {i18nT("Subcategories & Variants (Optional)")}
                   </Label>
                   <Button
                     type="button"
@@ -1293,14 +1413,14 @@ export function ProductForm({ product, onSave, onClose }: any) {
                     disabled={isSubmitting}
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Subcategory
+                    {i18nT("Add Subcategory")}
                   </Button>
                 </div>
 
                 {hasSubcategories && (
                   <div className="mb-4 p-3 bg-blue-50 rounded-lg">
                     <p className="text-sm text-blue-800">
-                      <strong>Note:</strong> When subcategories are added,
+                      <strong>{i18nT("Note:")}</strong> When subcategories are added,
                       inventory management is handled at the variant level.
                     </p>
                   </div>
@@ -1344,7 +1464,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                 handleRemoveSubcategory(si);
                               }}
                               disabled={isSubmitting}
-                              title="Remove subcategory"
+                              title={i18nT("Remove subcategory")}
                             >
                               <X className="h-4 w-4" />
                             </Button>
@@ -1385,7 +1505,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       {subcatOpen && (
                         <CardContent className="space-y-3">
                           <Input
-                            placeholder="Subcategory name"
+                            placeholder={i18nT("Subcategory name")}
                             value={subcat.name}
                             onChange={(e) =>
                               handleSubcategoryChange(
@@ -1397,7 +1517,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                             disabled={isSubmitting}
                           />
                           <Textarea
-                            placeholder="Subcategory description"
+                            placeholder={i18nT("Subcategory description")}
                             value={subcat.description}
                             onChange={(e) =>
                               handleSubcategoryChange(
@@ -1414,11 +1534,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                           {subcat.variants.length === 0 && (
                             <div className="mt-3 p-3 border rounded-lg bg-muted/30 space-y-3">
                               <p className="text-xs text-muted-foreground font-medium">
-                                Subcategory Pricing & Inventory (no variants)
+                                {i18nT("Subcategory Pricing & Inventory (no variants)")}
                               </p>
                               <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1">
-                                  <Label className="text-xs">Additional Price</Label>
+                                  <Label className="text-xs">
+                                    {i18nT("Additional Price")}
+                                  </Label>
                                   <Input
                                     type="number"
                                     step="0.01"
@@ -1426,59 +1548,101 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                     placeholder="0"
                                     value={subcat.additionalPrice ?? ""}
                                     onChange={(e) => {
-                                      handleSubcategoryChange(si, "additionalPrice" as any, e.target.value === "" ? "" : parseFloat(e.target.value));
+                                      handleSubcategoryChange(
+                                        si,
+                                        "additionalPrice" as any,
+                                        e.target.value === ""
+                                          ? ""
+                                          : parseFloat(e.target.value),
+                                      );
                                     }}
                                     disabled={isSubmitting}
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <Label className="text-xs">Inventory</Label>
+                                  <Label className="text-xs">{i18nT("Inventory")}</Label>
                                   <Input
                                     type="number"
                                     placeholder="0"
                                     value={subcat.inventory ?? 0}
-                                    onChange={(e) => handleSubcategoryChange(si, "inventory" as any, parseInt(e.target.value) || 0)}
+                                    onChange={(e) =>
+                                      handleSubcategoryChange(
+                                        si,
+                                        "inventory" as any,
+                                        parseInt(e.target.value) || 0,
+                                      )
+                                    }
                                     disabled={isSubmitting}
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <Label className="text-xs">Low Stock Threshold</Label>
+                                  <Label className="text-xs">
+                                    {i18nT("Low Stock Threshold")}
+                                  </Label>
                                   <Input
                                     type="number"
                                     placeholder="10"
                                     value={subcat.lowstockThreshold ?? 10}
-                                    onChange={(e) => handleSubcategoryChange(si, "lowstockThreshold" as any, parseInt(e.target.value) || 10)}
+                                    onChange={(e) =>
+                                      handleSubcategoryChange(
+                                        si,
+                                        "lowstockThreshold" as any,
+                                        parseInt(e.target.value) || 10,
+                                      )
+                                    }
                                     disabled={isSubmitting}
                                   />
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Switch
                                     checked={subcat.trackQuantity ?? false}
-                                    onCheckedChange={(v) => handleSubcategoryChange(si, "trackQuantity" as any, v)}
+                                    onCheckedChange={(v) =>
+                                      handleSubcategoryChange(
+                                        si,
+                                        "trackQuantity" as any,
+                                        v,
+                                      )
+                                    }
                                     disabled={isSubmitting}
                                   />
-                                  <Label className="text-xs">Track Qty</Label>
+                                  <Label className="text-xs">{i18nT("Track Qty")}</Label>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Switch
                                   checked={subcat.isDiscounted || false}
-                                  onCheckedChange={(v) => handleSubcategoryChange(si, "isDiscounted" as any, v)}
+                                  onCheckedChange={(v) =>
+                                    handleSubcategoryChange(
+                                      si,
+                                      "isDiscounted" as any,
+                                      v,
+                                    )
+                                  }
                                   disabled={isSubmitting}
                                 />
-                                <Label className="text-xs">Discounted</Label>
+                                <Label className="text-xs">{i18nT("Discounted")}</Label>
                               </div>
                               {subcat.isDiscounted && (
                                 <div className="space-y-1">
-                                  <Label className="text-xs">Discounted Additional Price</Label>
+                                  <Label className="text-xs">
+                                    {i18nT("Discounted Additional Price")}
+                                  </Label>
                                   <Input
                                     type="number"
                                     step="0.01"
                                     min="0"
                                     placeholder="0"
-                                    value={subcat.discountedAdditionalPrice ?? ""}
+                                    value={
+                                      subcat.discountedAdditionalPrice ?? ""
+                                    }
                                     onChange={(e) => {
-                                      handleSubcategoryChange(si, "discountedAdditionalPrice" as any, e.target.value === "" ? "" : parseFloat(e.target.value));
+                                      handleSubcategoryChange(
+                                        si,
+                                        "discountedAdditionalPrice" as any,
+                                        e.target.value === ""
+                                          ? ""
+                                          : parseFloat(e.target.value),
+                                      );
                                     }}
                                     disabled={isSubmitting}
                                   />
@@ -1496,7 +1660,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                               className="flex items-center gap-2 w-full text-left group mb-2"
                             >
                               <span className="text-sm font-medium">
-                                Variants
+                                {i18nT("Variants")}
                               </span>
                               {subcat.variants.length > 0 && (
                                 <span className="text-xs bg-primary/10 text-primary font-medium px-1.5 py-0.5 rounded-full">
@@ -1528,7 +1692,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
 
                             {!variantsOpen && subcat.variants.length === 0 && (
                               <p className="text-muted-foreground text-sm mb-2">
-                                No variants added yet.
+                                {i18nT("No variants added yet.")}
                               </p>
                             )}
 
@@ -1537,7 +1701,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                               <div className="mt-1">
                                 {subcat.variants.length === 0 && (
                                   <p className="text-muted-foreground text-sm">
-                                    No variants added yet.
+                                    {i18nT("No variants added yet.")}
                                   </p>
                                 )}
                                 {subcat.variants.map((variant, vi) => (
@@ -1557,7 +1721,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                           handleRemoveVariant(si, vi)
                                         }
                                         disabled={isSubmitting}
-                                        title="Remove variant"
+                                        title={i18nT("Remove variant")}
                                       >
                                         <X className="h-4 w-4" />
                                       </Button>
@@ -1565,11 +1729,11 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div className="space-y-2">
                                         <Label htmlFor={`variant-title-${vi}`}>
-                                          Title
+                                          {i18nT("Title")}
                                         </Label>
                                         <Input
                                           id={`variant-title-${vi}`}
-                                          placeholder="Variant title"
+                                          placeholder={i18nT("Variant title")}
                                           value={variant.title}
                                           onChange={(e) =>
                                             handleVariantChange(
@@ -1588,7 +1752,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                         </Label>
                                         <Input
                                           id={`variant-sku-${vi}`}
-                                          placeholder="SKU"
+                                          placeholder={i18nT("SKU")}
                                           value={variant.sku}
                                           onChange={(e) =>
                                             handleVariantChange(
@@ -1605,11 +1769,11 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                         <Label
                                           htmlFor={`variant-description-${vi}`}
                                         >
-                                          Description
+                                          {i18nT("Description")}
                                         </Label>
                                         <Textarea
                                           id={`variant-description-${vi}`}
-                                          placeholder="Variant description"
+                                          placeholder={i18nT("Variant description")}
                                           value={variant.description}
                                           onChange={(e) =>
                                             handleVariantChange(
@@ -1629,17 +1793,26 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                             <Label
                                               htmlFor={`variant-price-${vi}`}
                                             >
-                                              Price
+                                              {i18nT("Price")}
                                             </Label>
                                             <Input
                                               id={`variant-price-${vi}`}
                                               type="number"
                                               step="0.01"
                                               min="0"
-                                              placeholder="Price"
+                                              placeholder={i18nT("Price")}
                                               value={variant.price ?? ""}
                                               onChange={(e) => {
-                                                handleVariantChange(si, vi, "price", e.target.value === "" ? "" : parseFloat(e.target.value));
+                                                handleVariantChange(
+                                                  si,
+                                                  vi,
+                                                  "price",
+                                                  e.target.value === ""
+                                                    ? ""
+                                                    : parseFloat(
+                                                        e.target.value,
+                                                      ),
+                                                );
                                               }}
                                               onWheel={(e) =>
                                                 e.currentTarget.blur()
@@ -1651,11 +1824,11 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                             <Label
                                               htmlFor={`variant-measurement-${vi}`}
                                             >
-                                              Unit
+                                              {i18nT("Unit")}
                                             </Label>
                                             <Input
                                               id={`variant-measurement-${vi}`}
-                                              placeholder="e.g. kg, pc"
+                                              placeholder={i18nT("e.g. kg, pc")}
                                               value={variant.measurement}
                                               onChange={(e) =>
                                                 handleVariantChange(
@@ -1688,7 +1861,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                               htmlFor={`variant-discount-toggle-${vi}`}
                                               className="text-sm text-muted-foreground cursor-pointer"
                                             >
-                                              Add discounted price
+                                              {i18nT("Add discounted price")}
                                             </label>
                                           </div>
                                           <div className="flex-1">
@@ -1697,17 +1870,29 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                                 <Label
                                                   htmlFor={`variant-discountedPrice-${vi}`}
                                                 >
-                                                  Discounted Price
+                                                  {i18nT("Discounted Price")}
                                                 </Label>
                                                 <Input
                                                   id={`variant-discountedPrice-${vi}`}
                                                   type="number"
                                                   step="0.01"
                                                   min="0"
-                                                  placeholder="Discounted price"
-                                                  value={variant.discountedPrice ?? ""}
+                                                  placeholder={i18nT("Discounted price")}
+                                                  value={
+                                                    variant.discountedPrice ??
+                                                    ""
+                                                  }
                                                   onChange={(e) => {
-                                                    handleVariantChange(si, vi, "discountedPrice", e.target.value === "" ? "" : parseFloat(e.target.value));
+                                                    handleVariantChange(
+                                                      si,
+                                                      vi,
+                                                      "discountedPrice",
+                                                      e.target.value === ""
+                                                        ? ""
+                                                        : parseFloat(
+                                                            e.target.value,
+                                                          ),
+                                                    );
                                                   }}
                                                   onWheel={(e) =>
                                                     e.currentTarget.blur()
@@ -1723,7 +1908,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                         <Label
                                           htmlFor={`variant-trackQuantity-${vi}`}
                                         >
-                                          Track Quantity
+                                          {i18nT("Track Quantity")}
                                         </Label>
                                         <Select
                                           value={
@@ -1746,7 +1931,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                           </SelectTrigger>
                                           <SelectContent>
                                             <SelectItem value="true">
-                                              Yes
+                                              {i18nT("Yes")}
                                             </SelectItem>
                                             <SelectItem value="false">
                                               No
@@ -1760,13 +1945,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                             <Label
                                               htmlFor={`variant-inventory-${vi}`}
                                             >
-                                              Inventory
+                                              {i18nT("Inventory")}
                                             </Label>
                                             <Input
                                               id={`variant-inventory-${vi}`}
                                               type="text"
                                               inputMode="numeric"
-                                              placeholder="Inventory"
+                                              placeholder={i18nT("Inventory")}
                                               value={
                                                 variant.inventory === 0
                                                   ? ""
@@ -1801,13 +1986,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
                                             <Label
                                               htmlFor={`lowstockThreshold-${vi}`}
                                             >
-                                              Low Stock Threshold
+                                              {i18nT("Low Stock Threshold")}
                                             </Label>
                                             <Input
                                               id={`lowstockThreshold-${vi}`}
                                               type="text"
                                               inputMode="numeric"
-                                              placeholder="Low Stock Threshold"
+                                              placeholder={i18nT("Low Stock Threshold")}
                                               value={
                                                 variant.lowstockThreshold === 0
                                                   ? ""
@@ -1860,7 +2045,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                               className="mt-1"
                             >
                               <Plus className="mr-2 h-4 w-4" />
-                              Add Variant
+                              {i18nT("Add Variant")}
                             </Button>
                           </div>
                         </CardContent>
@@ -1871,7 +2056,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
               </div>
 
               <div className="space-y-2 mt-4">
-                <Label>Tags</Label>
+                <Label>{i18nT("Tags")}</Label>
                 <div className="flex gap-2 flex-wrap mb-2">
                   {formData.tags?.map((tag, index) => (
                     <Badge key={index} variant="secondary" className="gap-1">
@@ -1892,7 +2077,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     onKeyPress={handleTagKeyPress}
-                    placeholder="Add a tag..."
+                    placeholder={i18nT("Add a tag...")}
                     disabled={isSubmitting}
                   />
                   <Button
@@ -1913,7 +2098,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
         <TabsContent value="images" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Product Images (Maximum 3)</CardTitle>
+              <CardTitle>{i18nT("Product Images (Maximum 3)")}</CardTitle>
             </CardHeader>
             <CardContent>
               <ProductImageUpload
@@ -1933,7 +2118,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
           <BlurWrapper>
             <Card>
               <CardHeader>
-                <CardTitle>Shipping Information</CardTitle>
+                <CardTitle>{i18nT("Shipping Information")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -1959,7 +2144,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                   <Label>Dimensions (inches)</Label>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="length">Length</Label>
+                      <Label htmlFor="length">{i18nT("Length")}</Label>
                       <Input
                         id="length"
                         type="number"
@@ -1978,7 +2163,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="width">Width</Label>
+                      <Label htmlFor="width">{i18nT("Width")}</Label>
                       <Input
                         id="width"
                         type="number"
@@ -1997,7 +2182,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="height">Height</Label>
+                      <Label htmlFor="height">{i18nT("Height")}</Label>
                       <Input
                         id="height"
                         type="number"
@@ -2026,18 +2211,18 @@ export function ProductForm({ product, onSave, onClose }: any) {
           <BlurWrapper>
             <Card>
               <CardHeader>
-                <CardTitle>Search Engine Optimization</CardTitle>
+                <CardTitle>{i18nT("Search Engine Optimization")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="seoTitle">SEO Title</Label>
+                  <Label htmlFor="seoTitle">{i18nT("SEO Title")}</Label>
                   <Input
                     id="seoTitle"
                     value={formData.seo?.title || ""}
                     onChange={(e) =>
                       handleNestedInputChange("seo", "title", e.target.value)
                     }
-                    placeholder="Optimized title for search engines"
+                    placeholder={i18nT("Optimized title for search engines")}
                     disabled={isSubmitting}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -2046,7 +2231,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="seoDescription">SEO Description</Label>
+                  <Label htmlFor="seoDescription">{i18nT("SEO Description")}</Label>
                   <Textarea
                     id="seoDescription"
                     value={formData.seo?.description || ""}
@@ -2057,7 +2242,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                         e.target.value,
                       )
                     }
-                    placeholder="Brief description for search engine results"
+                    placeholder={i18nT("Brief description for search engine results")}
                     rows={3}
                     disabled={isSubmitting}
                   />

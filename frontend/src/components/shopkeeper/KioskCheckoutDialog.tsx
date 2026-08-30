@@ -34,6 +34,7 @@ import QRCode from "react-qr-code";
 import jsQR from "jsqr";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = __API_URL__;
 
 interface Country {
@@ -159,8 +160,8 @@ export function KioskCheckoutDialog({
         setWhatsappVerified(true);
         toast({
           duration: 3000,
-          title: "New Customer",
-          description: "Please fill in customer details",
+          title: i18nT("New Customer"),
+          description: i18nT("Please fill in customer details"),
         });
         return;
       }
@@ -175,20 +176,20 @@ export function KioskCheckoutDialog({
         setWhatsappVerified(true);
         toast({
           duration: 3000,
-          title: "Customer Found",
-          description: "Details auto-filled successfully",
+          title: i18nT("Customer Found"),
+          description: i18nT("Details auto-filled successfully"),
         });
       } else {
         setWhatsappVerified(true);
         toast({
           duration: 3000,
-          title: "New Customer",
-          description: "Please fill in customer details",
+          title: i18nT("New Customer"),
+          description: i18nT("Please fill in customer details"),
         });
       }
     } catch (err: any) {
       toast({
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message || "Validation failed",
         variant: "destructive",
       });
@@ -238,8 +239,8 @@ export function KioskCheckoutDialog({
   async function handleCashPayment() {
     if (!firstName) {
       toast({
-        title: "Required",
-        description: "Please enter first name",
+        title: i18nT("Required"),
+        description: i18nT("Please enter first name"),
         variant: "destructive",
       });
       return;
@@ -284,14 +285,14 @@ export function KioskCheckoutDialog({
       }
 
       toast({
-        title: "Order Placed",
+        title: i18nT("Order Placed"),
         description: `Order for ${fullName} created successfully`,
       });
 
       resetAndClose();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: i18nT("Error"),
         description: error.message || "Failed to place order",
         variant: "destructive",
       });
@@ -354,8 +355,8 @@ export function KioskCheckoutDialog({
   async function handleQRPayment() {
     if (!firstName) {
       toast({
-        title: "Required",
-        description: "Please enter first name",
+        title: i18nT("Required"),
+        description: i18nT("Please enter first name"),
         variant: "destructive",
       });
       return;
@@ -389,7 +390,7 @@ export function KioskCheckoutDialog({
       setShowQRPayment(true);
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: i18nT("Error"),
         description: error.message || "Failed to generate QR",
         variant: "destructive",
       });
@@ -439,7 +440,7 @@ export function KioskCheckoutDialog({
 
       setQrOrderCreated(true);
       toast({
-        title: "Order Placed",
+        title: i18nT("Order Placed"),
         description: `Order for ${fullName} created. Payment pending verification.`,
       });
 
@@ -449,7 +450,7 @@ export function KioskCheckoutDialog({
       }, 2000);
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: i18nT("Error"),
         description: error.message || "Failed to create order",
         variant: "destructive",
       });
@@ -506,16 +507,16 @@ export function KioskCheckoutDialog({
               <div className="flex flex-col items-center py-8 gap-4">
                 <CheckCircle className="h-16 w-16 text-green-500" />
                 <p className="text-lg font-semibold text-green-700">
-                  Order Created Successfully
+                  {i18nT("Order Created Successfully")}
                 </p>
-                <p className="text-sm text-slate-500 text-center">
-                  Payment will be verified by the shopkeeper. Closing...
+                <p className="text-sm text-muted-foreground text-center">
+                  {i18nT("Payment will be verified by the shopkeeper. Closing...")}
                 </p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4">
                 {/* QR Code Display */}
-                <div className="bg-white p-4 rounded-lg border-2 border-slate-200">
+                <div className="bg-card p-4 rounded-lg border-2 border-border">
                   {shopkeeperCountry === "SG" && dynamicPayNowUrl ? (
                     <img
                       src={dynamicPayNowUrl}
@@ -531,8 +532,8 @@ export function KioskCheckoutDialog({
                       className="w-64 h-64 object-contain"
                     />
                   ) : (
-                    <div className="w-64 h-64 flex items-center justify-center text-slate-400">
-                      No payment QR configured
+                    <div className="w-64 h-64 flex items-center justify-center text-muted-foreground">
+                      {i18nT("No payment QR configured")}
                     </div>
                   )}
                 </div>
@@ -541,7 +542,7 @@ export function KioskCheckoutDialog({
                   <p className="text-2xl font-bold">
                     {formatPrice(finalTotal)}
                   </p>
-                  <p className="text-sm text-slate-500 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     {shopkeeperCountry === "SG"
                       ? "Scan with PayNow"
                       : "Scan with any UPI app"}
@@ -557,7 +558,7 @@ export function KioskCheckoutDialog({
                     onClick={() => setShowQRPayment(false)}
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back
+                    {i18nT("Back")}
                   </Button>
                   <Button
                     className="flex-1 h-10"
@@ -592,7 +593,7 @@ export function KioskCheckoutDialog({
                   key={`${item.productId}-${item.subcategoryIndex}-${item.variantIndex}`}
                   className="flex justify-between text-sm"
                 >
-                  <span className="text-slate-600 flex-1 min-w-0">
+                  <span className="text-muted-foreground flex-1 min-w-0">
                     <span className="truncate block">
                       {item.productName}
                       {item.optionTitle ? ` · ${item.optionTitle}` : ""}
@@ -603,7 +604,7 @@ export function KioskCheckoutDialog({
                         ? ` · ${item.variantTitle}`
                         : ""}
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-muted-foreground">
                       x{item.quantity}
                       {item.measurement ? ` · ${item.measurement}` : ""}
                     </span>
@@ -623,8 +624,8 @@ export function KioskCheckoutDialog({
 
             {/* Price Breakdown */}
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-slate-500">
-                <span>Subtotal</span>
+              <div className="flex justify-between text-muted-foreground">
+                <span>{i18nT("Subtotal")}</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
               {discount > 0 && (
@@ -634,14 +635,14 @@ export function KioskCheckoutDialog({
                 </div>
               )}
               {tax > 0 && (
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Tax ({taxPercentage}%)</span>
                   <span>+{formatPrice(tax)}</span>
                 </div>
               )}
               <Separator />
               <div className="flex justify-between text-base font-bold">
-                <span>Total</span>
+                <span>{i18nT("Total")}</span>
                 <span>{formatPrice(finalTotal)}</span>
               </div>
             </div>
@@ -650,24 +651,24 @@ export function KioskCheckoutDialog({
 
             {/* Customer Details — same as cartPage self/kiosk mode */}
             <div className="space-y-3">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Customer Details
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {i18nT("Customer Details")}
               </Label>
 
               {/* WhatsApp Number with Validate */}
               <div>
-                <Label className="text-xs text-slate-500 flex items-center justify-between mb-1">
-                  <span>WhatsApp Number *</span>
+                <Label className="text-xs text-muted-foreground flex items-center justify-between mb-1">
+                  <span>{i18nT("WhatsApp Number *")}</span>
                   {whatsappVerified && (
                     <Badge variant="default" className="text-[10px]">
-                      Verified
+                      {i18nT("Verified")}
                     </Badge>
                   )}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Select value={countryCode} onValueChange={setCountryCode}>
                     <SelectTrigger className="w-24 h-9 text-xs">
-                      <SelectValue placeholder="Code" />
+                      <SelectValue placeholder={i18nT("Code")} />
                     </SelectTrigger>
                     <SelectContent>
                       {countries.map((c) => (
@@ -679,7 +680,7 @@ export function KioskCheckoutDialog({
                   </Select>
                   <Input
                     type="tel"
-                    placeholder="Enter number"
+                    placeholder={i18nT("Enter number")}
                     maxLength={10}
                     className="h-9"
                     value={whatsapp}
@@ -721,20 +722,20 @@ export function KioskCheckoutDialog({
               {/* First Name & Last Name */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs text-slate-500">First Name *</Label>
+                  <Label className="text-xs text-muted-foreground">{i18nT("First Name *")}</Label>
                   <Input
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="John"
+                    placeholder={i18nT("John")}
                     className="h-9 mt-1"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-slate-500">Last Name *</Label>
+                  <Label className="text-xs text-muted-foreground">{i18nT("Last Name *")}</Label>
                   <Input
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Doe"
+                    placeholder={i18nT("Doe")}
                     className="h-9 mt-1"
                   />
                 </div>
@@ -742,15 +743,15 @@ export function KioskCheckoutDialog({
 
               {/* Customer Email */}
               <div>
-                <Label className="text-xs text-slate-500">
+                <Label className="text-xs text-muted-foreground">
                   Customer Email{" "}
-                  <span className="text-slate-400">(optional)</span>
+                  <span className="text-muted-foreground">(optional)</span>
                 </Label>
                 <Input
                   type="email"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="customer@email.com"
+                  placeholder={i18nT("customer@email.com")}
                   className="h-9 mt-1"
                 />
               </div>
@@ -760,11 +761,11 @@ export function KioskCheckoutDialog({
 
             {/* Instructions */}
             <div>
-              <Label className="text-xs text-slate-500">
-                Order Notes (optional)
+              <Label className="text-xs text-muted-foreground">
+                {i18nT("Order Notes (optional)")}
               </Label>
               <Textarea
-                placeholder="Any special instructions..."
+                placeholder={i18nT("Any special instructions...")}
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 className="mt-1 h-16 text-sm"
@@ -775,8 +776,8 @@ export function KioskCheckoutDialog({
 
             {/* Payment Method */}
             <div>
-              <Label className="text-xs text-slate-500 mb-2 block">
-                Payment Method
+              <Label className="text-xs text-muted-foreground mb-2 block">
+                {i18nT("Payment Method")}
               </Label>
               <div className="grid grid-cols-2 gap-3">
                 <Button
@@ -785,7 +786,7 @@ export function KioskCheckoutDialog({
                   onClick={() => setPaymentMethod("cash")}
                 >
                   <Banknote className="h-5 w-5" />
-                  <span className="text-xs">Cash</span>
+                  <span className="text-xs">{i18nT("Cash")}</span>
                 </Button>
                 <Button
                   variant={paymentMethod === "qr" ? "default" : "outline"}
@@ -793,7 +794,7 @@ export function KioskCheckoutDialog({
                   onClick={() => setPaymentMethod("qr")}
                 >
                   <QrCode className="h-5 w-5" />
-                  <span className="text-xs">QR Payment</span>
+                  <span className="text-xs">{i18nT("QR Payment")}</span>
                 </Button>
               </div>
             </div>

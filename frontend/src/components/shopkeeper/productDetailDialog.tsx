@@ -34,6 +34,7 @@ import {
 import { FaWhatsapp } from "react-icons/fa";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 
+import { t as i18nT } from "@/i18n/t";
 interface ProductDetailsDialogProps {
   productId: string | null;
   isOpen: boolean;
@@ -512,14 +513,14 @@ export function ProductDetailsDialog({
         return (
           <Badge className="bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3 mr-1" />
-            In Stock
+            {i18nT("In Stock")}
           </Badge>
         );
       } else if (stock <= 0) {
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
-            Out of Stock
+            {i18nT("Out of Stock")}
           </Badge>
         );
       } else {
@@ -549,14 +550,14 @@ export function ProductDetailsDialog({
         return (
           <Badge className="bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3 mr-1" />
-            In Stock
+            {i18nT("In Stock")}
           </Badge>
         );
       } else if (product.inventory <= 0) {
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
-            Out of Stock
+            {i18nT("Out of Stock")}
           </Badge>
         );
       } else if (product.inventory <= (product.lowstockThreshold || 10)) {
@@ -604,8 +605,8 @@ export function ProductDetailsDialog({
           if (cartQuantity + 1 > quantity) {
             toast({
               duration: 5000,
-              title: "Quantity Exhaust",
-              description: "Product Stock Quantity Exhaust",
+              title: i18nT("Quantity Exhaust"),
+              description: i18nT("Product Stock Quantity Exhaust"),
             });
             return;
           }
@@ -659,8 +660,8 @@ export function ProductDetailsDialog({
           if (cartQuantity + 1 > quantity) {
             toast({
               duration: 5000,
-              title: "Quantity Exhaust",
-              description: "Product Stock Quantity Exhaust",
+              title: i18nT("Quantity Exhaust"),
+              description: i18nT("Product Stock Quantity Exhaust"),
             });
             return;
           }
@@ -698,8 +699,8 @@ export function ProductDetailsDialog({
           if (cartQuantity + 1 > quantity) {
             toast({
               duration: 5000,
-              title: "Quantity Exhaust",
-              description: "Product Stock Quantity Exhaust",
+              title: i18nT("Quantity Exhaust"),
+              description: i18nT("Product Stock Quantity Exhaust"),
             });
             return;
           }
@@ -738,14 +739,14 @@ export function ProductDetailsDialog({
 
       toast({
         duration: 5000,
-        title: "Added to Cart",
+        title: i18nT("Added to Cart"),
         description: `${product.name} (${quantity}) added to your cart`,
       });
     } catch (error) {
       toast({
         duration: 5000,
-        title: "Error",
-        description: "Failed to add item to cart",
+        title: i18nT("Error"),
+        description: i18nT("Failed to add item to cart"),
         variant: "destructive",
       });
     } finally {
@@ -834,9 +835,9 @@ export function ProductDetailsDialog({
             <DialogTitle>{product?.name || "Product Details"}</DialogTitle>
           </DialogHeader>
         </VisuallyHidden>
-        <DialogClose className="absolute right-2 top-2 z-50 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none bg-white/80 backdrop-blur-sm p-1 shadow-md">
+        <DialogClose className="absolute right-2 top-2 z-50 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none bg-card/80 backdrop-blur-sm p-1 shadow-md">
           <X className="h-4 w-4 md:h-5 md:w-5" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{i18nT("Close")}</span>
         </DialogClose>
         <ScrollArea className="max-h-[95vh] overflow-y-auto">
           <div className="p-3 sm:p-4 md:p-6 lg:p-8" style={{ fontFamily }}>
@@ -850,7 +851,7 @@ export function ProductDetailsDialog({
                   className="text-sm md:text-base text-muted-foreground"
                   style={{ fontFamily }}
                 >
-                  Loading product details...
+                  {i18nT("Loading product details...")}
                 </p>
               </div>
             )}
@@ -869,7 +870,7 @@ export function ProductDetailsDialog({
                     className="text-xs md:text-sm"
                     style={blackTextBtnStyle}
                   >
-                    Try Again
+                    {i18nT("Try Again")}
                   </Button>
                 )}
               </div>
@@ -880,7 +881,7 @@ export function ProductDetailsDialog({
                 <div className="space-y-3 md:space-y-4">
                   {images.length > 0 ? (
                     <>
-                      <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
+                      <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
                         <img
                           src={getImageUrl(images[currentImageIndex])}
                           alt={product?.name}
@@ -896,16 +897,16 @@ export function ProductDetailsDialog({
                           <>
                             <button
                               onClick={prevImage}
-                              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 backdrop-blur-sm p-1 md:p-2 shadow-md hover:bg-white transition-all"
-                              aria-label="Previous image"
+                              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-card/80 backdrop-blur-sm p-1 md:p-2 shadow-md hover:bg-card transition-all"
+                              aria-label={i18nT("Previous image")}
                               style={blackTextBtnStyle}
                             >
                               <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
                             </button>
                             <button
                               onClick={nextImage}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 backdrop-blur-sm p-1 md:p-2 shadow-md hover:bg-white transition-all"
-                              aria-label="Next image"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-card/80 backdrop-blur-sm p-1 md:p-2 shadow-md hover:bg-card transition-all"
+                              aria-label={i18nT("Next image")}
                               style={blackTextBtnStyle}
                             >
                               <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
@@ -927,7 +928,7 @@ export function ProductDetailsDialog({
                               className={`flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-md border-2 overflow-hidden transition-all hover:scale-105 ${
                                 currentImageIndex === index
                                   ? "border-primary ring-2 ring-primary/20"
-                                  : "border-gray-200 hover:border-gray-300"
+                                  : "border-border hover:border-border"
                               }`}
                               style={
                                 currentImageIndex === index
@@ -952,12 +953,12 @@ export function ProductDetailsDialog({
                       )}
                     </>
                   ) : (
-                    <div className="aspect-square w-full rounded-lg bg-gray-100 flex items-center justify-center">
+                    <div className="aspect-square w-full rounded-lg bg-muted flex items-center justify-center">
                       <p
-                        className="text-gray-500 text-sm md:text-base"
+                        className="text-muted-foreground text-sm md:text-base"
                         style={{ fontFamily }}
                       >
-                        No image available
+                        {i18nT("No image available")}
                       </p>
                     </div>
                   )}
@@ -999,7 +1000,7 @@ export function ProductDetailsDialog({
                         {priceData && priceData.effectivePrice != null ? (
                           <div className="flex items-center gap-2">
                             {priceData.isDiscounted && priceData.originalPrice && (
-                              <span className="text-sm line-through text-gray-400">
+                              <span className="text-sm line-through text-muted-foreground">
                                 {formatPrice(priceData.originalPrice)}
                               </span>
                             )}
@@ -1008,7 +1009,7 @@ export function ProductDetailsDialog({
                               style={{ color: primaryColor }}
                             >
                               {formatPrice(priceData.effectivePrice)}
-                              <span className="text-sm text-gray-500 font-normal ml-1">
+                              <span className="text-sm text-muted-foreground font-normal ml-1">
                                 / {displayMeasurement}
                               </span>
                             </span>
@@ -1086,7 +1087,7 @@ export function ProductDetailsDialog({
                                 )}
                               </span>
                               {optOutOfStock && (
-                                <span className="text-[10px] text-red-500">Out of stock</span>
+                                <span className="text-[10px] text-red-500">{i18nT("Out of stock")}</span>
                               )}
                             </Button>
                           );
@@ -1099,7 +1100,7 @@ export function ProductDetailsDialog({
                   {subcategories.length > 0 && (!hasOptions || selectedOption != null) && (
                     <div className="space-y-3">
                       <h3 className="font-semibold text-sm md:text-base">
-                        Available Options
+                        {i18nT("Available Options")}
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {subcategories.map((subcat: any, idx: number) => {
@@ -1160,7 +1161,7 @@ export function ProductDetailsDialog({
                                         ? "#fff"
                                         : "#222",
                                   }}
-                                  className="text-xs text-black mt-1 whitespace-normal break-words"
+                                  className="text-xs text-foreground mt-1 whitespace-normal break-words"
                                 >
                                   {subcat.description}
                                 </span>
@@ -1205,7 +1206,7 @@ export function ProductDetailsDialog({
                             </span>
                             <div className="flex items-center gap-2">
                               {variant.isDiscounted && (
-                                <span className="text-sm text-gray-400 line-through">
+                                <span className="text-sm text-muted-foreground line-through">
                                   {formatPrice(variant.price)}
                                 </span>
                               )}
@@ -1224,8 +1225,8 @@ export function ProductDetailsDialog({
 
                       {/* --- ADDED VARIANT DESCRIPTION HERE --- */}
                       {currentVariantDescription && (
-                        <div className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-100">
-                          <p className="text-sm text-gray-600">
+                        <div className="mt-2 p-2 bg-muted/50 rounded-md border border-border">
+                          <p className="text-sm text-muted-foreground">
                             {currentVariantDescription}
                           </p>
                         </div>
@@ -1237,7 +1238,7 @@ export function ProductDetailsDialog({
                   {hasProductVariants && !hasSubcategories && (!hasOptions || selectedOption != null) && (
                     <div className="space-y-3">
                       <h3 className="font-semibold text-sm md:text-base">
-                        Variants
+                        {i18nT("Variants")}
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {productVariants.map((variant: any, idx: number) => (
@@ -1266,7 +1267,7 @@ export function ProductDetailsDialog({
                             </span>
                             <div className="flex items-center gap-2">
                               {variant.isDiscounted && (
-                                <span className="text-sm text-gray-400 line-through">
+                                <span className="text-sm text-muted-foreground line-through">
                                   {formatPrice(variant.price)}
                                 </span>
                               )}
@@ -1283,8 +1284,8 @@ export function ProductDetailsDialog({
                       </div>
 
                       {currentVariantDescription && (
-                        <div className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-100">
-                          <p className="text-sm text-gray-600">
+                        <div className="mt-2 p-2 bg-muted/50 rounded-md border border-border">
+                          <p className="text-sm text-muted-foreground">
                             {currentVariantDescription}
                           </p>
                         </div>
@@ -1296,7 +1297,7 @@ export function ProductDetailsDialog({
                   {isInStock && (
                     <div className="space-y-4 pt-4">
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">Quantity:</span>
+                        <span className="text-sm font-medium">{i18nT("Quantity:")}</span>
                         <div className="flex items-center border rounded-md">
                           <Button
                             variant="ghost"
@@ -1358,7 +1359,7 @@ export function ProductDetailsDialog({
                           {addingToCart ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Adding to Cart...
+                              {i18nT("Adding to Cart...")}
                             </>
                           ) : (
                             <>
@@ -1378,7 +1379,7 @@ export function ProductDetailsDialog({
                             className="flex-1 sm:flex-initial text-sm"
                             style={blackTextBtnStyle}
                           >
-                            Go To Cart
+                            {i18nT("Go To Cart")}
                           </Button>
                         )}
                       </div>
@@ -1408,7 +1409,7 @@ export function ProductDetailsDialog({
                           style={blackTextBtnStyle}
                         >
                           <FaWhatsapp className="mr-2 h-4 w-4 text-green-600" />
-                          Contact via WhatsApp
+                          {i18nT("Contact via WhatsApp")}
                         </Button>
                       )}
                       <div className="flex flex-col sm:flex-row gap-2 pt-2">
@@ -1420,7 +1421,7 @@ export function ProductDetailsDialog({
                           className="flex-1 text-sm"
                           style={blackTextBtnStyle}
                         >
-                          Back to Store
+                          {i18nT("Back to Store")}
                         </Button>
                       </div>
                     </div>
@@ -1430,7 +1431,7 @@ export function ProductDetailsDialog({
                       <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center">
                         <XCircle className="h-5 w-5 text-red-500 mr-2" />
                         <p className="text-sm text-red-700">
-                          This product is currently out of stock.
+                          {i18nT("This product is currently out of stock.")}
                         </p>
                       </div>
                       <Button
@@ -1441,7 +1442,7 @@ export function ProductDetailsDialog({
                         className="w-full text-sm"
                         style={blackTextBtnStyle}
                       >
-                        Back to Store
+                        {i18nT("Back to Store")}
                       </Button>
                       {whatsAppNumber && (
                         <Button
@@ -1459,7 +1460,7 @@ export function ProductDetailsDialog({
                           style={blackTextBtnStyle}
                         >
                           <FaWhatsapp className="mr-2 h-4 w-4 text-green-600" />
-                          Ask About Availability
+                          {i18nT("Ask About Availability")}
                         </Button>
                       )}
                     </div>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Info, Loader2, Sparkles } from "lucide-react";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface RazorpayPlatformSetupProps {
@@ -41,7 +42,7 @@ export function RazorpayPlatformSetup({
       onStatusChange?.(data.enabled);
     } catch (err: any) {
       toast({
-        title: "Couldn't load Razorpay status",
+        title: i18nT("Couldn't load Razorpay status"),
         description: err.message,
         variant: "destructive",
       });
@@ -69,14 +70,13 @@ export function RazorpayPlatformSetup({
         throw new Error(data?.message || "Failed to enable Razorpay");
       }
       toast({
-        title: "Razorpay payments enabled",
-        description:
-          "Customers can now pay via KiosCart's secure checkout. Your earnings will be released by KiosCart admin.",
+        title: i18nT("Razorpay payments enabled"),
+        description: i18nT("Customers can now pay via KiosCart's secure checkout. Your earnings will be released by KiosCart admin."),
       });
       await load();
     } catch (err: any) {
       toast({
-        title: "Couldn't enable Razorpay",
+        title: i18nT("Couldn't enable Razorpay"),
         description: err.message,
         variant: "destructive",
       });
@@ -90,7 +90,7 @@ export function RazorpayPlatformSetup({
       <div className="py-8 text-center">
         <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
         <p className="text-sm text-muted-foreground mt-2">
-          Checking Razorpay status…
+          {i18nT("Checking Razorpay status…")}
         </p>
       </div>
     );
@@ -110,10 +110,10 @@ export function RazorpayPlatformSetup({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h4 className="font-semibold text-emerald-900">
-                  Razorpay Payments Active
+                  {i18nT("Razorpay Payments Active")}
                 </h4>
                 <Badge className="bg-emerald-600 hover:bg-emerald-700">
-                  Live
+                  {i18nT("Live")}
                 </Badge>
               </div>
               <p className="text-sm text-emerald-800 mt-1">
@@ -124,7 +124,7 @@ export function RazorpayPlatformSetup({
                 <li className="flex items-start gap-1.5">
                   <span className="font-bold">•</span>
                   <span>
-                    KiosCart's commission is deducted automatically per order.
+                    {i18nT("KiosCart's commission is deducted automatically per order.")}
                   </span>
                 </li>
                 <li className="flex items-start gap-1.5">
@@ -154,7 +154,7 @@ export function RazorpayPlatformSetup({
             </div>
             <div className="flex-1">
               <h4 className="font-semibold text-indigo-900">
-                Enable Razorpay Payments
+                {i18nT("Enable Razorpay Payments")}
               </h4>
               <p className="text-sm text-indigo-800 mt-1">
                 One click. No setup. No paperwork. KiosCart collects payments
@@ -168,10 +168,10 @@ export function RazorpayPlatformSetup({
                 {enabling ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Enabling…
+                    {i18nT("Enabling…")}
                   </>
                 ) : (
-                  <>Enable Razorpay Payments</>
+                  <>{i18nT("Enable Razorpay Payments")}</>
                 )}
               </Button>
             </div>
@@ -186,7 +186,7 @@ export function RazorpayPlatformSetup({
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
           <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-xs text-amber-900">
-            <span className="font-semibold">Legacy direct keys detected.</span>{" "}
+            <span className="font-semibold">{i18nT("Legacy direct keys detected.")}</span>{" "}
             Your shop has its own Razorpay keys from an earlier setup. They
             still work, but the platform model handles payouts more reliably.
             Switching is safe — your existing keys are kept for reference.

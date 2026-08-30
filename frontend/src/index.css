@@ -5,7 +5,24 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  /* Native dropdowns: the OS paints these from the element's own colours, so
+     they need explicit token-driven values or they stay white in dark mode.
+     Reading the tokens (not a fixed colour) keeps .storefront-light light. */
+  select option,
+  select optgroup {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+}
+
+@layer base {
+  /* The storefront is the merchant's own shop, painted in the colours they
+     picked in the customiser — the app's dark theme has no business there.
+     Anything inside .storefront-light re-declares the light palette, and
+     because custom properties inherit from the nearest ancestor that sets
+     them, that beats .dark up on <html> for the whole subtree. */
+  :root,
+  .storefront-light {
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
 

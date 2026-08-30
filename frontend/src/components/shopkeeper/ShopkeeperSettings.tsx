@@ -98,6 +98,7 @@ const modules = {
 import { useSubscription } from "@/context/SubscriptionContext";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 
+import { t as i18nT } from "@/i18n/t";
 interface ShopkeeperSettingsProps {
   onSave?: (settings: any) => void;
 }
@@ -158,15 +159,15 @@ function LockedSection({
         {children}
       </div>
       <div className="absolute inset-0 flex items-center justify-center z-10">
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-md border border-slate-200">
-          <Lock className="w-4 h-4 text-slate-500" />
-          <span className="text-sm font-medium text-slate-700">{label}</span>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card shadow-md border border-border">
+          <Lock className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">{label}</span>
           <button
             type="button"
             onClick={onUpgrade}
             className="text-xs font-semibold text-indigo-600 hover:underline"
           >
-            Upgrade
+            {i18nT("Upgrade")}
           </button>
         </div>
       </div>
@@ -329,7 +330,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       setChangePlanOpen(false);
       toast({ duration: 5000, title: "✅ Plan switched successfully" });
     } catch (err: any) {
-      toast({ duration: 5000, title: "Failed to switch plan", description: err.message });
+      toast({ duration: 5000, title: i18nT("Failed to switch plan"), description: err.message });
     } finally {
       setSwitchingPlanId(null);
     }
@@ -437,7 +438,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   //     await api.post(`/shopkeepers/${shopkeeperId}/bank-info`, encrypted);
 
   //     setBankInfo((prev) => ({ ...prev, isVerified: true }));
-  //     toast({ duration: 5000, title: "Bank details saved securely!" });
+  //     toast({ duration: 5000, title: i18nT("Bank details saved securely!") });
   //   } finally {
   //     setIsSavingBank(false);
   //   }
@@ -508,8 +509,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (!gstin) {
         toast({
           duration: 5000,
-          title: "Error",
-          description: "GST Number is required",
+          title: i18nT("Error"),
+          description: i18nT("GST Number is required"),
         });
         return;
       }
@@ -517,8 +518,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (!APPYFLOW_KEY) {
         toast({
           duration: 5000,
-          title: "Config error",
-          description: "AppyFlow API key not configured",
+          title: i18nT("Config error"),
+          description: i18nT("AppyFlow API key not configured"),
         });
         return;
       }
@@ -531,7 +532,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (!response.ok) {
         toast({
           duration: 5000,
-          title: "Verification failed",
+          title: i18nT("Verification failed"),
           description: `API error: ${response.status}`,
         });
         setGstValid(false);
@@ -546,7 +547,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
         toast({
           duration: 5000,
-          title: "GST Verified",
+          title: i18nT("GST Verified"),
           description: `Registered name: ${
             data.taxablePersonName || data.taxpayerInfo?.tradeNam || gstin
           }`,
@@ -578,16 +579,16 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         setGstValid(false);
         toast({
           duration: 5000,
-          title: "Invalid GST",
-          description: "GST number is not valid or inactive",
+          title: i18nT("Invalid GST"),
+          description: i18nT("GST number is not valid or inactive"),
         });
       }
     } catch (error) {
       console.error("GST verify error", error);
       toast({
         duration: 5000,
-        title: "Error",
-        description: "Something went wrong while verifying GST",
+        title: i18nT("Error"),
+        description: i18nT("Something went wrong while verifying GST"),
       });
     } finally {
       setLoading(false);
@@ -618,13 +619,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       toast({
         duration: 5000,
         title: "✓ UEN Verified",
-        description: "Your UEN number has been verified successfully",
+        description: i18nT("Your UEN number has been verified successfully"),
       });
     } catch (error: any) {
       setUenError(error.message || "Failed to verify UEN");
       toast({
         duration: 5000,
-        title: "Verification Failed",
+        title: i18nT("Verification Failed"),
         description: error.message,
         variant: "destructive",
       });
@@ -663,7 +664,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     if (!whatsappNumber) {
       toast({
         duration: 5000,
-        title: "Please enter WhatsApp number",
+        title: i18nT("Please enter WhatsApp number"),
         variant: "destructive",
       });
       return;
@@ -675,7 +676,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (!token) {
         toast({
           duration: 5000,
-          title: "Please login first",
+          title: i18nT("Please login first"),
           variant: "destructive",
         });
         return;
@@ -701,14 +702,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         setOtpSent(true);
         toast({
           duration: 5000,
-          title: "OTP Sent",
-          description: "Please check WhatsApp for OTP",
+          title: i18nT("OTP Sent"),
+          description: i18nT("Please check WhatsApp for OTP"),
         });
       } else if (data.alreadyVerified) {
         setWhatsappVerified(true);
         toast({
           duration: 5000,
-          title: "Already Verified",
+          title: i18nT("Already Verified"),
           description: data.message,
         });
       } else {
@@ -717,7 +718,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     } catch (err: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message,
         variant: "destructive",
       });
@@ -731,7 +732,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     if (!otp) {
       toast({
         duration: 5000,
-        title: "Please enter OTP",
+        title: i18nT("Please enter OTP"),
         variant: "destructive",
       });
       return;
@@ -743,7 +744,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (!token) {
         toast({
           duration: 5000,
-          title: "Please login first",
+          title: i18nT("Please login first"),
           variant: "destructive",
         });
         return;
@@ -779,14 +780,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         }));
         toast({
           duration: 5000,
-          title: "WhatsApp Verified",
-          description: "Number verified successfully",
+          title: i18nT("WhatsApp Verified"),
+          description: i18nT("Number verified successfully"),
         });
       } else if (data.alreadyVerified) {
         setWhatsappVerified(true);
         toast({
           duration: 5000,
-          title: "Already Verified",
+          title: i18nT("Already Verified"),
           description: data.message,
         });
       } else {
@@ -795,7 +796,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     } catch (err: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message,
         variant: "destructive",
       });
@@ -810,8 +811,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     if (!file.type.startsWith("image/")) {
       toast({
         duration: 5000,
-        title: "Invalid file",
-        description: "Only images are allowed",
+        title: i18nT("Invalid file"),
+        description: i18nT("Only images are allowed"),
         variant: "destructive",
       });
       return;
@@ -947,7 +948,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         setPaymentMethods((prev) => ({ ...prev, razorpayCards: !enabled }));
         toast({
           duration: 5000,
-          title: "Could not change setting",
+          title: i18nT("Could not change setting"),
           description: data?.message || "Try again",
           variant: "destructive",
         });
@@ -964,7 +965,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       setPaymentMethods((prev) => ({ ...prev, razorpayCards: !enabled }));
       toast({
         duration: 5000,
-        title: "Network error",
+        title: i18nT("Network error"),
         description: e?.message || "Could not save toggle.",
         variant: "destructive",
       });
@@ -1224,7 +1225,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     if (!operatorForm.name.trim() || !operatorForm.operatorEmail.trim()) {
       toast({
         duration: 3000,
-        title: "Name and email are required",
+        title: i18nT("Name and email are required"),
         variant: "destructive",
       });
       return;
@@ -1284,7 +1285,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     } catch (err: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message,
         variant: "destructive",
       });
@@ -1312,11 +1313,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       }
 
       await fetchOperators(shopkeeperId, token);
-      toast({ duration: 3000, title: "Operator deleted" });
+      toast({ duration: 3000, title: i18nT("Operator deleted") });
     } catch (err: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message,
         variant: "destructive",
       });
@@ -1385,9 +1386,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (paymentMethods.razorpayCards && !razorpayConfigured) {
         toast({
           duration: 6000,
-          title: "Razorpay not configured",
-          description:
-            "Enter your Razorpay Key ID and Secret in the Razorpay Payment Setup section, then click Save & Verify before saving the page.",
+          title: i18nT("Razorpay not configured"),
+          description: i18nT("Enter your Razorpay Key ID and Secret in the Razorpay Payment Setup section, then click Save & Verify before saving the page."),
           variant: "destructive",
         });
         return;
@@ -1397,8 +1397,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (!token) {
         toast({
           duration: 5000,
-          title: "Error",
-          description: "Please login",
+          title: i18nT("Error"),
+          description: i18nT("Please login"),
           variant: "destructive",
         });
         return;
@@ -1410,8 +1410,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       if (!id) {
         toast({
           duration: 5000,
-          title: "Error",
-          description: "Invalid session (no id)",
+          title: i18nT("Error"),
+          description: i18nT("Invalid session (no id)"),
           variant: "destructive",
         });
         return;
@@ -1525,14 +1525,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
       toast({
         duration: 5000,
-        title: "Saved",
-        description: "Profile updated successfully",
+        title: i18nT("Saved"),
+        description: i18nT("Profile updated successfully"),
       });
     } catch (e: any) {
       console.error("Save profile error", e);
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: e.message || "Failed to save profile",
         variant: "destructive",
       });
@@ -1556,14 +1556,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   //     });
   //     if (error) throw error;
   //     toast({ duration: 5000,
-  //       title: "Stripe Settings Saved",
-  //       description: "Your Stripe configuration has been updated successfully.",
+  //       title: i18nT("Stripe Settings Saved"),
+  //       description: i18nT("Your Stripe configuration has been updated successfully."),
   //     });
   //   } catch (error) {
   //     console.error("Error saving Stripe settings:", error);
   //     toast({ duration: 5000,
-  //       title: "Error",
-  //       description: "Failed to save Stripe settings. Please try again.",
+  //       title: i18nT("Error"),
+  //       description: i18nT("Failed to save Stripe settings. Please try again."),
   //       variant: "destructive",
   //     });
   //   } finally {
@@ -1765,13 +1765,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   }, []);
 
   const daysOfWeek = [
-    { key: "monday", label: "Monday" },
-    { key: "tuesday", label: "Tuesday" },
-    { key: "wednesday", label: "Wednesday" },
-    { key: "thursday", label: "Thursday" },
-    { key: "friday", label: "Friday" },
-    { key: "saturday", label: "Saturday" },
-    { key: "sunday", label: "Sunday" },
+    { key: "monday", label: i18nT("Monday") },
+    { key: "tuesday", label: i18nT("Tuesday") },
+    { key: "wednesday", label: i18nT("Wednesday") },
+    { key: "thursday", label: i18nT("Thursday") },
+    { key: "friday", label: i18nT("Friday") },
+    { key: "saturday", label: i18nT("Saturday") },
+    { key: "sunday", label: i18nT("Sunday") },
   ];
 
   return (
@@ -1779,9 +1779,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b py-4 -mx-6 px-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{i18nT("Settings")}</h1>
             <p className="text-muted-foreground max-w-md">
-              Configure your shop preferences and business settings
+              {i18nT("Configure your shop preferences and business settings")}
             </p>
           </div>
           {/* ✅ SAVE BUTTON */}
@@ -1790,7 +1790,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               onClick={handleSave}
               className="w-full sm:w-auto px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
-              Save Profile
+              {i18nT("Save Profile")}
             </Button>
           </div>
         </div>
@@ -1800,11 +1800,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         <TabsList className="flex w-full">
           <TabsTrigger value="profile" className="flex-1 flex items-center justify-center gap-2">
             <Store className="w-4 h-4" />
-            Profile
+            {i18nT("Profile")}
           </TabsTrigger>
           <TabsTrigger value="subscription" className="flex-1 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4" />
-            Subscription
+            {i18nT("Subscription")}
           </TabsTrigger>
           <TabsTrigger value="operator" className={`flex-1 flex items-center justify-center gap-2 ${!isModuleEnabled("operators") ? "opacity-50" : ""}`}>
             <UserPlus2 className="w-4 h-4" />
@@ -1813,7 +1813,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           </TabsTrigger>
           <TabsTrigger value="payments" className="flex-1 flex items-center justify-center gap-2">
             <CreditCard className="w-4 h-4" />
-            Payments
+            {i18nT("Payments")}
           </TabsTrigger>
           <TabsTrigger value="receipts" className={`flex-1 flex items-center justify-center gap-2 ${!isModuleEnabled("receipts") ? "opacity-50" : ""}`}>
             <ReceiptTextIcon className="w-4 h-4" />
@@ -1830,9 +1830,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         <TabsContent value="profile" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Shop Profile</CardTitle>
+              <CardTitle>{i18nT("Shop Profile")}</CardTitle>
               <CardDescription>
-                Manage shopkeeper details and public info
+                {i18nT("Manage shopkeeper details and public info")}
               </CardDescription>
             </CardHeader>
 
@@ -1851,10 +1851,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg text-green-800">
-                          Document Verified ✓
+                          {i18nT("Document Verified ✓")}
                         </h3>
                         <p className="text-sm text-green-600">
-                          Secure & protected
+                          {i18nT("Secure & protected")}
                         </p>
                       </div>
                     </div>
@@ -1874,19 +1874,19 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         setUenError("");
                       }}
                     >
-                      Edit
+                      {i18nT("Edit")}
                     </Button> */}
                   </div>
 
                   {/* ✅ BLURRED COUNTRY - SHOW SELECTED VALUE */}
-                  <div className="grid gap-2 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <Label className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                  <div className="grid gap-2 p-4 bg-muted/50 border border-border rounded-lg">
+                    <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                       <Globe className="w-4 h-4" />
-                      Country
+                      {i18nT("Country")}
                     </Label>
-                    <div className="flex items-center gap-3 p-3 bg-white border rounded-md opacity-60">
-                      <Globe className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-700">
+                    <div className="flex items-center gap-3 p-3 bg-card border rounded-md opacity-60">
+                      <Globe className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium text-foreground">
                         {COUNTRIES.find((c) => c.code === selectedCountry)
                           ?.name || "India"}
                         (
@@ -1898,22 +1898,22 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   </div>
 
                   {/* ✅ BLURRED NUMBER - SHOW ACTUAL VALUE */}
-                  <div className="grid gap-2 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <Label className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                  <div className="grid gap-2 p-4 bg-muted/50 border border-border rounded-lg">
+                    <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                       <CreditCard className="w-4 h-4" />
                       {selectedCountry === "IN" ? "GST Number" : "UEN Number"}
                     </Label>
-                    <div className="flex items-center justify-between p-3 bg-white border rounded-md opacity-60">
+                    <div className="flex items-center justify-between p-3 bg-card border rounded-md opacity-60">
                       <div className="flex items-center gap-3">
-                        <CreditCard className="w-4 h-4 text-gray-400" />
-                        <span className="font-mono text-lg font-semibold text-gray-700 tracking-wider">
+                        <CreditCard className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-mono text-lg font-semibold text-foreground tracking-wider">
                           {selectedCountry === "IN"
                             ? shopProfile.GSTNumber
                             : shopProfile.UENNumber}
                         </span>
                       </div>
                       <Badge className="bg-green-100 text-green-800 border-green-200">
-                        Verified
+                        {i18nT("Verified")}
                       </Badge>
                     </div>
                   </div>
@@ -1928,7 +1928,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       className="flex items-center gap-2"
                     >
                       <Globe className="w-4 h-4" />
-                      Country
+                      {i18nT("Country")}
                     </Label>
                     <Select
                       value={selectedCountry}
@@ -1943,7 +1943,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       }}
                     >
                       <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select a country" />
+                        <SelectValue placeholder={i18nT("Select a country")} />
                       </SelectTrigger>
                       <SelectContent>
                         {COUNTRIES.map((country) => (
@@ -1963,7 +1963,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         className="flex items-center gap-2 font-semibold"
                       >
                         <CreditCard className="w-4 h-4" />
-                        GST Number (15 characters)
+                        {i18nT("GST Number (15 characters)")}
                       </Label>
                       <div className="flex gap-2">
                         <Input
@@ -1975,7 +1975,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               GSTNumber: e.target.value.toUpperCase(),
                             })
                           }
-                          placeholder="e.g., 22AABCT1234A1Z0"
+                          placeholder={i18nT("e.g., 22AABCT1234A1Z0")}
                           maxLength={15}
                           className="uppercase font-mono"
                           disabled={gstVerified}
@@ -2002,8 +2002,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                           it.
                         </p>
                       )}
-                      <p className="text-xs text-gray-600">
-                        Your GST Identification Number (GSTIN)
+                      <p className="text-xs text-muted-foreground">
+                        {i18nT("Your GST Identification Number (GSTIN)")}
                       </p>
                     </div>
                   )}
@@ -2016,7 +2016,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         className="flex items-center gap-2 font-semibold"
                       >
                         <CreditCard className="w-4 h-4" />
-                        UEN Number (9-10 characters)
+                        {i18nT("UEN Number (9-10 characters)")}
                       </Label>
                       <div className="flex gap-2">
                         <Input
@@ -2028,7 +2028,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               UENNumber: e.target.value.toUpperCase(),
                             })
                           }
-                          placeholder="e.g., 123456789A"
+                          placeholder={i18nT("e.g., 123456789A")}
                           maxLength={10}
                           className="uppercase font-mono"
                           disabled={uenVerified}
@@ -2053,8 +2053,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                           it.
                         </p>
                       )}
-                      <p className="text-xs text-gray-600">
-                        Your Unique Entity Number (UEN)
+                      <p className="text-xs text-muted-foreground">
+                        {i18nT("Your Unique Entity Number (UEN)")}
                       </p>
                     </div>
                   )}
@@ -2072,10 +2072,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg text-blue-800">
-                          Verification Details
+                          {i18nT("Verification Details")}
                         </h3>
                         <p className="text-sm text-blue-600">
-                          Official business information
+                          {i18nT("Official business information")}
                         </p>
                       </div>
                     </div>
@@ -2086,14 +2086,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Building className="w-5 h-5" />
-                        Business Information
+                        {i18nT("Business Information")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <span className="text-xs text-muted-foreground font-medium">
-                            Legal Name
+                            {i18nT("Legal Name")}
                           </span>
                           <p className="font-semibold">
                             {gstDetails.taxpayerInfo?.lgnm || "N/A"}
@@ -2101,7 +2101,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         </div>
                         <div>
                           <span className="text-xs text-muted-foreground font-medium">
-                            Trade Name
+                            {i18nT("Trade Name")}
                           </span>
                           <p className="font-semibold">
                             {gstDetails.taxpayerInfo?.tradeNam || "N/A"}
@@ -2109,7 +2109,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         </div>
                         <div>
                           <span className="text-xs text-muted-foreground font-medium">
-                            Status
+                            {i18nT("Status")}
                           </span>
                           <Badge className="bg-green-100 text-green-800">
                             {gstDetails.taxpayerInfo?.sts || "N/A"}
@@ -2117,7 +2117,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         </div>
                         <div>
                           <span className="text-xs text-muted-foreground font-medium">
-                            Entity Type
+                            {i18nT("Entity Type")}
                           </span>
                           <p>{gstDetails.taxpayerInfo?.ctb || "N/A"}</p>
                         </div>
@@ -2131,7 +2131,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         </div>
                         <div>
                           <span className="text-xs text-muted-foreground font-medium">
-                            Registered
+                            {i18nT("Registered")}
                           </span>
                           <p>{gstDetails.taxpayerInfo?.rgdt || "N/A"}</p>
                         </div>
@@ -2144,18 +2144,18 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <MapPin className="w-5 h-5" />
-                        Principal Address
+                        {i18nT("Principal Address")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
-                        <p className="font-mono text-sm tracking-wide text-gray-800">
+                        <p className="font-mono text-sm tracking-wide text-foreground">
                           {gstDetails.taxpayerInfo?.pradr?.addr?.bno || ""}{" "}
                           {gstDetails.taxpayerInfo?.pradr?.addr?.st || ""},{" "}
                           {gstDetails.taxpayerInfo?.pradr?.addr?.loc || ""},{" "}
                           {gstDetails.taxpayerInfo?.pradr?.addr?.dst || ""}
                         </p>
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {gstDetails.taxpayerInfo?.pradr?.addr?.stcd || ""} -{" "}
                           {gstDetails.taxpayerInfo?.pradr?.addr?.pncd || ""}
                         </p>
@@ -2163,13 +2163,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         <div>
                           <span className="text-muted-foreground font-medium">
-                            Jurisdiction
+                            {i18nT("Jurisdiction")}
                           </span>
                           <p>{gstDetails.taxpayerInfo?.stj || "N/A"}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground font-medium">
-                            Nature
+                            {i18nT("Nature")}
                           </span>
                           <p>{gstDetails.taxpayerInfo?.pradr?.ntr || "N/A"}</p>
                         </div>
@@ -2181,44 +2181,44 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               {/* OWNER NAME */}
               <div>
-                <Label>Owner Name</Label>
+                <Label>{i18nT("Owner Name")}</Label>
                 <Input
                   value={shopProfile.ownerName}
                   onChange={(e) =>
                     setShopProfile((p) => ({ ...p, ownerName: e.target.value }))
                   }
-                  placeholder="Owner full name"
+                  placeholder={i18nT("Owner full name")}
                 />
               </div>
 
               {/* SHOP NAME */}
               <div>
-                <Label>Shop Name</Label>
+                <Label>{i18nT("Shop Name")}</Label>
                 <Input
                   value={shopProfile.shopName}
                   onChange={(e) =>
                     setShopProfile((p) => ({ ...p, shopName: e.target.value }))
                   }
-                  placeholder="Business or storefront name"
+                  placeholder={i18nT("Business or storefront name")}
                 />
               </div>
 
               {/* PRIMARY EMAIL */}
               <div>
-                <Label>Primary Email</Label>
+                <Label>{i18nT("Primary Email")}</Label>
                 <Input
                   type="email"
                   value={shopProfile.email}
                   onChange={(e) =>
                     setShopProfile((p) => ({ ...p, email: e.target.value }))
                   }
-                  placeholder="owner@example.com"
+                  placeholder={i18nT("owner@example.com")}
                 />
               </div>
 
               {/* BUSINESS EMAIL */}
               <div>
-                <Label>Business Email</Label>
+                <Label>{i18nT("Business Email")}</Label>
                 <Input
                   type="email"
                   value={shopProfile.businessEmail}
@@ -2228,17 +2228,17 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       businessEmail: e.target.value,
                     }))
                   }
-                  placeholder="business@example.com"
+                  placeholder={i18nT("business@example.com")}
                 />
               </div>
 
               {/* WhatsApp Number with Country Code and Verification */}
               <div>
                 <Label className="flex items-center justify-between mb-2">
-                  <span>WhatsApp Number *</span>
+                  <span>{i18nT("WhatsApp Number *")}</span>
                   {whatsappVerified && (
                     <Badge variant="default" className="ml-2">
-                      Verified
+                      {i18nT("Verified")}
                     </Badge>
                   )}
                 </Label>
@@ -2246,12 +2246,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   <div className="w-32">
                     <Select value={countryCode} onValueChange={setCountryCode}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Code" />
+                        <SelectValue placeholder={i18nT("Code")} />
                       </SelectTrigger>
                       <SelectContent>
                         {loadingCountries ? (
                           <SelectItem value="loading" disabled>
-                            Loading...
+                            {i18nT("Loading...")}
                           </SelectItem>
                         ) : (
                           countries
@@ -2275,7 +2275,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   <Input
                     type="tel"
                     maxLength={10}
-                    placeholder="Enter number"
+                    placeholder={i18nT("Enter number")}
                     value={whatsappNumber}
                     onChange={(e) =>
                       setWhatsappNumber(e.target.value.replace(/\D/g, ""))
@@ -2287,7 +2287,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               {/* PHONE */}
               <div>
-                <Label>Phone</Label>
+                <Label>{i18nT("Phone")}</Label>
                 <Input
                   value={shopProfile.phone}
                   onChange={(e) =>
@@ -2299,19 +2299,19 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               {/* ADDRESS */}
               <div className="md:col-span-2">
-                <Label>Address</Label>
+                <Label>{i18nT("Address")}</Label>
                 <Textarea
                   value={shopProfile.address}
                   onChange={(e) =>
                     setShopProfile((p) => ({ ...p, address: e.target.value }))
                   }
-                  placeholder="Full business address"
+                  placeholder={i18nT("Full business address")}
                 />
               </div>
 
               {/* BUSINESS CATEGORY */}
               <div className="md:col-span-2">
-                <Label>Business Category</Label>
+                <Label>{i18nT("Business Category")}</Label>
                 <Select
                   value={shopProfile.businessCategory}
                   onValueChange={(val) =>
@@ -2319,23 +2319,23 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
+                    <SelectValue placeholder={i18nT("Select a category")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Technology">Technology</SelectItem>
-                    <SelectItem value="Music">Music</SelectItem>
-                    <SelectItem value="Food">Food</SelectItem>
-                    <SelectItem value="Sports">Sports</SelectItem>
-                    <SelectItem value="Arts">Arts</SelectItem>
-                    <SelectItem value="Fashion">Fashion</SelectItem>
-                    <SelectItem value="Electronics">Electronics</SelectItem>
+                    <SelectItem value="Technology">{i18nT("Technology")}</SelectItem>
+                    <SelectItem value="Music">{i18nT("Music")}</SelectItem>
+                    <SelectItem value="Food">{i18nT("Food")}</SelectItem>
+                    <SelectItem value="Sports">{i18nT("Sports")}</SelectItem>
+                    <SelectItem value="Arts">{i18nT("Arts")}</SelectItem>
+                    <SelectItem value="Fashion">{i18nT("Fashion")}</SelectItem>
+                    <SelectItem value="Electronics">{i18nT("Electronics")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* TAX PERCENTAGE */}
               <div>
-                <Label>Tax %</Label>
+                <Label>{i18nT("Tax %")}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -2348,12 +2348,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       taxPercentage: parseFloat(e.target.value),
                     }))
                   }
-                  placeholder="e.g., 5.0"
+                  placeholder={i18nT("e.g., 5.0")}
                 />
               </div>
 
               <div>
-                <Label>Overall Shop Based Discount Percentage %</Label>
+                <Label>{i18nT("Overall Shop Based Discount Percentage %")}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -2366,7 +2366,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       discountPercentage: parseFloat(e.target.value),
                     }))
                   }
-                  placeholder="e.g., 5.0"
+                  placeholder={i18nT("e.g., 5.0")}
                 />
               </div>
 
@@ -2374,9 +2374,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <div className="md:col-span-2 space-y-4 border rounded-lg p-4 bg-muted/20">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="font-medium">Offer delivery</Label>
+                    <Label className="font-medium">{i18nT("Offer delivery")}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Turn off to make every delivery order free (no fee applied).
+                      {i18nT("Turn off to make every delivery order free (no fee applied).")}
                     </p>
                   </div>
                   <Switch
@@ -2390,7 +2390,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 {shopProfile.deliveryEnabled && (
                   <div className="space-y-3 pt-2 border-t">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">Delivery fee by subtotal</Label>
+                      <Label className="text-sm font-medium">{i18nT("Delivery fee by subtotal")}</Label>
                       <Button
                         type="button"
                         size="sm"
@@ -2409,19 +2409,19 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Each row: "if order subtotal is at least <b>min</b>, charge <b>fee</b>". The rule with the
+                      Each row: "if order subtotal is at least <b>{i18nT("min")}</b>, charge <b>{i18nT("fee")}</b>". The rule with the
                       highest matching min wins, so you can do things like "₹50 up to 300, ₹20 from 300, free from 500".
                     </p>
                     {(shopProfile.deliveryRules || []).length === 0 ? (
                       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                        No conditions yet — delivery is free by default until you add one.
+                        {i18nT("No conditions yet — delivery is free by default until you add one.")}
                       </p>
                     ) : (
                       <div className="space-y-2">
                         {(shopProfile.deliveryRules || []).map((rule, idx) => (
                           <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
                             <div>
-                              <Label className="text-xs text-slate-500">Min subtotal</Label>
+                              <Label className="text-xs text-muted-foreground">{i18nT("Min subtotal")}</Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -2438,7 +2438,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               />
                             </div>
                             <div>
-                              <Label className="text-xs text-slate-500">Fee</Label>
+                              <Label className="text-xs text-muted-foreground">{i18nT("Fee")}</Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -2467,7 +2467,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                 })
                               }
                             >
-                              Remove
+                              {i18nT("Remove")}
                             </Button>
                           </div>
                         ))}
@@ -2481,9 +2481,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <div className="md:col-span-2 space-y-4 border rounded-lg p-4 bg-muted/20">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="font-medium">Require Pickup Date & Time</Label>
+                    <Label className="font-medium">{i18nT("Require Pickup Date & Time")}</Label>
                     <p className="text-xs text-muted-foreground">
-                      If enabled, customers must select a pickup date and time during checkout
+                      {i18nT("If enabled, customers must select a pickup date and time during checkout")}
                     </p>
                   </div>
                   <Switch
@@ -2496,9 +2496,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
                 {shopProfile.pickupDateRequired ? (
                   <div className="space-y-2">
-                    <Label className="text-sm">Minimum Lead Days</Label>
+                    <Label className="text-sm">{i18nT("Minimum Lead Days")}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Earliest pickup date will be this many days from today (e.g. 2 = day after tomorrow)
+                      {i18nT("Earliest pickup date will be this many days from today (e.g. 2 = day after tomorrow)")}
                     </p>
                     <Input
                       type="number"
@@ -2513,7 +2513,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Label className="text-sm">Checkout Message</Label>
+                    <Label className="text-sm">{i18nT("Checkout Message")}</Label>
                     <p className="text-xs text-muted-foreground">
                       This message is shown to customers instead of date/time picker (e.g. "We'll contact you to arrange delivery")
                     </p>
@@ -2532,9 +2532,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               {/* VOICE ACCESS */}
               <div className="md:col-span-2 flex items-center justify-between p-4 border rounded-lg bg-muted/20">
                 <div>
-                  <Label className="font-medium">Voice Access (KiosAI)</Label>
+                  <Label className="font-medium">{i18nT("Voice Access (KiosAI)")}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Enable "Hey Kios" voice command to open the chatbot hands-free
+                    {i18nT("Enable \"Hey Kios\" voice command to open the chatbot hands-free")}
                   </p>
                 </div>
                 <Switch
@@ -2547,12 +2547,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               {/* SHOP HOLIDAY PERIOD */}
               <div className="md:col-span-2">
-                <Label className="font-medium">Shop Holiday Period</Label>
+                <Label className="font-medium">{i18nT("Shop Holiday Period")}</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* From Date */}
                   <div className="space-y-2">
                     <Label className="text-sm text-muted-foreground">
-                      Closed From
+                      {i18nT("Closed From")}
                     </Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -2566,7 +2566,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                           {shopClosedFromDate ? (
                             format(shopClosedFromDate, "PPP")
                           ) : (
-                            <span>Pick start date</span>
+                            <span>{i18nT("Pick start date")}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -2587,7 +2587,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   {/* To Date */}
                   <div className="space-y-2">
                     <Label className="text-sm text-muted-foreground">
-                      Closed To
+                      {i18nT("Closed To")}
                     </Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -2602,7 +2602,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                           {shopClosedToDate ? (
                             format(shopClosedToDate, "PPP")
                           ) : (
-                            <span>Pick end date</span>
+                            <span>{i18nT("Pick end date")}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -2618,7 +2618,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     </Popover>
                     {!shopClosedFromDate && (
                       <p className="text-xs text-muted-foreground">
-                        Select start date first
+                        {i18nT("Select start date first")}
                       </p>
                     )}
                   </div>
@@ -2641,7 +2641,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     }}
                     className="mt-2"
                   >
-                    Clear Holiday Dates
+                    {i18nT("Clear Holiday Dates")}
                   </Button>
                 )}
 
@@ -2673,7 +2673,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               {/* DESCRIPTION */}
               <div className="md:col-span-2">
-                <Label>Description</Label>
+                <Label>{i18nT("Description")}</Label>
                 <Textarea
                   value={shopProfile.description}
                   onChange={(e) =>
@@ -2682,13 +2682,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       description: e.target.value,
                     }))
                   }
-                  placeholder="Tell customers about your shop and services"
+                  placeholder={i18nT("Tell customers about your shop and services")}
                 />
               </div>
 
               <div className="md:col-span-2">
-                <Label className="mb-2 block">Terms & Conditions</Label>
-                <div className="bg-white dark:bg-slate-950 rounded-md">
+                <Label className="mb-2 block">{i18nT("Terms & Conditions")}</Label>
+                <div className="bg-card dark:bg-slate-950 rounded-md">
                   <ReactQuill
                     theme="snow"
                     value={shopProfile.termsAndConditions || ""}
@@ -2699,8 +2699,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         termsAndConditions: content,
                       }))
                     }
-                    placeholder="e.g. 1. Goods once sold are not returnable."
-                    className="[&_.ql-editor]:min-h-[150px] [&_.ql-container]:rounded-b-md [&_.ql-toolbar]:rounded-t-md text-black dark:text-white"
+                    placeholder={i18nT("e.g. 1. Goods once sold are not returnable.")}
+                    className="[&_.ql-editor]:min-h-[150px] [&_.ql-container]:rounded-b-md [&_.ql-toolbar]:rounded-t-md text-foreground dark:text-white"
                   />
                 </div>
                 {/* <p className="text-xs text-muted-foreground mt-2">
@@ -2711,9 +2711,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               {/* PAYMENT QR */}
               {/* <div className="md:col-span-2">
-                <Label>Payment QR</Label>
+                <Label>{i18nT("Payment QR")}</Label>
                 <div className="flex flex-col md:flex-row gap-4 items-start">
-                  <div className="w-48 h-48 rounded-md border flex items-center justify-center overflow-hidden bg-white">
+                  <div className="w-48 h-48 rounded-md border flex items-center justify-center overflow-hidden bg-card">
                     {paymentQrPreview ? (
                       <img
                         src={paymentQrPreview}
@@ -2728,7 +2728,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       />
                     ) : (
                       <span className="text-xs text-muted-foreground px-2 text-center">
-                        No QR uploaded
+                        {i18nT("No QR uploaded")}
                       </span>
                     )}
                   </div>
@@ -2745,18 +2745,18 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         onClick={removePaymentQr}
                         disabled={!paymentQrPreview && !shopProfile.paymentURL}
                       >
-                        Remove
+                        {i18nT("Remove")}
                       </Button>
                     </div>
                     {shopProfile.paymentURL && (
                       <div>
-                        <Label>Public URL</Label>
+                        <Label>{i18nT("Public URL")}</Label>
                         <Input
                           value={`${apiURL}${shopProfile.paymentURL}`}
                           readOnly
                         />
                         <p className="text-xs text-muted-foreground">
-                          Copy and use this URL to view or embed your QR image.
+                          {i18nT("Copy and use this URL to view or embed your QR image.")}
                         </p>
                       </div>
                     )}
@@ -2773,9 +2773,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         <TabsContent value="subscription" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Subscription Plan</CardTitle>
+              <CardTitle>{i18nT("Subscription Plan")}</CardTitle>
               <CardDescription>
-                Your current plan and what's included
+                {i18nT("Your current plan and what's included")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -2785,11 +2785,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 </div>
               ) : !subscription?.subscribed ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-lg font-medium">No Active Plan</p>
-                  <p className="text-sm mt-1 mb-4">Choose a plan to get started.</p>
+                  <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-lg font-medium">{i18nT("No Active Plan")}</p>
+                  <p className="text-sm mt-1 mb-4">{i18nT("Choose a plan to get started.")}</p>
                   <Button onClick={openChangePlan} className="bg-indigo-600 hover:bg-indigo-700">
-                    Browse Plans
+                    {i18nT("Browse Plans")}
                   </Button>
                 </div>
               ) : (
@@ -2815,19 +2815,19 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         onClick={openChangePlan}
                         className="bg-indigo-600 hover:bg-indigo-700"
                       >
-                        Change Plan
+                        {i18nT("Change Plan")}
                       </Button>
                     </div>
                   </div>
                   {subscription.inGracePeriod && (
                     <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
-                      Your plan expired. You have <strong>{subscription.graceDaysLeft} day{subscription.graceDaysLeft === 1 ? "" : "s"}</strong> to renew before being downgraded to the default plan. Products exceeding the new limit will be hidden.
+                      Your plan expired. You have <strong>{subscription.graceDaysLeft} day{subscription.graceDaysLeft === 1 ? "" : "s"}</strong> {i18nT("to renew before being downgraded to the default plan. Products exceeding the new limit will be hidden.")}
                     </div>
                   )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-3 rounded-lg border">
-                      <p className="text-xs text-muted-foreground">Start Date</p>
+                      <p className="text-xs text-muted-foreground">{i18nT("Start Date")}</p>
                       <p className="font-medium">
                         {subscription.planStartDate
                           ? new Date(subscription.planStartDate).toLocaleDateString("en-US", {
@@ -2837,7 +2837,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       </p>
                     </div>
                     <div className="p-3 rounded-lg border">
-                      <p className="text-xs text-muted-foreground">Expiry Date</p>
+                      <p className="text-xs text-muted-foreground">{i18nT("Expiry Date")}</p>
                       <p className="font-medium">
                         {subscription.planExpiryDate
                           ? new Date(subscription.planExpiryDate).toLocaleDateString("en-US", {
@@ -2850,7 +2850,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
                   {subscription.features?.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-semibold mb-2">Features</h4>
+                      <h4 className="text-sm font-semibold mb-2">{i18nT("Features")}</h4>
                       <div className="flex flex-wrap gap-2">
                         {subscription.features.map((f: string, i: number) => (
                           <Badge key={i} variant="secondary">{f}</Badge>
@@ -2861,56 +2861,56 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
                   {subscription.modules && Object.keys(subscription.modules).length > 0 && (
                     <div>
-                      <h4 className="text-sm font-semibold mb-3">Modules</h4>
+                      <h4 className="text-sm font-semibold mb-3">{i18nT("Modules")}</h4>
                       <div className="space-y-2">
                         {[
-                          { label: "Product Management", color: "blue", items: [
-                            { key: "products", label: "Products" },
+                          { label: i18nT("Product Management"), color: "blue", items: [
+                            { key: "products", label: i18nT("Products") },
                             { key: "bulkImport", label: "Bulk Import / Export" },
                           ]},
-                          { label: "Order Management", color: "amber", items: [
-                            { key: "orders", label: "Orders" },
-                            { key: "receipts", label: "Receipt Printing" },
+                          { label: i18nT("Order Management"), color: "amber", items: [
+                            { key: "orders", label: i18nT("Orders") },
+                            { key: "receipts", label: i18nT("Receipt Printing") },
                           ]},
-                          { label: "Online Storefront", color: "emerald", items: [
-                            { key: "storefront", label: "Storefront" },
-                            { key: "customDomain", label: "Custom Domain" },
-                            { key: "instagram", label: "Instagram Integration" },
-                            { key: "videoSection", label: "Video Section" },
-                            { key: "ourStory", label: "Our Story Section" },
+                          { label: i18nT("Online Storefront"), color: "emerald", items: [
+                            { key: "storefront", label: i18nT("Storefront") },
+                            { key: "customDomain", label: i18nT("Custom Domain") },
+                            { key: "instagram", label: i18nT("Instagram Integration") },
+                            { key: "videoSection", label: i18nT("Video Section") },
+                            { key: "ourStory", label: i18nT("Our Story Section") },
                           ]},
-                          { label: "Analytics", color: "purple", items: [
-                            { key: "analytics", label: "Analytics & Reports" },
+                          { label: i18nT("Analytics"), color: "purple", items: [
+                            { key: "analytics", label: i18nT("Analytics & Reports") },
                           ]},
-                          { label: "Payments", color: "indigo", items: [
-                            { key: "staticQR", label: "Static QR" },
-                            { key: "dynamicQR", label: "Dynamic QR" },
-                            { key: "paymentTracking", label: "Payment Tracking (Gmail)" },
-                            { key: "razorpay", label: "Card Payments (Razorpay)" },
+                          { label: i18nT("Payments"), color: "indigo", items: [
+                            { key: "staticQR", label: i18nT("Static QR") },
+                            { key: "dynamicQR", label: i18nT("Dynamic QR") },
+                            { key: "paymentTracking", label: i18nT("Payment Tracking (Gmail)") },
+                            { key: "razorpay", label: i18nT("Card Payments (Razorpay)") },
                           ]},
                           { label: "CRM / Customers", color: "pink", items: [
-                            { key: "crm", label: "Customer Management" },
+                            { key: "crm", label: i18nT("Customer Management") },
                           ]},
-                          { label: "Coupons", color: "orange", items: [
-                            { key: "coupons", label: "Coupon Management" },
+                          { label: i18nT("Coupons"), color: "orange", items: [
+                            { key: "coupons", label: i18nT("Coupon Management") },
                           ]},
-                          { label: "Kiosk Mode", color: "cyan", items: [
+                          { label: i18nT("Kiosk Mode"), color: "cyan", items: [
                             { key: "kiosk", label: "Kiosk / POS Mode" },
                           ]},
-                          { label: "Operators", color: "rose", items: [
-                            { key: "operators", label: "Multi-User Operators" },
+                          { label: i18nT("Operators"), color: "rose", items: [
+                            { key: "operators", label: i18nT("Multi-User Operators") },
                           ]},
-                          { label: "Communication", color: "green", items: [
-                            { key: "whatsappQR", label: "WhatsApp QR" },
-                            { key: "chatbot", label: "Smart Assistant" },
+                          { label: i18nT("Communication"), color: "green", items: [
+                            { key: "whatsappQR", label: i18nT("WhatsApp QR") },
+                            { key: "chatbot", label: i18nT("Smart Assistant") },
                           ]},
                         ].map((group) => {
                           const groupHasAny = group.items.some((i) => subscription.modules[i.key]?.enabled);
                           if (!groupHasAny) return (
-                            <div key={group.label} className="rounded-lg border border-gray-200 bg-gray-50 p-3 opacity-60">
+                            <div key={group.label} className="rounded-lg border border-border bg-muted/50 p-3 opacity-60">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-500">{group.label}</span>
-                                <Badge variant="secondary" className="text-xs">OFF</Badge>
+                                <span className="text-sm font-medium text-muted-foreground">{group.label}</span>
+                                <Badge variant="secondary" className="text-xs">{i18nT("OFF")}</Badge>
                               </div>
                             </div>
                           );
@@ -2959,10 +2959,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <UserPlus2 className="w-5 h-5" />
-                Operator Settings
+                {i18nT("Operator Settings")}
               </CardTitle>
               <CardDescription>
-                Create and manage your shop operators here
+                {i18nT("Create and manage your shop operators here")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -2989,13 +2989,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   }}
                 >
                   <UserPlus2 className="w-4 h-4 mr-2" />
-                  Add Operator
+                  {i18nT("Add Operator")}
                 </Button>
               </div>
 
               {operators.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground">
-                  No Operators Found. Add your first operator.
+                  {i18nT("No Operators Found. Add your first operator.")}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -3058,14 +3058,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     : "Add Operator"}
                 </DialogTitle>
                 <DialogDescription>
-                  Operators can manage orders on behalf of your shop.
+                  {i18nT("Operators can manage orders on behalf of your shop.")}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-2">
                 <div className="space-y-1">
-                  <Label>Operator Name *</Label>
+                  <Label>{i18nT("Operator Name *")}</Label>
                   <Input
-                    placeholder="e.g. John Doe"
+                    placeholder={i18nT("e.g. John Doe")}
                     value={operatorForm.name}
                     onChange={(e) =>
                       setOperatorForm((prev) => ({
@@ -3076,10 +3076,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Operator Email *</Label>
+                  <Label>{i18nT("Operator Email *")}</Label>
                   <Input
                     type="email"
-                    placeholder="e.g. operator@example.com"
+                    placeholder={i18nT("e.g. operator@example.com")}
                     value={operatorForm.operatorEmail}
                     onChange={(e) =>
                       setOperatorForm((prev) => ({
@@ -3105,7 +3105,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-muted-foreground" />
                     <div className="text-left">
-                      <p className="text-sm font-semibold">Tab Access Permissions</p>
+                      <p className="text-sm font-semibold">{i18nT("Tab Access Permissions")}</p>
                       <p className="text-xs text-muted-foreground">
                         {operatorForm.accessTabs.length} of {ALL_TABS.length} tabs enabled
                       </p>
@@ -3155,16 +3155,16 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Palette className="w-5 h-5" />
-                  Store Branding
+                  {i18nT("Store Branding")}
                 </CardTitle>
                 <CardDescription>
-                  Customize your store's appearance and colors
+                  {i18nT("Customize your store's appearance and colors")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label>Primary Color</Label>
+                    <Label>{i18nT("Primary Color")}</Label>
                     <Input
                       type="color"
                       value={branding.primaryColor}
@@ -3177,7 +3177,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     />
                   </div>
                   <div>
-                    <Label>Secondary Color</Label>
+                    <Label>{i18nT("Secondary Color")}</Label>
                     <Input
                       type="color"
                       value={branding.secondaryColor}
@@ -3201,16 +3201,16 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5" />
-                  Product Settings
+                  {i18nT("Product Settings")}
                 </CardTitle>
                 <CardDescription>
-                  Configure product management options
+                  {i18nT("Configure product management options")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label>Default Currency</Label>
+                    <Label>{i18nT("Default Currency")}</Label>
                     <Select
                       value={productSettings.defaultCurrency}
                       onValueChange={(value) =>
@@ -3232,7 +3232,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     </Select>
                   </div>
                   <div>
-                    <Label>Tax Rate (%)</Label>
+                    <Label>{i18nT("Tax Rate (%)")}</Label>
                     <Input
                       type="number"
                       step="0.1"
@@ -3258,12 +3258,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             label="Static QR — not in your plan"
             onUpgrade={openChangePlan}
           ><>
-          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
+          <div className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition bg-card">
             <div className="flex items-center gap-3">
               <QrCode className="w-5 h-5 text-blue-600" />
               <div>
-                <Label className="font-semibold text-slate-900">
-                  Static QR Code
+                <Label className="font-semibold text-foreground">
+                  {i18nT("Static QR Code")}
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   Upload a UPI/PayNow QR for offline scan payments
@@ -3288,16 +3288,16 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-blue-900">
                   <QrCode className="w-5 h-5" />
-                  Upload Static QR
+                  {i18nT("Upload Static QR")}
                 </CardTitle>
                 <CardDescription>
-                  PNG or JPG format, recommended 512×512px
+                  {i18nT("PNG or JPG format, recommended 512×512px")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-col md:flex-row gap-6 items-start">
                   {/* QR PREVIEW */}
-                  <div className="w-48 h-48 rounded-lg border-2 border-blue-300 flex items-center justify-center overflow-hidden bg-white flex-shrink-0">
+                  <div className="w-48 h-48 rounded-lg border-2 border-blue-300 flex items-center justify-center overflow-hidden bg-card flex-shrink-0">
                     {paymentQrPreview ? (
                       <img
                         src={paymentQrPreview}
@@ -3316,7 +3316,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       <div className="text-center">
                         <Upload className="w-8 h-8 text-blue-300 mx-auto mb-2" />
                         <span className="text-xs text-muted-foreground">
-                          No QR uploaded
+                          {i18nT("No QR uploaded")}
                         </span>
                       </div>
                     )}
@@ -3326,7 +3326,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   <div className="flex-1 space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="staticQrUpload" className="font-semibold">
-                        Choose QR Image
+                        {i18nT("Choose QR Image")}
                       </Label>
                       <Input
                         id="staticQrUpload"
@@ -3336,14 +3336,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         className="cursor-pointer"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Max 5MB. PNG or JPG recommended.
+                        {i18nT("Max 5MB. PNG or JPG recommended.")}
                       </p>
                     </div>
 
                     {shopProfile?.paymentURL && (
-                      <div className="space-y-2 p-3 bg-white rounded-lg border border-blue-200">
-                        <p className="text-xs font-semibold text-slate-900">
-                          Public URL (Read-only)
+                      <div className="space-y-2 p-3 bg-card rounded-lg border border-blue-200">
+                        <p className="text-xs font-semibold text-foreground">
+                          {i18nT("Public URL (Read-only)")}
                         </p>
                         <Input
                           value={`${apiURL}${shopProfile.paymentURL}`}
@@ -3360,7 +3360,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                             toast({ duration: 5000, title: "✅ URL copied" });
                           }}
                         >
-                          Copy URL
+                          {i18nT("Copy URL")}
                         </Button>
                       </div>
                     )}
@@ -3377,15 +3377,15 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             label="Dynamic QR — not in your plan"
             onUpgrade={openChangePlan}
           ><>
-          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
+          <div className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition bg-card">
             <div className="flex items-center gap-3">
               <Zap className="w-5 h-5 text-amber-600" />
               <div>
-                <Label className="font-semibold text-slate-900">
-                  Dynamic QR Code
+                <Label className="font-semibold text-foreground">
+                  {i18nT("Dynamic QR Code")}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Auto-generate QR with exact amount at checkout
+                  {i18nT("Auto-generate QR with exact amount at checkout")}
                 </p>
               </div>
             </div>
@@ -3407,7 +3407,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-amber-900">
                   <Zap className="w-5 h-5" />
-                  Dynamic QR Configuration
+                  {i18nT("Dynamic QR Configuration")}
                 </CardTitle>
                 <CardDescription>
                   QR codes auto-generate at checkout with exact order amount. To
@@ -3423,21 +3423,21 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* HOW IT WORKS */}
-                <div className="bg-white border border-amber-200 rounded-lg p-4">
+                <div className="bg-card border border-amber-200 rounded-lg p-4">
                   <div className="flex gap-3">
                     <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-amber-900 space-y-2">
-                      <p className="font-semibold">How Dynamic QR works:</p>
+                      <p className="font-semibold">{i18nT("How Dynamic QR works:")}</p>
                       <ul className="list-disc list-inside text-xs space-y-1">
                         <li>
                           When customer checks out, unique QR generates with
                           exact amount
                         </li>
                         <li>
-                          Customer scans to pay precise amount (no manual entry)
+                          {i18nT("Customer scans to pay precise amount (no manual entry)")}
                         </li>
-                        <li>Works with UPI (Google Pay, PhonePe, Paytm)</li>
-                        {/* <li>Also works with PayNow (Singapore)</li> */}
+                        <li>{i18nT("Works with UPI (Google Pay, PhonePe, Paytm)")}</li>
+                        {/* <li>{i18nT("Also works with PayNow (Singapore)")}</li> */}
                       </ul>
                     </div>
                   </div>
@@ -3448,15 +3448,15 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           </></LockedSection>
 
           {/* CARD PAYMENTS TOGGLE */}
-          {/* <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
+          {/* <div className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition bg-card">
             <div className="flex items-center gap-3">
               <CreditCard className="w-5 h-5 text-emerald-600" />
               <div>
-                <Label className="font-semibold text-slate-900">
-                  Card Payments
+                <Label className="font-semibold text-foreground">
+                  {i18nT("Card Payments")}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Accept Visa, Mastercard, Amex via Stripe
+                  {i18nT("Accept Visa, Mastercard, Amex via Stripe")}
                 </p>
               </div>
             </div>
@@ -3479,20 +3479,20 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           ><>
           {/* 🔘 RAZORPAY CARD PAYMENTS TOGGLE — controls customer visibility.
               When configured, persists immediately to backend via PATCH. */}
-          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition bg-white">
+          <div className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition bg-card">
             <div className="flex items-center gap-3">
               <CreditCard className="w-5 h-5 text-indigo-600" />
               <div>
-                <Label className="font-semibold text-slate-900 flex items-center gap-2">
+                <Label className="font-semibold text-foreground flex items-center gap-2">
                   Credit Cards Payments
                   {razorpayConfigured && paymentMethods.razorpayCards && (
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border border-green-200 text-[10px] uppercase tracking-wide">
-                      Live
+                      {i18nT("Live")}
                     </Badge>
                   )}
                   {razorpayConfigured && !paymentMethods.razorpayCards && (
-                    <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 text-[10px] uppercase tracking-wide">
-                      Configured · Off
+                    <Badge className="bg-muted text-foreground hover:bg-muted border border-border text-[10px] uppercase tracking-wide">
+                      {i18nT("Configured · Off")}
                     </Badge>
                   )}
                 </Label>
@@ -3531,7 +3531,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-indigo-900">
                   <CreditCard className="w-5 h-5" />
-                  Razorpay Payments
+                  {i18nT("Razorpay Payments")}
                 </CardTitle>
                 <CardDescription>
                   Accept cards, UPI and netbanking with your own Razorpay
@@ -3563,7 +3563,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-indigo-900">
                   <CreditCard className="w-5 h-5" />
-                  Razorpay Payment Setup (legacy)
+                  {i18nT("Razorpay Payment Setup (legacy)")}
                 </CardTitle>
                 <CardDescription>
                   Configure Razorpay to accept cards, UPI and netbanking from
@@ -3574,7 +3574,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardContent className="space-y-6">
                 {/* CONNECTION STATUS */}
                 {razorpaySettings?.isConnected ? (
-                  <div className="bg-white border border-indigo-200 rounded-lg p-4">
+                  <div className="bg-card border border-indigo-200 rounded-lg p-4">
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
                       <div>
@@ -3592,12 +3592,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white border border-indigo-200 rounded-lg p-4">
+                  <div className="bg-card border border-indigo-200 rounded-lg p-4">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
                         <p className="font-semibold text-indigo-900">
-                          Setup Card Payments for this shop
+                          {i18nT("Setup Card Payments for this shop")}
                         </p>
                         <p className="text-xs text-indigo-700 mt-1 mb-4">
                           Enter your business and bank details below. Your
@@ -3613,11 +3613,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               htmlFor="rzpBusinessName"
                               className="text-xs font-semibold"
                             >
-                              Business Name
+                              {i18nT("Business Name")}
                             </Label>
                             <Input
                               id="rzpBusinessName"
-                              placeholder="Registered business name"
+                              placeholder={i18nT("Registered business name")}
                               value={razorpaySettings.businessName || ""}
                               onChange={(e) =>
                                 setRazorpaySettings((prev) => ({
@@ -3634,7 +3634,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               htmlFor="rzpBusinessType"
                               className="text-xs font-semibold"
                             >
-                              Business Type
+                              {i18nT("Business Type")}
                             </Label>
                             <Select
                               value={razorpaySettings.businessType || "sole"}
@@ -3653,15 +3653,15 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="proprietorship">
-                                  Sole Proprietor
+                                  {i18nT("Sole Proprietor")}
                                 </SelectItem>
                                 <SelectItem value="partnership">
-                                  Partnership
+                                  {i18nT("Partnership")}
                                 </SelectItem>
                                 <SelectItem value="private_limited">
-                                  Private Limited
+                                  {i18nT("Private Limited")}
                                 </SelectItem>
-                                <SelectItem value="llp">LLP</SelectItem>
+                                <SelectItem value="llp">{i18nT("LLP")}</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -3674,11 +3674,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                   htmlFor="rzpPan"
                                   className="text-xs font-semibold"
                                 >
-                                  PAN Number
+                                  {i18nT("PAN Number")}
                                 </Label>
                                 <Input
                                   id="rzpPan"
-                                  placeholder="AAABP5055K"
+                                  placeholder={i18nT("AAABP5055K")}
                                   value={razorpaySettings.panNumber || ""}
                                   onChange={(e) =>
                                     setRazorpaySettings((prev) => ({
@@ -3701,7 +3701,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                   htmlFor="rzpGst"
                                   className="text-xs font-semibold"
                                 >
-                                  GST Number (Optional)
+                                  {i18nT("GST Number (Optional)")}
                                 </Label>
                                 <Input
                                   id="rzpGst"
@@ -3726,7 +3726,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                 htmlFor="rzpUen"
                                 className="text-xs font-semibold"
                               >
-                                UEN Number
+                                {i18nT("UEN Number")}
                               </Label>
                               <Input
                                 id="rzpUen"
@@ -3755,12 +3755,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               htmlFor="rzpEmail"
                               className="text-xs font-semibold"
                             >
-                              Business Email
+                              {i18nT("Business Email")}
                             </Label>
                             <Input
                               id="rzpEmail"
                               type="email"
-                              placeholder="billing@yourbusiness.com"
+                              placeholder={i18nT("billing@yourbusiness.com")}
                               value={razorpaySettings.businessEmail || ""}
                               onChange={(e) =>
                                 setRazorpaySettings((prev) => ({
@@ -3777,7 +3777,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               htmlFor="rzpPhone"
                               className="text-xs font-semibold"
                             >
-                              Business Phone
+                              {i18nT("Business Phone")}
                             </Label>
                             <Input
                               id="rzpPhone"
@@ -3799,11 +3799,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               htmlFor="rzpAccountHolder"
                               className="text-xs font-semibold"
                             >
-                              Account Holder Name
+                              {i18nT("Account Holder Name")}
                             </Label>
                             <Input
                               id="rzpAccountHolder"
-                              placeholder="Name on bank account"
+                              placeholder={i18nT("Name on bank account")}
                               value={razorpaySettings.accountHolderName || ""}
                               onChange={(e) =>
                                 setRazorpaySettings((prev) => ({
@@ -3820,7 +3820,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               htmlFor="rzpBankName"
                               className="text-xs font-semibold"
                             >
-                              Bank Name
+                              {i18nT("Bank Name")}
                             </Label>
                             <Select
                               value={razorpaySettings.bankName || ""}
@@ -3835,37 +3835,37 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                 id="rzpBankName"
                                 className="text-sm"
                               >
-                                <SelectValue placeholder="Select bank" />
+                                <SelectValue placeholder={i18nT("Select bank")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {shopProfile?.country === "IN" ? (
                                   <>
                                     <SelectItem value="HDFC">
-                                      HDFC Bank
+                                      {i18nT("HDFC Bank")}
                                     </SelectItem>
                                     <SelectItem value="ICICI">
-                                      ICICI Bank
+                                      {i18nT("ICICI Bank")}
                                     </SelectItem>
                                     <SelectItem value="SBI">
-                                      State Bank of India
+                                      {i18nT("State Bank of India")}
                                     </SelectItem>
                                     <SelectItem value="AXIS">
-                                      Axis Bank
+                                      {i18nT("Axis Bank")}
                                     </SelectItem>
                                     <SelectItem value="KOTAK">
-                                      Kotak Mahindra
+                                      {i18nT("Kotak Mahindra")}
                                     </SelectItem>
                                   </>
                                 ) : (
                                   <>
                                     <SelectItem value="DBS">
-                                      DBS Bank
+                                      {i18nT("DBS Bank")}
                                     </SelectItem>
                                     <SelectItem value="OCBC">
-                                      OCBC Bank
+                                      {i18nT("OCBC Bank")}
                                     </SelectItem>
                                     <SelectItem value="UOB">
-                                      UOB Bank
+                                      {i18nT("UOB Bank")}
                                     </SelectItem>
                                   </>
                                 )}
@@ -3878,12 +3878,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               htmlFor="rzpAccountNumber"
                               className="text-xs font-semibold"
                             >
-                              Account Number
+                              {i18nT("Account Number")}
                             </Label>
                             <Input
                               id="rzpAccountNumber"
                               type="password"
-                              placeholder="Your bank account number"
+                              placeholder={i18nT("Your bank account number")}
                               value={razorpaySettings.bankAccountNumber || ""}
                               onChange={(e) =>
                                 setRazorpaySettings((prev) => ({
@@ -3894,7 +3894,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                               className="text-sm font-mono"
                             />
                             <p className="text-xs text-muted-foreground">
-                              Encrypted and never shared
+                              {i18nT("Encrypted and never shared")}
                             </p>
                           </div>
 
@@ -3973,12 +3973,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                             {isConnectingRazorpay ? (
                               <>
                                 <Loader className="w-4 h-4 animate-spin mr-2" />
-                                Submitting details to Verify...
+                                {i18nT("Submitting details to Verify...")}
                               </>
                             ) : (
                               <>
                                 <ShieldCheck className="w-4 h-4 mr-2" />
-                                Setup Card Payments
+                                {i18nT("Setup Card Payments")}
                               </>
                             )}
                           </Button>
@@ -3996,14 +3996,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
                 {/* OPTIONAL SETTINGS AFTER CONNECT (similar to Stripe card settings) */}
                 {razorpaySettings?.isConnected && (
-                  <div className="space-y-4 p-4 bg-white border border-indigo-200 rounded-lg">
-                    <h4 className="font-semibold text-slate-900">
-                      Payment Options
+                  <div className="space-y-4 p-4 bg-card border border-indigo-200 rounded-lg">
+                    <h4 className="font-semibold text-foreground">
+                      {i18nT("Payment Options")}
                     </h4>
 
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold">
-                        Enable payment methods
+                        {i18nT("Enable payment methods")}
                       </Label>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <label className="flex items-center gap-2 cursor-pointer">
@@ -4018,7 +4018,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                             }
                             className="w-4 h-4 rounded"
                           />
-                          Cards (Visa, Mastercard, RuPay, Amex)
+                          {i18nT("Cards (Visa, Mastercard, RuPay, Amex)")}
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -4046,7 +4046,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                             }
                             className="w-4 h-4 rounded"
                           />
-                          Netbanking
+                          {i18nT("Netbanking")}
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -4060,7 +4060,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                             }
                             className="w-4 h-4 rounded"
                           />
-                          Wallets
+                          {i18nT("Wallets")}
                         </label>
                       </div>
                     </div>
@@ -4086,7 +4086,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             {isLoading ? (
               <>
                 <Loader className="w-4 h-4 animate-spin mr-2" />
-                Saving Payment Settings...
+                {i18nT("Saving Payment Settings...")}
               </>
             ) : (
               "Save All Payment Methods"
@@ -4109,16 +4109,16 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Truck className="w-5 h-5" />
-                  Shipping Settings
+                  {i18nT("Shipping Settings")}
                 </CardTitle>
                 <CardDescription>
-                  Configure shipping options and rates
+                  {i18nT("Configure shipping options and rates")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label>Free Shipping Threshold</Label>
+                    <Label>{i18nT("Free Shipping Threshold")}</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -4133,7 +4133,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     />
                   </div>
                   <div>
-                    <Label>Default Shipping Cost</Label>
+                    <Label>{i18nT("Default Shipping Cost")}</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -4158,10 +4158,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ReceiptTextIcon className="w-5 h-5" />
-                Receipt Settings
+                {i18nT("Receipt Settings")}
               </CardTitle>
               <CardDescription>
-                Customize your order receipt appearance and details
+                {i18nT("Customize your order receipt appearance and details")}
               </CardDescription>
             </CardHeader>
 
@@ -4169,9 +4169,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               {/* RECEIPT TYPE */}
               <div className="space-y-4 border-t pt-4">
                 <div>
-                  <Label className="text-sm font-medium">Receipt Type</Label>
+                  <Label className="text-sm font-medium">{i18nT("Receipt Type")}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Choose receipt paper size for printing
+                    {i18nT("Choose receipt paper size for printing")}
                   </p>
                 </div>
 
@@ -4188,7 +4188,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">58 mm</span>
                       <span className="text-xs text-muted-foreground">
-                        Thermal receipt printer
+                        {i18nT("Thermal receipt printer")}
                       </span>
                     </div>
 
@@ -4218,7 +4218,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">A4</span>
                       <span className="text-xs text-muted-foreground">
-                        Full page printer
+                        {i18nT("Full page printer")}
                       </span>
                     </div>
 
@@ -4247,10 +4247,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-sm font-medium">
-                        Print Contact QR
+                        {i18nT("Print Contact QR")}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Prints WhatsApp QR on receipt
+                        {i18nT("Prints WhatsApp QR on receipt")}
                       </p>
                     </div>
 
@@ -4273,7 +4273,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   {shopProfile.whatsAppQR && (
                     <div className="pl-4 space-y-3">
                       <Label className="text-xs text-muted-foreground">
-                        Select WhatsApp number to print on receipt
+                        {i18nT("Select WhatsApp number to print on receipt")}
                       </Label>
 
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -4289,7 +4289,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                           >
                             <div className="flex flex-col">
                               <span className="text-sm font-medium">
-                                WhatsApp
+                                {i18nT("WhatsApp")}
                               </span>
                               <span className="text-xs text-muted-foreground">
                                 {shopProfile.whatsappNumber}
@@ -4325,7 +4325,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             }`}
                           >
                             <div className="flex flex-col">
-                              <span className="text-sm font-medium">Phone</span>
+                              <span className="text-sm font-medium">{i18nT("Phone")}</span>
                               <span className="text-xs text-muted-foreground">
                                 {shopProfile.phone}
                               </span>
@@ -4358,10 +4358,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 <div className="flex items-center justify-between mt-4">
                   <div>
                     <Label className="text-sm font-medium">
-                      Print Instagram QR
+                      {i18nT("Print Instagram QR")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Prints Instagram QR on receipt
+                      {i18nT("Prints Instagram QR on receipt")}
                     </p>
                   </div>
                   <Switch
@@ -4378,7 +4378,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 {shopProfile.instagramQR && (
                   <div className="pl-4 space-y-1">
                     <Label htmlFor="instagramHandle" className="text-xs">
-                      Instagram Handle
+                      {i18nT("Instagram Handle")}
                     </Label>
                     <Input
                       id="instagramHandle"
@@ -4405,22 +4405,22 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ReceiptTextIcon className="w-5 h-5" />
-                Coupon Settings
+                {i18nT("Coupon Settings")}
               </CardTitle>
               <CardDescription>
-                Create and Manage your Coupons here
+                {i18nT("Create and Manage your Coupons here")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Coupons</h3>
+                <h3 className="text-lg font-semibold">{i18nT("Coupons")}</h3>
 
                 <Button onClick={handleAddCoupon}>+ Add Coupon</Button>
               </div>
 
               {coupons.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground">
-                  No Coupons Found
+                  {i18nT("No Coupons Found")}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -4491,9 +4491,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               {/* COUPON CODE */}
               <div className="flex flex-col-2 gap-4">
                 <div className="space-y-1 flex-1">
-                  <Label>Coupon Code</Label>
+                  <Label>{i18nT("Coupon Code")}</Label>
                   <Input
-                    placeholder="SAVE20"
+                    placeholder={i18nT("SAVE20")}
                     value={coupon.code}
                     onChange={(e) =>
                       handleChange("code", e.target.value.toUpperCase())
@@ -4504,7 +4504,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
                 {/* DISCOUNT TYPE */}
                 <div className="space-y-1 flex-1">
-                  <Label>Discount Type</Label>
+                  <Label>{i18nT("Discount Type")}</Label>
                   <Select
                     value={coupon.discountType}
                     onValueChange={(value) =>
@@ -4512,11 +4512,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select discount type" />
+                      <SelectValue placeholder={i18nT("Select discount type")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="PERCENTAGE">Percentage</SelectItem>
-                      <SelectItem value="FLAT">Flat Amount</SelectItem>
+                      <SelectItem value="PERCENTAGE">{i18nT("Percentage")}</SelectItem>
+                      <SelectItem value="FLAT">{i18nT("Flat Amount")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -4525,7 +4525,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               {/* DISCOUNT VALUE */}
               {coupon.discountType === "PERCENTAGE" && (
                 <div className="space-y-1">
-                  <Label>Discount Percentage (%) *</Label>
+                  <Label>{i18nT("Discount Percentage (%) *")}</Label>
                   <Input
                     type="number"
                     placeholder="10"
@@ -4540,7 +4540,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               {coupon.discountType === "FLAT" && (
                 <div className="space-y-1">
-                  <Label>Flat Discount Amount *</Label>
+                  <Label>{i18nT("Flat Discount Amount *")}</Label>
                   <Input
                     type="number"
                     placeholder="100"
@@ -4555,7 +4555,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               {/* MIN ORDER */}
               <div className="space-y-1">
-                <Label>Minimum Order Amount *</Label>
+                <Label>{i18nT("Minimum Order Amount *")}</Label>
                 <Input
                   type="number"
                   placeholder="500"
@@ -4569,7 +4569,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
               <div className="flex flex-col-2 gap-4">
                 <div className="space-y-1 flex-1">
-                  <Label>Maximum Usage</Label>
+                  <Label>{i18nT("Maximum Usage")}</Label>
                   <Input
                     type="number"
                     placeholder="50"
@@ -4581,7 +4581,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
                 {/* EXPIRY DATE */}
                 <div className="space-y-1 flex-1">
-                  <Label>Expiry Date</Label>
+                  <Label>{i18nT("Expiry Date")}</Label>
 
                   <div className="relative">
                     <Input
@@ -4609,10 +4609,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="w-5 h-5" />
-                Notification Settings
+                {i18nT("Notification Settings")}
               </CardTitle>
               <CardDescription>
-                Choose which notifications you want to receive
+                {i18nT("Choose which notifications you want to receive")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -4646,7 +4646,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete Coupon</DialogTitle>
+            <DialogTitle>{i18nT("Delete Coupon")}</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete this coupon? This action cannot be
               undone.
@@ -4661,7 +4661,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 setCouponToDelete(null);
               }}
             >
-              Cancel
+              {i18nT("Cancel")}
             </Button>
 
             <Button
@@ -4674,7 +4674,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 setCouponToDelete(null);
               }}
             >
-              Yes, Delete
+              {i18nT("Yes, Delete")}
             </Button>
           </div>
         </DialogContent>
@@ -4684,9 +4684,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       <Dialog open={changePlanOpen} onOpenChange={setChangePlanOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Choose a Plan</DialogTitle>
+            <DialogTitle>{i18nT("Choose a Plan")}</DialogTitle>
             <DialogDescription>
-              Select a plan to upgrade or switch your subscription
+              {i18nT("Select a plan to upgrade or switch your subscription")}
             </DialogDescription>
           </DialogHeader>
           {loadingPlans ? (
@@ -4694,7 +4694,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <Loader className="h-8 w-8 animate-spin text-indigo-600" />
             </div>
           ) : availablePlans.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">No plans available.</p>
+            <p className="text-center py-8 text-muted-foreground">{i18nT("No plans available.")}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
               {availablePlans.map((plan) => {
@@ -4706,7 +4706,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   <div
                     key={plan._id}
                     className={`rounded-lg border p-4 space-y-3 ${
-                      isCurrent ? "border-indigo-400 bg-indigo-50" : "border-gray-200 bg-white"
+                      isCurrent ? "border-indigo-400 bg-indigo-50" : "border-border bg-card"
                     }`}
                   >
                     <div className="flex items-start justify-between">
@@ -4720,7 +4720,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                         </p>
                       </div>
                       {isCurrent && (
-                        <Badge className="bg-indigo-600">Current</Badge>
+                        <Badge className="bg-indigo-600">{i18nT("Current")}</Badge>
                       )}
                     </div>
                     {plan.description && (

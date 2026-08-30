@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>KiosCart Pamphlets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#070A11;
+    --ink2:#0D1220;
+    --line:rgba(255,255,255,.10);
+    --orange:#F58033;
+    --teal:#4FA695;
+    --blue:#5C93D6;
+    --violet:#8B6BD9;
+    --text:#EEF2F8;
+    --muted:#98A3B5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#15181f;font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .sheet{display:flex;flex-direction:column;align-items:center;gap:40px;padding:40px}
+
+  .art{
+    width:1080px;height:1350px;position:relative;overflow:hidden;
+    background:var(--ink);color:var(--text);display:flex;flex-direction:column;
+    padding:84px 76px 76px;
+  }
+  /* mosaic backdrop echoing the site hero */
+  .mosaic{position:absolute;inset:-6%;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:1fr;gap:18px;filter:blur(3px);opacity:.30}
+  .scrim{position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 35%,rgba(7,10,17,.55),rgba(7,10,17,.90) 70%)}
+  .mosaic i{border-radius:26px;display:block}
+  .glow{position:absolute;width:900px;height:900px;border-radius:50%;filter:blur(160px);opacity:.22}
+  .art > *:not(.mosaic):not(.glow):not(.scrim){position:relative;z-index:2}
+
+  .brandrow{display:flex;align-items:center;justify-content:space-between}
+  .logo{font-size:44px;font-weight:800;letter-spacing:-.02em}
+  .logo b{color:var(--orange);font-weight:800}
+  .logo span{color:var(--blue);font-style:italic;font-weight:800}
+  .badge{font-size:20px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:12px 22px;letter-spacing:.02em}
+
+  .eyebrow{margin-top:56px;font-size:22px;font-weight:700;letter-spacing:.22em;color:var(--teal)}
+  h1{margin-top:24px;font-size:92px;line-height:.96;font-weight:800;letter-spacing:-.035em}
+  h1 em{font-style:normal;color:var(--orange)}
+  h1 u{text-decoration:none;color:var(--blue)}
+  .sub{margin-top:24px;font-size:29px;line-height:1.35;color:var(--muted);font-weight:400;max-width:800px}
+
+  .grid{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid.three{grid-template-columns:1fr 1fr 1fr}
+  .tile{
+    background:linear-gradient(160deg,rgba(255,255,255,.075),rgba(255,255,255,.028));
+    border:1px solid var(--line);border-radius:26px;padding:26px 26px 28px;
+  }
+  .tile svg{width:40px;height:40px;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .tile h3{margin-top:18px;font-size:31px;font-weight:700;letter-spacing:-.02em}
+  .tile p{margin-top:8px;font-size:22px;color:var(--muted);line-height:1.3;font-weight:400}
+
+  .payrow{margin-top:22px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+  .pay{background:linear-gradient(160deg,rgba(255,255,255,.075),rgba(255,255,255,.028));border:1px solid var(--line);border-radius:26px;padding:26px 20px 28px;text-align:center}
+  .pay svg{width:52px;height:52px;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .pay h3{margin-top:16px;font-size:28px;font-weight:700;letter-spacing:-.02em}
+
+  .receipt{margin-top:auto;display:grid;grid-template-columns:1fr 236px;gap:26px;background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid var(--line);border-radius:30px;padding:28px 32px}
+  .rline{display:flex;justify-content:space-between;align-items:center;font-size:27px;color:var(--muted);padding:11px 0}
+  .rline b{color:var(--text);font-weight:500}
+  .rtotal{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);margin-top:10px;padding-top:20px;font-size:31px;color:var(--muted);font-weight:600}
+  .rtotal span{font-size:52px;color:var(--text);font-weight:800;letter-spacing:-.03em}
+  .qr{background:#fff;border-radius:22px;display:grid;grid-template-columns:repeat(9,1fr);grid-auto-rows:1fr;gap:3px;padding:20px;align-self:center;height:236px;width:236px;justify-self:end}
+  .qr i{background:#070A11;border-radius:2px}
+  .qr i.o{background:transparent}
+  .paid{grid-column:1/-1;margin-top:14px;display:flex;align-items:center;gap:12px;color:#8FE0CE;font-size:25px;font-weight:700}
+
+  .chatcard{margin-top:auto;background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid var(--line);border-radius:30px;padding:26px 30px}
+  .bub{max-width:78%;border-radius:22px;padding:17px 24px;font-size:25px;line-height:1.3}
+  .bub.me{background:rgba(255,255,255,.09);color:var(--text);border-bottom-right-radius:8px;margin-left:auto;text-align:right}
+  .bub.ai{background:rgba(79,166,149,.16);border:1px solid rgba(79,166,149,.45);color:#BFEFE2;border-bottom-left-radius:8px;margin-top:14px;font-weight:600}
+  .revrow{margin-top:18px;padding-top:18px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .stars{font-size:28px;color:#F5B23C;letter-spacing:4px}
+  .revtxt{font-size:24px;color:var(--muted);margin-left:16px;flex:1}
+  .reply{font-size:21px;font-weight:700;color:#8FE0CE;border:1px solid rgba(79,166,149,.45);border-radius:999px;padding:10px 20px}
+  .gridtight{margin-top:18px !important}
+
+  .steps{margin-top:30px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);border-radius:999px;padding:16px 26px;font-size:25px;font-weight:600;color:var(--text);background:rgba(255,255,255,.04)}
+  .arrow{color:var(--muted);font-size:28px}
+
+  .foot{margin-top:44px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:34px}
+  .cta{background:var(--teal);color:#04120E;font-size:29px;font-weight:800;border-radius:999px;padding:20px 40px;letter-spacing:-.01em}
+  .url{font-size:29px;font-weight:600;color:var(--text)}
+  .url small{display:block;font-size:21px;color:var(--muted);font-weight:400;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<!-- ============ 1. OVERVIEW ============ -->
+<div class="art" id="p1">
+  <div class="mosaic">
+    <i style="background:linear-gradient(140deg,#1B2A4A,#0B1220)"></i><i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i>
+    <i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i>
+    <i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i>
+    <i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i>
+    <i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i>
+    <i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i>
+  </div>
+  <div class="scrim"></div>
+  <div class="glow" style="background:#F58033;top:-380px;left:-300px"></div>
+  <div class="glow" style="background:#2E7FD4;bottom:-460px;right:-340px"></div>
+
+  <div class="brandrow">
+    <div class="logo"><b>Kios</b><span>Cart</span></div>
+    <div class="badge">kioscart.com</div>
+  </div>
+
+  <div class="eyebrow">UNIFIED COMMERCE</div>
+  <h1>Your whole shop.<br><em>One screen.</em></h1>
+  <p class="sub">Counter, online store, payments and books — together.</p>
+
+  <div class="grid">
+    <div class="tile">
+      <svg stroke="#F58033" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M7 7h6M7 11h4"/></svg>
+      <h3>Kiosk &amp; POS</h3><p>Any tablet becomes a counter.</p>
+    </div>
+    <div class="tile">
+      <svg stroke="#4FA695" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
+      <h3>Payments</h3><p>QR, card, net banking.</p>
+    </div>
+    <div class="tile">
+      <svg stroke="#5C93D6" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
+      <h3>Inventory</h3><p>Live stock, low-stock alerts.</p>
+    </div>
+    <div class="tile">
+      <svg stroke="#8B6BD9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>
+      <h3>Own Website</h3><p>Your store, your domain.</p>
+    </div>
+    <div class="tile">
+      <svg stroke="#F58033" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11M13 13h4M13 16.5h4"/></svg>
+      <h3>Accounting</h3><p>Sales, purchases, expenses.</p>
+    </div>
+    <div class="tile">
+      <svg stroke="#4FA695" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-6M22 19H2"/><circle cx="16" cy="13" r="0"/></svg>
+      <h3>AI Insights</h3><p>Ask. Get the answer.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="cta">Start free</div>
+    <div class="url">No new hardware.<small>Works on the tablet you own.</small></div>
+  </div>
+</div>
+
+<!-- ============ 2. PAYMENTS & BOOKS ============ -->
+<div class="art" id="p2">
+  <div class="mosaic">
+    <i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i>
+    <i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i>
+    <i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i>
+    <i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i>
+    <i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i>
+    <i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i>
+  </div>
+  <div class="scrim"></div>
+  <div class="glow" style="background:#2FA98F;top:-420px;right:-320px"></div>
+  <div class="glow" style="background:#F58033;bottom:-460px;left:-340px"></div>
+
+  <div class="brandrow">
+    <div class="logo"><b>Kios</b><span>Cart</span></div>
+    <div class="badge">kioscart.com</div>
+  </div>
+
+  <div class="eyebrow">PAYMENTS &amp; BOOKS</div>
+  <h1>Every way<br><u>to get paid.</u></h1>
+  <p class="sub">Each sale lands in your books the same second.</p>
+
+
+  <div class="receipt">
+    <div>
+      <div class="rline"><b>Cold Brew &times;2</b><span>9.00</span></div>
+      <div class="rline"><b>Croissant</b><span>4.50</span></div>
+      <div class="rline"><b>Tax</b><span>1.08</span></div>
+      <div class="rtotal">Total<span>14.58</span></div>
+      <div class="paid"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#8FE0CE" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Paid in 4 seconds</div>
+    </div>
+    <div class="qr"><i></i><i></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i class="o"></i><i class="o"></i><i class="o"></i><i></i><i class="o"></i><i></i><i class="o"></i><i></i><i></i><i></i><i></i><i class="o"></i><i></i><i class="o"></i><i class="o"></i><i></i><i class="o"></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i></i><i></i><i class="o"></i><i class="o"></i><i></i><i class="o"></i><i class="o"></i><i class="o"></i><i></i><i></i><i></i><i class="o"></i><i></i><i class="o"></i><i></i><i></i><i class="o"></i></div>
+  </div>
+
+  <div class="payrow">
+    <div class="pay">
+      <svg stroke="#F58033" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v3M18 21h3M14 21h1"/></svg>
+      <h3>Dynamic QR</h3>
+    </div>
+    <div class="pay">
+      <svg stroke="#4FA695" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h5"/></svg>
+      <h3>Cards</h3>
+    </div>
+    <div class="pay">
+      <svg stroke="#5C93D6" viewBox="0 0 24 24"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18"/></svg>
+      <h3>Net banking</h3>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="chip">Sales</div><span class="arrow">+</span>
+    <div class="chip">Purchases</div><span class="arrow">+</span>
+    <div class="chip">Expenses</div><span class="arrow">→</span>
+    <div class="chip" style="border-color:rgba(79,166,149,.6);color:#8FE0CE">One export file</div>
+  </div>
+
+  <div class="foot">
+    <div class="cta">Start free</div>
+    <div class="url">Secure by default.<small>PCI-compliant processing.</small></div>
+  </div>
+</div>
+
+<!-- ============ 3. GROWTH ============ -->
+<div class="art" id="p3">
+  <div class="mosaic">
+    <i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i>
+    <i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i>
+    <i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i>
+    <i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i>
+    <i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i><i style="background:linear-gradient(140deg,#3A1F46,#140B1C)"></i><i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i>
+    <i style="background:linear-gradient(140deg,#16294A,#0A1120)"></i><i style="background:linear-gradient(140deg,#4A2413,#1A0D07)"></i><i style="background:linear-gradient(140deg,#0F2C3E,#071319)"></i><i style="background:linear-gradient(140deg,#241940,#0D0A1B)"></i><i style="background:linear-gradient(140deg,#123430,#081614)"></i>
+  </div>
+  <div class="scrim"></div>
+  <div class="glow" style="background:#7A4FD6;top:-400px;left:-300px"></div>
+  <div class="glow" style="background:#F58033;bottom:-440px;right:-320px"></div>
+
+  <div class="brandrow">
+    <div class="logo"><b>Kios</b><span>Cart</span></div>
+    <div class="badge">kioscart.com</div>
+  </div>
+
+  <div class="eyebrow">GROW</div>
+  <h1>Sell beyond<br><em>the counter.</em></h1>
+  <p class="sub">One catalogue. Your shop, your site, one stock count.</p>
+
+
+  <div class="chatcard">
+    <div class="bub me">Which item sells most on weekends?</div>
+    <div class="bub ai">Cold Brew — 38% of Sat &amp; Sun sales.</div>
+    <div class="revrow">
+      <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="revtxt">"Quick and easy, no queue."</div>
+      <div class="reply">Reply</div>
+    </div>
+  </div>
+
+  <div class="grid gridtight">
+    <div class="tile">
+      <svg stroke="#5C93D6" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>
+      <h3>Your website</h3><p>Live in minutes.</p>
+    </div>
+    <div class="tile">
+      <svg stroke="#F58033" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7L12.5 19.5"/></svg>
+      <h3>Your domain</h3><p>Connect your own .com.</p>
+    </div>
+    <div class="tile">
+      <svg stroke="#4FA695" viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H7l-4 3V12a8 8 0 018-8h2a8 8 0 018 8z"/><path d="M9 11h6M9 14.5h4"/></svg>
+      <h3>Reviews</h3><p>Read them. Reply in one tap.</p>
+    </div>
+    <div class="tile">
+      <svg stroke="#8B6BD9" viewBox="0 0 24 24"><path d="M12 3l2 4.5L18.5 9 14 10.5 12 15l-2-4.5L5.5 9 10 7.5 12 3z"/><path d="M18 16l.9 2.1 2.1.9-2.1.9L18 22l-.9-2.1-2.1-.9 2.1-.9L18 16z"/></svg>
+      <h3>AI answers</h3><p>Ask in plain language.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="cta">Start free</div>
+    <div class="url">Partners welcome.<small>Set up shops for your clients.</small></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
