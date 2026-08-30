@@ -1232,8 +1232,13 @@ export function AddCustomerDialog({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={handleClose}>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleClose}
+          className="w-full sm:w-auto self-start"
+        >
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Customers
         </Button>
         <div>
@@ -1248,9 +1253,10 @@ export function AddCustomerDialog({
         </div>
       </div>
 
-      <Card className="max-w-md">
+      <Card className="w-full">
         <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* First Name */}
           <div>
             <Label htmlFor="firstName" className="font-medium mb-2 block">
@@ -1288,6 +1294,9 @@ export function AddCustomerDialog({
               <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>
             )}
           </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
           {/* WhatsApp Number with Country Code - UNCHANGED */}
           <div>
@@ -1311,7 +1320,7 @@ export function AddCustomerDialog({
                 disabled={submitting}
               >
                 <SelectTrigger
-                  className={`w-[140px] ${
+                  className={`w-[110px] shrink-0 sm:w-[140px] ${
                     errors.countryCode ? "border-red-500" : ""
                   }`}
                 >
@@ -1418,22 +1427,23 @@ export function AddCustomerDialog({
               <p className="text-red-500 text-sm mt-1">{errors.email}</p>
             )}
           </div>
+          </div>
 
           {/* Action Buttons - Dynamic text */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
               disabled={submitting}
-              className="w-full sm:w-1/2"
+              className="w-full sm:w-auto sm:min-w-[140px]"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-1/2"
+              className="w-full sm:w-auto sm:min-w-[160px]"
             >
               {submitting
                 ? mode === "edit"

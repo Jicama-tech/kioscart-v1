@@ -32,14 +32,17 @@ export type SupplierProductConfigDocument = SupplierProductConfig & Document;
  */
 @Schema({ collection: "supplier_product_configs", timestamps: true })
 export class SupplierProductConfig {
-  @Prop({
-    type: Types.ObjectId,
-    ref: "Product",
-    required: true,
-    unique: true,
-    index: true,
-  })
-  productId: Types.ObjectId;
+  /**
+   * What this requirement list belongs to. `product` lists live against one
+   * product (the original behaviour); `business` is the single shop-wide
+   * list, which carries no productId at all.
+   */
+  @Prop({ type: String, enum: ["product", "business"], default: "product" })
+  scope: "product" | "business";
+
+  // Absent on business-scope lists.
+  @Prop({ type: Types.ObjectId, ref: "Product", required: false })
+  productId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: "Shopkeeper", required: true, index: true })
   shopkeeperId: Types.ObjectId;
@@ -63,4 +66,15 @@ export class SupplierProductConfig {
 
 export const SupplierProductConfigSchema = SchemaFactory.createForClass(
   SupplierProductConfig,
+);
+
+// One config per product, and exactly one business-wide list per shopkeeper.
+// Both are partial so business rows (no productId) don't collide on null.
+SupplierProductConfigSchema.index(
+  { productId: 1 },
+  { unique: true, partialFilterExpression: { productId: { $exists: true } } },
+);
+SupplierProductConfigSchema.index(
+  { shopkeeperId: 1, scope: 1 },
+  { unique: true, partialFilterExpression: { scope: "business" } },
 );

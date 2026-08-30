@@ -179,8 +179,15 @@ export class SupplierRequest {
   @Prop({ type: Types.ObjectId, ref: "Supplier", required: true, index: true })
   supplierId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: "Product", required: true, index: true })
-  productId: Types.ObjectId;
+  /**
+   * Which requirement list this quote answers — one product's list, or the
+   * shop-wide business list. Business quotes carry no productId.
+   */
+  @Prop({ type: String, enum: ["product", "business"], default: "product" })
+  scope: "product" | "business";
+
+  @Prop({ type: Types.ObjectId, ref: "Product", required: false, index: true })
+  productId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: "Shopkeeper", required: true, index: true })
   shopkeeperId: Types.ObjectId;
@@ -252,6 +259,16 @@ export const SupplierRequestSchema =
 
 // One quotation per supplier per product (single-submission rule), plus
 // common shopkeeper query paths.
-SupplierRequestSchema.index({ productId: 1, supplierId: 1 }, { unique: true });
+// One quote per supplier per product. Partial so business-scope rows (no
+// productId) are not all treated as the same null key.
+SupplierRequestSchema.index(
+  { productId: 1, supplierId: 1 },
+  { unique: true, partialFilterExpression: { productId: { $exists: true } } },
+);
+// …and one business-wide quote per supplier per shopkeeper.
+SupplierRequestSchema.index(
+  { shopkeeperId: 1, scope: 1, supplierId: 1 },
+  { unique: true, partialFilterExpression: { scope: "business" } },
+);
 SupplierRequestSchema.index({ shopkeeperId: 1, productId: 1 });
 SupplierRequestSchema.index({ productId: 1, status: 1 });

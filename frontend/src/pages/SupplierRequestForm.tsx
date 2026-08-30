@@ -96,6 +96,10 @@ interface FormData {
   instructions: string;
   currency: string;
   product: { id: string; name: string; startDate?: string; location?: string } | null;
+  // Present on both scopes; the business list has no product, so the shop is
+  // what the supplier is quoting for.
+  scope?: "product" | "business";
+  shop?: { id: string; shopName: string; ownerName: string } | null;
 }
 
 // SG$ for Singapore, ₹ (INR) for everything else — matches the app convention.
@@ -140,10 +144,26 @@ function statusBlurb(status: string): string {
 }
 
 export default function SupplierRequestForm() {
-  const { productId } = useParams();
+  // One form serves both shared links: /products/:productId/supplier for a
+  // single product's requirement list, and /business/:shopkeeperId/supplier
+  // for the shop-wide list. Only the API prefix and the submitted scope
+  // differ.
+  const { productId, shopkeeperId } = useParams();
+  const isBusiness = !!shopkeeperId;
+  const scopeKey = isBusiness ? shopkeeperId : productId;
+  const formUrl = isBusiness
+    ? `${apiURL}/suppliers/form/business/${shopkeeperId}`
+    : `${apiURL}/suppliers/form/${productId}`;
+  const scopeBase = isBusiness
+    ? `${apiURL}/suppliers/business/${shopkeeperId}`
+    : `${apiURL}/suppliers/product/${productId}`;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [data, setData] = useState<FormData | null>(null);
+  // What the supplier is quoting for, shown throughout the form.
+  const subjectName = isBusiness
+    ? data?.shop?.shopName || "this business"
+    : data?.product?.name || "the product";
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   // Wizard step: 1 = your details, 2 = quotation, 3 = payment.
@@ -153,6 +173,14 @@ export default function SupplierRequestForm() {
   // OAuth, then we look up their saved profile for prefill.
   const [authedEmail, setAuthedEmail] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  // Signed proof from the Google popup that `authedEmail` is really theirs.
+  // Every supplier-scoped call carries it; the backend refuses without it.
+  // A ref, not state, because the sign-in handler fetches in the same tick.
+  const supplierTokenRef = useRef<string>("");
+  const authHeaders = (): Record<string, string> =>
+    supplierTokenRef.current
+      ? { Authorization: `Bearer ${supplierTokenRef.current}` }
+      : {};
   const popupRef = useRef<Window | null>(null);
   // Set when the signed-in supplier has already submitted for this product —
   // we then show the status timeline instead of the (blocked) form.
@@ -191,7 +219,7 @@ export default function SupplierRequestForm() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${apiURL}/suppliers/form/${productId}`);
+        const res = await fetch(formUrl);
         const j = await res.json();
         if (!res.ok)
           throw new Error(j?.message || "This form is not available.");
@@ -202,7 +230,7 @@ export default function SupplierRequestForm() {
         setLoading(false);
       }
     })();
-  }, [productId]);
+  }, [scopeKey, isBusiness]);
 
   // Open the Google OAuth popup.
   const handleGoogleLogin = () => {
@@ -221,8 +249,9 @@ export default function SupplierRequestForm() {
   // Once the Google email is verified, look up the supplier's saved profile
   // for this product's shopkeeper and prefill; if none exists, they
   // self-register with the email locked in.
-  const onSignedIn = async (rawEmail: string) => {
+  const onSignedIn = async (rawEmail: string, rawToken?: string) => {
     const clean = String(rawEmail || "").trim().toLowerCase();
+    supplierTokenRef.current = String(rawToken || "");
     if (!clean) {
       setGoogleLoading(false);
       toast({
@@ -237,7 +266,8 @@ export default function SupplierRequestForm() {
     try {
       // Already submitted for this product? Show the timeline instead of the form.
       const mineRes = await fetch(
-        `${apiURL}/suppliers/product/${productId}/my-request/${encodeURIComponent(clean)}`,
+        `${scopeBase}/my-request/${encodeURIComponent(clean)}`,
+        { headers: authHeaders() },
       );
       const mineJson = mineRes.ok ? await mineRes.json() : { data: null };
       if (mineJson?.data?.request) {
@@ -247,7 +277,8 @@ export default function SupplierRequestForm() {
 
       // Otherwise prefill from a saved supplier profile (if any).
       const res = await fetch(
-        `${apiURL}/suppliers/product/${productId}/supplier-by-email/${encodeURIComponent(clean)}`,
+        `${scopeBase}/supplier-by-email/${encodeURIComponent(clean)}`,
+        { headers: authHeaders() },
       );
       const j = res.ok ? await res.json() : { data: null };
       const s = j?.data;
@@ -289,7 +320,8 @@ export default function SupplierRequestForm() {
     if (!authedEmail) return;
     try {
       const res = await fetch(
-        `${apiURL}/suppliers/product/${productId}/my-request/${encodeURIComponent(authedEmail)}`,
+        `${scopeBase}/my-request/${encodeURIComponent(authedEmail)}`,
+        { headers: authHeaders() },
       );
       const j = res.ok ? await res.json() : { data: null };
       if (j?.data?.request) setMyRequest(j.data);
@@ -314,10 +346,10 @@ export default function SupplierRequestForm() {
     setRespondBusy(true);
     try {
       const res = await fetch(
-        `${apiURL}/suppliers/product/${productId}/my-request/${encodeURIComponent(authedEmail)}/respond`,
+        `${scopeBase}/my-request/${encodeURIComponent(authedEmail)}/respond`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({
             status: respondAction,
             note: respondNote.trim(),
@@ -351,8 +383,8 @@ export default function SupplierRequestForm() {
       const fd = new window.FormData();
       if (invoiceFile) fd.append("invoice", invoiceFile);
       const res = await fetch(
-        `${apiURL}/suppliers/product/${productId}/my-request/${encodeURIComponent(authedEmail)}/confirm-payment`,
-        { method: "POST", body: fd },
+        `${scopeBase}/my-request/${encodeURIComponent(authedEmail)}/confirm-payment`,
+        { method: "POST", body: fd, headers: authHeaders() },
       );
       if (!res.ok) throw new Error();
       toast({ title: "Payment confirmed — thank you!" });
@@ -386,7 +418,7 @@ export default function SupplierRequestForm() {
       const d = ev?.data;
       if (!d || d.kind !== "kioscart:google-supplier" || handled) return;
       handled = true;
-      onSignedIn(d.email || "");
+      onSignedIn(d.email || "", d.token || "");
     };
     window.addEventListener("message", onMessage);
 
@@ -398,7 +430,7 @@ export default function SupplierRequestForm() {
           window.clearInterval(t);
           localStorage.removeItem(KEY);
           const parsed = JSON.parse(raw);
-          onSignedIn(parsed?.email || "");
+          onSignedIn(parsed?.email || "", parsed?.token || "");
           return;
         }
       } catch {
@@ -459,7 +491,12 @@ export default function SupplierRequestForm() {
         upiPaynowId,
       };
       const fd = new window.FormData();
-      fd.append("productId", productId || "");
+      if (isBusiness) {
+        fd.append("scope", "business");
+        fd.append("shopkeeperId", shopkeeperId || "");
+      } else {
+        fd.append("productId", productId || "");
+      }
       fd.append("name", name);
       fd.append("email", email);
       fd.append("businessEmail", businessEmail);
@@ -475,6 +512,7 @@ export default function SupplierRequestForm() {
       const res = await fetch(`${apiURL}/suppliers/register`, {
         method: "POST",
         body: fd,
+        headers: authHeaders(),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j?.message || "Submission failed");
@@ -523,7 +561,7 @@ export default function SupplierRequestForm() {
             <h2 className="text-lg font-bold">Quotation submitted 🎉</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Thanks{name ? `, ${name}` : ""}! The shopkeeper for{" "}
-              <strong>{data?.product?.name || "the product"}</strong> will
+              <strong>{subjectName}</strong> will
               review your quotation and get back to you.
             </p>
           </CardContent>
@@ -540,7 +578,7 @@ export default function SupplierRequestForm() {
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Supplier Quotation</CardTitle>
             <p className="text-sm text-muted-foreground">
-              for <strong>{data?.product?.name || "the product"}</strong>
+              for <strong>{subjectName}</strong>
               {data?.product?.location ? ` · ${data.product.location}` : ""}
             </p>
           </CardHeader>
@@ -589,7 +627,7 @@ export default function SupplierRequestForm() {
           <div className="text-center">
             <h1 className="text-2xl font-bold sm:text-3xl">Your quotation</h1>
             <p className="text-sm text-muted-foreground">
-              for <strong>{data?.product?.name || "the product"}</strong>
+              for <strong>{subjectName}</strong>
               {data?.product?.location ? ` · ${data.product.location}` : ""}
             </p>
           </div>
@@ -899,7 +937,7 @@ export default function SupplierRequestForm() {
         <div className="text-center">
           <h1 className="text-2xl font-bold sm:text-3xl">Supplier Quotation</h1>
           <p className="text-sm text-muted-foreground">
-            for <strong>{data?.product?.name || "the product"}</strong>
+            for <strong>{subjectName}</strong>
             {data?.product?.location ? ` · ${data.product.location}` : ""}
           </p>
         </div>

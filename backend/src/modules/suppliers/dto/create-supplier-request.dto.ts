@@ -8,9 +8,19 @@ import { IsNotEmpty, IsOptional, IsString } from "class-validator";
  * the form must be open.
  */
 export class CreateSupplierRequestDto {
-  @IsNotEmpty()
+  // "product" (default) or "business" — which requirement list is being
+  // quoted. Business submissions carry `shopkeeperId` instead of `productId`.
+  @IsOptional()
   @IsString()
-  productId: string;
+  scope?: "product" | "business";
+
+  @IsOptional()
+  @IsString()
+  productId?: string;
+
+  @IsOptional()
+  @IsString()
+  shopkeeperId?: string;
 
   @IsNotEmpty()
   @IsString()

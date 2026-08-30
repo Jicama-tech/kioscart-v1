@@ -7,7 +7,7 @@ import { useEffect } from "react";
 // Cross-Origin-Opener-Policy on cross-origin popup navigations.
 //
 // Flow:
-//   1. Read email/name/picture from the query string.
+//   1. Read email/name/picture + the signed supplier token from the query.
 //   2. window.opener.postMessage({kind: "kioscart:google-supplier", ...}, "*")
 //   3. window.close()
 //   4. If opener is gone (popup-blocker / refreshed / bookmarked), fall
@@ -21,10 +21,16 @@ export function SupplierGoogleCallback() {
       email: url.searchParams.get("email") || "",
       name: url.searchParams.get("name") || "",
       picture: url.searchParams.get("picture") || "",
+      // Short-lived proof that Google vouched for this address. The supplier
+      // endpoints require it — the email alone is just a string in a URL.
+      token: url.searchParams.get("token") || "",
     };
-    // postMessage path — preferred. opener may be cross-origin; we send "*"
-    // because the receiver filters by `kind` and there's no secret in the
-    // payload.
+    // postMessage path — preferred. Still "*": the shared frontend origins
+    // (kioscart / thefoxsg / xcionasia) mean the opener may not match this
+    // page's origin, and a targeted post would silently drop. The message
+    // goes to the opener alone — the window that started this sign-in — and
+    // the token it carries is scoped to that same visitor's own email, so it
+    // grants an opener nothing it couldn't get by signing in itself.
     try {
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage(payload, "*");

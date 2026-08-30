@@ -640,7 +640,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
       </div>
 
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="sticky top-12 z-20 grid w-full grid-cols-4">
+        <TabsList className="sticky top-12 z-20 grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="images">Images (Max 3)</TabsTrigger>
           <TabsTrigger value="shipping">Shipping</TabsTrigger>

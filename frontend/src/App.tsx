@@ -311,15 +311,22 @@ function AppContent() {
   // Same short-circuit for the public supplier quotation form — it must be
   // reachable by a supplier who isn't signed into kioscart at all, and
   // regardless of whatever role IS signed in on this browser.
+  // Covers both shared links: one product's list, and the shop-wide
+  // business list.
   if (
     typeof window !== 'undefined' &&
-    /^\/products\/[^/]+\/supplier\/?$/.test(window.location.pathname)
+    (/^\/products\/[^/]+\/supplier\/?$/.test(window.location.pathname) ||
+      /^\/business\/[^/]+\/supplier\/?$/.test(window.location.pathname))
   ) {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route
             path="/products/:productId/supplier"
+            element={<SupplierRequestForm />}
+          />
+          <Route
+            path="/business/:shopkeeperId/supplier"
             element={<SupplierRequestForm />}
           />
         </Routes>

@@ -231,6 +231,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     "kiosk",
     "storefront",
     "settings",
+    "expenses",
+    "suppliers",
     "support",
   ];
   const TAB_LABELS: Record<string, string> = {
@@ -242,6 +244,8 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     kiosk: "Kiosk Mode",
     storefront: "Storefront",
     settings: "Settings",
+    expenses: "Expenses",
+    suppliers: "Suppliers",
     support: "Support",
   };
 

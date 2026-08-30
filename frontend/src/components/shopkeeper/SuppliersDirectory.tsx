@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// The shop-wide requirement list + its quotations. Same panel the per-product
+// view uses, pointed at the business scope.
+const SupplierRequests = lazy(() => import("./SupplierRequests"));
 import {
   Card,
   CardContent,
@@ -91,6 +96,8 @@ interface SupplierHistoryRow {
   quotationAttachment?: string;
   payment?: { amountPaid?: number; balanceDue?: number };
   productId?: { _id: string; name?: string; title?: string } | string;
+  // Business-wide quotes answer the shop's requirement list, not a product's.
+  scope?: "product" | "business";
 }
 interface SupplierHistory {
   supplier: Supplier;
@@ -307,7 +314,36 @@ export default function SuppliersDirectory() {
     );
   }
 
+  const shopkeeperId = getShopkeeperId();
+
   return (
+    <Tabs defaultValue="directory" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="directory">Supplier Directory</TabsTrigger>
+        <TabsTrigger value="requirements">Business Requirements</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="requirements" className="mt-0">
+        {shopkeeperId ? (
+          <Suspense
+            fallback={
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            }
+          >
+            <SupplierRequests scope="business" shopkeeperId={shopkeeperId} />
+          </Suspense>
+        ) : (
+          <Card>
+            <CardContent className="p-8 text-center text-sm text-muted-foreground">
+              Sign in again to load your business requirements.
+            </CardContent>
+          </Card>
+        )}
+      </TabsContent>
+
+      <TabsContent value="directory" className="mt-0">
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -326,6 +362,17 @@ export default function SuppliersDirectory() {
         </div>
       </CardHeader>
       <CardContent>
+        {/* Requirements are per-product, not per-supplier — say so here, since
+            "I added a supplier, now what?" is the obvious next question. */}
+        <div className="mb-4 rounded-lg border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
+          Suppliers live here. For what you need quoted, use{" "}
+          <span className="font-medium text-foreground">Business Requirements</span>{" "}
+          above for shop-wide needs, or{" "}
+          <span className="font-medium text-foreground">Products</span> → the product's{" "}
+          <span className="font-medium text-foreground">Suppliers</span> action for
+          needs specific to one product. Either way you get a private link to share
+          and a place to compare incoming quotes.
+        </div>
         <div className="relative mb-4 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -552,7 +599,9 @@ export default function SuppliersDirectory() {
                         >
                           <div className="min-w-0">
                             <div className="font-medium">
-                              {prod?.name || prod?.title || "Product"}
+                              {r.scope === "business"
+                                ? "Business requirements"
+                                : prod?.name || prod?.title || "Product"}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {r.createdAt
@@ -611,6 +660,8 @@ export default function SuppliersDirectory() {
         </DialogContent>
       </Dialog>
     </Card>
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -740,9 +791,9 @@ function SupplierFormScreen({
         </div>
       </div>
 
-      <Card className="max-w-lg">
+      <Card>
         <CardContent className="pt-6">
-        <form onSubmit={submit} className="grid gap-4">
+        <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <Label>Name *</Label>
             <Input
@@ -831,7 +882,7 @@ function SupplierFormScreen({
             )}
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 pt-2 sm:col-span-2">
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === "edit" ? "Save changes" : "Add supplier"}

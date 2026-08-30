@@ -23,6 +23,10 @@ import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
 import { RoleService } from "../roles/roles.service";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import {
+  SUPPLIER_FORM_TOKEN_TTL,
+  SUPPLIER_FORM_TOKEN_TYPE,
+} from "./guards/supplier-form.guard";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 
@@ -364,10 +368,25 @@ export class AuthController {
   @UseGuards(AuthGuard("google-supplier"))
   async googleSupplierRedirect(@Req() req: Request, @Res() res: Response) {
     const user = (req.user as any) || {};
+    const email = String(user.email || "").trim().toLowerCase();
+    // Proof, for the supplier endpoints, that Google vouched for this
+    // address — without it the email is just a string in a URL that anyone
+    // could type. Deliberately carries no `sub`, so it is useless against
+    // the shopkeeper routes even though the signing secret is shared.
+    const supplierToken = email
+      ? await this.jwtService.signAsync(
+          { typ: SUPPLIER_FORM_TOKEN_TYPE, email },
+          {
+            secret: process.env.JWT_ACCESS_SECRET,
+            expiresIn: SUPPLIER_FORM_TOKEN_TTL,
+          } as any,
+        )
+      : "";
     const params = new URLSearchParams({
       email: user.email || "",
       name: user.name || "",
       picture: user.picture || "",
+      token: supplierToken,
     });
     res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
     res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");

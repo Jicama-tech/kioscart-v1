@@ -228,8 +228,8 @@ export function ExpenseManagement() {
           </div>
         </div>
 
-        <Card className="max-w-2xl">
-          <CardContent className="pt-6 space-y-4">
+        <Card>
+          <CardContent className="pt-6 grid gap-4 sm:grid-cols-2">
             <div>
               <Label>Category</Label>
               <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
@@ -253,7 +253,7 @@ export function ExpenseManagement() {
                 placeholder="Vendor / supplier / payee name"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:col-span-2">
               <div>
                 <Label>Amount</Label>
                 <Input
@@ -271,14 +271,14 @@ export function ExpenseManagement() {
                 />
               </div>
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <Label>Description (optional)</Label>
               <Textarea
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <Label>Invoice (PDF/JPG/PNG)</Label>
               <Input
                 type="file"
@@ -287,11 +287,11 @@ export function ExpenseManagement() {
               />
             </div>
             {isOperator && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground sm:col-span-2">
                 This expense will be sent to the store owner for approval before it counts in the P&amp;L.
               </p>
             )}
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center gap-3 pt-2 sm:col-span-2">
               <Button onClick={handleSubmit} disabled={submitting}>
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Save Expense

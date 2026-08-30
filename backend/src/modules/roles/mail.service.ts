@@ -352,6 +352,8 @@ export class MailService {
     summary: string;
     supplierName: string;
     productName: string;
+    /** Row label for `productName` — "Business" for shop-wide quotes. */
+    subjectLabel?: string;
     status: string;
     /** Label → value rows rendered as a table (already formatted). */
     rows?: Array<[string, string]>;
@@ -380,7 +382,7 @@ export class MailService {
         <p style="margin-top:0;color:#6b7280;">${data.summary}</p>
         <table style="border-collapse:collapse;margin:14px 0;">
           ${row(["Supplier", data.supplierName])}
-          ${row(["Product", data.productName])}
+          ${row([data.subjectLabel || "Product", data.productName])}
           ${row(["Status", data.status])}
           ${(data.rows || []).map(row).join("")}
         </table>

@@ -173,7 +173,31 @@ function paymentSummary(q: Quotation) {
   return { total, paid, balance };
 }
 
-export default function SupplierRequests({ productId }: { productId: string }) {
+/**
+ * The same requirements + quotations panel serves two scopes: one product's
+ * list, or the shop-wide business list. Only the API prefix and the shared
+ * link differ, so both are derived once here.
+ */
+export type SupplierScope =
+  | { scope: "product"; productId: string }
+  | { scope: "business"; shopkeeperId: string };
+
+export default function SupplierRequests(
+  props: { productId: string } | SupplierScope,
+) {
+  // Callers that pass a bare productId keep the original product behaviour.
+  const target: SupplierScope =
+    "scope" in props ? props : { scope: "product", productId: props.productId };
+  const isBusiness = target.scope === "business";
+  // Everything below is keyed off this one id, so the effect dependency and
+  // every request path stay in step.
+  const scopeKey = isBusiness
+    ? (target as { shopkeeperId: string }).shopkeeperId
+    : (target as { productId: string }).productId;
+  const base = isBusiness
+    ? `${apiURL}/suppliers/business/${scopeKey}`
+    : `${apiURL}/suppliers/product/${scopeKey}`;
+
   const [config, setConfig] = useState<SupplierConfig | null>(null);
   const [reqs, setReqs] = useState<RequirementItem[]>([]);
   const [instructions, setInstructions] = useState("");
@@ -283,26 +307,22 @@ export default function SupplierRequests({ productId }: { productId: string }) {
     setLoading(true);
     try {
       const [cRes, qRes, sRes, fRes] = await Promise.all([
-        fetch(`${apiURL}/suppliers/product/${productId}/config`, {
-          headers: authHeaders,
-        }),
-        fetch(`${apiURL}/suppliers/product/${productId}`, {
+        fetch(`${base}/config`, { headers: authHeaders }),
+        fetch(isBusiness ? `${base}/requests` : base, {
           headers: authHeaders,
         }),
         // What's actually sold for this product — recent orders — totalled up
-        // ready to drop into the requirements.
-        fetch(
-          `${apiURL}/suppliers/product/${productId}/requirement-suggestions`,
-          { headers: authHeaders },
-        ),
+        // ready to drop into the requirements. Sales are per product, so the
+        // business list has nothing to suggest from.
+        isBusiness
+          ? Promise.resolve(null)
+          : fetch(`${base}/requirement-suggestions`, { headers: authHeaders }),
         // How much of each requirement is already committed by suppliers.
-        fetch(`${apiURL}/suppliers/product/${productId}/fulfilment`, {
-          headers: authHeaders,
-        }),
+        fetch(`${base}/fulfilment`, { headers: authHeaders }),
       ]);
       const cJson = await cRes.json();
       const qJson = await qRes.json();
-      const sJson = sRes.ok ? await sRes.json() : null;
+      const sJson = sRes?.ok ? await sRes.json() : null;
       const fJson = fRes.ok ? await fRes.json() : null;
       setFulfilment(fJson?.data?.requirements || []);
       const cfg: SupplierConfig | undefined = cJson?.data;
@@ -326,7 +346,7 @@ export default function SupplierRequests({ productId }: { productId: string }) {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
+  }, [scopeKey, isBusiness]);
 
   // Merge the sold-items list into whatever is on screen: existing rows keep
   // the shopkeeper's wording but take the fresh count; new ones are appended.
@@ -380,7 +400,7 @@ export default function SupplierRequests({ productId }: { productId: string }) {
     setSaving(true);
     try {
       const res = await fetch(
-        `${apiURL}/suppliers/product/${productId}/config`,
+        `${base}/config`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...authHeaders },
@@ -404,7 +424,7 @@ export default function SupplierRequests({ productId }: { productId: string }) {
     setConfig((c) => (c ? { ...c, enabled } : c)); // optimistic
     try {
       const res = await fetch(
-        `${apiURL}/suppliers/product/${productId}/enabled`,
+        `${base}/enabled`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...authHeaders },
@@ -422,7 +442,9 @@ export default function SupplierRequests({ productId }: { productId: string }) {
 
   // No `linkPath` comes back from the backend config — the shared form lives
   // at a fixed, product-keyed route, so build it here.
-  const linkUrl = `${window.location.origin}/products/${productId}/supplier`;
+  const linkUrl = isBusiness
+    ? `${window.location.origin}/business/${scopeKey}/supplier`
+    : `${window.location.origin}/products/${scopeKey}/supplier`;
 
   const copyLink = () => {
     if (!linkUrl) return;
@@ -556,7 +578,9 @@ export default function SupplierRequests({ productId }: { productId: string }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <ClipboardList className="h-5 w-5 text-primary" />
-            What you need from suppliers
+            {isBusiness
+              ? "What your business needs from suppliers"
+              : "What you need from suppliers"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -691,15 +715,17 @@ export default function SupplierRequests({ productId }: { productId: string }) {
             <Button type="button" variant="outline" size="sm" onClick={addReq}>
               <Plus className="mr-1 h-4 w-4" /> Add requirement
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={syncFromBookings}
-              title="Re-count what's been sold recently for this product"
-            >
-              <Sparkles className="mr-1 h-4 w-4" /> Sync from sales
-            </Button>
+            {!isBusiness && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={syncFromBookings}
+                title="Re-count what's been sold recently for this product"
+              >
+                <Sparkles className="mr-1 h-4 w-4" /> Sync from sales
+              </Button>
+            )}
             <Button
               type="button"
               size="sm"

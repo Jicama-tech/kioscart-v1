@@ -400,7 +400,7 @@ export default function ShopkeepersPage() {
                 </div>
 
                 {/* Performance Stats */}
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <Card>
                     <CardContent className="py-3 text-center">
                       <Package className="h-4 w-4 mx-auto mb-1 text-blue-500" />

@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
@@ -48,9 +49,57 @@ function parseJson<T>(raw: unknown, fallback: T): T {
  * transporter for everyone). Lifecycle email notifications themselves are
  * ported below via `notify()`.
  */
+/**
+ * Which requirement list an operation targets: one product's list, or the
+ * single shop-wide business list.
+ */
+export type ScopeRef =
+  | { scope: "product"; productId: string }
+  | { scope: "business"; shopkeeperId: string };
+
 @Injectable()
-export class SuppliersService {
+export class SuppliersService implements OnModuleInit {
   private readonly logger = new Logger(SuppliersService.name);
+
+  /**
+   * Business-wide requirement lists carry no productId, so the original
+   * non-partial unique indexes on `productId` (and `productId + supplierId`)
+   * would treat every business row as a duplicate null. Drop those legacy
+   * indexes once so Mongoose can rebuild them as partial.
+   *
+   * Deliberately fire-and-forget: a slow or unreachable index op must never
+   * hold up the HTTP server coming online.
+   */
+  onModuleInit() {
+    void this.dropLegacySupplierIndexes().catch((err) =>
+      this.logger.warn(`Supplier index reconcile skipped: ${err?.message}`),
+    );
+  }
+
+  private async dropLegacySupplierIndexes() {
+    const targets: Array<[Model<any>, string]> = [
+      [this.configModel, "productId_1"],
+      [this.requestModel, "productId_1_supplierId_1"],
+    ];
+    for (const [model, name] of targets) {
+      try {
+        const existing = await model.collection.indexes();
+        const found = existing.find((i: any) => i.name === name);
+        // Only the old non-partial unique index needs removing; the partial
+        // replacement declared on the schema is left alone.
+        if (found?.unique && !found?.partialFilterExpression) {
+          await model.collection.dropIndex(name);
+          this.logger.log(`Dropped legacy index ${name}; rebuilding as partial`);
+          // createIndexes, not syncIndexes: build what the schema declares
+          // without dropping any other index this collection may carry.
+          await model.createIndexes();
+        }
+      } catch (err: any) {
+        // IndexNotFound (27) / NamespaceNotFound (26) just mean nothing to do.
+        if (err?.code !== 27 && err?.code !== 26) throw err;
+      }
+    }
+  }
 
   constructor(
     @InjectModel(Supplier.name)
@@ -124,7 +173,17 @@ export class SuppliersService {
         heading: payload.heading,
         summary: payload.summary,
         supplierName: supplierDoc?.companyName || supplierDoc?.name || "Supplier",
-        productName: (product as any)?.name || "your product",
+        // Business-wide quotes have no product — the shop is what the
+        // supplier is quoting for, so name that instead.
+        ...(((req as any).scope === "business")
+          ? {
+              productName:
+                (shopkeeper as any)?.shopName ||
+                (shopkeeper as any)?.name ||
+                "your business",
+              subjectLabel: "Business",
+            }
+          : { productName: (product as any)?.name || "your product" }),
         status: req.status,
         rows: [["Amount payable", money(this.payable(req))], ...(payload.rows || [])],
         note: payload.note,
@@ -151,6 +210,32 @@ export class SuppliersService {
       : Number(req?.quotationTotal) || 0;
   }
 
+  /**
+   * Ownership lookups for the shopkeeper-facing routes. The controller only
+   * ever holds an id from the URL, so the owning shop has to be resolved
+   * before the caller is let near the record. Both return false rather than
+   * throwing on a mismatch, so the controller decides the status code.
+   */
+  async isProductOwnedBy(productId: string, shopkeeperId: string) {
+    this.assertId(productId, "productId");
+    const product = await this.productModel
+      .findById(productId)
+      .select("shopkeeperId")
+      .lean();
+    if (!product) throw new NotFoundException("Product not found");
+    return String((product as any).shopkeeperId || "") === String(shopkeeperId);
+  }
+
+  async isRequestOwnedBy(requestId: string, shopkeeperId: string) {
+    this.assertId(requestId, "id");
+    const request = await this.requestModel
+      .findById(requestId)
+      .select("shopkeeperId")
+      .lean();
+    if (!request) throw new NotFoundException("Supplier request not found");
+    return String((request as any).shopkeeperId || "") === String(shopkeeperId);
+  }
+
   private assertId(id: string, label = "id") {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException(`Invalid ${label}`);
@@ -169,6 +254,44 @@ export class SuppliersService {
       currency = (shop as any)?.country || "IN";
     }
     return { product, shopkeeperId, currency };
+  }
+
+  // Resolve a shopkeeper directly, for business-scope (product-free) lists.
+  private async resolveShopkeeper(shopkeeperId: string) {
+    this.assertId(shopkeeperId, "shopkeeperId");
+    const shop = await this.shopkeeperModel.findById(shopkeeperId).lean();
+    if (!shop) throw new NotFoundException("Shopkeeper not found");
+    return {
+      shopkeeperId: (shop as any)._id,
+      currency: (shop as any)?.country || "IN",
+    };
+  }
+
+  /**
+   * Turn a scope reference into the owning shopkeeper plus the mongo filter
+   * that selects its config and its quotations. Everything below — the
+   * requirement editor, the public form, fulfilment maths, submissions —
+   * runs off this, so product and business lists share one implementation.
+   */
+  private async resolveScope(ref: ScopeRef) {
+    if (ref.scope === "business") {
+      const { shopkeeperId, currency } = await this.resolveShopkeeper(
+        ref.shopkeeperId,
+      );
+      const filter = {
+        scope: "business",
+        shopkeeperId: new Types.ObjectId(String(shopkeeperId)),
+      };
+      return { shopkeeperId, currency, filter, defaults: { ...filter } };
+    }
+    const { shopkeeperId, currency } = await this.resolveProduct(ref.productId);
+    const productId = new Types.ObjectId(ref.productId);
+    return {
+      shopkeeperId,
+      currency,
+      filter: { productId },
+      defaults: { productId, scope: "product" as const },
+    };
   }
 
   // ============ SHOPKEEPER: SUPPLIER CRM (identity list) ============
@@ -326,8 +449,12 @@ export class SuppliersService {
       (r: any) => !["Rejected", "Cancelled"].includes(r.status),
     );
     const totals = {
+      // Business-wide quotes carry no productId — they'd otherwise all
+      // collapse into one bogus "undefined" product in this count.
       products: new Set(
-        live.map((r: any) => String((r.productId as any)?._id ?? r.productId)),
+        live
+          .filter((r: any) => r.productId)
+          .map((r: any) => String((r.productId as any)?._id ?? r.productId)),
       ).size,
       quoted: live.reduce((s: number, r: any) => s + this.payable(r), 0),
       paid: live.reduce(
@@ -350,16 +477,23 @@ export class SuppliersService {
   async getOrCreateConfig(
     productId: string,
   ): Promise<SupplierProductConfigDocument> {
-    this.assertId(productId, "productId");
-    const existing = await this.configModel.findOne({ productId });
+    return this.getOrCreateConfigFor({ scope: "product", productId });
+  }
+
+  // Find the scope's supplier config, creating a disabled default if missing.
+  async getOrCreateConfigFor(
+    ref: ScopeRef,
+  ): Promise<SupplierProductConfigDocument> {
+    const { shopkeeperId, currency, filter, defaults } =
+      await this.resolveScope(ref);
+    const existing = await this.configModel.findOne(filter);
     if (existing) return existing;
-    const { shopkeeperId, currency } = await this.resolveProduct(productId);
-    // Race-safe upsert (productId is unique).
+    // Race-safe upsert — both scopes have a unique index behind them.
     return this.configModel.findOneAndUpdate(
-      { productId: new Types.ObjectId(productId) },
+      filter,
       {
         $setOnInsert: {
-          productId: new Types.ObjectId(productId),
+          ...defaults,
           shopkeeperId,
           currency,
           enabled: false,
@@ -371,8 +505,8 @@ export class SuppliersService {
     );
   }
 
-  async upsertConfig(productId: string, dto: UpsertSupplierConfigDto) {
-    const config = await this.getOrCreateConfig(productId);
+  async upsertConfigFor(ref: ScopeRef, dto: UpsertSupplierConfigDto) {
+    const config = await this.getOrCreateConfigFor(ref);
     if (dto.enabled !== undefined) config.enabled = dto.enabled;
     if (dto.currency !== undefined) config.currency = dto.currency;
     if (dto.instructions !== undefined) config.instructions = dto.instructions;
@@ -382,16 +516,24 @@ export class SuppliersService {
     return config;
   }
 
+  async upsertConfig(productId: string, dto: UpsertSupplierConfigDto) {
+    return this.upsertConfigFor({ scope: "product", productId }, dto);
+  }
+
   async getConfig(productId: string) {
     return this.getOrCreateConfig(productId);
   }
 
   // Open or pause the supplier form (whether the link accepts submissions).
-  async setEnabled(productId: string, enabled: boolean) {
-    const config = await this.getOrCreateConfig(productId);
+  async setEnabledFor(ref: ScopeRef, enabled: boolean) {
+    const config = await this.getOrCreateConfigFor(ref);
     config.enabled = enabled;
     await config.save();
     return config;
+  }
+
+  async setEnabled(productId: string, enabled: boolean) {
+    return this.setEnabledFor({ scope: "product", productId }, enabled);
   }
 
   /**
@@ -469,12 +611,16 @@ export class SuppliersService {
    * to source. Quotes still under negotiation don't count towards fulfilment.
    */
   async requirementFulfilment(productId: string) {
-    this.assertId(productId, "productId");
+    return this.requirementFulfilmentFor({ scope: "product", productId });
+  }
+
+  async requirementFulfilmentFor(ref: ScopeRef) {
+    const { filter } = await this.resolveScope(ref);
 
     const [config, requests] = await Promise.all([
-      this.configModel.findOne({ productId: new Types.ObjectId(productId) }).lean(),
+      this.configModel.findOne(filter).lean(),
       this.requestModel
-        .find({ productId: new Types.ObjectId(productId) })
+        .find(filter)
         .populate("supplierId", "name companyName")
         .lean(),
     ]);
@@ -548,18 +694,30 @@ export class SuppliersService {
   // What the supplier sees on the shared form: the shopkeeper's requirements
   // + minimal product info. Throws if the form isn't currently open.
   async getFormByProduct(productId: string) {
-    this.assertId(productId, "productId");
+    return this.getFormFor({ scope: "product", productId });
+  }
+
+  async getFormFor(ref: ScopeRef) {
+    const { filter } = await this.resolveScope(ref);
     const config = await this.configModel
-      .findOne({ productId: new Types.ObjectId(productId), enabled: true })
+      .findOne({ ...filter, enabled: true })
       .lean();
     if (!config) {
       throw new NotFoundException(
         "This supplier form is not open for submissions right now.",
       );
     }
-    const product = await this.productModel
-      .findById(config.productId)
-      .select("name images category")
+    // Business lists aren't tied to a product — the form shows the shop
+    // instead, so suppliers still know who they're quoting.
+    const product = config.productId
+      ? await this.productModel
+          .findById(config.productId)
+          .select("name images category")
+          .lean()
+      : null;
+    const shop = await this.shopkeeperModel
+      .findById(config.shopkeeperId)
+      .select("shopName ownerName")
       .lean();
 
     // Show what's still needed, not the original ask. Once other suppliers
@@ -569,9 +727,7 @@ export class SuppliersService {
     //
     // Only the numbers cross over: who is supplying what stays private to
     // the shopkeeper, so nothing from `suppliers` is exposed here.
-    const { requirements: fulfilled } = await this.requirementFulfilment(
-      productId,
-    );
+    const { requirements: fulfilled } = await this.requirementFulfilmentFor(ref);
     const byId = new Map(fulfilled.map((f: any) => [String(f.id), f]));
 
     const requirements = (config.requirements || [])
@@ -594,6 +750,14 @@ export class SuppliersService {
       requirements,
       instructions: config.instructions || "",
       currency: config.currency || "IN",
+      scope: (config as any).scope || "product",
+      shop: shop
+        ? {
+            id: String((shop as any)._id),
+            shopName: (shop as any).shopName || "",
+            ownerName: (shop as any).ownerName || "",
+          }
+        : null,
       product: product
         ? {
             id: String((product as any)._id),
@@ -611,10 +775,13 @@ export class SuppliersService {
   // Returns null when no profile exists yet, so the form falls through to
   // self-register.
   async findSupplierForProductByEmail(productId: string, email: string) {
-    this.assertId(productId, "productId");
+    return this.findSupplierForScopeByEmail({ scope: "product", productId }, email);
+  }
+
+  async findSupplierForScopeByEmail(ref: ScopeRef, email: string) {
     const clean = (email || "").trim().toLowerCase();
     if (!clean) return null;
-    const { shopkeeperId } = await this.resolveProduct(productId);
+    const { shopkeeperId } = await this.resolveScope(ref);
     const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const rx = new RegExp(`^${escaped}$`, "i");
     const shopFilter =
@@ -635,14 +802,15 @@ export class SuppliersService {
   // the form can show the negotiation/approval/rejection history instead of
   // a blank form. `email` is already Google-verified by the OAuth popup.
   async getMyRequestForProduct(productId: string, email: string) {
-    this.assertId(productId, "productId");
-    const supplier = await this.findSupplierForProductByEmail(productId, email);
+    return this.getMyRequestForScope({ scope: "product", productId }, email);
+  }
+
+  async getMyRequestForScope(ref: ScopeRef, email: string) {
+    const { filter } = await this.resolveScope(ref);
+    const supplier = await this.findSupplierForScopeByEmail(ref, email);
     if (!supplier) return null;
     const request = await this.requestModel
-      .findOne({
-        productId: new Types.ObjectId(productId),
-        supplierId: (supplier as any)._id,
-      })
+      .findOne({ ...filter, supplierId: (supplier as any)._id })
       .populate("productId", "name images category")
       .lean();
     if (!request) return null;
@@ -658,7 +826,19 @@ export class SuppliersService {
     email: string,
     dto: SupplierRespondDto,
   ) {
-    const found = await this.getMyRequestForProduct(productId, email);
+    return this.supplierRespondForScope(
+      { scope: "product", productId },
+      email,
+      dto,
+    );
+  }
+
+  async supplierRespondForScope(
+    ref: ScopeRef,
+    email: string,
+    dto: SupplierRespondDto,
+  ) {
+    const found = await this.getMyRequestForScope(ref, email);
     if (!found) throw new NotFoundException("No quotation found for you.");
     const req = await this.requestModel.findById((found.request as any)._id);
     if (!req) throw new NotFoundException("No quotation found for you.");
@@ -712,7 +892,21 @@ export class SuppliersService {
     invoicePath?: string,
     note?: string,
   ) {
-    const found = await this.getMyRequestForProduct(productId, email);
+    return this.supplierConfirmPaymentForScope(
+      { scope: "product", productId },
+      email,
+      invoicePath,
+      note,
+    );
+  }
+
+  async supplierConfirmPaymentForScope(
+    ref: ScopeRef,
+    email: string,
+    invoicePath?: string,
+    note?: string,
+  ) {
+    const found = await this.getMyRequestForScope(ref, email);
     if (!found) throw new NotFoundException("No quotation found for you.");
     const req = await this.requestModel.findById((found.request as any)._id);
     if (!req) throw new NotFoundException("No quotation found for you.");
@@ -753,17 +947,26 @@ export class SuppliersService {
   }
 
   async submitRequest(dto: CreateSupplierRequestDto, attachmentPath?: string) {
-    this.assertId(dto.productId, "productId");
-    const config = await this.configModel.findOne({
-      productId: new Types.ObjectId(dto.productId),
-      enabled: true,
-    });
+    // A submission targets either a product's list or the business list —
+    // whichever the shared link pointed at.
+    const ref: ScopeRef =
+      dto.scope === "business"
+        ? { scope: "business", shopkeeperId: dto.shopkeeperId || "" }
+        : { scope: "product", productId: dto.productId || "" };
+    if (ref.scope === "business") {
+      this.assertId(ref.shopkeeperId, "shopkeeperId");
+    } else {
+      this.assertId(ref.productId, "productId");
+    }
+    const { filter } = await this.resolveScope(ref);
+    const config = await this.configModel.findOne({ ...filter, enabled: true });
     if (!config) {
       throw new BadRequestException(
         "This supplier form is not open for submissions right now.",
       );
     }
     const productId = config.productId;
+    const scope = (config as any).scope || "product";
     const shopkeeperId = Types.ObjectId.isValid(String(config.shopkeeperId))
       ? new Types.ObjectId(String(config.shopkeeperId))
       : config.shopkeeperId;
@@ -806,14 +1009,15 @@ export class SuppliersService {
       });
     }
 
-    // Single-submission rule: one quotation per supplier per product.
+    // Single-submission rule: one quotation per supplier per list.
     const already = await this.requestModel.findOne({
-      productId,
+      ...filter,
       supplierId: supplier._id,
     });
+    const targetLabel = scope === "business" ? "business" : "product";
     if (already) {
       throw new ConflictException(
-        "You have already submitted a quotation for this product.",
+        `You have already submitted a quotation for this ${targetLabel}.`,
       );
     }
 
@@ -826,7 +1030,8 @@ export class SuppliersService {
     try {
       const created = await this.requestModel.create({
         supplierId: supplier._id,
-        productId,
+        scope,
+        ...(productId ? { productId } : {}),
         shopkeeperId,
         status: SupplierRequestStatus.Quoted,
         quotationItems: items,
@@ -848,16 +1053,16 @@ export class SuppliersService {
 
       this.notify(created, "shopkeeper", {
         heading: "New supplier quotation received",
-        summary: `${supplier.companyName || supplier.name} has submitted a quotation for your product.`,
+        summary: `${supplier.companyName || supplier.name} has submitted a quotation for your ${targetLabel}.`,
         rows: dto.quotationNotes ? [["Supplier note", dto.quotationNotes]] : [],
       });
 
       return created;
     } catch (err: any) {
-      // Unique (productId, supplierId) race → already submitted.
+      // Unique-index race → already submitted.
       if (err?.code === 11000) {
         throw new ConflictException(
-          "You have already submitted a quotation for this product.",
+          `You have already submitted a quotation for this ${targetLabel}.`,
         );
       }
       throw err;
@@ -870,6 +1075,19 @@ export class SuppliersService {
     this.assertId(productId, "productId");
     return this.requestModel
       .find({ productId: new Types.ObjectId(productId) })
+      .populate("supplierId")
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  // Quotations against the shop-wide business list only.
+  async listBusinessRequests(shopkeeperId: string) {
+    this.assertId(shopkeeperId, "shopkeeperId");
+    return this.requestModel
+      .find({
+        scope: "business",
+        shopkeeperId: new Types.ObjectId(shopkeeperId),
+      })
       .populate("supplierId")
       .sort({ createdAt: -1 })
       .lean();

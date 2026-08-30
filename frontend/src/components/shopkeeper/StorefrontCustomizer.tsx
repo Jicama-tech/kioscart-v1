@@ -913,7 +913,7 @@ export function StorefrontCustomizer({
       {viewMode === "settings" && (
       <div className="max-w-7xl mx-auto mt-6 mb-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Layout className="h-4 w-4" />
               General
