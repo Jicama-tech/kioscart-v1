@@ -622,7 +622,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="storefront-light min-h-screen bg-background">
       {/* SEO Head */}
       <Helmet>
         <title>
@@ -671,12 +671,12 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
         }}
       />
 
-      <div className="bg-white dark:bg-gray-900 shadow-sm border-b p-3 sm:p-4 sticky top-0 z-50">
+      <div className="bg-card shadow-sm border-b p-3 sm:p-4 sticky top-0 z-50">
         <div className="flex items-center justify-between max-w-7xl mx-auto px-2 sm:px-4">
           <Button
             variant="buttonOutline"
             onClick={onBack}
-            className="hover:bg-gray-50 dark:hover:bg-gray-800 text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2"
+            className="hover:bg-muted text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2"
             size="sm"
           >
             <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
@@ -742,7 +742,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     </div>
                     <div>
                       <h1
-                        className="font-bold text-base sm:text-lg lg:text-xl text-gray-900 truncate max-w-auto sm:max-w-none"
+                        className="font-bold text-base sm:text-lg lg:text-xl text-foreground truncate max-w-auto sm:max-w-none"
                         style={{ fontFamily: design.fontFamily }}
                       >
                         {general.storeName}
@@ -752,25 +752,25 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   <div className="hidden md:flex mr-15 space-x-4 lg:space-x-8">
                     <button
                       onClick={() => scrollToSection("home")}
-                      className="text-gray-900 hover:text-primary font-medium transition-colors text-sm lg:text-base"
+                      className="text-foreground hover:text-primary font-medium transition-colors text-sm lg:text-base"
                     >
                       Home
                     </button>
                     <button
                       onClick={() => scrollToSection("products")}
-                      className="text-gray-600 hover:text-primary transition-colors text-sm lg:text-base"
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm lg:text-base"
                     >
                       Products
                     </button>
                     <button
                       onClick={() => scrollToSection("about")}
-                      className="text-gray-600 hover:text-primary transition-colors text-sm lg:text-base"
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm lg:text-base"
                     >
                       About
                     </button>
                     <button
                       onClick={() => scrollToSection("about")}
-                      className="text-gray-600 hover:text-primary transition-colors text-sm lg:text-base"
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm lg:text-base"
                     >
                       Contact
                     </button>
@@ -782,7 +782,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-gray-600 hover:text-primary p-1 sm:p-2"
+                      className="text-muted-foreground hover:text-primary p-1 sm:p-2"
                     >
                       <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Button>
@@ -812,32 +812,32 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
         {header === "minimal" && (
           <>
-            <nav className="bg-white shadow-md border-b sticky top-0 z-40">
+            <nav className="bg-card shadow-md border-b sticky top-0 z-40">
               <div className="w-full px-3 sm:px-4 md:px-6">
                 <div className="flex justify-between items-center h-14 sm:h-16 md:h-18">
                   {/* Left Navigation Items (hidden on mobile) */}
                   <div className="hidden md:flex space-x-4 lg:space-x-6 flex-shrink-0">
                     <button
                       onClick={() => scrollToSection("home")}
-                      className="text-gray-900 hover:text-primary font-medium hover:font-bold transition-all duration-200 text-xs lg:text-sm whitespace-nowrap"
+                      className="text-foreground hover:text-primary font-medium hover:font-bold transition-all duration-200 text-xs lg:text-sm whitespace-nowrap"
                     >
                       Home
                     </button>
                     <button
                       onClick={() => scrollToSection("products")}
-                      className="text-gray-600 hover:text-primary font-medium hover:font-bold transition-all duration-200 text-xs lg:text-sm whitespace-nowrap"
+                      className="text-muted-foreground hover:text-primary font-medium hover:font-bold transition-all duration-200 text-xs lg:text-sm whitespace-nowrap"
                     >
                       Products
                     </button>
                     <button
                       onClick={() => scrollToSection("about")}
-                      className="text-gray-600 hover:text-primary font-medium hover:font-bold transition-all duration-200 text-xs lg:text-sm whitespace-nowrap"
+                      className="text-muted-foreground hover:text-primary font-medium hover:font-bold transition-all duration-200 text-xs lg:text-sm whitespace-nowrap"
                     >
                       About
                     </button>
                     <button
                       onClick={() => scrollToSection("about")}
-                      className="text-gray-600 hover:text-primary font-medium hover:font-bold transition-all duration-200 text-xs lg:text-sm whitespace-nowrap"
+                      className="text-muted-foreground hover:text-primary font-medium hover:font-bold transition-all duration-200 text-xs lg:text-sm whitespace-nowrap"
                     >
                       Contact
                     </button>
@@ -870,7 +870,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                       </div>
                       <div>
                         <h1
-                          className="font-bold text-sm sm:text-base md:text-lg lg:text-xl text-gray-900 truncate max-w-auto sm:max-w-auto md:max-w-none"
+                          className="font-bold text-sm sm:text-base md:text-lg lg:text-xl text-foreground truncate max-w-auto sm:max-w-auto md:max-w-none"
                           style={{ fontFamily: design.fontFamily }}
                         >
                           {general.storeName}
@@ -884,7 +884,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     {/* Mobile Menu Toggle */}
                     <button
                       onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                      className="md:hidden text-gray-600 hover:text-primary transition-colors p-1.5 sm:p-2"
+                      className="md:hidden text-muted-foreground hover:text-primary transition-colors p-1.5 sm:p-2"
                       aria-label="Toggle menu"
                     >
                       {isMobileMenuOpen ? (
@@ -897,7 +897,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     {/* Wishlist Button */}
                     {features.showWishlist && (
                       <button
-                        className="hidden sm:flex text-gray-600 hover:text-primary p-1.5 sm:p-2 flex-shrink-0"
+                        className="hidden sm:flex text-muted-foreground hover:text-primary p-1.5 sm:p-2 flex-shrink-0"
                         aria-label="Wishlist"
                       >
                         <Heart className="h-4 w-4 sm:h-5 sm:w-5 md:h-5 md:w-5" />
@@ -907,7 +907,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     {/* Cart Button */}
                     <button
                       onClick={handleCartClick}
-                      className="relative text-gray-600 hover:text-primary transition-colors p-1.5 sm:p-2 flex-shrink-0"
+                      className="relative text-muted-foreground hover:text-primary transition-colors p-1.5 sm:p-2 flex-shrink-0"
                       aria-label="Shopping cart"
                     >
                       <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 md:h-6 md:w-6" />
@@ -925,14 +925,14 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
                 {/* Mobile Menu Dropdown */}
                 {isMobileMenuOpen && (
-                  <div className="md:hidden bg-gray-50 border-t border-gray-200 animate-in fade-in duration-200">
+                  <div className="md:hidden bg-muted/50 border-t border-border animate-in fade-in duration-200">
                     <div className="px-3 sm:px-4 py-2 sm:py-3 space-y-2 sm:space-y-3">
                       <button
                         onClick={() => {
                           scrollToSection("home");
                           closeMobileMenu();
                         }}
-                        className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-gray-900 hover:bg-gray-200 font-semibold transition-colors rounded text-sm sm:text-base"
+                        className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-foreground hover:bg-muted font-semibold transition-colors rounded text-sm sm:text-base"
                       >
                         Home
                       </button>
@@ -941,7 +941,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           scrollToSection("products");
                           closeMobileMenu();
                         }}
-                        className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 hover:bg-gray-200 font-semibold transition-colors rounded text-sm sm:text-base"
+                        className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-muted-foreground hover:bg-muted font-semibold transition-colors rounded text-sm sm:text-base"
                       >
                         Products
                       </button>
@@ -950,7 +950,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           scrollToSection("about");
                           closeMobileMenu();
                         }}
-                        className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 hover:bg-gray-200 font-semibold transition-colors rounded text-sm sm:text-base"
+                        className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-muted-foreground hover:bg-muted font-semibold transition-colors rounded text-sm sm:text-base"
                       >
                         About
                       </button>
@@ -959,7 +959,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           scrollToSection("contact");
                           closeMobileMenu();
                         }}
-                        className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 hover:bg-gray-200 font-semibold transition-colors rounded text-sm sm:text-base"
+                        className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-muted-foreground hover:bg-muted font-semibold transition-colors rounded text-sm sm:text-base"
                       >
                         Contact
                       </button>
@@ -974,7 +974,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
         {header === "mega" && (
           <>
             {/* TOP SECTION: Normal scrolling logo and store name */}
-            <nav className="hidden md:block bg-white shadow-md border-b relative z-30 transition-all duration-300">
+            <nav className="hidden md:block bg-card shadow-md border-b relative z-30 transition-all duration-300">
               <div className="w-full px-3 sm:px-4 md:px-6">
                 <div
                   className={`flex justify-center items-center transition-all duration-300 ${
@@ -1008,12 +1008,12 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     </div>
                     <div className="min-w-0">
                       <h1
-                        className="font-bold text-base sm:text-lg md:text-2xl lg:text-3xl text-gray-900 transition-all duration-300 truncate sm:truncate-none"
+                        className="font-bold text-base sm:text-lg md:text-2xl lg:text-3xl text-foreground transition-all duration-300 truncate sm:truncate-none"
                         style={{ fontFamily: design.fontFamily }}
                       >
                         {general.storeName}
                       </h1>
-                      <p className="text-gray-500 text-xs sm:text-sm md:text-sm mt-0.5 sm:mt-1 transition-all duration-300 hidden sm:block">
+                      <p className="text-muted-foreground text-xs sm:text-sm md:text-sm mt-0.5 sm:mt-1 transition-all duration-300 hidden sm:block">
                         {general.tagline}
                       </p>
                     </div>
@@ -1024,7 +1024,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
             {/* B O T T O M  S E C T I O N */}
             <nav
-              className={`bg-white shadow-md border-b transition-all duration-300 ${
+              className={`bg-card shadow-md border-b transition-all duration-300 ${
                 isNavBarSticky
                   ? "fixed top-0 left-0 right-0 w-full shadow-lg z-50"
                   : "relative z-40"
@@ -1045,7 +1045,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                       <div className="flex items-center flex-shrink-0">
                         <button
                           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                          className="flex text-gray-600 hover:text-primary transition-colors p-1.5 sm:p-2"
+                          className="flex text-muted-foreground hover:text-primary transition-colors p-1.5 sm:p-2"
                           aria-label="Toggle menu"
                         >
                           {isMobileMenuOpen ? (
@@ -1081,7 +1081,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           >
                             {general.storeName.charAt(0).toUpperCase()}
                           </div>
-                          <p className="text-gray-800 text-xs sm:text-sm font-semibold truncate">
+                          <p className="text-foreground text-xs sm:text-sm font-semibold truncate">
                             {general.storeName}
                           </p>
                         </div>
@@ -1091,7 +1091,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                       <div className="flex items-center flex-shrink-0">
                         <button
                           onClick={handleCartClick}
-                          className="relative text-gray-600 hover:text-primary transition-all duration-300 p-1.5 sm:p-2"
+                          className="relative text-muted-foreground hover:text-primary transition-all duration-300 p-1.5 sm:p-2"
                           aria-label="Shopping cart"
                         >
                           <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -1141,7 +1141,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           {general.storeName.charAt(0).toUpperCase()}
                         </div>
                         <div className="hidden md:block">
-                          <p className="text-gray-600 text-xs lg:text-sm font-medium truncate">
+                          <p className="text-muted-foreground text-xs lg:text-sm font-medium truncate">
                             {general.storeName}
                           </p>
                         </div>
@@ -1157,7 +1157,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                       >
                         <button
                           onClick={() => scrollToSection("home")}
-                          className={`text-gray-900 hover:text-primary font-semibold transition-all duration-200 hover:underline whitespace-nowrap px-3 py-2 rounded-md ${
+                          className={`text-foreground hover:text-primary font-semibold transition-all duration-200 hover:underline whitespace-nowrap px-3 py-2 rounded-md ${
                             isNavBarSticky
                               ? "text-base lg:text-lg" // Even larger: was text-sm lg:text-base
                               : "text-lg lg:text-xl" // Even larger: was text-base lg:text-lg
@@ -1173,7 +1173,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         </button>
                         <button
                           onClick={() => scrollToSection("products")}
-                          className={`text-gray-600 hover:text-primary font-semibold transition-all duration-200 hover:underline whitespace-nowrap px-3 py-2 rounded-md ${
+                          className={`text-muted-foreground hover:text-primary font-semibold transition-all duration-200 hover:underline whitespace-nowrap px-3 py-2 rounded-md ${
                             isNavBarSticky
                               ? "text-base lg:text-lg" // Even larger: was text-sm lg:text-base
                               : "text-lg lg:text-xl" // Even larger: was text-base lg:text-lg
@@ -1189,7 +1189,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         </button>
                         <button
                           onClick={() => scrollToSection("about")}
-                          className={`text-gray-600 hover:text-primary font-semibold transition-all duration-200 hover:underline whitespace-nowrap px-3 py-2 rounded-md ${
+                          className={`text-muted-foreground hover:text-primary font-semibold transition-all duration-200 hover:underline whitespace-nowrap px-3 py-2 rounded-md ${
                             isNavBarSticky
                               ? "text-base lg:text-lg" // Even larger: was text-sm lg:text-base
                               : "text-lg lg:text-xl" // Even larger: was text-base lg:text-lg
@@ -1205,7 +1205,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         </button>
                         <button
                           onClick={() => scrollToSection("about")}
-                          className={`text-gray-600 hover:text-primary font-semibold transition-all duration-200 hover:underline whitespace-nowrap px-3 py-2 rounded-md ${
+                          className={`text-muted-foreground hover:text-primary font-semibold transition-all duration-200 hover:underline whitespace-nowrap px-3 py-2 rounded-md ${
                             isNavBarSticky
                               ? "text-base lg:text-lg" // Even larger: was text-sm lg:text-base
                               : "text-lg lg:text-xl" // Even larger: was text-base lg:text-lg
@@ -1225,7 +1225,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                       <div className="flex items-center space-x-1 sm:space-x-2 ml-auto flex-shrink-0">
                         {features.showWishlist && !isNavBarSticky && (
                           <button
-                            className="hidden sm:flex text-gray-600 hover:text-primary transition-colors p-1.5 sm:p-2"
+                            className="hidden sm:flex text-muted-foreground hover:text-primary transition-colors p-1.5 sm:p-2"
                             aria-label="Wishlist"
                           >
                             <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -1233,7 +1233,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         )}
                         <button
                           onClick={handleCartClick}
-                          className="relative text-gray-600 hover:text-primary transition-all duration-300 p-1.5 sm:p-2 flex-shrink-0"
+                          className="relative text-muted-foreground hover:text-primary transition-all duration-300 p-1.5 sm:p-2 flex-shrink-0"
                           aria-label="Shopping cart"
                         >
                           <ShoppingCart
@@ -1264,14 +1264,14 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
               {/* Mobile Menu Dropdown */}
               {isMobileMenuOpen && isMobile && (
-                <div className="md:hidden bg-gray-50 border-t border-gray-200 animate-in fade-in duration-200">
+                <div className="md:hidden bg-muted/50 border-t border-border animate-in fade-in duration-200">
                   <div className="px-3 sm:px-4 py-2 sm:py-3 space-y-2 sm:space-y-3">
                     <button
                       onClick={() => {
                         scrollToSection("home");
                         closeMobileMenu();
                       }}
-                      className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-gray-900 hover:bg-gray-200 font-semibold hover:font-bold transition-colors rounded text-sm sm:text-base"
+                      className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-foreground hover:bg-muted font-semibold hover:font-bold transition-colors rounded text-sm sm:text-base"
                     >
                       Home
                     </button>
@@ -1280,7 +1280,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         scrollToSection("products");
                         closeMobileMenu();
                       }}
-                      className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 hover:bg-gray-200 font-semibold hover:font-bold transition-colors rounded text-sm sm:text-base"
+                      className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-muted-foreground hover:bg-muted font-semibold hover:font-bold transition-colors rounded text-sm sm:text-base"
                     >
                       Products
                     </button>
@@ -1289,7 +1289,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         scrollToSection("about");
                         closeMobileMenu();
                       }}
-                      className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 hover:bg-gray-200 font-semibold hover:font-bold transition-colors rounded text-sm sm:text-base"
+                      className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-muted-foreground hover:bg-muted font-semibold hover:font-bold transition-colors rounded text-sm sm:text-base"
                     >
                       About
                     </button>
@@ -1298,7 +1298,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         scrollToSection("contact");
                         closeMobileMenu();
                       }}
-                      className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 hover:bg-gray-200 font-semibold hover:font-bold transition-colors rounded text-sm sm:text-base"
+                      className="block w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-muted-foreground hover:bg-muted font-semibold hover:font-bold transition-colors rounded text-sm sm:text-base"
                     >
                       Contact
                     </button>
@@ -1321,9 +1321,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
               className="fixed inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setSidebarOpen(false)}
             />
-            <div className="fixed left-0 top-0 h-full w-72 sm:w-80 bg-white dark:bg-gray-900 border-r p-4 sm:p-6 shadow-2xl overflow-y-auto">
+            <div className="fixed left-0 top-0 h-full w-72 sm:w-80 bg-card border-r p-4 sm:p-6 shadow-2xl overflow-y-auto">
               <div className="flex items-center justify-between mb-6 sm:mb-8">
-                <span className="font-bold text-lg sm:text-xl text-gray-900 dark:text-white">
+                <span className="font-bold text-lg sm:text-xl text-foreground">
                   {general.storeName}
                 </span>
                 <Button
@@ -1337,25 +1337,25 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
               <nav className="space-y-4 sm:space-y-6">
                 <button
                   onClick={() => scrollToSection("home")}
-                  className="block w-full text-left py-3 text-base sm:text-lg font-semibold text-gray-900 dark:text-white hover:text-primary transition-colors border-b border-gray-100 dark:border-gray-700"
+                  className="block w-full text-left py-3 text-base sm:text-lg font-semibold text-foreground hover:text-primary transition-colors border-b border-border"
                 >
                   Home
                 </button>
                 <button
                   onClick={() => scrollToSection("products")}
-                  className="block w-full text-left py-3 text-base sm:text-lg text-gray-600 dark:text-gray-300 hover:text-primary transition-colors border-b border-gray-100 dark:border-gray-700"
+                  className="block w-full text-left py-3 text-base sm:text-lg text-muted-foreground hover:text-primary transition-colors border-b border-border"
                 >
                   Products
                 </button>
                 <button
                   onClick={() => scrollToSection("about")}
-                  className="block w-full text-left py-3 text-base sm:text-lg text-gray-600 dark:text-gray-300 hover:text-primary transition-colors border-b border-gray-100 dark:border-gray-700"
+                  className="block w-full text-left py-3 text-base sm:text-lg text-muted-foreground hover:text-primary transition-colors border-b border-border"
                 >
                   About
                 </button>
                 <button
                   onClick={() => scrollToSection("about")}
-                  className="block w-full text-left py-3 text-base sm:text-lg text-gray-600 dark:text-gray-300 hover:text-primary transition-colors border-b border-gray-100 dark:border-gray-700"
+                  className="block w-full text-left py-3 text-base sm:text-lg text-muted-foreground hover:text-primary transition-colors border-b border-border"
                 >
                   Contact
                 </button>
@@ -1520,7 +1520,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
               sm:h-64 
               md:h-72 
               lg:h-[24rem] 
-              bg-gray-200 
+              bg-muted 
               rounded-3xl 
               overflow-hidden 
               shadow-2xl 
@@ -1646,7 +1646,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                               className={`h-4 w-4 sm:h-5 sm:w-5 ${
                                 i < Math.floor(featuredProduct.rating || 0)
                                   ? "text-yellow-400 fill-yellow-400"
-                                  : "text-gray-300"
+                                  : "text-muted-foreground"
                               }`}
                             />
                           ))}
@@ -1751,11 +1751,11 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         )}
                       </div>
                       <div className="p-3">
-                        <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
                           {product.category}
                         </p>
                         <p
-                          className="font-semibold text-sm text-gray-900 truncate"
+                          className="font-semibold text-sm text-foreground truncate"
                           style={{ fontFamily: design.fontFamily }}
                         >
                           {product.name}
@@ -1823,7 +1823,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                                 .map((product, index) => (
                                   <Card
                                     key={product._id}
-                                    className={`group cursor-pointer hover:shadow-xl transition-all duration-300 rounded-3xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-white to-gray-50 h-full flex flex-col ${
+                                    className={`group cursor-pointer hover:shadow-xl transition-all duration-300 rounded-3xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-background to-muted h-full flex flex-col ${
                                       index === 1 ? "hidden sm:flex" : "flex"
                                     }`}
                                     onClick={() =>
@@ -1906,7 +1906,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                                 slideIndex * 2,
                                 slideIndex * 2 + 2,
                               ).length === 1 && (
-                                <div className="hidden sm:flex h-full bg-gradient-to-br from-gray-50 to-white rounded-xl sm:rounded-2xl items-center justify-center">
+                                <div className="hidden sm:flex h-full bg-gradient-to-br from-muted to-background rounded-xl sm:rounded-2xl items-center justify-center">
                                   <p className="text-lg sm:text-xl text-muted-foreground text-center px-4">
                                     More products coming soon!
                                   </p>
@@ -1926,7 +1926,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         variant="outline"
                         size="sm"
                         onClick={prevSlide}
-                        className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl border-0 hover:scale-110 transition-all duration-300 z-10"
+                        className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-card/90 backdrop-blur-sm shadow-lg hover:shadow-xl border-0 hover:scale-110 transition-all duration-300 z-10"
                         disabled={totalSlides === 0}
                       >
                         <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -1936,7 +1936,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         variant="outline"
                         size="sm"
                         onClick={nextSlide}
-                        className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl border-0 hover:scale-110 transition-all duration-300 z-10"
+                        className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-card/90 backdrop-blur-sm shadow-lg hover:shadow-xl border-0 hover:scale-110 transition-all duration-300 z-10"
                         disabled={totalSlides === 0}
                       >
                         <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -2033,7 +2033,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 {filteredProducts.map((product) => (
                   <div
                     key={product._id}
-                    className="group mb-4 cursor-pointer border-2 border-border/50 hover:border-primary/80 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+                    className="group mb-4 cursor-pointer border-2 border-border/50 hover:border-primary/80 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-card hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
                     onClick={() => handleProductClick(product._id)}
                   >
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center p-6 sm:p-8">
@@ -2199,7 +2199,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   {filteredProducts.map((product) => (
                     <Card
                       key={product._id}
-                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white to-gray-50 h-[24rem] sm:h-[28rem] lg:h-[26rem] xl:h-[30rem]"
+                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-background to-muted h-[24rem] sm:h-[28rem] lg:h-[26rem] xl:h-[30rem]"
                       onClick={() => handleProductClick(product._id)}
                     >
                       <div className="relative h-[60%]">
@@ -2335,7 +2335,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   {filteredProducts.map((product) => (
                     <Card
                       key={product._id}
-                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white to-gray-50 h-[24rem] sm:h-[28rem] lg:h-[26rem] xl:h-[30rem]"
+                      className="group cursor-pointer hover:shadow-2xl transition-all duration-300 rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-background to-muted h-[24rem] sm:h-[28rem] lg:h-[26rem] xl:h-[30rem]"
                       onClick={() => handleProductClick(product._id)}
                     >
                       <div className="relative h-[60%]">
@@ -2528,7 +2528,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
                   {/* MOBILE/TABLET: Contact Section (Visible on sm and md, hidden on lg) */}
                   <div className="flex flex-col items-center lg:hidden w-full">
-                    <h4 className="text-lg font-bold text-black">Contact Us</h4>
+                    <h4 className="text-lg font-bold text-foreground">Contact Us</h4>
                     <div className="flex flex-wrap items-center justify-center gap-3">
                       {general.contactInfo.phone && (
                         <a
@@ -2585,7 +2585,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   {/* MOBILE/TABLET: Social Media Section (Visible on sm and md, hidden on lg) */}
                   {features.showSocialMedia && (
                     <div className="flex flex-col items-center lg:hidden w-full">
-                      <h4 className="text-lg font-bold text-black">
+                      <h4 className="text-lg font-bold text-foreground">
                         Follow Us
                       </h4>
                       <div className="flex items-center justify-center gap-3">
@@ -2741,7 +2741,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
                 {/* Contact Info - DESKTOP ONLY (Hidden on sm and md, visible on lg) */}
                 <div className="hidden lg:block">
-                  <h4 className="font-semibold mb-4 text-lg text-black">
+                  <h4 className="font-semibold mb-4 text-lg text-foreground">
                     Contact Info
                   </h4>
                   <div className="space-y-3 text-sm text-muted-foreground">
@@ -2795,7 +2795,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
                 {/* Store Hours/Website - DESKTOP ONLY (Hidden on sm and md, visible on lg) */}
                 <div className="hidden lg:block">
-                  <h4 className="font-semibold mb-4 text-lg text-black">
+                  <h4 className="font-semibold mb-4 text-lg text-foreground">
                     Store Hours
                   </h4>
                   <div className="space-y-3 text-sm text-muted-foreground">
@@ -2851,7 +2851,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 </p>
                 <a
                   href="/login"
-                  className="text-black font-semibold hover:underline mt-2 md:mt-0"
+                  className="text-foreground font-semibold hover:underline mt-2 md:mt-0"
                 >
                   Store Login
                 </a>
@@ -2875,18 +2875,18 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     <div className="flex flex-wrap items-center justify-center gap-1">
                       <a
                         href={`tel:${general.contactInfo.phone}`}
-                        className="p-3 hover:bg-white-700/50 transition-all"
+                        className="p-3 hover:bg-card/50 transition-all"
                         aria-label="Phone"
                       >
-                        <Phone className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+                        <Phone className="h-5 w-5 text-muted-foreground hover:text-white transition-colors" />
                       </a>
 
                       <a
                         href={`mailto:${general.contactInfo.email}`}
-                        className="p-3 hover:bg-white-700/50 transition-all"
+                        className="p-3 hover:bg-card/50 transition-all"
                         aria-label="Email"
                       >
-                        <Mail className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+                        <Mail className="h-5 w-5 text-muted-foreground hover:text-white transition-colors" />
                       </a>
 
                       <a
@@ -2899,20 +2899,20 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         }
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-3 hover:bg-white-700/50 transition-all"
+                        className="p-3 hover:bg-card/50 transition-all"
                         aria-label="Location"
                       >
-                        <MapPin className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+                        <MapPin className="h-5 w-5 text-muted-foreground hover:text-white transition-colors" />
                       </a>
 
                       <a
                         href={general.contactInfo.website || "#"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-3 hover:bg-white-700/50 transition-all"
+                        className="p-3 hover:bg-card/50 transition-all"
                         aria-label="Website"
                       >
-                        <Globe className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+                        <Globe className="h-5 w-5 text-muted-foreground hover:text-white transition-colors" />
                       </a>
                     </div>
                   </div>
@@ -2923,20 +2923,20 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                       {general.contactInfo.phone && (
                         <a
                           href={`tel:${general.contactInfo.phone}`}
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                           aria-label="Phone"
                         >
-                          <Phone className="h-5 w-5 lg:h-6 lg:w-6 text-gray-400 group-hover:text-primary transition-all duration-200" />
+                          <Phone className="h-5 w-5 lg:h-6 lg:w-6 text-muted-foreground group-hover:text-primary transition-all duration-200" />
                         </a>
                       )}
 
                       {general.contactInfo.email && (
                         <a
                           href={`mailto:${general.contactInfo.email}`}
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                           aria-label="Email"
                         >
-                          <Mail className="h-5 w-5 lg:h-6 lg:w-6 text-gray-400 group-hover:text-primary transition-all duration-200" />
+                          <Mail className="h-5 w-5 lg:h-6 lg:w-6 text-muted-foreground group-hover:text-primary transition-all duration-200" />
                         </a>
                       )}
 
@@ -2947,10 +2947,10 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                           aria-label="Location"
                         >
-                          <MapPin className="h-5 w-5 lg:h-6 lg:w-6 text-gray-400 group-hover:text-primary transition-all duration-200" />
+                          <MapPin className="h-5 w-5 lg:h-6 lg:w-6 text-muted-foreground group-hover:text-primary transition-all duration-200" />
                         </a>
                       )}
 
@@ -2963,10 +2963,10 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           }
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                           aria-label="Website"
                         >
-                          <Globe className="h-5 w-5 lg:h-6 lg:w-6 text-gray-400 group-hover:text-primary transition-all duration-200" />
+                          <Globe className="h-5 w-5 lg:h-6 lg:w-6 text-muted-foreground group-hover:text-primary transition-all duration-200" />
                         </a>
                       )}
                     </div>
@@ -3031,9 +3031,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label="WhatsApp"
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                         >
-                          <FaWhatsapp className="h-5 w-5 lg:h-6 lg:w-6 text-gray-400 group-hover:text-primary transition-all duration-200" />
+                          <FaWhatsapp className="h-5 w-5 lg:h-6 lg:w-6 text-muted-foreground group-hover:text-primary transition-all duration-200" />
                         </a>
                       )}
 
@@ -3043,9 +3043,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label="Instagram"
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                         >
-                          <FaInstagram className="h-5 w-5 lg:h-6 lg:w-6 text-gray-400 group-hover:text-primary transition-all duration-200" />
+                          <FaInstagram className="h-5 w-5 lg:h-6 lg:w-6 text-muted-foreground group-hover:text-primary transition-all duration-200" />
                         </a>
                       )}
 
@@ -3055,9 +3055,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label="Facebook"
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                         >
-                          <FaFacebook className="h-5 w-5 text-gray-400 transition-all duration-200" />
+                          <FaFacebook className="h-5 w-5 text-muted-foreground transition-all duration-200" />
                         </a>
                       )}
 
@@ -3067,9 +3067,9 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label="X (Twitter)"
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                         >
-                          <FaTwitter className="h-5 w-5 text-gray-400 transition-all duration-200" />
+                          <FaTwitter className="h-5 w-5 text-muted-foreground transition-all duration-200" />
                         </a>
                       )}
                     </div>
@@ -3079,10 +3079,10 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
 
               <div className="border-t border-gray-800 pt-6 sm:pt-4 mt-4">
                 <div className="text-center space-y-1">
-                  <p className="text-sm sm:text-base text-gray-400">
+                  <p className="text-sm sm:text-base text-muted-foreground">
                     © 2025 {general.storeName}. All rights reserved.
                   </p>
-                  <p className="text-sm sm:text-base text-gray-500">
+                  <p className="text-sm sm:text-base text-muted-foreground">
                     Powered by
                     <span
                       className="ml-1 font-semibold"
@@ -3096,7 +3096,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                 <div className="flex justify-center">
                   <a
                     href="/login"
-                    className="font-semibold text-xs mt-2 text-gray-600 text-center hover:underline"
+                    className="font-semibold text-xs mt-2 text-muted-foreground text-center hover:underline"
                   >
                     Store Login
                   </a>
@@ -3187,7 +3187,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         {general.contactInfo.phone && (
                           <a
                             href={`tel:${general.contactInfo.phone}`}
-                            className="p-3 hover:bg-white-700/50 transition-all"
+                            className="p-3 hover:bg-card/50 transition-all"
                             aria-label="Phone"
                           >
                             <Phone className="h-5 w-5 transition-colors" />
@@ -3197,7 +3197,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         {general.contactInfo.email && (
                           <a
                             href={`mailto:${general.contactInfo.email}`}
-                            className="p-3 hover:bg-white-700/50 transition-all"
+                            className="p-3 hover:bg-card/50 transition-all"
                             aria-label="Email"
                           >
                             <Mail className="h-5 w-5 transition-colors" />
@@ -3211,7 +3211,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-3 hover:bg-white-700/50 transition-all"
+                            className="p-3 hover:bg-card/50 transition-all"
                             aria-label="Location"
                           >
                             <MapPin className="h-5 w-5 transition-colors" />
@@ -3227,7 +3227,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-3 hover:bg-white-700/50 transition-all"
+                            className="p-3 hover:bg-card/50 transition-all"
                             aria-label="Website"
                           >
                             <Globe className="h-5 w-5 transition-colors" />
@@ -3250,7 +3250,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label="WhatsApp"
-                          className="p-3 hover:bg-white-700/50 transition-all"
+                          className="p-3 hover:bg-card/50 transition-all"
                         >
                           <FaWhatsapp className="h-5 w-5 transition-colors" />
                         </a>
@@ -3265,7 +3265,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Instagram"
-                            className="p-3 hover:bg-white-700/50 transition-all"
+                            className="p-3 hover:bg-card/50 transition-all"
                           >
                             <FaInstagram className="h-5 w-5 transition-colors" />
                           </a>
@@ -3279,7 +3279,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Facebook"
-                            className="p-3 hover:bg-white-700/50 transition-all"
+                            className="p-3 hover:bg-card/50 transition-all"
                           >
                             <FaFacebook className="h-5 w-5 transition-colors" />
                           </a>
@@ -3293,7 +3293,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="X (Twitter)"
-                            className="p-3 hover:bg-white-700/50 transition-all"
+                            className="p-3 hover:bg-card/50 transition-all"
                           >
                             <FaTwitter className="h-5 w-5 transition-colors" />
                           </a>
@@ -3315,7 +3315,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                         aria-label="WhatsApp"
                         className="p-3 transition-all"
                       >
-                        <FaWhatsapp className="h-5 w-5 text-gray-600 transition-colors" />
+                        <FaWhatsapp className="h-5 w-5 text-muted-foreground transition-colors" />
                       </a>
 
                       {settings.settings.general.contactInfo.instagramLink && (
@@ -3328,7 +3328,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           aria-label="Instagram"
                           className="p-3 transition-all"
                         >
-                          <FaInstagram className="h-5 w-5 text-gray-600 transition-colors" />
+                          <FaInstagram className="h-5 w-5 text-muted-foreground transition-colors" />
                         </a>
                       )}
 
@@ -3342,7 +3342,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           aria-label="Facebook"
                           className="p-3 transition-all"
                         >
-                          <FaFacebook className="h-5 w-5 text-gray-600 transition-colors"></FaFacebook>
+                          <FaFacebook className="h-5 w-5 text-muted-foreground transition-colors"></FaFacebook>
                         </a>
                       )}
 
@@ -3356,7 +3356,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                           aria-label="X (Twitter)"
                           className="p-3 transition-all"
                         >
-                          <FaTwitter className="h-5 w-5 text-gray-600 transition-colors"></FaTwitter>
+                          <FaTwitter className="h-5 w-5 text-muted-foreground transition-colors"></FaTwitter>
                         </a>
                       )}
                     </div>
@@ -3371,7 +3371,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   <div className="space-y-3 text-sm text-muted-foreground">
                     {general.contactInfo.address && (
                       <div className="flex items-start space-x-3">
-                        <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5 text-gray-500" />
+                        <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
                         <span className="leading-relaxed">
                           {general.contactInfo.address}
                         </span>
@@ -3379,7 +3379,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     )}
                     {general.contactInfo.email && (
                       <div className="flex items-center space-x-3">
-                        <Mail className="h-4 w-4 flex-shrink-0 text-gray-500" />
+                        <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                         <span className="break-all">
                           {general.contactInfo.email}
                         </span>
@@ -3387,13 +3387,13 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     )}
                     {general.contactInfo.phone && (
                       <div className="flex items-center space-x-3">
-                        <Phone className="h-4 w-4 flex-shrink-0 text-gray-500" />
+                        <Phone className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                         <span>{general.contactInfo.phone}</span>
                       </div>
                     )}
                     {whatsAppNumber && (
                       <div className="flex items-center space-x-3">
-                        <FaWhatsapp className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 flex-shrink-0" />
+                        <FaWhatsapp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                         <a
                           href={`https://wa.me/${whatsAppNumber.replace(
                             /\D/g,
@@ -3418,7 +3418,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                   <div className="space-y-3 text-sm text-muted-foreground">
                     {general.contactInfo.hours && (
                       <div className="flex items-start space-x-3">
-                        <Clock className="h-4 w-4 mt-0.5 flex-shrink-0 text-gray-500" />
+                        <Clock className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
                         <div className="flex flex-col gap-1">
                           {general.contactInfo.hours
                             .split(",")
@@ -3432,7 +3432,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
                     )}
                     {general.contactInfo.website && (
                       <div className="flex items-center space-x-3">
-                        <Globe className="h-4 w-4 flex-shrink-0 text-gray-500" />
+                        <Globe className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                         <a
                           href={
                             general.contactInfo.website.startsWith("http")

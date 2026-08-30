@@ -52,6 +52,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import { jwtDecode } from "jwt-decode";
 
+import { t as i18nT } from "@/i18n/t";
 interface ProductOptionItem {
   id: number;
   title: string;
@@ -249,7 +250,7 @@ export function ProductManagement({
         setError(err.message || "Error fetching products");
         toast({
           duration: 5000,
-          title: "Error",
+          title: i18nT("Error"),
           description: err.message,
           variant: "destructive",
         });
@@ -373,7 +374,7 @@ export function ProductManagement({
 
       toast({
         duration: 5000,
-        title: "Product updated",
+        title: i18nT("Product updated"),
         description: `${updatedProduct.name || "Product"} updated.`,
       });
       setShouldRefresh((prev) => !prev);
@@ -382,7 +383,7 @@ export function ProductManagement({
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: "Error updating product",
+        title: i18nT("Error updating product"),
         description: error.message || "An error occurred.",
         variant: "destructive",
       });
@@ -394,13 +395,13 @@ export function ProductManagement({
       setShouldRefresh((prev) => !prev);
       toast({
         duration: 5000,
-        title: "Product added",
-        description: "Product added to catalog.",
+        title: i18nT("Product added"),
+        description: i18nT("Product added to catalog."),
       });
     } catch (err: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message || "Failed to refresh products",
         variant: "destructive",
       });
@@ -423,15 +424,15 @@ export function ProductManagement({
 
       toast({
         duration: 5000,
-        title: "Product deleted",
-        description: "Product deleted from catalog.",
+        title: i18nT("Product deleted"),
+        description: i18nT("Product deleted from catalog."),
       });
       setShouldRefresh((prev) => !prev);
       setSelectedProducts([]);
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: "Error deleting product",
+        title: i18nT("Error deleting product"),
         description: error.message || "An error occurred.",
         variant: "destructive",
       });
@@ -478,7 +479,7 @@ export function ProductManagement({
       } else {
         toast({
           duration: 5000,
-          title: "Product not found",
+          title: i18nT("Product not found"),
           description: pendingAction.productName
             ? `No product matching "${pendingAction.productName}".`
             : "Tell me which product to edit.",
@@ -518,7 +519,7 @@ export function ProductManagement({
       rows.push(
         <TableRow
           key={`product-${product._id}`}
-          className="hover:bg-gray-50 font-medium"
+          className="hover:bg-muted font-medium"
         >
           <TableCell className="w-12">
             <input
@@ -531,7 +532,7 @@ export function ProductManagement({
             {hasSubcategories || hasVariants || hasOptions ? (
               <button
                 onClick={() => toggleProductExpansion(product._id)}
-                className="p-1 hover:bg-gray-200 rounded"
+                className="p-1 hover:bg-muted rounded"
                 aria-label={productExpanded ? "Collapse" : "Expand"}
               >
                 {productExpanded ? (
@@ -553,20 +554,20 @@ export function ProductManagement({
                     alt={product.name}
                     onError={(e) => (e.currentTarget.style.display = "none")}
                   />
-                  <AvatarFallback className="bg-gray-100">
-                    <Package className="w-4 h-4 text-gray-400" />
+                  <AvatarFallback className="bg-muted">
+                    <Package className="w-4 h-4 text-muted-foreground" />
                   </AvatarFallback>
                 </Avatar>
               ) : (
                 <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-gray-100">
-                    <Package className="w-4 h-4 text-gray-400" />
+                  <AvatarFallback className="bg-muted">
+                    <Package className="w-4 h-4 text-muted-foreground" />
                   </AvatarFallback>
                 </Avatar>
               )}
               <div>
                 <div className="font-semibold">{product.name}</div>
-                <div className="text-sm text-gray-500 line-clamp-2">
+                <div className="text-sm text-muted-foreground line-clamp-2">
                   {product.description}
                 </div>
               </div>
@@ -581,7 +582,7 @@ export function ProductManagement({
                   {product.isDiscounted ? (
                     <>
                       {/* Original Price (crossed) */}
-                      <span className="text-sm text-gray-400 line-through">
+                      <span className="text-sm text-muted-foreground line-through">
                         {formatPrice(product.price)}
                       </span>
 
@@ -636,7 +637,7 @@ export function ProductManagement({
                   {product.trackQuantity &&
                     product.inventory <= product.lowstockThreshold && (
                       <Badge variant="destructive" className="text-xs">
-                        Low
+                        {i18nT("Low")}
                       </Badge>
                     )}
                 </div>
@@ -722,7 +723,7 @@ export function ProductManagement({
                   <div className="flex items-center gap-1 text-sm">
                     <span>Stock: {option.inventory}</span>
                     {option.inventory <= (option.lowstockThreshold || 10) && (
-                      <Badge variant="destructive" className="text-xs">Low</Badge>
+                      <Badge variant="destructive" className="text-xs">{i18nT("Low")}</Badge>
                     )}
                   </div>
                 )}
@@ -753,14 +754,14 @@ export function ProductManagement({
                   )}
                 </div>
               </TableCell>
-              <TableCell className="text-sm text-gray-600">
+              <TableCell className="text-sm text-muted-foreground">
                 {variant.sku || "—"}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   {variant.isDiscounted ? (
                     <>
-                      <span className="text-sm text-gray-400 line-through">
+                      <span className="text-sm text-muted-foreground line-through">
                         {formatPrice(variant.price)}
                       </span>
                       <span className="text-lg font-bold text-green-600">
@@ -779,7 +780,7 @@ export function ProductManagement({
                   <div className="flex items-center gap-1 text-sm">
                     <span>Stock: {variant.inventory}</span>
                     {isLowStock && (
-                      <Badge variant="destructive" className="text-xs">Low</Badge>
+                      <Badge variant="destructive" className="text-xs">{i18nT("Low")}</Badge>
                     )}
                   </div>
                 )}
@@ -826,8 +827,8 @@ export function ProductManagement({
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="text-sm text-gray-600">
-                Subcategory
+              <TableCell className="text-sm text-muted-foreground">
+                {i18nT("Subcategory")}
               </TableCell>
               <TableCell>
                 <Badge variant="buttonOutline" className="text-blue-700">
@@ -835,7 +836,7 @@ export function ProductManagement({
                 </Badge>
               </TableCell>
               <TableCell>
-                {/* <div className="text-sm text-gray-500">
+                {/* <div className="text-sm text-muted-foreground">
                   Total Stock:{" "}
                   {subcat.variants.reduce((sum, v) => sum + v.inventory, 0)}
                 </div> */}
@@ -854,7 +855,7 @@ export function ProductManagement({
               rows.push(
                 <TableRow
                   key={`${subcatKey}-${variant.id}`}
-                  className="bg-gray-50 hover:bg-gray-100"
+                  className="bg-muted/50 hover:bg-muted"
                 >
                   <TableCell />
                   <TableCell />
@@ -862,10 +863,10 @@ export function ProductManagement({
                     <div className="ml-12 flex items-center space-x-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <div>
-                        <div className="font-medium text-gray-800">
+                        <div className="font-medium text-foreground">
                           {variant.title}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           SKU: {variant.sku}
                         </div>
                       </div>
@@ -877,7 +878,7 @@ export function ProductManagement({
                       {variant.isDiscounted ? (
                         <>
                           {/* Original Price (crossed) */}
-                          <span className="text-sm text-gray-400 line-through">
+                          <span className="text-sm text-muted-foreground line-through">
                             {formatPrice(variant.price)}
                           </span>
 
@@ -902,19 +903,19 @@ export function ProductManagement({
 
                         {variant.inventory <= variant.lowstockThreshold && (
                           <Badge variant="destructive" className="text-xs">
-                            Low
+                            {i18nT("Low")}
                           </Badge>
                         )}
                       </div>
                     )}
                     {/* <div className="flex items-center space-x-2 mt-1">
                       <Switch checked={variant.trackQuantity} disabled />
-                      <span className="text-xs text-gray-500">Track Qty</span>
+                      <span className="text-xs text-muted-foreground">{i18nT("Track Qty")}</span>
                     </div> */}
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="text-xs">
-                      Variant
+                      {i18nT("Variant")}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -969,8 +970,8 @@ export function ProductManagement({
 
         toast({
           duration: 5000,
-          title: "Success",
-          description: "Excel template downloaded successfully!",
+          title: i18nT("Success"),
+          description: i18nT("Excel template downloaded successfully!"),
         });
       } else {
         throw new Error("Failed to download template");
@@ -978,8 +979,8 @@ export function ProductManagement({
     } catch (error) {
       toast({
         duration: 5000,
-        title: "Error",
-        description: "Failed to download Excel template",
+        title: i18nT("Error"),
+        description: i18nT("Failed to download Excel template"),
         variant: "destructive",
       });
     } finally {
@@ -1016,7 +1017,7 @@ export function ProductManagement({
           <CardContent className="p-6">
             <div className="flex items-center">
               <Package className="h-4 w-4 text-muted-foreground" />
-              <span className="ml-2 text-sm font-medium">Total Products</span>
+              <span className="ml-2 text-sm font-medium">{i18nT("Total Products")}</span>
             </div>
             <div className="text-2xl font-bold">{products.length}</div>
           </CardContent>
@@ -1025,7 +1026,7 @@ export function ProductManagement({
           <CardContent className="p-6">
             <div className="flex items-center">
               <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="ml-2 text-sm font-medium">Active Products</span>
+              <span className="ml-2 text-sm font-medium">{i18nT("Active Products")}</span>
             </div>
             <div className="text-2xl font-bold">
               {products.filter((p) => p.status === "active").length}
@@ -1036,7 +1037,7 @@ export function ProductManagement({
           <CardContent className="p-6">
             <div className="flex items-center">
               <Warehouse className="h-4 w-4 text-muted-foreground" />
-              <span className="ml-2 text-sm font-medium">Total Stock</span>
+              <span className="ml-2 text-sm font-medium">{i18nT("Total Stock")}</span>
             </div>
             <div className="text-2xl font-bold">{totalStock}</div>
           </CardContent>
@@ -1045,7 +1046,7 @@ export function ProductManagement({
           <CardContent className="p-6">
             <div className="flex items-center">
               <Grid3x3 className="h-4 w-4 text-muted-foreground" />
-              <span className="ml-2 text-sm font-medium">Categories</span>
+              <span className="ml-2 text-sm font-medium">{i18nT("Categories")}</span>
             </div>
             <div className="text-2xl font-bold">
               {Array.from(new Set(products.map((p) => p.category))).length}
@@ -1059,7 +1060,7 @@ export function ProductManagement({
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Product Management</CardTitle>
+              <CardTitle>{i18nT("Product Management")}</CardTitle>
               <CardDescription>
                 Manage your products with subcategories and variants in a tree
                 structure
@@ -1088,7 +1089,7 @@ export function ProductManagement({
                 className="flex items-center gap-2"
               >
                 <Upload className="w-4 h-4" />
-                Import Excel
+                {i18nT("Import Excel")}
               </Button> */}
 
               {productLimit > 0 && products.length >= productLimit ? (
@@ -1122,7 +1123,7 @@ export function ProductManagement({
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search products, SKU, or description..."
+                placeholder={i18nT("Search products, SKU, or description...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 w-full sm:max-w-xs"
@@ -1130,10 +1131,10 @@ export function ProductManagement({
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="All Categories" />
+                <SelectValue placeholder={i18nT("All Categories")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">{i18nT("All Categories")}</SelectItem>
                 {categories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat}
@@ -1143,13 +1144,13 @@ export function ProductManagement({
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder={i18nT("All Statuses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
+                <SelectItem value="all">{i18nT("All Statuses")}</SelectItem>
+                <SelectItem value="active">{i18nT("Active")}</SelectItem>
+                <SelectItem value="draft">{i18nT("Draft")}</SelectItem>
+                <SelectItem value="archived">{i18nT("Archived")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1158,7 +1159,7 @@ export function ProductManagement({
           {loading ? (
             <div className="text-center py-8">
               <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-              <p>Loading products...</p>
+              <p>{i18nT("Loading products...")}</p>
             </div>
           ) : error ? (
             <Alert variant="destructive">
@@ -1182,11 +1183,11 @@ export function ProductManagement({
                     </TableHead>
                     <TableHead className="w-12"></TableHead>
                     <TableHead>Product / Subcategory / Variant</TableHead>
-                    <TableHead>SKU</TableHead>
+                    <TableHead>{i18nT("SKU")}</TableHead>
                     <TableHead>Category / Price</TableHead>
                     <TableHead>Status / Stock</TableHead>
-                    <TableHead>Tags</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{i18nT("Tags")}</TableHead>
+                    <TableHead>{i18nT("Actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1194,10 +1195,10 @@ export function ProductManagement({
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8">
                         <div className="flex flex-col items-center space-y-2">
-                          <Package className="w-8 h-8 text-gray-400" />
-                          <p>No products found</p>
-                          <p className="text-sm text-gray-500">
-                            Try adjusting your search or filter criteria
+                          <Package className="w-8 h-8 text-muted-foreground" />
+                          <p>{i18nT("No products found")}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {i18nT("Try adjusting your search or filter criteria")}
                           </p>
                         </div>
                       </TableCell>

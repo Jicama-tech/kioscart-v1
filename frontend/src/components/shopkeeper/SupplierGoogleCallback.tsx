@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+import { t as i18nT } from "@/i18n/t";
 // Tiny static route. The backend's /auth/google-supplier/redirect bounces
 // the popup here after a successful Google OAuth round-trip, with the
 // supplier profile in the query string. Living on the FRONTEND origin keeps
@@ -70,7 +71,7 @@ export function SupplierGoogleCallback() {
         color: "#0f172a",
       }}
     >
-      <p>Signed in — you can close this window.</p>
+      <p>{i18nT("Signed in — you can close this window.")}</p>
     </div>
   );
 }

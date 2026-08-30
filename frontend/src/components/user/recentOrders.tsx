@@ -90,14 +90,14 @@ export function RecentOrders() {
 
   if (loading)
     return (
-      <div className="flex justify-center items-center h-48 text-gray-700">
+      <div className="flex justify-center items-center h-48 text-foreground">
         <span className="animate-pulse font-semibold">Loading orders...</span>
       </div>
     );
 
   if (orders.length === 0)
     return (
-      <div className="flex justify-center items-center h-48 text-black/70">
+      <div className="flex justify-center items-center h-48 text-foreground/70">
         <p>No orders yet.</p>
       </div>
     );
@@ -105,7 +105,7 @@ export function RecentOrders() {
   return (
     <>
       <section className="max-w-7xl mx-auto px-4 sm:px-8 py-6">
-        <h2 className="text-4xl font-extrabold tracking-tight text-black mb-6">
+        <h2 className="text-4xl font-extrabold tracking-tight text-foreground mb-6">
           My Orders
         </h2>
         <div className="grid gap-6 md:grid-cols-2">
@@ -117,15 +117,15 @@ export function RecentOrders() {
               aria-label={`View details for order ${order.orderNumber}`}
             >
               <CardHeader className="pb-2 border-b border-black/10">
-                <CardTitle className="text-xl font-semibold text-black">
+                <CardTitle className="text-xl font-semibold text-foreground">
                   {order.orderNumber}
                 </CardTitle>
-                <CardDescription className="text-sm text-black/60">
+                <CardDescription className="text-sm text-foreground/60">
                   {new Date(order.date).toLocaleDateString()}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4 pt-4">
-                <div className="space-y-1 text-black">
+                <div className="space-y-1 text-foreground">
                   <p className="font-medium">{order.shopkeeperName}</p>
                   <p className="text-sm">
                     {order.items.length} item
@@ -135,15 +135,15 @@ export function RecentOrders() {
                     variant={
                       order.status === "cancelled" ? "destructive" : "outline"
                     }
-                    className="capitalize text-black border-black/20"
+                    className="capitalize text-foreground border-black/20"
                   >
                     {order.status}
                   </Badge>
                 </div>
-                <div className="text-right font-semibold text-lg text-black flex flex-col justify-center">
+                <div className="text-right font-semibold text-lg text-foreground flex flex-col justify-center">
                   <span>${order.total.toFixed(2)}</span>
                   {order.deliveryDate && (
-                    <Badge className="bg-black/10 text-black mt-2 py-1 rounded">
+                    <Badge className="bg-black/10 text-foreground mt-2 py-1 rounded">
                       Delivered{" "}
                       {new Date(order.deliveryDate).toLocaleDateString()}
                     </Badge>
@@ -161,11 +161,11 @@ export function RecentOrders() {
       >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm" />
-          <Dialog.Content className="fixed inset-0 max-w-3xl m-auto rounded-lg bg-white shadow-xl p-8 overflow-y-auto outline-none w-full max-h-[90vh]">
+          <Dialog.Content className="fixed inset-0 max-w-3xl m-auto rounded-lg bg-card shadow-xl p-8 overflow-y-auto outline-none w-full max-h-[90vh]">
             {selectedOrder && (
               <>
                 <div className="flex justify-between items-center border-b border-black/10 pb-4 mb-6">
-                  <Dialog.Title className="text-3xl font-extrabold leading-tight text-black">
+                  <Dialog.Title className="text-3xl font-extrabold leading-tight text-foreground">
                     Order #{selectedOrder.orderNumber}
                   </Dialog.Title>
                   <Dialog.Close asChild>
@@ -174,12 +174,12 @@ export function RecentOrders() {
                       size="icon"
                       aria-label="Close dialog"
                     >
-                      <X className="w-6 h-6 text-black/60 hover:text-black transition" />
+                      <X className="w-6 h-6 text-foreground/60 hover:text-foreground transition" />
                     </Button>
                   </Dialog.Close>
                 </div>
 
-                <div className="text-black space-y-6">
+                <div className="text-foreground space-y-6">
                   <section>
                     <h3 className="text-2xl font-semibold mb-2">
                       Shopkeeper Details
@@ -188,7 +188,7 @@ export function RecentOrders() {
                       {selectedOrder.shopkeeperName}
                     </p>
                     {selectedOrder.shopkeeperAddress && (
-                      <p className="text-black/70">
+                      <p className="text-foreground/70">
                         {selectedOrder.shopkeeperAddress}
                       </p>
                     )}
@@ -201,7 +201,7 @@ export function RecentOrders() {
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-green-600 hover:text-black transition"
+                          className="inline-flex items-center gap-1 text-green-600 hover:text-foreground transition"
                         >
                           <FaWhatsapp size={24} />
                           <span className="font-medium">
@@ -216,7 +216,7 @@ export function RecentOrders() {
                           ? "destructive"
                           : "outline"
                       }
-                      className="capitalize mt-3 text-black border-black/20 px-3 py-1 inline-block"
+                      className="capitalize mt-3 text-foreground border-black/20 px-3 py-1 inline-block"
                     >
                       {selectedOrder.status}
                     </Badge>
@@ -241,7 +241,7 @@ export function RecentOrders() {
                             <p className="text-xl font-semibold">
                               {item.productName}
                             </p>
-                            <div className="flex flex-wrap gap-3 text-black/70 text-sm">
+                            <div className="flex flex-wrap gap-3 text-foreground/70 text-sm">
                               {item.optionTitle && item.optionTitle !== "Default" && (
                                 <span className="border border-purple-300 bg-purple-50 rounded-full px-3 py-1">
                                   {item.optionTitle}
@@ -258,7 +258,7 @@ export function RecentOrders() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-black/80">
+                            <p className="text-foreground/80">
                               Qty: {item.quantity}
                             </p>
                           </div>

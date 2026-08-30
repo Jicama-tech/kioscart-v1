@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { jwtDecode } from "jwt-decode";
 import { Loader2 } from "lucide-react";
 
+import { t as i18nT } from "@/i18n/t";
 interface Product {
   id: number;
   name: string;
@@ -105,8 +106,8 @@ export function ShopkeeperStorePage() {
 
         toast({
           duration: 5000,
-          title: "Using Demo Data",
-          description: "Showing demo products (API unavailable)",
+          title: i18nT("Using Demo Data"),
+          description: i18nT("Showing demo products (API unavailable)"),
           variant: "default",
         });
       } finally {
@@ -126,7 +127,7 @@ export function ShopkeeperStorePage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading products...</p>
+          <p className="text-muted-foreground">{i18nT("Loading products...")}</p>
         </div>
       </div>
     );
@@ -138,7 +139,7 @@ export function ShopkeeperStorePage() {
         <div className="text-center">
           <p className="text-destructive font-medium">{error}</p>
           <p className="text-muted-foreground">
-            Please check your connection and try again
+            {i18nT("Please check your connection and try again")}
           </p>
         </div>
       </div>

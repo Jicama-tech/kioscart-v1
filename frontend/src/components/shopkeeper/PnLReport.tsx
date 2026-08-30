@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Download, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = __API_URL__;
 
 interface PnLData {
@@ -48,7 +49,7 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
       const json = await res.json();
       setData(json.data);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: i18nT("Error"), description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -72,7 +73,7 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: i18nT("Error"), description: err.message, variant: "destructive" });
     } finally {
       setDownloading(false);
     }
@@ -83,7 +84,7 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Profit &amp; Loss</CardTitle>
-          <CardDescription>Revenue minus approved expenses for the selected period</CardDescription>
+          <CardDescription>{i18nT("Revenue minus approved expenses for the selected period")}</CardDescription>
         </div>
         <Button size="sm" variant="outline" onClick={downloadPdf} disabled={downloading || !data}>
           {downloading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download size={16} className="mr-2" />}
@@ -96,13 +97,13 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : !data ? (
-          <div className="text-center text-muted-foreground py-8">No data available.</div>
+          <div className="text-center text-muted-foreground py-8">{i18nT("No data available.")}</div>
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Revenue</CardDescription>
+                  <CardDescription>{i18nT("Revenue")}</CardDescription>
                   <CardTitle className="text-xl">
                     {data.currencySymbol}
                     {data.revenue.toLocaleString()}
@@ -120,7 +121,7 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Net Profit</CardDescription>
+                  <CardDescription>{i18nT("Net Profit")}</CardDescription>
                   <CardTitle
                     className={`text-xl flex items-center gap-1 ${
                       data.netProfit >= 0 ? "text-emerald-600" : "text-red-600"
@@ -138,16 +139,16 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
             </div>
 
             <div>
-              <h4 className="font-semibold mb-2">Expenses by category</h4>
+              <h4 className="font-semibold mb-2">{i18nT("Expenses by category")}</h4>
               {data.expensesByCategory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No approved expenses in this period.</p>
+                <p className="text-sm text-muted-foreground">{i18nT("No approved expenses in this period.")}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="border-b bg-muted/40">
                       <tr className="text-left">
-                        <th className="p-2">Category</th>
-                        <th className="p-2 text-right">Amount</th>
+                        <th className="p-2">{i18nT("Category")}</th>
+                        <th className="p-2 text-right">{i18nT("Amount")}</th>
                         <th className="p-2 text-right">% of expenses</th>
                       </tr>
                     </thead>

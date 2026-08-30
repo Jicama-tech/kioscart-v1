@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { jwtDecode } from "jwt-decode";
+import { t as i18nT } from "@/i18n/t";
 import {
   Plus,
   Loader2,
@@ -114,7 +115,7 @@ const QUOTE_STATUS_STYLES: Record<string, string> = {
   Paid: "bg-green-100 text-green-700",
   Completed: "bg-green-100 text-green-700",
   Rejected: "bg-red-100 text-red-700",
-  Cancelled: "bg-stone-200 text-stone-600",
+  Cancelled: "bg-muted text-muted-foreground",
 };
 
 function currencySymbol(country?: string): string {
@@ -204,7 +205,7 @@ export default function SuppliersDirectory() {
       const json = await res.json();
       setSuppliers(Array.isArray(json?.data) ? json.data : []);
     } catch {
-      toast({ variant: "destructive", title: "Couldn't load suppliers" });
+      toast({ variant: "destructive", title: i18nT("Couldn't load suppliers") });
     } finally {
       setLoading(false);
     }
@@ -258,7 +259,7 @@ export default function SuppliersDirectory() {
         throw new Error(j?.message || "Could not remove the supplier");
       setSuppliers((list) => list.filter((x) => x._id !== s._id));
       setConfirmDelete(null);
-      toast({ title: "Supplier removed" });
+      toast({ title: i18nT("Supplier removed") });
     } catch (e: any) {
       setDeleteError(e?.message || "Could not remove the supplier");
     } finally {
@@ -284,7 +285,7 @@ export default function SuppliersDirectory() {
     } catch (e: any) {
       toast({
         variant: "destructive",
-        title: "Couldn't load this supplier's products",
+        title: i18nT("Couldn't load this supplier's products"),
         description: e?.message || undefined,
       });
       setHistoryOpen(false);
@@ -319,8 +320,8 @@ export default function SuppliersDirectory() {
   return (
     <Tabs defaultValue="directory" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="directory">Supplier Directory</TabsTrigger>
-        <TabsTrigger value="requirements">Business Requirements</TabsTrigger>
+        <TabsTrigger value="directory">{i18nT("Supplier Directory")}</TabsTrigger>
+        <TabsTrigger value="requirements">{i18nT("Business Requirements")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="requirements" className="mt-0">
@@ -337,7 +338,7 @@ export default function SuppliersDirectory() {
         ) : (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              Sign in again to load your business requirements.
+              {i18nT("Sign in again to load your business requirements.")}
             </CardContent>
           </Card>
         )}
@@ -348,7 +349,7 @@ export default function SuppliersDirectory() {
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <Truck className="h-5 w-5 text-primary" /> Supplier Management
+            <Truck className="h-5 w-5 text-primary" /> {i18nT("Supplier Management")}
           </CardTitle>
           <CardDescription>
             Your directory of service providers (packaging, ingredients,
@@ -357,7 +358,7 @@ export default function SuppliersDirectory() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={openAdd} variant="outline" size="sm">
-            <Plus className="mr-2 h-4 w-4" /> Add Supplier
+            <Plus className="mr-2 h-4 w-4" /> {i18nT("Add Supplier")}
           </Button>
         </div>
       </CardHeader>
@@ -366,10 +367,10 @@ export default function SuppliersDirectory() {
             "I added a supplier, now what?" is the obvious next question. */}
         <div className="mb-4 rounded-lg border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
           Suppliers live here. For what you need quoted, use{" "}
-          <span className="font-medium text-foreground">Business Requirements</span>{" "}
+          <span className="font-medium text-foreground">{i18nT("Business Requirements")}</span>{" "}
           above for shop-wide needs, or{" "}
-          <span className="font-medium text-foreground">Products</span> → the product's{" "}
-          <span className="font-medium text-foreground">Suppliers</span> action for
+          <span className="font-medium text-foreground">{i18nT("Products")}</span> → the product's{" "}
+          <span className="font-medium text-foreground">{i18nT("Suppliers")}</span> action for
           needs specific to one product. Either way you get a private link to share
           and a place to compare incoming quotes.
         </div>
@@ -378,7 +379,7 @@ export default function SuppliersDirectory() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search suppliers…"
+            placeholder={i18nT("Search suppliers…")}
             className="pl-9"
           />
         </div>
@@ -391,10 +392,10 @@ export default function SuppliersDirectory() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{i18nT("Supplier")}</TableHead>
+                <TableHead>{i18nT("Service")}</TableHead>
+                <TableHead>{i18nT("Contact")}</TableHead>
+                <TableHead className="text-right">{i18nT("Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -404,7 +405,7 @@ export default function SuppliersDirectory() {
                     colSpan={4}
                     className="py-8 text-center text-muted-foreground"
                   >
-                    No suppliers yet. Click “Add Supplier” to create one.
+                    {i18nT("No suppliers yet. Click “Add Supplier” to create one.")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -456,7 +457,7 @@ export default function SuppliersDirectory() {
                           variant="buttonOutline"
                           size="sm"
                           onClick={() => openHistory(s)}
-                          title="View products"
+                          title={i18nT("View products")}
                         >
                           <Eye className="mr-1 h-4 w-4" />
                         </Button>
@@ -475,7 +476,7 @@ export default function SuppliersDirectory() {
                             setDeleteError(null);
                             setConfirmDelete(s);
                           }}
-                          title="Remove supplier"
+                          title={i18nT("Remove supplier")}
                         >
                           <Trash2 className="mr-1 h-4 w-4" />
                         </Button>
@@ -501,7 +502,7 @@ export default function SuppliersDirectory() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove this supplier?</AlertDialogTitle>
+            <AlertDialogTitle>{i18nT("Remove this supplier?")}</AlertDialogTitle>
             <AlertDialogDescription>
               <strong>
                 {confirmDelete?.name || confirmDelete?.companyName}
@@ -518,7 +519,7 @@ export default function SuppliersDirectory() {
           )}
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={!!deletingId}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={!!deletingId}>{i18nT("Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 // Keep the dialog open so a refusal stays visible.
@@ -582,7 +583,7 @@ export default function SuppliersDirectory() {
                 </h4>
                 {!history?.requests?.length ? (
                   <p className="text-xs text-muted-foreground">
-                    This supplier hasn't quoted for any product yet.
+                    {i18nT("This supplier hasn't quoted for any product yet.")}
                   </p>
                 ) : (
                   <ul className="space-y-2">
@@ -619,7 +620,7 @@ export default function SuppliersDirectory() {
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-primary hover:underline"
-                                title="Quotation attachment"
+                                title={i18nT("Quotation attachment")}
                               >
                                 <Paperclip className="h-3.5 w-3.5" />
                               </a>
@@ -628,7 +629,7 @@ export default function SuppliersDirectory() {
                               {money(r.quotationTotal, history.currency)}
                             </span>
                             <Badge
-                              className={`${QUOTE_STATUS_STYLES[r.status] || "bg-stone-100 text-stone-600"} hover:bg-transparent`}
+                              className={`${QUOTE_STATUS_STYLES[r.status] || "bg-muted text-muted-foreground"} hover:bg-transparent`}
                             >
                               {r.status}
                             </Badge>
@@ -644,7 +645,7 @@ export default function SuppliersDirectory() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setHistoryOpen(false)}>
-              Close
+              {i18nT("Close")}
             </Button>
             {history?.supplier && (
               <Button
@@ -653,7 +654,7 @@ export default function SuppliersDirectory() {
                   openEdit(history.supplier);
                 }}
               >
-                <Pencil className="mr-1.5 h-4 w-4" /> Edit supplier
+                <Pencil className="mr-1.5 h-4 w-4" /> {i18nT("Edit supplier")}
               </Button>
             )}
           </DialogFooter>
@@ -726,7 +727,7 @@ function SupplierFormScreen({
     if (!validate()) return;
     const shopkeeperId = getShopkeeperId();
     if (!shopkeeperId) {
-      toast({ variant: "destructive", title: "Please sign in again" });
+      toast({ variant: "destructive", title: i18nT("Please sign in again") });
       return;
     }
     setSubmitting(true);
@@ -760,14 +761,14 @@ function SupplierFormScreen({
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || "Operation failed");
       toast({
-        title: "Success",
+        title: i18nT("Success"),
         description: `Supplier ${mode === "edit" ? "updated" : "added"}`,
       });
       onSaved();
     } catch (err: any) {
       toast({
         variant: "destructive",
-        title: "Couldn't save supplier",
+        title: i18nT("Couldn't save supplier"),
         description: err?.message,
       });
     } finally {
@@ -779,14 +780,14 @@ function SupplierFormScreen({
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="outline" size="sm" onClick={onCancel}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Suppliers
+          <ArrowLeft className="mr-2 h-4 w-4" /> {i18nT("Back to Suppliers")}
         </Button>
         <div>
           <h2 className="text-lg font-semibold">
             {mode === "edit" ? "Edit Supplier" : "Add Supplier"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Service providers you work with — reused across all your products.
+            {i18nT("Service providers you work with — reused across all your products.")}
           </p>
         </div>
       </div>
@@ -795,11 +796,11 @@ function SupplierFormScreen({
         <CardContent className="pt-6">
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
-            <Label>Name *</Label>
+            <Label>{i18nT("Name *")}</Label>
             <Input
               value={form.name}
               onChange={(e) => set({ name: e.target.value })}
-              placeholder="Contact person's name"
+              placeholder={i18nT("Contact person's name")}
             />
             {errors.name && (
               <span className="text-xs text-red-600">{errors.name}</span>
@@ -807,20 +808,20 @@ function SupplierFormScreen({
           </div>
 
           <div className="grid gap-1.5">
-            <Label>Company Name</Label>
+            <Label>{i18nT("Company Name")}</Label>
             <Input
               value={form.companyName}
               onChange={(e) => set({ companyName: e.target.value })}
-              placeholder="e.g. Tasty Packaging Pvt Ltd"
+              placeholder={i18nT("e.g. Tasty Packaging Pvt Ltd")}
             />
           </div>
 
           <div className="grid gap-1.5">
-            <Label>Service Provided</Label>
+            <Label>{i18nT("Service Provided")}</Label>
             <Input
               value={form.serviceCategory}
               onChange={(e) => set({ serviceCategory: e.target.value })}
-              placeholder="e.g. Packaging, Ingredients, Printing"
+              placeholder={i18nT("e.g. Packaging, Ingredients, Printing")}
             />
           </div>
 
@@ -830,7 +831,7 @@ function SupplierFormScreen({
               type="email"
               value={form.email}
               onChange={(e) => set({ email: e.target.value })}
-              placeholder="supplier@gmail.com"
+              placeholder={i18nT("supplier@gmail.com")}
             />
             {errors.email && (
               <span className="text-xs text-red-600">{errors.email}</span>
@@ -838,12 +839,12 @@ function SupplierFormScreen({
           </div>
 
           <div className="grid gap-1.5">
-            <Label>Business Email</Label>
+            <Label>{i18nT("Business Email")}</Label>
             <Input
               type="email"
               value={form.businessEmail}
               onChange={(e) => set({ businessEmail: e.target.value })}
-              placeholder="contact@company.com"
+              placeholder={i18nT("contact@company.com")}
             />
             {errors.businessEmail && (
               <span className="text-xs text-red-600">
@@ -853,7 +854,7 @@ function SupplierFormScreen({
           </div>
 
           <div className="grid gap-1.5">
-            <Label>Contact Number</Label>
+            <Label>{i18nT("Contact Number")}</Label>
             <div className="flex gap-2">
               <Select
                 value={form.dialCode}
@@ -873,7 +874,7 @@ function SupplierFormScreen({
               <Input
                 value={form.phone}
                 onChange={(e) => set({ phone: e.target.value })}
-                placeholder="Phone number"
+                placeholder={i18nT("Phone number")}
                 className="flex-1"
               />
             </div>
@@ -888,7 +889,7 @@ function SupplierFormScreen({
               {mode === "edit" ? "Save changes" : "Add supplier"}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
+              {i18nT("Cancel")}
             </Button>
           </div>
         </form>

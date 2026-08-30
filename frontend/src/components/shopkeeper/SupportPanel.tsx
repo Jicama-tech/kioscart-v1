@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = __API_URL__;
 
 type Category = "bug" | "feature_request" | "general" | "billing" | "other";
@@ -54,11 +55,11 @@ const MAX_FILES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const CATEGORY_OPTIONS: { value: Category; label: string; icon: any }[] = [
-  { value: "bug", label: "Bug report", icon: Bug },
-  { value: "feature_request", label: "Feature request", icon: Lightbulb },
-  { value: "general", label: "General help", icon: HelpCircle },
-  { value: "billing", label: "Billing", icon: Receipt },
-  { value: "other", label: "Other", icon: HelpingHand },
+  { value: "bug", label: i18nT("Bug report"), icon: Bug },
+  { value: "feature_request", label: i18nT("Feature request"), icon: Lightbulb },
+  { value: "general", label: i18nT("General help"), icon: HelpCircle },
+  { value: "billing", label: i18nT("Billing"), icon: Receipt },
+  { value: "other", label: i18nT("Other"), icon: HelpingHand },
 ];
 
 const categoryMeta = (c: Category) =>
@@ -66,17 +67,17 @@ const categoryMeta = (c: Category) =>
 
 const statusMeta: Record<Status, { label: string; cls: string; icon: any }> = {
   open: {
-    label: "Open",
+    label: i18nT("Open"),
     cls: "bg-amber-100 text-amber-800 border-amber-200",
     icon: CircleDot,
   },
   in_progress: {
-    label: "In progress",
+    label: i18nT("In progress"),
     cls: "bg-blue-100 text-blue-800 border-blue-200",
     icon: Clock,
   },
   resolved: {
-    label: "Resolved",
+    label: i18nT("Resolved"),
     cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
     icon: CheckCircle2,
   },
@@ -159,7 +160,7 @@ export default function SupportPanel() {
     });
     if (rejected.length) {
       toast({
-        title: "Some files were skipped",
+        title: i18nT("Some files were skipped"),
         description: rejected.join(" • "),
         variant: "destructive",
       });
@@ -181,16 +182,16 @@ export default function SupportPanel() {
     e.preventDefault();
     if (!subject.trim() || subject.trim().length < 3) {
       toast({
-        title: "Subject is too short",
-        description: "Give your ticket a short summary so we can find it.",
+        title: i18nT("Subject is too short"),
+        description: i18nT("Give your ticket a short summary so we can find it."),
         variant: "destructive",
       });
       return;
     }
     if (!description.trim() || description.trim().length < 5) {
       toast({
-        title: "Description is too short",
-        description: "Tell us what happened so we can help.",
+        title: i18nT("Description is too short"),
+        description: i18nT("Tell us what happened so we can help."),
         variant: "destructive",
       });
       return;
@@ -198,8 +199,8 @@ export default function SupportPanel() {
     const token = sessionStorage.getItem("token");
     if (!token) {
       toast({
-        title: "You're not signed in",
-        description: "Please log in again to submit a support ticket.",
+        title: i18nT("You're not signed in"),
+        description: i18nT("Please log in again to submit a support ticket."),
         variant: "destructive",
       });
       return;
@@ -223,14 +224,14 @@ export default function SupportPanel() {
         throw new Error(data?.message || "Could not submit your ticket");
       }
       toast({
-        title: "Ticket submitted",
-        description: "Our team will look into it. Thanks for letting us know!",
+        title: i18nT("Ticket submitted"),
+        description: i18nT("Our team will look into it. Thanks for letting us know!"),
       });
       reset();
       loadTickets();
     } catch (err: any) {
       toast({
-        title: "Submission failed",
+        title: i18nT("Submission failed"),
         description: err?.message,
         variant: "destructive",
       });
@@ -244,7 +245,7 @@ export default function SupportPanel() {
       <div className="flex items-center gap-3">
         <LifeBuoy className="h-7 w-7 text-primary" />
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold">Support</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">{i18nT("Support")}</h2>
           <p className="text-sm text-muted-foreground">
             Report a bug, request a feature, or ask for help. Attach screenshots
             so we can see what you see.
@@ -255,27 +256,27 @@ export default function SupportPanel() {
       {/* ── Submit form ───────────────────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Submit a support request</CardTitle>
+          <CardTitle className="text-lg">{i18nT("Submit a support request")}</CardTitle>
           <CardDescription>
-            We usually respond within 1 business day.
+            {i18nT("We usually respond within 1 business day.")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
-                <Label htmlFor="support-subject">Subject</Label>
+                <Label htmlFor="support-subject">{i18nT("Subject")}</Label>
                 <Input
                   id="support-subject"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   maxLength={120}
-                  placeholder="e.g. Cart total is wrong after applying coupon"
+                  placeholder={i18nT("e.g. Cart total is wrong after applying coupon")}
                   disabled={submitting}
                 />
               </div>
               <div>
-                <Label htmlFor="support-category">Category</Label>
+                <Label htmlFor="support-category">{i18nT("Category")}</Label>
                 <Select
                   value={category}
                   onValueChange={(v) => setCategory(v as Category)}
@@ -302,7 +303,7 @@ export default function SupportPanel() {
             </div>
 
             <div>
-              <Label htmlFor="support-description">Description</Label>
+              <Label htmlFor="support-description">{i18nT("Description")}</Label>
               <Textarea
                 id="support-description"
                 value={description}
@@ -362,7 +363,7 @@ export default function SupportPanel() {
                     className="h-24 w-24 rounded-md border-2 border-dashed border-muted-foreground/30 hover:border-primary hover:text-primary text-muted-foreground flex flex-col items-center justify-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="h-5 w-5" />
-                    <span className="text-[10px]">Add image</span>
+                    <span className="text-[10px]">{i18nT("Add image")}</span>
                   </button>
                 )}
               </div>
@@ -384,7 +385,7 @@ export default function SupportPanel() {
                 {submitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Submitting…
+                    {i18nT("Submitting…")}
                   </>
                 ) : (
                   "Submit ticket"
@@ -398,9 +399,9 @@ export default function SupportPanel() {
       {/* ── History ──────────────────────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">My tickets</CardTitle>
+          <CardTitle className="text-lg">{i18nT("My tickets")}</CardTitle>
           <CardDescription>
-            Past requests you've submitted, newest first.
+            {i18nT("Past requests you've submitted, newest first.")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -410,7 +411,7 @@ export default function SupportPanel() {
             </div>
           ) : tickets.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              You haven't submitted any tickets yet.
+              {i18nT("You haven't submitted any tickets yet.")}
             </div>
           ) : (
             <ul className="divide-y">
@@ -445,7 +446,7 @@ export default function SupportPanel() {
                                 target="_blank"
                                 rel="noreferrer"
                                 className="h-14 w-14 rounded border overflow-hidden bg-muted flex items-center justify-center"
-                                title="Open attachment"
+                                title={i18nT("Open attachment")}
                               >
                                 <img
                                   src={absUrl(a)}

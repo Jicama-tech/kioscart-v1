@@ -48,10 +48,21 @@ import { jwtDecode } from "jwt-decode";
 import { useEffect } from "react";
 import ImageCropModal from "../ui/imageCropModal";
 
-function DebouncedColorInput({ value, onChange, className }: { value: string; onChange: (val: string) => void; className?: string }) {
+import { t as i18nT } from "@/i18n/t";
+function DebouncedColorInput({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+}) {
   const [local, setLocal] = useState(value);
   const timer = useRef<any>(null);
-  useEffect(() => { setLocal(value); }, [value]);
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
   return (
     <input
       type="color"
@@ -69,7 +80,9 @@ function DebouncedColorInput({ value, onChange, className }: { value: string; on
 function DebouncedInput({ value, onChange, ...props }: any) {
   const [local, setLocal] = useState(value || "");
   const timer = useRef<any>(null);
-  useEffect(() => { setLocal(value || ""); }, [value]);
+  useEffect(() => {
+    setLocal(value || "");
+  }, [value]);
   return (
     <Input
       {...props}
@@ -142,8 +155,12 @@ export function StorefrontCustomizer({
   const [heroBannerPreview, setHeroBannerPreview] = useState<string>("");
   // Multi-banner images state for mega/Dual Slider design
   const bannerImagesFileInputRef = useRef<HTMLInputElement>(null);
-  const [bannerImagesFiles, setBannerImagesFiles] = useState<(File | null)[]>([]);
-  const [bannerImagesPreviews, setBannerImagesPreviews] = useState<string[]>([]);
+  const [bannerImagesFiles, setBannerImagesFiles] = useState<(File | null)[]>(
+    [],
+  );
+  const [bannerImagesPreviews, setBannerImagesPreviews] = useState<string[]>(
+    [],
+  );
   const [cropBannerImageIndex, setCropBannerImageIndex] = useState<number>(-1);
   const sectionVideoRef = useRef<HTMLInputElement>(null);
   const [sectionVideoFile, setSectionVideoFile] = useState<File | null>(null);
@@ -155,7 +172,9 @@ export function StorefrontCustomizer({
 
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
-  const [cropTarget, setCropTarget] = useState<"banner" | "hero" | "heroBanner" | "bannerImage" | null>(null);
+  const [cropTarget, setCropTarget] = useState<
+    "banner" | "hero" | "heroBanner" | "bannerImage" | null
+  >(null);
 
   // Default settings for new shopkeepers
   const defaultSettings = {
@@ -225,9 +244,11 @@ export function StorefrontCustomizer({
         instagramTitle: "Follow Us on Instagram",
         instagramDescription: "Check out our latest reels and posts",
         videoSectionTitle: "",
-        videoSectionDescription: "Get a behind-the-scenes look at what makes us special",
+        videoSectionDescription:
+          "Get a behind-the-scenes look at what makes us special",
         newsletterTitle: "Stay Updated",
-        newsletterDescription: "Subscribe to our newsletter for latest updates and offers",
+        newsletterDescription:
+          "Subscribe to our newsletter for latest updates and offers",
         featuredProductTitleColor: "",
         featuredProductDescColor: "",
         ourProductsTitleColor: "",
@@ -286,8 +307,8 @@ export function StorefrontCustomizer({
         setLoading(false);
         toast({
           duration: 5000,
-          title: "Token Not Found",
-          description: "Please Login First",
+          title: i18nT("Token Not Found"),
+          description: i18nT("Please Login First"),
         });
         return;
       }
@@ -371,8 +392,8 @@ export function StorefrontCustomizer({
             setIsExistingStore(true);
             toast({
               duration: 5000,
-              title: "Store Initialized",
-              description: "Your store has been created with default settings.",
+              title: i18nT("Store Initialized"),
+              description: i18nT("Your store has been created with default settings."),
             });
           }
         } else {
@@ -416,8 +437,8 @@ export function StorefrontCustomizer({
     if (!file.type.startsWith("image/")) {
       toast({
         duration: 5000,
-        title: "Invalid File",
-        description: "Please select an image file.",
+        title: i18nT("Invalid File"),
+        description: i18nT("Please select an image file."),
         variant: "destructive",
       });
       return;
@@ -425,8 +446,8 @@ export function StorefrontCustomizer({
     if (file.size > 5 * 1024 * 1024) {
       toast({
         duration: 5000,
-        title: "File Too Large",
-        description: "Please select an image smaller than 5MB.",
+        title: i18nT("File Too Large"),
+        description: i18nT("Please select an image smaller than 5MB."),
         variant: "destructive",
       });
       return;
@@ -452,8 +473,8 @@ export function StorefrontCustomizer({
 
     toast({
       duration: 5000,
-      title: "Banner Removed",
-      description: "Banner image has been removed.",
+      title: i18nT("Banner Removed"),
+      description: i18nT("Banner image has been removed."),
     });
   };
 
@@ -466,8 +487,8 @@ export function StorefrontCustomizer({
 
     if (!file.type.startsWith("image/")) {
       toast({
-        title: "Invalid File",
-        description: "Please select an image file.",
+        title: i18nT("Invalid File"),
+        description: i18nT("Please select an image file."),
         variant: "destructive",
       });
       return;
@@ -475,8 +496,8 @@ export function StorefrontCustomizer({
 
     if (file.size > 5 * 1024 * 1024) {
       toast({
-        title: "File Too Large",
-        description: "Please select an image smaller than 5MB.",
+        title: i18nT("File Too Large"),
+        description: i18nT("Please select an image smaller than 5MB."),
         variant: "destructive",
       });
       return;
@@ -501,21 +522,27 @@ export function StorefrontCustomizer({
     handleInputChange("design", "heroBannerImage", "");
 
     toast({
-      title: "Banner Removed",
-      description: "Hero banner image has been removed.",
+      title: i18nT("Banner Removed"),
+      description: i18nT("Hero banner image has been removed."),
     });
   };
 
   // --- Multi-banner image handlers for Dual Slider ---
-  const handleBannerImagesUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerImagesUpload = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const currentImages = settings.design.layout.bannerImages || [];
-    if (currentImages.length + bannerImagesPreviews.filter((p) => !currentImages.includes(p)).length >= 5) {
+    if (
+      currentImages.length +
+        bannerImagesPreviews.filter((p) => !currentImages.includes(p)).length >=
+      5
+    ) {
       toast({
-        title: "Limit Reached",
-        description: "You can add up to 5 banner images.",
+        title: i18nT("Limit Reached"),
+        description: i18nT("You can add up to 5 banner images."),
         variant: "destructive",
       });
       event.target.value = "";
@@ -523,12 +550,20 @@ export function StorefrontCustomizer({
     }
 
     if (!file.type.startsWith("image/")) {
-      toast({ title: "Invalid File", description: "Please select an image file.", variant: "destructive" });
+      toast({
+        title: i18nT("Invalid File"),
+        description: i18nT("Please select an image file."),
+        variant: "destructive",
+      });
       event.target.value = "";
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "File Too Large", description: "Please select an image smaller than 5MB.", variant: "destructive" });
+      toast({
+        title: i18nT("File Too Large"),
+        description: i18nT("Please select an image smaller than 5MB."),
+        variant: "destructive",
+      });
       event.target.value = "";
       return;
     }
@@ -563,7 +598,10 @@ export function StorefrontCustomizer({
     setBannerImagesPreviews(previews);
     setBannerImagesFiles(files);
 
-    toast({ title: "Banner Image Removed", description: "The banner image has been removed." });
+    toast({
+      title: i18nT("Banner Image Removed"),
+      description: i18nT("The banner image has been removed."),
+    });
   };
 
   const handleCropComplete = (file: File) => {
@@ -593,8 +631,8 @@ export function StorefrontCustomizer({
     setCropBannerImageIndex(-1);
 
     toast({
-      title: "Image Cropped",
-      description: "Image is ready to upload.",
+      title: i18nT("Image Cropped"),
+      description: i18nT("Image is ready to upload."),
     });
   };
 
@@ -605,8 +643,8 @@ export function StorefrontCustomizer({
       if (!token) {
         toast({
           duration: 5000,
-          title: "Unauthorized",
-          description: "Please login first.",
+          title: i18nT("Unauthorized"),
+          description: i18nT("Please login first."),
           variant: "destructive",
         });
         return;
@@ -695,16 +733,17 @@ export function StorefrontCustomizer({
 
         // Clean up multi-banner previews after save
         if (bannerImagesFiles.length > 0) {
-          bannerImagesPreviews.forEach((p) => { if (p) URL.revokeObjectURL(p); });
+          bannerImagesPreviews.forEach((p) => {
+            if (p) URL.revokeObjectURL(p);
+          });
           setBannerImagesPreviews([]);
           setBannerImagesFiles([]);
         }
-
       }
 
       toast({
         duration: 5000,
-        title: "Success",
+        title: i18nT("Success"),
         description: bannerFile
           ? "Settings and banner image updated successfully!"
           : "Settings updated successfully.",
@@ -712,7 +751,7 @@ export function StorefrontCustomizer({
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: error.message || "Failed to save settings.",
         variant: "destructive",
       });
@@ -759,10 +798,7 @@ export function StorefrontCustomizer({
     }));
   };
 
-  const handleLayoutChange = (
-    part: string,
-    value: any,
-  ) => {
+  const handleLayoutChange = (part: string, value: any) => {
     setSettings((prev) => ({
       ...prev,
       design: {
@@ -807,22 +843,22 @@ export function StorefrontCustomizer({
   const layoutOptions = [
     {
       value: "modern",
-      label: "Modern",
+      label: i18nT("Modern"),
       description: "Clean grid layout with rounded corners and shadows",
     },
     {
       value: "classic",
-      label: "Classic",
+      label: i18nT("Classic"),
       description: "Traditional layout with structured sections and borders",
     },
     {
       value: "magazine",
-      label: "Magazine",
+      label: i18nT("Magazine"),
       description: "Editorial style with large images and bold typography",
     },
     {
       value: "minimal",
-      label: "Minimal",
+      label: i18nT("Minimal"),
       description: "Ultra-clean with lots of white space and simple elements",
     },
   ];
@@ -832,7 +868,7 @@ export function StorefrontCustomizer({
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading store settings...</p>
+          <p className="text-muted-foreground">{i18nT("Loading store settings...")}</p>
         </div>
       </div>
     );
@@ -843,7 +879,7 @@ export function StorefrontCustomizer({
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center text-destructive">
           <p className="mb-4">Error: {error}</p>
-          <Button onClick={onBack}>Back to Dashboard</Button>
+          <Button onClick={onBack}>{i18nT("Back to Dashboard")}</Button>
         </div>
       </div>
     );
@@ -852,15 +888,15 @@ export function StorefrontCustomizer({
   return (
     <div>
       {/* Header */}
-      <div className="sticky top-0 z-30 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+      <div className="sticky top-0 z-30 border-b bg-background">
         <div className="flex items-center justify-between max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                Store Customizer
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                {i18nT("Store Customizer")}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Design your perfect store experience
+                {i18nT("Design your perfect store experience")}
               </p>
             </div>
           </div>
@@ -872,23 +908,23 @@ export function StorefrontCustomizer({
                 onClick={() => setViewMode("settings")}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   viewMode === "settings"
-                    ? "bg-white shadow-sm text-slate-900"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-card shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Layout className="h-4 w-4 inline mr-1.5" />
-                Settings
+                {i18nT("Settings")}
               </button>
               <button
                 onClick={() => setViewMode("preview")}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   viewMode === "preview"
-                    ? "bg-white shadow-sm text-slate-900"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-card shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Eye className="h-4 w-4 inline mr-1.5" />
-                Preview
+                {i18nT("Preview")}
               </button>
             </div>
 
@@ -911,527 +947,537 @@ export function StorefrontCustomizer({
 
       {/* Settings Mode */}
       {viewMode === "settings" && (
-      <div className="max-w-7xl mx-auto mt-6 mb-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
-            <TabsTrigger value="general" className="flex items-center gap-2">
-              <Layout className="h-4 w-4" />
-              General
-            </TabsTrigger>
-            <TabsTrigger value="design" className="flex items-center gap-2">
-              <Palette className="h-4 w-4" />
-              Design
-            </TabsTrigger>
-            <TabsTrigger value="features" className="flex items-center gap-2">
-              <Type className="h-4 w-4" />
-              Features
-            </TabsTrigger>
-            <TabsTrigger value="seo" className="flex items-center gap-2">
-              <ImageIcon className="h-4 w-4" />
-              SEO
-            </TabsTrigger>
-          </TabsList>
+        <div className="max-w-7xl mx-auto mt-6 mb-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+              <TabsTrigger value="general" className="flex items-center gap-2">
+                <Layout className="h-4 w-4" />
+                {i18nT("General")}
+              </TabsTrigger>
+              <TabsTrigger value="design" className="flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                {i18nT("Design")}
+              </TabsTrigger>
+              <TabsTrigger value="features" className="flex items-center gap-2">
+                <Type className="h-4 w-4" />
+                {i18nT("Features")}
+              </TabsTrigger>
+              <TabsTrigger value="seo" className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                SEO
+              </TabsTrigger>
+            </TabsList>
 
-          {/* General Tab */}
-          <TabsContent value="general" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Store Information</CardTitle>
-                <CardDescription>
-                  Basic information about your store
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* General Tab */}
+            <TabsContent value="general" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{i18nT("Store Information")}</CardTitle>
+                  <CardDescription>
+                    {i18nT("Basic information about your store")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="storeName">{i18nT("Store Name")}</Label>
+                      <Input
+                        id="storeName"
+                        value={settings.general.storeName}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "general",
+                            "storeName",
+                            e.target.value,
+                          )
+                        }
+                        placeholder={i18nT("Your Store Name")}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="website">{i18nT("Website URL")}</Label>
+                      <Input
+                        id="website"
+                        value={settings.general.contactInfo.website}
+                        onChange={(e) =>
+                          handleNestedInputChange(
+                            "general",
+                            "contactInfo",
+                            "website",
+                            e.target.value,
+                          )
+                        }
+                        placeholder="www.yourstore.com"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="storeName">Store Name</Label>
+                    <Label htmlFor="tagline">{i18nT("Tagline")}</Label>
                     <Input
-                      id="storeName"
-                      value={settings.general.storeName}
+                      id="tagline"
+                      value={settings.general.tagline}
+                      onChange={(e) =>
+                        handleInputChange("general", "tagline", e.target.value)
+                      }
+                      placeholder={i18nT("A brief description of your store")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="description">{i18nT("Store Description")}</Label>
+                    <Textarea
+                      id="description"
+                      value={settings.general.description}
                       onChange={(e) =>
                         handleInputChange(
                           "general",
-                          "storeName",
+                          "description",
                           e.target.value,
                         )
                       }
-                      placeholder="Your Store Name"
+                      placeholder={i18nT("Detailed description of your store")}
+                      rows={3}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website URL</Label>
-                    <Input
-                      id="website"
-                      value={settings.general.contactInfo.website}
-                      onChange={(e) =>
-                        handleNestedInputChange(
-                          "general",
-                          "contactInfo",
-                          "website",
-                          e.target.value,
-                        )
-                      }
-                      placeholder="www.yourstore.com"
-                    />
-                  </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tagline">Tagline</Label>
-                  <Input
-                    id="tagline"
-                    value={settings.general.tagline}
-                    onChange={(e) =>
-                      handleInputChange("general", "tagline", e.target.value)
-                    }
-                    placeholder="A brief description of your store"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Store Description</Label>
-                  <Textarea
-                    id="description"
-                    value={settings.general.description}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "general",
-                        "description",
-                        e.target.value,
-                      )
-                    }
-                    placeholder="Detailed description of your store"
-                    rows={3}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
-                <CardDescription>How customers can reach you</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Phone & Email */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      value={settings.general.contactInfo.phone}
-                      onChange={(e) =>
-                        handleNestedInputChange(
-                          "general",
-                          "contactInfo",
-                          "phone",
-                          e.target.value,
-                        )
-                      }
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      value={settings.general.contactInfo.email}
-                      onChange={(e) =>
-                        handleNestedInputChange(
-                          "general",
-                          "contactInfo",
-                          "email",
-                          e.target.value,
-                        )
-                      }
-                      placeholder="hello@yourstore.com"
-                    />
-                  </div>
-                </div>
-
-                {/* Address */}
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={settings.general.contactInfo.address}
-                    onChange={(e) =>
-                      handleNestedInputChange(
-                        "general",
-                        "contactInfo",
-                        "address",
-                        e.target.value,
-                      )
-                    }
-                    placeholder="123 Main Street, City, State 12345"
-                  />
-                </div>
-
-                {/* Hours & Slug */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="hours">
-                      Business Hours:{" "}
-                      <span className="text-l text-gray-400">
-                        (Mon-Fri: 9AM-6PM, Sat-Sun: 10AM-4PM)
-                      </span>
-                    </Label>
-                    <Input
-                      id="hours"
-                      value={settings.general.contactInfo.hours}
-                      onChange={(e) =>
-                        handleNestedInputChange(
-                          "general",
-                          "contactInfo",
-                          "hours",
-                          e.target.value,
-                        )
-                      }
-                      placeholder="Mon-Fri: 9AM-6PM, Sat-Sun: 10AM-4PM"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="slug">Store Link (slug)</Label>
-                    <div className="flex items-center">
-                      <span className="text-muted-foreground mr-1 text-sm">
-                        [https://kioscart.com/]
-                      </span>
+              <Card>
+                <CardHeader>
+                  <CardTitle>{i18nT("Contact Information")}</CardTitle>
+                  <CardDescription>{i18nT("How customers can reach you")}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Phone & Email */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">{i18nT("Phone Number")}</Label>
                       <Input
-                        id="slug"
-                        value={slug ?? ""}
-                        onChange={(e) =>
-                          setSlug(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ""))
-                        }
-                        placeholder="your-store"
-                        className="flex-1"
-                      />
-                    </div>
-                    <div className="flex flex-row justify-between">
-                      <p className="text-xs text-muted-foreground">
-                        Use only letters, numbers, dashes, and underscores.
-                      </p>
-                      <Button
-                        variant="outline1"
-                        className="p-3 lg:p-4 transition-all"
-                        onClick={onShare}
-                        aria-label="Share store link"
-                      >
-                        <Share2 className="transition-all" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Social Media Links</CardTitle>
-                <CardDescription>How Customers Can Connect You</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Social Media Toggles */}
-                <div className="space-y-4">
-                  {/* Instagram */}
-                  <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Instagram</div>
-                        <p className="text-xs text-muted-foreground">
-                          Show Instagram link in footer
-                        </p>
-                      </div>
-                      <Switch
-                        checked={
-                          settings.general.contactInfo.showInstagram ?? false
-                        }
-                        onCheckedChange={(checked) =>
-                          handleNestedInputChange(
-                            "general",
-                            "contactInfo",
-                            "showInstagram",
-                            checked,
-                          )
-                        }
-                      />
-                    </div>
-                    {settings.general.contactInfo.showInstagram && (
-                      <Input
-                        value={settings.general.contactInfo.instagramLink ?? ""}
+                        id="phone"
+                        value={settings.general.contactInfo.phone}
                         onChange={(e) =>
                           handleNestedInputChange(
                             "general",
                             "contactInfo",
-                            "instagramLink",
+                            "phone",
                             e.target.value,
                           )
                         }
-                        placeholder="https://www.instagram.com/yourprofile"
-                      />
-                    )}
-                  </div>
-
-                  {/* Facebook */}
-                  <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Facebook</div>
-                        <p className="text-xs text-muted-foreground">
-                          Show Facebook link in footer
-                        </p>
-                      </div>
-                      <Switch
-                        checked={
-                          settings.general.contactInfo.showFacebook ?? false
-                        }
-                        onCheckedChange={(checked) =>
-                          handleNestedInputChange(
-                            "general",
-                            "contactInfo",
-                            "showFacebook",
-                            checked,
-                          )
-                        }
+                        placeholder="+1 (555) 123-4567"
                       />
                     </div>
-                    {settings.general.contactInfo.showFacebook && (
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">{i18nT("Email Address")}</Label>
                       <Input
-                        value={settings.general.contactInfo.facebookLink ?? ""}
+                        id="email"
+                        value={settings.general.contactInfo.email}
                         onChange={(e) =>
                           handleNestedInputChange(
                             "general",
                             "contactInfo",
-                            "facebookLink",
+                            "email",
                             e.target.value,
                           )
                         }
-                        placeholder="https://www.facebook.com/yourpage"
-                      />
-                    )}
-                  </div>
-
-                  {/* Twitter/X */}
-                  <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Twitter / X</div>
-                        <p className="text-xs text-muted-foreground">
-                          Show Twitter/X link in footer
-                        </p>
-                      </div>
-                      <Switch
-                        checked={
-                          settings.general.contactInfo.showTwitter ?? false
-                        }
-                        onCheckedChange={(checked) =>
-                          handleNestedInputChange(
-                            "general",
-                            "contactInfo",
-                            "showTwitter",
-                            checked,
-                          )
-                        }
+                        placeholder={i18nT("hello@yourstore.com")}
                       />
                     </div>
-                    {settings.general.contactInfo.showTwitter && (
+                  </div>
+
+                  {/* Address */}
+                  <div className="space-y-2">
+                    <Label htmlFor="address">{i18nT("Address")}</Label>
+                    <Input
+                      id="address"
+                      value={settings.general.contactInfo.address}
+                      onChange={(e) =>
+                        handleNestedInputChange(
+                          "general",
+                          "contactInfo",
+                          "address",
+                          e.target.value,
+                        )
+                      }
+                      placeholder="123 Main Street, City, State 12345"
+                    />
+                  </div>
+
+                  {/* Hours & Slug */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="hours">
+                        Business Hours:{" "}
+                        <span className="text-l text-muted-foreground">
+                          (Mon-Fri: 9AM-6PM, Sat-Sun: 10AM-4PM)
+                        </span>
+                      </Label>
                       <Input
-                        value={settings.general.contactInfo.twitterLink ?? ""}
+                        id="hours"
+                        value={settings.general.contactInfo.hours}
                         onChange={(e) =>
                           handleNestedInputChange(
                             "general",
                             "contactInfo",
-                            "twitterLink",
+                            "hours",
                             e.target.value,
                           )
                         }
-                        placeholder="https://x.com/yourhandle"
+                        placeholder={i18nT("Mon-Fri: 9AM-6PM, Sat-Sun: 10AM-4PM")}
                       />
-                    )}
-                  </div>
+                    </div>
 
-                  {/* TikTok — hidden for India shopkeepers (TikTok is banned in India) */}
-                  {!isIndia && (
+                    <div className="space-y-2">
+                      <Label htmlFor="slug">{i18nT("Store Link (slug)")}</Label>
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-1 text-sm">
+                          [https://kioscart.com/]
+                        </span>
+                        <Input
+                          id="slug"
+                          value={slug ?? ""}
+                          onChange={(e) =>
+                            setSlug(
+                              e.target.value.replace(/[^a-zA-Z0-9-_]/g, ""),
+                            )
+                          }
+                          placeholder="your-store"
+                          className="flex-1"
+                        />
+                      </div>
+                      <div className="flex flex-row justify-between">
+                        <p className="text-xs text-muted-foreground">
+                          {i18nT("Use only letters, numbers, dashes, and underscores.")}
+                        </p>
+                        <Button
+                          variant="outline1"
+                          className="p-3 lg:p-4 transition-all"
+                          onClick={onShare}
+                          aria-label={i18nT("Share store link")}
+                        >
+                          <Share2 className="transition-all" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>{i18nT("Social Media Links")}</CardTitle>
+                  <CardDescription>
+                    {i18nT("How Customers Can Connect You")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* Social Media Toggles */}
+                  <div className="space-y-4">
+                    {/* Instagram */}
                     <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-medium">TikTok</div>
+                          <div className="font-medium">{i18nT("Instagram")}</div>
                           <p className="text-xs text-muted-foreground">
-                            Show TikTok link in footer
+                            {i18nT("Show Instagram link in footer")}
                           </p>
                         </div>
                         <Switch
                           checked={
-                            settings.general.contactInfo.showTiktok ?? false
+                            settings.general.contactInfo.showInstagram ?? false
                           }
                           onCheckedChange={(checked) =>
                             handleNestedInputChange(
                               "general",
                               "contactInfo",
-                              "showTiktok",
+                              "showInstagram",
                               checked,
                             )
                           }
                         />
                       </div>
-                      {settings.general.contactInfo.showTiktok && (
+                      {settings.general.contactInfo.showInstagram && (
                         <Input
-                          value={settings.general.contactInfo.tiktokLink ?? ""}
+                          value={
+                            settings.general.contactInfo.instagramLink ?? ""
+                          }
                           onChange={(e) =>
                             handleNestedInputChange(
                               "general",
                               "contactInfo",
-                              "tiktokLink",
+                              "instagramLink",
                               e.target.value,
                             )
                           }
-                          placeholder="https://www.tiktok.com/@yourhandle"
+                          placeholder="https://www.instagram.com/yourprofile"
                         />
                       )}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* Design Tab */}
-          <TabsContent value="design" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Theme & Colors</CardTitle>
-                <CardDescription>
-                  Customize the visual appearance of your store
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <div className="grid grid-cols-1 gap-3">
-                      {colorSchemes.map((scheme, index) => (
-                        <div
-                          key={index}
-                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                            settings.design.primaryColor === scheme.primary
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                          onClick={() => {
-                            handleInputChange(
-                              "design",
-                              "primaryColor",
-                              scheme.primary,
-                            );
-                            handleInputChange(
-                              "design",
-                              "secondaryColor",
-                              scheme.secondary,
-                            );
-                          }}
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="flex space-x-1">
-                              <div
-                                className="w-6 h-6 rounded-full border"
-                                style={{ backgroundColor: scheme.primary }}
-                              />
-                              <div
-                                className="w-6 h-6 rounded-full border"
-                                style={{ backgroundColor: scheme.secondary }}
-                              />
-                            </div>
-                            <span className="text-sm font-medium">
-                              {scheme.name}
-                            </span>
-                          </div>
+                    {/* Facebook */}
+                    <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{i18nT("Facebook")}</div>
+                          <p className="text-xs text-muted-foreground">
+                            {i18nT("Show Facebook link in footer")}
+                          </p>
                         </div>
-                      ))}
+                        <Switch
+                          checked={
+                            settings.general.contactInfo.showFacebook ?? false
+                          }
+                          onCheckedChange={(checked) =>
+                            handleNestedInputChange(
+                              "general",
+                              "contactInfo",
+                              "showFacebook",
+                              checked,
+                            )
+                          }
+                        />
+                      </div>
+                      {settings.general.contactInfo.showFacebook && (
+                        <Input
+                          value={
+                            settings.general.contactInfo.facebookLink ?? ""
+                          }
+                          onChange={(e) =>
+                            handleNestedInputChange(
+                              "general",
+                              "contactInfo",
+                              "facebookLink",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="https://www.facebook.com/yourpage"
+                        />
+                      )}
                     </div>
 
-                    <div className="space-y-4">
-                      <Label>Custom Colors</Label>
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                          <Label className="w-20">Primary</Label>
-                          <DebouncedColorInput
-                            value={settings.design.primaryColor}
-                            onChange={(val) =>
-                              handleInputChange(
-                                "design",
-                                "primaryColor",
-                                val,
+                    {/* Twitter/X */}
+                    <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">Twitter / X</div>
+                          <p className="text-xs text-muted-foreground">
+                            Show Twitter/X link in footer
+                          </p>
+                        </div>
+                        <Switch
+                          checked={
+                            settings.general.contactInfo.showTwitter ?? false
+                          }
+                          onCheckedChange={(checked) =>
+                            handleNestedInputChange(
+                              "general",
+                              "contactInfo",
+                              "showTwitter",
+                              checked,
+                            )
+                          }
+                        />
+                      </div>
+                      {settings.general.contactInfo.showTwitter && (
+                        <Input
+                          value={settings.general.contactInfo.twitterLink ?? ""}
+                          onChange={(e) =>
+                            handleNestedInputChange(
+                              "general",
+                              "contactInfo",
+                              "twitterLink",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="https://x.com/yourhandle"
+                        />
+                      )}
+                    </div>
+
+                    {/* TikTok — hidden for India shopkeepers (TikTok is banned in India) */}
+                    {!isIndia && (
+                      <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">{i18nT("TikTok")}</div>
+                            <p className="text-xs text-muted-foreground">
+                              {i18nT("Show TikTok link in footer")}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={
+                              settings.general.contactInfo.showTiktok ?? false
+                            }
+                            onCheckedChange={(checked) =>
+                              handleNestedInputChange(
+                                "general",
+                                "contactInfo",
+                                "showTiktok",
+                                checked,
                               )
                             }
-                            className="w-20 h-8 p-1 rounded border"
-                          />
-                          <Input
-                            value={settings.design.primaryColor}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "design",
-                                "primaryColor",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="#6366f1"
-                            className="text-xs h-8"
                           />
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Label className="w-20">Secondary</Label>
-                          <DebouncedColorInput
-                            value={settings.design.secondaryColor}
-                            onChange={(val) =>
-                              handleInputChange(
-                                "design",
-                                "secondaryColor",
-                                val,
-                              )
-                            }
-                            className="w-20 h-8 p-1 rounded border"
-                          />
+                        {settings.general.contactInfo.showTiktok && (
                           <Input
-                            value={settings.design.secondaryColor}
+                            value={
+                              settings.general.contactInfo.tiktokLink ?? ""
+                            }
                             onChange={(e) =>
-                              handleInputChange(
-                                "design",
-                                "secondaryColor",
+                              handleNestedInputChange(
+                                "general",
+                                "contactInfo",
+                                "tiktokLink",
                                 e.target.value,
                               )
                             }
-                            placeholder="#8b5cf6"
-                            className="text-xs h-8"
+                            placeholder="https://www.tiktok.com/@yourhandle"
                           />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Design Tab */}
+            <TabsContent value="design" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{i18nT("Theme & Colors")}</CardTitle>
+                  <CardDescription>
+                    {i18nT("Customize the visual appearance of your store")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <div className="grid grid-cols-1 gap-3">
+                        {colorSchemes.map((scheme, index) => (
+                          <div
+                            key={index}
+                            className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                              settings.design.primaryColor === scheme.primary
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                            }`}
+                            onClick={() => {
+                              handleInputChange(
+                                "design",
+                                "primaryColor",
+                                scheme.primary,
+                              );
+                              handleInputChange(
+                                "design",
+                                "secondaryColor",
+                                scheme.secondary,
+                              );
+                            }}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="flex space-x-1">
+                                <div
+                                  className="w-6 h-6 rounded-full border"
+                                  style={{ backgroundColor: scheme.primary }}
+                                />
+                                <div
+                                  className="w-6 h-6 rounded-full border"
+                                  style={{ backgroundColor: scheme.secondary }}
+                                />
+                              </div>
+                              <span className="text-sm font-medium">
+                                {scheme.name}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-4">
+                        <Label>{i18nT("Custom Colors")}</Label>
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <Label className="w-20">{i18nT("Primary")}</Label>
+                            <DebouncedColorInput
+                              value={settings.design.primaryColor}
+                              onChange={(val) =>
+                                handleInputChange("design", "primaryColor", val)
+                              }
+                              className="w-20 h-8 p-1 rounded border"
+                            />
+                            <Input
+                              value={settings.design.primaryColor}
+                              onChange={(e) =>
+                                handleInputChange(
+                                  "design",
+                                  "primaryColor",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="#6366f1"
+                              className="text-xs h-8"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Label className="w-20">{i18nT("Secondary")}</Label>
+                            <DebouncedColorInput
+                              value={settings.design.secondaryColor}
+                              onChange={(val) =>
+                                handleInputChange(
+                                  "design",
+                                  "secondaryColor",
+                                  val,
+                                )
+                              }
+                              className="w-20 h-8 p-1 rounded border"
+                            />
+                            <Input
+                              value={settings.design.secondaryColor}
+                              onChange={(e) =>
+                                handleInputChange(
+                                  "design",
+                                  "secondaryColor",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="#8b5cf6"
+                              className="text-xs h-8"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fontFamily">Font Family</Label>
-                      <Select
-                        value={settings.design.fontFamily}
-                        onValueChange={(value) =>
-                          handleInputChange("design", "fontFamily", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {fontOptions.map((font) => (
-                            <SelectItem key={font} value={font}>
-                              <span style={{ fontFamily: font }}>{font}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="fontFamily">{i18nT("Font Family")}</Label>
+                        <Select
+                          value={settings.design.fontFamily}
+                          onValueChange={(value) =>
+                            handleInputChange("design", "fontFamily", value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {fontOptions.map((font) => (
+                              <SelectItem key={font} value={font}>
+                                <span style={{ fontFamily: font }}>{font}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    {/* <div className="space-y-2">
-                      <Label htmlFor="theme">Theme Mode</Label>
+                      {/* <div className="space-y-2">
+                      <Label htmlFor="theme">{i18nT("Theme Mode")}</Label>
                       <Select
                         value={settings.design.theme}
                         onValueChange={(value) =>
@@ -1442,815 +1488,1733 @@ export function StorefrontCustomizer({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="light">Light</SelectItem>
-                          <SelectItem value="dark">Dark</SelectItem>
-                          <SelectItem value="auto">Auto</SelectItem>
+                          <SelectItem value="light">{i18nT("Light")}</SelectItem>
+                          <SelectItem value="dark">{i18nT("Dark")}</SelectItem>
+                          <SelectItem value="auto">{i18nT("Auto")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div> */}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Storefront Sections</CardTitle>
-                <CardDescription>
-                  Configure each section of your storefront
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(() => { const L: any = settings.design.layout; return (<>
-
-                {/* 1. Advertisement Bar */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Advertisement Bar</span>
-                        <Switch
-                        checked={L.visibleAdvertismentBar}
-                        onCheckedChange={(checked) => handleLayoutChange("visibleAdvertismentBar", checked)}
-                        />
-                  </div>
-                  {L.visibleAdvertismentBar && (
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Announcement Text</Label>
-                      <DebouncedInput value={L.advertiseText ?? ""} onChange={(e: any) => handleLayoutChange("advertiseText", e.target.value)} placeholder="e.g. Flat 10% Off" className="text-xs" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-[11px] text-muted-foreground mb-1 block">Background Color</Label>
-                        <div className="flex gap-2">
-                          <Input value={L.adBarBgcolor ?? "#000000"} onChange={(e) => handleLayoutChange("adBarBgcolor", e.target.value)} placeholder="#000000" className="text-xs flex-1" />
-                          <DebouncedColorInput value={L.adBarBgcolor ?? "#000000"} onChange={(val) => handleLayoutChange("adBarBgcolor", val)} />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-[11px] text-muted-foreground mb-1 block">Text Color</Label>
-                        <div className="flex gap-2">
-                          <Input value={L.adBarTextColor ?? "#ffffff"} onChange={(e) => handleLayoutChange("adBarTextColor", e.target.value)} placeholder="#ffffff" className="text-xs flex-1" />
-                          <DebouncedColorInput value={L.adBarTextColor ?? "#ffffff"} onChange={(val) => handleLayoutChange("adBarTextColor", val)} />
-                        </div>
-                      </div>
                     </div>
                   </div>
-                  )}
-                </div>
+                </CardContent>
+              </Card>
 
-                {/* 2. Header */}
-                <details open className="group border rounded-lg overflow-hidden">
-                  <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
-                    <span className="text-xs font-semibold">Header</span>
-                  </summary>
-                  <div className="p-3 space-y-3 bg-background">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("header", "modern")}>
-                        <h4 className="font-medium">Modern</h4>
-                        <p className="text-sm text-muted-foreground">Bold top bar with logo, navigation and primary actions highlighted.</p>
-                      </div>
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("header", "minimal")}>
-                        <h4 className="font-medium">Minimal</h4>
-                        <p className="text-sm text-muted-foreground">Clean header with compact logo and simple navigation for a focused look.</p>
-                      </div>
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("header", "mega")}>
-                        <h4 className="font-medium">Mega</h4>
-                        <p className="text-sm text-muted-foreground">Expanded header with space for menus, categories and promos.</p>
-                      </div>
-                    </div>
-                  </div>
-                </details>
-
-                {/* 3. Banner / Hero */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Banner / Hero</span>
-                        <Switch
-                        checked={settings.design.showBanner}
-                        onCheckedChange={(checked) => handleInputChange("design", "showBanner", checked)}
-                        />
-                  </div>
-                  {settings.design.showBanner && (
-                  <div className="p-3 space-y-4 bg-background">
-                    <div className="space-y-4">
-                      {bannerDesign === "mega" && (
-                        <Label>Card Image (Click Image to Crop)</Label>
-                      )}
-                      {bannerDesign === "minimal" && (
-                        <Label>Overlay Image — Founder / Product (Click to Crop)</Label>
-                      )}
-                      {(bannerDesign === "modern" || bannerDesign === "centered") && (
-                        <Label>Banner Image (Click Image to Crop)</Label>
-                      )}
-
-                      {bannerPreview || settings.design.bannerImage ? (
-                        <div className="space-y-2">
-                          <div className="relative">
-                            <img
-                              src={bannerPreview ? bannerPreview : getBannerSrc(settings.design.bannerImage)}
-                              alt="Banner preview"
-                              className="w-full h-96 object-cover rounded-lg border cursor-pointer"
-                              loading="lazy"
-                              onClick={() => {
-                                const src = bannerPreview ? bannerPreview : getBannerSrc(settings.design.bannerImage);
-                                setCropImage(src);
-                                setCropOpen(true);
-                              }}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{i18nT("Storefront Sections")}</CardTitle>
+                  <CardDescription>
+                    {i18nT("Configure each section of your storefront")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(() => {
+                    const L: any = settings.design.layout;
+                    return (
+                      <>
+                        {/* 1. Advertisement Bar */}
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                            <span className="text-xs font-semibold">
+                              {i18nT("Advertisement Bar")}
+                            </span>
+                            <Switch
+                              checked={L.visibleAdvertismentBar}
+                              onCheckedChange={(checked) =>
+                                handleLayoutChange(
+                                  "visibleAdvertismentBar",
+                                  checked,
+                                )
+                              }
                             />
-                            <Button variant="destructive" size="sm" className="absolute top-2 right-2" onClick={removeBannerImage}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                            {bannerPreview && (
-                              <div className="absolute bottom-2 left-2">
-                                <Badge variant="secondary" className="text-xs">New Image Selected</Badge>
+                          </div>
+                          {L.visibleAdvertismentBar && (
+                            <div className="p-3 space-y-3 bg-background">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                  {i18nT("Announcement Text")}
+                                </Label>
+                                <DebouncedInput
+                                  value={L.advertiseText ?? ""}
+                                  onChange={(e: any) =>
+                                    handleLayoutChange(
+                                      "advertiseText",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder={i18nT("e.g. Flat 10% Off")}
+                                  className="text-xs"
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Background Color")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      value={L.adBarBgcolor ?? "#000000"}
+                                      onChange={(e) =>
+                                        handleLayoutChange(
+                                          "adBarBgcolor",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder="#000000"
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={L.adBarBgcolor ?? "#000000"}
+                                      onChange={(val) =>
+                                        handleLayoutChange("adBarBgcolor", val)
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Text Color")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      value={L.adBarTextColor ?? "#ffffff"}
+                                      onChange={(e) =>
+                                        handleLayoutChange(
+                                          "adBarTextColor",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder="#ffffff"
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={L.adBarTextColor ?? "#ffffff"}
+                                      onChange={(val) =>
+                                        handleLayoutChange(
+                                          "adBarTextColor",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 2. Header */}
+                        <details
+                          open
+                          className="group border rounded-lg overflow-hidden"
+                        >
+                          <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
+                            <span className="text-xs font-semibold">
+                              {i18nT("Header")}
+                            </span>
+                          </summary>
+                          <div className="p-3 space-y-3 bg-background">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("header", "modern")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Modern")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Bold top bar with logo, navigation and primary
+                                  actions highlighted.
+                                </p>
+                              </div>
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("header", "minimal")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Minimal")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Clean header with compact logo and simple
+                                  navigation for a focused look.
+                                </p>
+                              </div>
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.header === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("header", "mega")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Mega")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Expanded header with space for menus,
+                                  categories and promos.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </details>
+
+                        {/* 3. Banner / Hero */}
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                            <span className="text-xs font-semibold">
+                              Banner / Hero
+                            </span>
+                            <Switch
+                              checked={settings.design.showBanner}
+                              onCheckedChange={(checked) =>
+                                handleInputChange(
+                                  "design",
+                                  "showBanner",
+                                  checked,
+                                )
+                              }
+                            />
+                          </div>
+                          {settings.design.showBanner && (
+                            <div className="p-3 space-y-4 bg-background">
+                              <div className="space-y-4">
+                                {bannerDesign === "mega" && (
+                                  <Label>
+                                    {i18nT("Card Image (Click Image to Crop)")}
+                                  </Label>
+                                )}
+                                {bannerDesign === "minimal" && (
+                                  <Label>
+                                    Overlay Image — Founder / Product (Click to
+                                    Crop)
+                                  </Label>
+                                )}
+                                {(bannerDesign === "modern" ||
+                                  bannerDesign === "centered") && (
+                                  <Label>
+                                    {i18nT("Banner Image (Click Image to Crop)")}
+                                  </Label>
+                                )}
+
+                                {bannerPreview ||
+                                settings.design.bannerImage ? (
+                                  <div className="space-y-2">
+                                    <div className="relative">
+                                      <img
+                                        src={
+                                          bannerPreview
+                                            ? bannerPreview
+                                            : getBannerSrc(
+                                                settings.design.bannerImage,
+                                              )
+                                        }
+                                        alt="Banner preview"
+                                        className="w-full h-96 object-cover rounded-lg border cursor-pointer"
+                                        loading="lazy"
+                                        onClick={() => {
+                                          const src = bannerPreview
+                                            ? bannerPreview
+                                            : getBannerSrc(
+                                                settings.design.bannerImage,
+                                              );
+                                          setCropImage(src);
+                                          setCropOpen(true);
+                                        }}
+                                      />
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        className="absolute top-2 right-2"
+                                        onClick={removeBannerImage}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                      {bannerPreview && (
+                                        <div className="absolute bottom-2 left-2">
+                                          <Badge
+                                            variant="secondary"
+                                            className="text-xs"
+                                          >
+                                            {i18nT("New Image Selected")}
+                                          </Badge>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <Button
+                                      variant="buttonOutline"
+                                      onClick={() =>
+                                        bannerFileInputRef.current?.click()
+                                      }
+                                      className="w-full"
+                                    >
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      {i18nT("Change Banner")}
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="border-2 border-dashed border-border rounded-lg p-6">
+                                    <div className="text-center">
+                                      <ImagePlus className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                                      <p className="text-muted-foreground mb-2">
+                                        {i18nT("No banner image uploaded")}
+                                      </p>
+                                      <Button
+                                        variant="buttonOutline"
+                                        onClick={() =>
+                                          bannerFileInputRef.current?.click()
+                                        }
+                                      >
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        {i18nT("Upload Banner")}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <input
+                                  ref={bannerFileInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleBannerUpload}
+                                  className="hidden"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                  Recommended size: 1920x600px. Maximum file
+                                  size: 5MB.
+                                  {bannerFile && (
+                                    <span className="text-primary block mt-1">
+                                      New banner ready to upload:{" "}
+                                      {bannerFile.name}
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+
+                              <div className="space-y-4 mt-4">
+                                <Label>{i18nT("Banner Design (Hero Design)")}</Label>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  <div
+                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                    onClick={() =>
+                                      handleLayoutChange("banner", "modern")
+                                    }
+                                  >
+                                    <h4 className="font-medium text-sm">
+                                      {i18nT("Full Width")}
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground">
+                                      Full-width image with customizable text
+                                      alignment (left, center, right).
+                                    </p>
+                                  </div>
+                                  <div
+                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                    onClick={() =>
+                                      handleLayoutChange("banner", "minimal")
+                                    }
+                                  >
+                                    <h4 className="font-medium text-sm">
+                                      {i18nT("Banner on Banner")}
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground">
+                                      Background image/color + overlay card
+                                      (founder photo, product).
+                                    </p>
+                                  </div>
+                                  <div
+                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                    onClick={() =>
+                                      handleLayoutChange("banner", "mega")
+                                    }
+                                  >
+                                    <h4 className="font-medium text-sm">
+                                      {i18nT("Carousel")}
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground">
+                                      Up to 5 images, auto-rotating full-width
+                                      slider.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {bannerDesign === "mega" && (
+                                <div className="space-y-3">
+                                  <Label>
+                                    {i18nT("Banner Images for Dual Slider (up to 5)")}
+                                  </Label>
+                                  <p className="text-sm text-muted-foreground">
+                                    These images will rotate in a carousel on
+                                    your storefront. Click an image to crop it.
+                                  </p>
+
+                                  {/* Existing saved images + new previews */}
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    {(() => {
+                                      const savedImages =
+                                        settings.design.layout.bannerImages ||
+                                        [];
+                                      const allItems = [
+                                        ...savedImages.map(
+                                          (img: string, i: number) => ({
+                                            type: "saved" as const,
+                                            src: getBannerSrc(img),
+                                            index: i,
+                                          }),
+                                        ),
+                                        ...bannerImagesPreviews.map(
+                                          (p: string, i: number) => ({
+                                            type: "new" as const,
+                                            src: p,
+                                            index: savedImages.length + i,
+                                          }),
+                                        ),
+                                      ];
+                                      return allItems.map((item) => (
+                                        <div
+                                          key={`${item.type}-${item.index}`}
+                                          className="relative group"
+                                        >
+                                          <img
+                                            src={item.src}
+                                            alt={`Banner ${item.index + 1}`}
+                                            className="w-full h-32 object-cover rounded-lg border cursor-pointer"
+                                            loading="lazy"
+                                          />
+                                          <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => {
+                                              if (item.type === "saved") {
+                                                removeBannerImageAtIndex(
+                                                  item.index,
+                                                );
+                                              } else {
+                                                // Remove from previews/files (offset by savedImages length)
+                                                const previewIdx =
+                                                  item.index -
+                                                  savedImages.length;
+                                                const previews = [
+                                                  ...bannerImagesPreviews,
+                                                ];
+                                                const files = [
+                                                  ...bannerImagesFiles,
+                                                ];
+                                                if (previews[previewIdx])
+                                                  URL.revokeObjectURL(
+                                                    previews[previewIdx],
+                                                  );
+                                                previews.splice(previewIdx, 1);
+                                                files.splice(previewIdx, 1);
+                                                setBannerImagesPreviews(
+                                                  previews,
+                                                );
+                                                setBannerImagesFiles(files);
+                                              }
+                                            }}
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                          {item.type === "new" && (
+                                            <div className="absolute bottom-1 left-1">
+                                              <Badge
+                                                variant="secondary"
+                                                className="text-[10px] px-1.5 py-0.5"
+                                              >
+                                                {i18nT("New")}
+                                              </Badge>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ));
+                                    })()}
+                                  </div>
+
+                                  {/* Add button */}
+                                  {(settings.design.layout.bannerImages || [])
+                                    .length +
+                                    bannerImagesPreviews.length <
+                                    5 && (
+                                    <div
+                                      className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                                      onClick={() =>
+                                        bannerImagesFileInputRef.current?.click()
+                                      }
+                                    >
+                                      <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground mb-1" />
+                                      <p className="text-sm text-muted-foreground">
+                                        {i18nT("Add Banner Image")}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <input
+                                    ref={bannerImagesFileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleBannerImagesUpload}
+                                    className="hidden"
+                                  />
+                                </div>
+                              )}
+
+                              {bannerDesign === "minimal" && (
+                                <div className="space-y-2">
+                                  <Label>
+                                    {i18nT("Background Image (Click to Crop)")}
+                                  </Label>
+                                  <p className="text-xs text-muted-foreground">
+                                    This appears behind the overlay card. If not
+                                    uploaded, your primary color is used as
+                                    background.
+                                  </p>
+                                  {heroBannerPreview ||
+                                  settings.design.heroBannerImage ? (
+                                    <div className="relative">
+                                      <img
+                                        src={
+                                          heroBannerPreview
+                                            ? heroBannerPreview
+                                            : getBannerSrc(
+                                                settings.design.heroBannerImage,
+                                              )
+                                        }
+                                        alt="Background Banner"
+                                        className="w-full h-48 object-cover rounded-lg border cursor-pointer"
+                                        loading="lazy"
+                                        onClick={() => {
+                                          const src = heroBannerPreview
+                                            ? heroBannerPreview
+                                            : getBannerSrc(
+                                                settings.design.heroBannerImage,
+                                              );
+                                          setCropTarget("heroBanner");
+                                          setCropImage(src);
+                                          setCropOpen(true);
+                                        }}
+                                      />
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        className="absolute top-2 right-2"
+                                        onClick={removeHeroBannerImage}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                                      onClick={() =>
+                                        heroBannerFileInputRef.current?.click()
+                                      }
+                                    >
+                                      <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground mb-1" />
+                                      <p className="text-sm text-muted-foreground">
+                                        {i18nT("Upload Background Image")}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <input
+                                    ref={heroBannerFileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleHeroBannerUpload}
+                                    className="hidden"
+                                  />
+                                </div>
+                              )}
+
+                              {bannerDesign !== "mega" && (
+                                <div className="space-y-3 p-3 border rounded-lg bg-muted/20">
+                                  <Label className="text-xs font-semibold">
+                                    {i18nT("Banner Text Styling")}
+                                  </Label>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                        {i18nT("Font Color")}
+                                      </Label>
+                                      <div className="flex gap-2">
+                                        <DebouncedInput
+                                          value={L.bannerFontColor || "#ffffff"}
+                                          onChange={(e: any) =>
+                                            handleLayoutChange(
+                                              "bannerFontColor",
+                                              e.target.value,
+                                            )
+                                          }
+                                          placeholder="#ffffff"
+                                          className="text-xs flex-1"
+                                        />
+                                        <DebouncedColorInput
+                                          value={L.bannerFontColor || "#ffffff"}
+                                          onChange={(val) =>
+                                            handleLayoutChange(
+                                              "bannerFontColor",
+                                              val,
+                                            )
+                                          }
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                        {i18nT("Font Size (px)")}
+                                      </Label>
+                                      <DebouncedInput
+                                        type="number"
+                                        value={L.bannerFontSize || 36}
+                                        onChange={(e: any) =>
+                                          handleLayoutChange(
+                                            "bannerFontSize",
+                                            parseInt(e.target.value) || 36,
+                                          )
+                                        }
+                                        className="text-xs"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <Label className="text-xs">{i18nT("Bold Text")}</Label>
+                                    <Switch
+                                      checked={L.bannerBold || false}
+                                      onCheckedChange={(v) =>
+                                        handleLayoutChange("bannerBold", v)
+                                      }
+                                    />
+                                  </div>
+                                  {bannerDesign === "modern" && (
+                                    <div>
+                                      <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                        {i18nT("Text Alignment")}
+                                      </Label>
+                                      <div className="flex gap-2">
+                                        {["left", "center", "right"].map(
+                                          (align) => (
+                                            <button
+                                              key={align}
+                                              className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${L.bannerTextAlign === align || (!L.bannerTextAlign && align === "left") ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/50"}`}
+                                              onClick={() =>
+                                                handleLayoutChange(
+                                                  "bannerTextAlign",
+                                                  align,
+                                                )
+                                              }
+                                            >
+                                              {align.charAt(0).toUpperCase() +
+                                                align.slice(1)}
+                                            </button>
+                                          ),
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="space-y-2">
+                                <Label htmlFor="bannerHeight">
+                                  {i18nT("Banner Height")}
+                                </Label>
+                                <Select
+                                  value={settings.design.bannerHeight}
+                                  onValueChange={(value) =>
+                                    handleInputChange(
+                                      "design",
+                                      "bannerHeight",
+                                      value,
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="small">
+                                      {i18nT("Small (300px)")}
+                                    </SelectItem>
+                                    <SelectItem value="medium">
+                                      {i18nT("Medium (400px)")}
+                                    </SelectItem>
+                                    <SelectItem value="large">
+                                      {i18nT("Large (500px)")}
+                                    </SelectItem>
+                                    <SelectItem value="xl">
+                                      {i18nT("Extra Large (600px)")}
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 4. Featured Product */}
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                            <span className="text-xs font-semibold">
+                              {i18nT("Featured Product")}
+                            </span>
+                            <Switch
+                              checked={L.visibleFeaturedProducts}
+                              onCheckedChange={(checked) =>
+                                handleLayoutChange(
+                                  "visibleFeaturedProducts",
+                                  checked,
+                                )
+                              }
+                            />
+                          </div>
+                          {L.visibleFeaturedProducts && (
+                            <div className="p-3 space-y-3 bg-background">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                  {i18nT("Heading")}
+                                </Label>
+                                <div className="flex gap-2">
+                                  <DebouncedInput
+                                    value={L.featuredProductTitle || ""}
+                                    onChange={(e: any) =>
+                                      handleLayoutChange(
+                                        "featuredProductTitle",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={i18nT("Heading")}
+                                    className="text-xs flex-1"
+                                  />
+                                  <DebouncedColorInput
+                                    value={
+                                      L.featuredProductTitleColor || "#000000"
+                                    }
+                                    onChange={(val) =>
+                                      handleLayoutChange(
+                                        "featuredProductTitleColor",
+                                        val,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                  {i18nT("Description")}
+                                </Label>
+                                <div className="flex gap-2">
+                                  <DebouncedInput
+                                    value={L.featuredProductDescription || ""}
+                                    onChange={(e: any) =>
+                                      handleLayoutChange(
+                                        "featuredProductDescription",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={i18nT("Description")}
+                                    className="text-xs flex-1"
+                                  />
+                                  <DebouncedColorInput
+                                    value={
+                                      L.featuredProductDescColor || "#000000"
+                                    }
+                                    onChange={(val) =>
+                                      handleLayoutChange(
+                                        "featuredProductDescColor",
+                                        val,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 5. Our Products (includes carousel toggle) */}
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                            <span className="text-xs font-semibold">
+                              {i18nT("Our Products")}
+                            </span>
+                            <Switch
+                              checked={L.visibleProductCarausel}
+                              onCheckedChange={(checked) =>
+                                handleLayoutChange(
+                                  "visibleProductCarausel",
+                                  checked,
+                                )
+                              }
+                            />
+                          </div>
+                          {L.visibleProductCarausel && (
+                            <div className="p-3 space-y-3 bg-background">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                  {i18nT("Heading")}
+                                </Label>
+                                <div className="flex gap-2">
+                                  <DebouncedInput
+                                    value={L.ourProductsTitle || ""}
+                                    onChange={(e: any) =>
+                                      handleLayoutChange(
+                                        "ourProductsTitle",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={i18nT("Heading")}
+                                    className="text-xs flex-1"
+                                  />
+                                  <DebouncedColorInput
+                                    value={L.ourProductsTitleColor || "#000000"}
+                                    onChange={(val) =>
+                                      handleLayoutChange(
+                                        "ourProductsTitleColor",
+                                        val,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                  {i18nT("Description")}
+                                </Label>
+                                <div className="flex gap-2">
+                                  <DebouncedInput
+                                    value={L.ourProductsDescription || ""}
+                                    onChange={(e: any) =>
+                                      handleLayoutChange(
+                                        "ourProductsDescription",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={i18nT("Description")}
+                                    className="text-xs flex-1"
+                                  />
+                                  <DebouncedColorInput
+                                    value={L.ourProductsDescColor || "#000000"}
+                                    onChange={(val) =>
+                                      handleLayoutChange(
+                                        "ourProductsDescColor",
+                                        val,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 6. Quick Picks */}
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                            <span className="text-xs font-semibold">
+                              {i18nT("Quick Picks")}
+                            </span>
+                            <Switch
+                              checked={L.visibleQuickPicks}
+                              onCheckedChange={(checked) =>
+                                handleLayoutChange("visibleQuickPicks", checked)
+                              }
+                            />
+                          </div>
+                          {L.visibleQuickPicks && (
+                            <div className="p-3 space-y-3 bg-background">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                  {i18nT("Heading")}
+                                </Label>
+                                <div className="flex gap-2">
+                                  <DebouncedInput
+                                    value={L.quickPicksTitle || ""}
+                                    onChange={(e: any) =>
+                                      handleLayoutChange(
+                                        "quickPicksTitle",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={i18nT("Heading")}
+                                    className="text-xs flex-1"
+                                  />
+                                  <DebouncedColorInput
+                                    value={L.quickPicksTitleColor || "#000000"}
+                                    onChange={(val) =>
+                                      handleLayoutChange(
+                                        "quickPicksTitleColor",
+                                        val,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                  {i18nT("Description")}
+                                </Label>
+                                <div className="flex gap-2">
+                                  <DebouncedInput
+                                    value={L.quickPicksDescription || ""}
+                                    onChange={(e: any) =>
+                                      handleLayoutChange(
+                                        "quickPicksDescription",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={i18nT("Description")}
+                                    className="text-xs flex-1"
+                                  />
+                                  <DebouncedColorInput
+                                    value={L.quickPicksDescColor || "#000000"}
+                                    onChange={(val) =>
+                                      handleLayoutChange(
+                                        "quickPicksDescColor",
+                                        val,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 7. All Products */}
+                        <details
+                          open
+                          className="group border rounded-lg overflow-hidden"
+                        >
+                          <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
+                            <span className="text-xs font-semibold">
+                              {i18nT("All Products")}
+                            </span>
+                          </summary>
+                          <div className="p-3 space-y-3 bg-background">
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                {i18nT("Heading")}
+                              </Label>
+                              <div className="flex gap-2">
+                                <DebouncedInput
+                                  value={L.allProductsTitle || ""}
+                                  onChange={(e: any) =>
+                                    handleLayoutChange(
+                                      "allProductsTitle",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder={i18nT("Heading")}
+                                  className="text-xs flex-1"
+                                />
+                                <DebouncedColorInput
+                                  value={L.allProductsTitleColor || "#000000"}
+                                  onChange={(val) =>
+                                    handleLayoutChange(
+                                      "allProductsTitleColor",
+                                      val,
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                {i18nT("Description")}
+                              </Label>
+                              <div className="flex gap-2">
+                                <DebouncedInput
+                                  value={L.allProductsDescription || ""}
+                                  onChange={(e: any) =>
+                                    handleLayoutChange(
+                                      "allProductsDescription",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder={i18nT("Description")}
+                                  className="text-xs flex-1"
+                                />
+                                <DebouncedColorInput
+                                  value={L.allProductsDescColor || "#000000"}
+                                  onChange={(val) =>
+                                    handleLayoutChange(
+                                      "allProductsDescColor",
+                                      val,
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("allProducts", "modern")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Single Card")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Large single product card per row with bigger
+                                  images, bold pricing and clear primary
+                                  actions.
+                                </p>
+                              </div>
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("allProducts", "minimal")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Double Cards")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Two product cards per row for a balanced grid
+                                  that keeps details readable while showing more
+                                  items.
+                                </p>
+                              </div>
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("allProducts", "mega")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Triple Cards")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Three compact product cards per row, optimized
+                                  for fast browsing and higher product density.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </details>
+
+                        {/* 9. Instagram Carousel */}
+                        {isModuleEnabled("instagram") && (
+                          <div className="border rounded-lg overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                              <span className="text-xs font-semibold">
+                                {i18nT("Instagram Carousel")}
+                              </span>
+                              <Switch
+                                checked={L.showInstagramBar}
+                                onCheckedChange={(checked) =>
+                                  handleLayoutChange(
+                                    "showInstagramBar",
+                                    checked,
+                                  )
+                                }
+                              />
+                            </div>
+                            {L.showInstagramBar && (
+                              <div className="p-3 space-y-3 bg-background">
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Heading")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <DebouncedInput
+                                      value={L.instagramTitle || ""}
+                                      onChange={(e: any) =>
+                                        handleLayoutChange(
+                                          "instagramTitle",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder={i18nT("Heading")}
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={L.instagramTitleColor || "#000000"}
+                                      onChange={(val) =>
+                                        handleLayoutChange(
+                                          "instagramTitleColor",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Description")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <DebouncedInput
+                                      value={L.instagramDescription || ""}
+                                      onChange={(e: any) =>
+                                        handleLayoutChange(
+                                          "instagramDescription",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder={i18nT("Description")}
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={L.instagramDescColor || "#000000"}
+                                      onChange={(val) =>
+                                        handleLayoutChange(
+                                          "instagramDescColor",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Reel URLs (max 6)")}
+                                  </Label>
+                                  {(L.instagramReelUrls || []).map(
+                                    (url: string, idx: number) => (
+                                      <div
+                                        key={idx}
+                                        className="flex gap-2 mb-2"
+                                      >
+                                        <Input
+                                          value={url}
+                                          onChange={(e) => {
+                                            const urls = [
+                                              ...(L.instagramReelUrls || []),
+                                            ];
+                                            urls[idx] = e.target.value;
+                                            handleLayoutChange(
+                                              "instagramReelUrls",
+                                              urls,
+                                            );
+                                          }}
+                                          placeholder="https://www.instagram.com/reel/..."
+                                          className="text-xs flex-1"
+                                        />
+                                        <Button
+                                          variant="destructive"
+                                          size="sm"
+                                          onClick={() => {
+                                            const urls = [
+                                              ...(L.instagramReelUrls || []),
+                                            ];
+                                            urls.splice(idx, 1);
+                                            handleLayoutChange(
+                                              "instagramReelUrls",
+                                              urls,
+                                            );
+                                          }}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ),
+                                  )}
+                                  {(L.instagramReelUrls || []).length < 6 && (
+                                    <Button
+                                      variant="buttonOutline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleLayoutChange(
+                                          "instagramReelUrls",
+                                          [...(L.instagramReelUrls || []), ""],
+                                        )
+                                      }
+                                    >
+                                      {i18nT("Add Reel URL")}
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
-                          <Button variant="buttonOutline" onClick={() => bannerFileInputRef.current?.click()} className="w-full">
-                            <Upload className="h-4 w-4 mr-2" />
-                            Change Banner
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="border-2 border-dashed border-border rounded-lg p-6">
-                          <div className="text-center">
-                            <ImagePlus className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                            <p className="text-muted-foreground mb-2">No banner image uploaded</p>
-                            <Button variant="buttonOutline" onClick={() => bannerFileInputRef.current?.click()}>
-                              <Upload className="h-4 w-4 mr-2" />
-                              Upload Banner
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                        )}
 
-                      <input ref={bannerFileInputRef} type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
+                        {/* 10. Video Section */}
+                        {isModuleEnabled("videoSection") && (
+                          <div className="border rounded-lg overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                              <span className="text-xs font-semibold">
+                                {i18nT("Video Section")}
+                              </span>
+                              <Switch
+                                checked={L.showVideoSection}
+                                onCheckedChange={(checked) =>
+                                  handleLayoutChange(
+                                    "showVideoSection",
+                                    checked,
+                                  )
+                                }
+                              />
+                            </div>
+                            {L.showVideoSection && (
+                              <div className="p-3 space-y-3 bg-background">
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Heading")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <DebouncedInput
+                                      value={L.videoSectionTitle || ""}
+                                      onChange={(e: any) =>
+                                        handleLayoutChange(
+                                          "videoSectionTitle",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder={i18nT("Heading")}
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={
+                                        L.videoSectionTitleColor || "#000000"
+                                      }
+                                      onChange={(val) =>
+                                        handleLayoutChange(
+                                          "videoSectionTitleColor",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Description")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <DebouncedInput
+                                      value={L.videoSectionDescription || ""}
+                                      onChange={(e: any) =>
+                                        handleLayoutChange(
+                                          "videoSectionDescription",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder={i18nT("Description")}
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={
+                                        L.videoSectionDescColor || "#000000"
+                                      }
+                                      onChange={(val) =>
+                                        handleLayoutChange(
+                                          "videoSectionDescColor",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Video URL or Upload")}
+                                  </Label>
+                                  <DebouncedInput
+                                    value={L.videoUrl || ""}
+                                    onChange={(e: any) =>
+                                      handleLayoutChange(
+                                        "videoUrl",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="YouTube / Vimeo URL or leave empty to upload"
+                                    className="text-xs"
+                                  />
+                                  <div className="mt-2">
+                                    {sectionVideoPreview ? (
+                                      <div className="flex items-center gap-2 p-2 bg-muted rounded text-xs">
+                                        <span className="truncate flex-1">
+                                          {sectionVideoFile?.name}
+                                        </span>
+                                        <Button
+                                          variant="destructive"
+                                          size="sm"
+                                          onClick={() => {
+                                            setSectionVideoFile(null);
+                                            setSectionVideoPreview("");
+                                          }}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-xs w-full"
+                                        onClick={() =>
+                                          sectionVideoRef.current?.click()
+                                        }
+                                      >
+                                        {i18nT("Upload Video File (.mp4, .webm, .mov)")}
+                                      </Button>
+                                    )}
+                                    <input
+                                      ref={sectionVideoRef}
+                                      type="file"
+                                      accept="video/*"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          setSectionVideoFile(file);
+                                          setSectionVideoPreview(
+                                            URL.createObjectURL(file),
+                                          );
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 11. Our Story */}
+                        {isModuleEnabled("ourStory") && (
+                          <div className="border rounded-lg overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
+                              <span className="text-xs font-semibold">
+                                {i18nT("Our Story")}
+                              </span>
+                              <Switch
+                                checked={L.showOurStory}
+                                onCheckedChange={(checked) => {
+                                  handleLayoutChange("showOurStory", checked);
+                                  handleLayoutChange("showHistoryBox", checked);
+                                }}
+                              />
+                            </div>
+                            {L.showOurStory && (
+                              <div className="p-3 space-y-3 bg-background">
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Eyebrow")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <DebouncedInput
+                                      value={L.ourStoryEyebrow || ""}
+                                      onChange={(e: any) =>
+                                        handleLayoutChange(
+                                          "ourStoryEyebrow",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder={i18nT("Eyebrow text")}
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={
+                                        L.ourStoryEyebrowColor || "#000000"
+                                      }
+                                      onChange={(val) =>
+                                        handleLayoutChange(
+                                          "ourStoryEyebrowColor",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Heading")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <DebouncedInput
+                                      value={L.ourStoryTitle || ""}
+                                      onChange={(e: any) =>
+                                        handleLayoutChange(
+                                          "ourStoryTitle",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder={i18nT("Heading")}
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={L.ourStoryTitleColor || "#000000"}
+                                      onChange={(val) =>
+                                        handleLayoutChange(
+                                          "ourStoryTitleColor",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Description")}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <DebouncedInput
+                                      value={L.ourStoryDescription || ""}
+                                      onChange={(e: any) =>
+                                        handleLayoutChange(
+                                          "ourStoryDescription",
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder={i18nT("Description")}
+                                      className="text-xs flex-1"
+                                    />
+                                    <DebouncedColorInput
+                                      value={L.ourStoryDescColor || "#000000"}
+                                      onChange={(val) =>
+                                        handleLayoutChange(
+                                          "ourStoryDescColor",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground mb-1 block">
+                                    {i18nT("Media (max 3)")}
+                                  </Label>
+                                  {(L.ourStoryMedia || []).map(
+                                    (item: any, idx: number) => (
+                                      <div
+                                        key={idx}
+                                        className="flex gap-2 mb-2 items-center"
+                                      >
+                                        <Select
+                                          value={item.type || "image"}
+                                          onValueChange={(v) => {
+                                            const media = [
+                                              ...(L.ourStoryMedia || []),
+                                            ];
+                                            media[idx] = {
+                                              ...media[idx],
+                                              type: v,
+                                            };
+                                            handleLayoutChange(
+                                              "ourStoryMedia",
+                                              media,
+                                            );
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-24 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="image">
+                                              {i18nT("Image")}
+                                            </SelectItem>
+                                            <SelectItem value="video">
+                                              {i18nT("Video")}
+                                            </SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <Input
+                                          value={item.url || ""}
+                                          onChange={(e) => {
+                                            const media = [
+                                              ...(L.ourStoryMedia || []),
+                                            ];
+                                            media[idx] = {
+                                              ...media[idx],
+                                              url: e.target.value,
+                                            };
+                                            handleLayoutChange(
+                                              "ourStoryMedia",
+                                              media,
+                                            );
+                                          }}
+                                          placeholder={i18nT("URL")}
+                                          className="text-xs flex-1"
+                                        />
+                                        <Button
+                                          variant="destructive"
+                                          size="sm"
+                                          onClick={() => {
+                                            const media = [
+                                              ...(L.ourStoryMedia || []),
+                                            ];
+                                            media.splice(idx, 1);
+                                            handleLayoutChange(
+                                              "ourStoryMedia",
+                                              media,
+                                            );
+                                          }}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ),
+                                  )}
+                                  {(L.ourStoryMedia || []).length < 3 && (
+                                    <div className="flex gap-2">
+                                      <Button
+                                        variant="buttonOutline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleLayoutChange("ourStoryMedia", [
+                                            ...(L.ourStoryMedia || []),
+                                            { type: "image", url: "" },
+                                          ])
+                                        }
+                                      >
+                                        {i18nT("Add via URL")}
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-xs"
+                                        onClick={() =>
+                                          storyMediaRef.current?.click()
+                                        }
+                                      >
+                                        {i18nT("Upload File")}
+                                      </Button>
+                                      <input
+                                        ref={storyMediaRef}
+                                        type="file"
+                                        accept="image/*,video/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            setStoryMediaFiles((prev) => [
+                                              ...prev,
+                                              file,
+                                            ]);
+                                            const preview =
+                                              URL.createObjectURL(file);
+                                            setStoryMediaPreviews((prev) => [
+                                              ...prev,
+                                              preview,
+                                            ]);
+                                            const isVideo =
+                                              file.type.startsWith("video/");
+                                            handleLayoutChange(
+                                              "ourStoryMedia",
+                                              [
+                                                ...(L.ourStoryMedia || []),
+                                                {
+                                                  type: isVideo
+                                                    ? "video"
+                                                    : "image",
+                                                  url: preview,
+                                                },
+                                              ],
+                                            );
+                                          }
+                                          e.target.value = "";
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 12. Newsletter — HIDDEN FOR NOW */}
+
+                        {/* 13. Footer */}
+                        <details
+                          open
+                          className="group border rounded-lg overflow-hidden"
+                        >
+                          <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
+                            <span className="text-xs font-semibold">
+                              {i18nT("Footer")}
+                            </span>
+                          </summary>
+                          <div className="p-3 space-y-3 bg-background">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("footer", "modern")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Modern")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Multi-column footer with links, social icons
+                                  and newsletter.
+                                </p>
+                              </div>
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("footer", "minimal")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Minimal")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Simple single-row footer with basic links and
+                                  copyright.
+                                </p>
+                              </div>
+                              <div
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                                onClick={() =>
+                                  handleLayoutChange("footer", "mega")
+                                }
+                              >
+                                <h4 className="font-medium">{i18nT("Mega")}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Detailed footer with multiple sections for
+                                  navigation and info.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </details>
+
+                        {/* 14. Feedback / Testimonials — HIDDEN FOR NOW */}
+                      </>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Features Tab */}
+            <TabsContent value="features" className="space-y-6">
+              <div className="filter blur-sm select-none pointer-events-none">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{i18nT("Store Features")}</CardTitle>
+                    <CardDescription>
+                      {i18nT("Enable or disable features for your storefront")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {Object.entries(settings.features).map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="space-y-0.5">
+                            <Label className="capitalize">
+                              {key
+                                .replace(/([A-Z])/g, " $1")
+                                .replace(/^./, (str) => str.toUpperCase())}
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              {getFeatureDescription(key)}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={value as boolean}
+                            onCheckedChange={(checked) =>
+                              handleInputChange("features", key, checked)
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* SEO Tab */}
+            <TabsContent value="seo" className="relative space-y-6">
+              {/* Blurred container */}
+              <div className="filter blur-sm select-none pointer-events-none">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{i18nT("SEO Settings")}</CardTitle>
+                    <CardDescription>
+                      {i18nT("Optimize your store for search engines")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="metaTitle">{i18nT("Meta Title")}</Label>
+                      <Input
+                        id="metaTitle"
+                        value={settings.seo.metaTitle}
+                        onChange={(e) =>
+                          handleInputChange("seo", "metaTitle", e.target.value)
+                        }
+                        placeholder={i18nT("Your Store - Product Category")}
+                      />
                       <p className="text-xs text-muted-foreground">
-                        Recommended size: 1920x600px. Maximum file size: 5MB.
-                        {bannerFile && (<span className="text-primary block mt-1">New banner ready to upload: {bannerFile.name}</span>)}
+                        {i18nT("Recommended: 50-60 characters")}
                       </p>
                     </div>
 
-                    <div className="space-y-4 mt-4">
-                      <Label>Banner Design (Hero Design)</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "modern")}>
-                          <h4 className="font-medium text-sm">Full Width</h4>
-                          <p className="text-xs text-muted-foreground">Full-width image with customizable text alignment (left, center, right).</p>
-                        </div>
-                        <div className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "minimal")}>
-                          <h4 className="font-medium text-sm">Banner on Banner</h4>
-                          <p className="text-xs text-muted-foreground">Background image/color + overlay card (founder photo, product).</p>
-                        </div>
-                        <div className={`p-3 border rounded-lg cursor-pointer transition-all ${L.banner === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("banner", "mega")}>
-                          <h4 className="font-medium text-sm">Carousel</h4>
-                          <p className="text-xs text-muted-foreground">Up to 5 images, auto-rotating full-width slider.</p>
-                        </div>
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="metaDescription">{i18nT("Meta Description")}</Label>
+                      <Textarea
+                        id="metaDescription"
+                        value={settings.seo.metaDescription}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "seo",
+                            "metaDescription",
+                            e.target.value,
+                          )
+                        }
+                        placeholder={i18nT("A brief description of your store for search results")}
+                        rows={3}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {i18nT("Recommended: 150-160 characters")}
+                      </p>
                     </div>
-
-                    {bannerDesign === "mega" && (
-                      <div className="space-y-3">
-                        <Label>Banner Images for Dual Slider (up to 5)</Label>
-                        <p className="text-sm text-muted-foreground">These images will rotate in a carousel on your storefront. Click an image to crop it.</p>
-
-                        {/* Existing saved images + new previews */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {(() => {
-                            const savedImages = settings.design.layout.bannerImages || [];
-                            const allItems = [
-                              ...savedImages.map((img: string, i: number) => ({ type: "saved" as const, src: getBannerSrc(img), index: i })),
-                              ...bannerImagesPreviews.map((p: string, i: number) => ({ type: "new" as const, src: p, index: savedImages.length + i })),
-                            ];
-                            return allItems.map((item) => (
-                              <div key={`${item.type}-${item.index}`} className="relative group">
-                                <img
-                                  src={item.src}
-                                  alt={`Banner ${item.index + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg border cursor-pointer"
-                                  loading="lazy"
-                                />
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => {
-                                    if (item.type === "saved") {
-                                      removeBannerImageAtIndex(item.index);
-                                    } else {
-                                      // Remove from previews/files (offset by savedImages length)
-                                      const previewIdx = item.index - savedImages.length;
-                                      const previews = [...bannerImagesPreviews];
-                                      const files = [...bannerImagesFiles];
-                                      if (previews[previewIdx]) URL.revokeObjectURL(previews[previewIdx]);
-                                      previews.splice(previewIdx, 1);
-                                      files.splice(previewIdx, 1);
-                                      setBannerImagesPreviews(previews);
-                                      setBannerImagesFiles(files);
-                                    }
-                                  }}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                                {item.type === "new" && (
-                                  <div className="absolute bottom-1 left-1">
-                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">New</Badge>
-                                  </div>
-                                )}
-                              </div>
-                            ));
-                          })()}
-                        </div>
-
-                        {/* Add button */}
-                        {((settings.design.layout.bannerImages || []).length + bannerImagesPreviews.length) < 5 && (
-                          <div
-                            className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                            onClick={() => bannerImagesFileInputRef.current?.click()}
-                          >
-                            <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground mb-1" />
-                            <p className="text-sm text-muted-foreground">Add Banner Image</p>
-                          </div>
-                        )}
-                        <input ref={bannerImagesFileInputRef} type="file" accept="image/*" onChange={handleBannerImagesUpload} className="hidden" />
-                      </div>
-                    )}
-
-                    {bannerDesign === "minimal" && (
-                      <div className="space-y-2">
-                        <Label>Background Image (Click to Crop)</Label>
-                        <p className="text-xs text-muted-foreground">This appears behind the overlay card. If not uploaded, your primary color is used as background.</p>
-                        {heroBannerPreview || settings.design.heroBannerImage ? (
-                          <div className="relative">
-                            <img
-                              src={heroBannerPreview ? heroBannerPreview : getBannerSrc(settings.design.heroBannerImage)}
-                              alt="Background Banner"
-                              className="w-full h-48 object-cover rounded-lg border cursor-pointer"
-                              loading="lazy"
-                              onClick={() => {
-                                const src = heroBannerPreview ? heroBannerPreview : getBannerSrc(settings.design.heroBannerImage);
-                                setCropTarget("heroBanner");
-                                setCropImage(src);
-                                setCropOpen(true);
-                              }}
-                            />
-                            <Button variant="destructive" size="sm" className="absolute top-2 right-2" onClick={removeHeroBannerImage}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div
-                            className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                            onClick={() => heroBannerFileInputRef.current?.click()}
-                          >
-                            <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground mb-1" />
-                            <p className="text-sm text-muted-foreground">Upload Background Image</p>
-                          </div>
-                        )}
-                        <input ref={heroBannerFileInputRef} type="file" accept="image/*" onChange={handleHeroBannerUpload} className="hidden" />
-                      </div>
-                    )}
-
-                    {bannerDesign !== "mega" && (
-                      <div className="space-y-3 p-3 border rounded-lg bg-muted/20">
-                        <Label className="text-xs font-semibold">Banner Text Styling</Label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-[11px] text-muted-foreground mb-1 block">Font Color</Label>
-                            <div className="flex gap-2">
-                              <DebouncedInput value={L.bannerFontColor || "#ffffff"} onChange={(e: any) => handleLayoutChange("bannerFontColor", e.target.value)} placeholder="#ffffff" className="text-xs flex-1" />
-                              <DebouncedColorInput value={L.bannerFontColor || "#ffffff"} onChange={(val) => handleLayoutChange("bannerFontColor", val)} />
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-[11px] text-muted-foreground mb-1 block">Font Size (px)</Label>
-                            <DebouncedInput type="number" value={L.bannerFontSize || 36} onChange={(e: any) => handleLayoutChange("bannerFontSize", parseInt(e.target.value) || 36)} className="text-xs" />
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs">Bold Text</Label>
-                          <Switch checked={L.bannerBold || false} onCheckedChange={(v) => handleLayoutChange("bannerBold", v)} />
-                        </div>
-                        {bannerDesign === "modern" && (
-                          <div>
-                            <Label className="text-[11px] text-muted-foreground mb-1 block">Text Alignment</Label>
-                            <div className="flex gap-2">
-                              {["left", "center", "right"].map((align) => (
-                                <button
-                                  key={align}
-                                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${L.bannerTextAlign === align || (!L.bannerTextAlign && align === "left") ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/50"}`}
-                                  onClick={() => handleLayoutChange("bannerTextAlign", align)}
-                                >
-                                  {align.charAt(0).toUpperCase() + align.slice(1)}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
 
                     <div className="space-y-2">
-                      <Label htmlFor="bannerHeight">Banner Height</Label>
-                      <Select value={settings.design.bannerHeight} onValueChange={(value) => handleInputChange("design", "bannerHeight", value)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="small">Small (300px)</SelectItem>
-                          <SelectItem value="medium">Medium (400px)</SelectItem>
-                          <SelectItem value="large">Large (500px)</SelectItem>
-                          <SelectItem value="xl">Extra Large (600px)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="keywords">{i18nT("Keywords")}</Label>
+                      <Input
+                        id="keywords"
+                        value={settings.seo.keywords}
+                        onChange={(e) =>
+                          handleInputChange("seo", "keywords", e.target.value)
+                        }
+                        placeholder={i18nT("keyword1, keyword2, keyword3")}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {i18nT("Separate keywords with commas")}
+                      </p>
                     </div>
-                  </div>
-                  )}
-                </div>
 
-                {/* 4. Featured Product */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Featured Product</span>
-                        <Switch
-                        checked={L.visibleFeaturedProducts}
-                        onCheckedChange={(checked) => handleLayoutChange("visibleFeaturedProducts", checked)}
-                        />
-                  </div>
-                  {L.visibleFeaturedProducts && (
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.featuredProductTitle || ""} onChange={(e: any) => handleLayoutChange("featuredProductTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.featuredProductTitleColor || "#000000"} onChange={(val) => handleLayoutChange("featuredProductTitleColor", val)} />
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customCode">
+                        {i18nT("Custom Code (Analytics, etc.)")}
+                      </Label>
+                      <Textarea
+                        id="customCode"
+                        value={settings.seo.customCode}
+                        onChange={(e) =>
+                          handleInputChange("seo", "customCode", e.target.value)
+                        }
+                        placeholder="<!-- Analytics code, custom CSS, etc. -->"
+                        rows={5}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {i18nT("This code will be added to the head section")}
+                      </p>
                     </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.featuredProductDescription || ""} onChange={(e: any) => handleLayoutChange("featuredProductDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.featuredProductDescColor || "#000000"} onChange={(val) => handleLayoutChange("featuredProductDescColor", val)} />
-                      </div>
-                    </div>
-                  </div>
-                  )}
-                </div>
-
-                {/* 5. Our Products (includes carousel toggle) */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Our Products</span>
-                    <Switch
-                      checked={L.visibleProductCarausel}
-                      onCheckedChange={(checked) => handleLayoutChange("visibleProductCarausel", checked)}
-                    />
-                  </div>
-                  {L.visibleProductCarausel && (
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.ourProductsTitle || ""} onChange={(e: any) => handleLayoutChange("ourProductsTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.ourProductsTitleColor || "#000000"} onChange={(val) => handleLayoutChange("ourProductsTitleColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.ourProductsDescription || ""} onChange={(e: any) => handleLayoutChange("ourProductsDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.ourProductsDescColor || "#000000"} onChange={(val) => handleLayoutChange("ourProductsDescColor", val)} />
-                      </div>
-                    </div>
-                  </div>
-                  )}
-                </div>
-
-                {/* 6. Quick Picks */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Quick Picks</span>
-                        <Switch
-                        checked={L.visibleQuickPicks}
-                        onCheckedChange={(checked) => handleLayoutChange("visibleQuickPicks", checked)}
-                        />
-                  </div>
-                  {L.visibleQuickPicks && (
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.quickPicksTitle || ""} onChange={(e: any) => handleLayoutChange("quickPicksTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.quickPicksTitleColor || "#000000"} onChange={(val) => handleLayoutChange("quickPicksTitleColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.quickPicksDescription || ""} onChange={(e: any) => handleLayoutChange("quickPicksDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.quickPicksDescColor || "#000000"} onChange={(val) => handleLayoutChange("quickPicksDescColor", val)} />
-                      </div>
-                    </div>
-                  </div>
-                  )}
-                </div>
-
-                {/* 7. All Products */}
-                <details open className="group border rounded-lg overflow-hidden">
-                  <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
-                    <span className="text-xs font-semibold">All Products</span>
-                  </summary>
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.allProductsTitle || ""} onChange={(e: any) => handleLayoutChange("allProductsTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.allProductsTitleColor || "#000000"} onChange={(val) => handleLayoutChange("allProductsTitleColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.allProductsDescription || ""} onChange={(e: any) => handleLayoutChange("allProductsDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.allProductsDescColor || "#000000"} onChange={(val) => handleLayoutChange("allProductsDescColor", val)} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("allProducts", "modern")}>
-                        <h4 className="font-medium">Single Card</h4>
-                        <p className="text-sm text-muted-foreground">Large single product card per row with bigger images, bold pricing and clear primary actions.</p>
-                      </div>
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("allProducts", "minimal")}>
-                        <h4 className="font-medium">Double Cards</h4>
-                        <p className="text-sm text-muted-foreground">Two product cards per row for a balanced grid that keeps details readable while showing more items.</p>
-                      </div>
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.allProducts === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("allProducts", "mega")}>
-                        <h4 className="font-medium">Triple Cards</h4>
-                        <p className="text-sm text-muted-foreground">Three compact product cards per row, optimized for fast browsing and higher product density.</p>
-                      </div>
-                    </div>
-                  </div>
-                </details>
-
-                {/* 9. Instagram Carousel */}
-                {isModuleEnabled("instagram") && (
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Instagram Carousel</span>
-                        <Switch
-                        checked={L.showInstagramBar}
-                        onCheckedChange={(checked) => handleLayoutChange("showInstagramBar", checked)}
-                        />
-                  </div>
-                  {L.showInstagramBar && (
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.instagramTitle || ""} onChange={(e: any) => handleLayoutChange("instagramTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.instagramTitleColor || "#000000"} onChange={(val) => handleLayoutChange("instagramTitleColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.instagramDescription || ""} onChange={(e: any) => handleLayoutChange("instagramDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.instagramDescColor || "#000000"} onChange={(val) => handleLayoutChange("instagramDescColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Reel URLs (max 6)</Label>
-                      {(L.instagramReelUrls || []).map((url: string, idx: number) => (
-                        <div key={idx} className="flex gap-2 mb-2">
-                          <Input value={url} onChange={(e) => { const urls = [...(L.instagramReelUrls || [])]; urls[idx] = e.target.value; handleLayoutChange("instagramReelUrls", urls); }} placeholder="https://www.instagram.com/reel/..." className="text-xs flex-1" />
-                          <Button variant="destructive" size="sm" onClick={() => { const urls = [...(L.instagramReelUrls || [])]; urls.splice(idx, 1); handleLayoutChange("instagramReelUrls", urls); }}><X className="h-3 w-3" /></Button>
-                        </div>
-                      ))}
-                      {(L.instagramReelUrls || []).length < 6 && (
-                        <Button variant="buttonOutline" size="sm" onClick={() => handleLayoutChange("instagramReelUrls", [...(L.instagramReelUrls || []), ""])}>Add Reel URL</Button>
-                      )}
-                    </div>
-                  </div>
-                  )}
-                </div>
-                )}
-
-                {/* 10. Video Section */}
-                {isModuleEnabled("videoSection") && (
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Video Section</span>
-                        <Switch
-                        checked={L.showVideoSection}
-                        onCheckedChange={(checked) => handleLayoutChange("showVideoSection", checked)}
-                        />
-                  </div>
-                  {L.showVideoSection && (
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.videoSectionTitle || ""} onChange={(e: any) => handleLayoutChange("videoSectionTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.videoSectionTitleColor || "#000000"} onChange={(val) => handleLayoutChange("videoSectionTitleColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.videoSectionDescription || ""} onChange={(e: any) => handleLayoutChange("videoSectionDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.videoSectionDescColor || "#000000"} onChange={(val) => handleLayoutChange("videoSectionDescColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Video URL or Upload</Label>
-                      <DebouncedInput value={L.videoUrl || ""} onChange={(e: any) => handleLayoutChange("videoUrl", e.target.value)} placeholder="YouTube / Vimeo URL or leave empty to upload" className="text-xs" />
-                      <div className="mt-2">
-                        {sectionVideoPreview ? (
-                          <div className="flex items-center gap-2 p-2 bg-muted rounded text-xs">
-                            <span className="truncate flex-1">{sectionVideoFile?.name}</span>
-                            <Button variant="destructive" size="sm" onClick={() => { setSectionVideoFile(null); setSectionVideoPreview(""); }}>
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button variant="outline" size="sm" className="text-xs w-full" onClick={() => sectionVideoRef.current?.click()}>
-                            Upload Video File (.mp4, .webm, .mov)
-                          </Button>
-                        )}
-                        <input
-                          ref={sectionVideoRef}
-                          type="file"
-                          accept="video/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setSectionVideoFile(file);
-                              setSectionVideoPreview(URL.createObjectURL(file));
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  )}
-                </div>
-                )}
-
-                {/* 11. Our Story */}
-                {isModuleEnabled("ourStory") && (
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
-                    <span className="text-xs font-semibold">Our Story</span>
-                        <Switch
-                        checked={L.showOurStory}
-                        onCheckedChange={(checked) => { handleLayoutChange("showOurStory", checked); handleLayoutChange("showHistoryBox", checked); }}
-                        />
-                  </div>
-                  {L.showOurStory && (
-                  <div className="p-3 space-y-3 bg-background">
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Eyebrow</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.ourStoryEyebrow || ""} onChange={(e: any) => handleLayoutChange("ourStoryEyebrow", e.target.value)} placeholder="Eyebrow text" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.ourStoryEyebrowColor || "#000000"} onChange={(val) => handleLayoutChange("ourStoryEyebrowColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Heading</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.ourStoryTitle || ""} onChange={(e: any) => handleLayoutChange("ourStoryTitle", e.target.value)} placeholder="Heading" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.ourStoryTitleColor || "#000000"} onChange={(val) => handleLayoutChange("ourStoryTitleColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Description</Label>
-                      <div className="flex gap-2">
-                        <DebouncedInput value={L.ourStoryDescription || ""} onChange={(e: any) => handleLayoutChange("ourStoryDescription", e.target.value)} placeholder="Description" className="text-xs flex-1" />
-                        <DebouncedColorInput value={L.ourStoryDescColor || "#000000"} onChange={(val) => handleLayoutChange("ourStoryDescColor", val)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Media (max 3)</Label>
-                      {(L.ourStoryMedia || []).map((item: any, idx: number) => (
-                        <div key={idx} className="flex gap-2 mb-2 items-center">
-                          <Select value={item.type || "image"} onValueChange={(v) => { const media = [...(L.ourStoryMedia || [])]; media[idx] = { ...media[idx], type: v }; handleLayoutChange("ourStoryMedia", media); }}>
-                            <SelectTrigger className="w-24 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="image">Image</SelectItem>
-                              <SelectItem value="video">Video</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input value={item.url || ""} onChange={(e) => { const media = [...(L.ourStoryMedia || [])]; media[idx] = { ...media[idx], url: e.target.value }; handleLayoutChange("ourStoryMedia", media); }} placeholder="URL" className="text-xs flex-1" />
-                          <Button variant="destructive" size="sm" onClick={() => { const media = [...(L.ourStoryMedia || [])]; media.splice(idx, 1); handleLayoutChange("ourStoryMedia", media); }}><X className="h-3 w-3" /></Button>
-                        </div>
-                      ))}
-                      {(L.ourStoryMedia || []).length < 3 && (
-                        <div className="flex gap-2">
-                          <Button variant="buttonOutline" size="sm" onClick={() => handleLayoutChange("ourStoryMedia", [...(L.ourStoryMedia || []), { type: "image", url: "" }])}>Add via URL</Button>
-                          <Button variant="outline" size="sm" className="text-xs" onClick={() => storyMediaRef.current?.click()}>Upload File</Button>
-                          <input
-                            ref={storyMediaRef}
-                            type="file"
-                            accept="image/*,video/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                setStoryMediaFiles((prev) => [...prev, file]);
-                                const preview = URL.createObjectURL(file);
-                                setStoryMediaPreviews((prev) => [...prev, preview]);
-                                const isVideo = file.type.startsWith("video/");
-                                handleLayoutChange("ourStoryMedia", [...(L.ourStoryMedia || []), { type: isVideo ? "video" : "image", url: preview }]);
-                              }
-                              e.target.value = "";
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  )}
-                </div>
-                )}
-
-                {/* 12. Newsletter — HIDDEN FOR NOW */}
-
-                {/* 13. Footer */}
-                <details open className="group border rounded-lg overflow-hidden">
-                  <summary className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-muted/40 hover:bg-muted/60 select-none list-none">
-                    <span className="text-xs font-semibold">Footer</span>
-                  </summary>
-                  <div className="p-3 space-y-3 bg-background">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "modern" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("footer", "modern")}>
-                        <h4 className="font-medium">Modern</h4>
-                        <p className="text-sm text-muted-foreground">Multi-column footer with links, social icons and newsletter.</p>
-                      </div>
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "minimal" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("footer", "minimal")}>
-                        <h4 className="font-medium">Minimal</h4>
-                        <p className="text-sm text-muted-foreground">Simple single-row footer with basic links and copyright.</p>
-                      </div>
-                      <div className={`p-4 border rounded-lg cursor-pointer transition-all ${L.footer === "mega" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`} onClick={() => handleLayoutChange("footer", "mega")}>
-                        <h4 className="font-medium">Mega</h4>
-                        <p className="text-sm text-muted-foreground">Detailed footer with multiple sections for navigation and info.</p>
-                      </div>
-                    </div>
-                  </div>
-                </details>
-
-                {/* 14. Feedback / Testimonials — HIDDEN FOR NOW */}
-
-                </>); })()}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Features Tab */}
-          <TabsContent value="features" className="space-y-6">
-            <div className="filter blur-sm select-none pointer-events-none">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Store Features</CardTitle>
-                  <CardDescription>
-                    Enable or disable features for your storefront
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {Object.entries(settings.features).map(([key, value]) => (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="space-y-0.5">
-                          <Label className="capitalize">
-                            {key
-                              .replace(/([A-Z])/g, " $1")
-                              .replace(/^./, (str) => str.toUpperCase())}
-                          </Label>
-                          <p className="text-sm text-muted-foreground">
-                            {getFeatureDescription(key)}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={value as boolean}
-                          onCheckedChange={(checked) =>
-                            handleInputChange("features", key, checked)
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* SEO Tab */}
-          <TabsContent value="seo" className="relative space-y-6">
-            {/* Blurred container */}
-            <div className="filter blur-sm select-none pointer-events-none">
-              <Card>
-                <CardHeader>
-                  <CardTitle>SEO Settings</CardTitle>
-                  <CardDescription>
-                    Optimize your store for search engines
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="metaTitle">Meta Title</Label>
-                    <Input
-                      id="metaTitle"
-                      value={settings.seo.metaTitle}
-                      onChange={(e) =>
-                        handleInputChange("seo", "metaTitle", e.target.value)
-                      }
-                      placeholder="Your Store - Product Category"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Recommended: 50-60 characters
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="metaDescription">Meta Description</Label>
-                    <Textarea
-                      id="metaDescription"
-                      value={settings.seo.metaDescription}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "seo",
-                          "metaDescription",
-                          e.target.value,
-                        )
-                      }
-                      placeholder="A brief description of your store for search results"
-                      rows={3}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Recommended: 150-160 characters
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="keywords">Keywords</Label>
-                    <Input
-                      id="keywords"
-                      value={settings.seo.keywords}
-                      onChange={(e) =>
-                        handleInputChange("seo", "keywords", e.target.value)
-                      }
-                      placeholder="keyword1, keyword2, keyword3"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Separate keywords with commas
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="customCode">
-                      Custom Code (Analytics, etc.)
-                    </Label>
-                    <Textarea
-                      id="customCode"
-                      value={settings.seo.customCode}
-                      onChange={(e) =>
-                        handleInputChange("seo", "customCode", e.target.value)
-                      }
-                      placeholder="<!-- Analytics code, custom CSS, etc. -->"
-                      rows={5}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      This code will be added to the head section
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Overlay to indicate "In Development" */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 rounded-xl pointer-events-none select-none">
-              <div className="inline-flex items-center space-x-2 rounded-full bg-orange-600 px-4 py-2 text-white font-semibold shadow-lg">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1 4v1m0-1a1 1 0 100-2 1 1 0 000 2z"
-                  />
-                </svg>
-                <span>This feature is under development</span>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+
+              {/* Overlay to indicate "In Development" */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 rounded-xl pointer-events-none select-none">
+                <div className="inline-flex items-center space-x-2 rounded-full bg-orange-600 px-4 py-2 text-white font-semibold shadow-lg">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1 4v1m0-1a1 1 0 100-2 1 1 0 000 2z"
+                    />
+                  </svg>
+                  <span>{i18nT("This feature is under development")}</span>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
 
       {cropImage && (
@@ -2270,14 +3234,25 @@ export function StorefrontCustomizer({
 }
 
 // Live Preview Component
-function StorefrontPreview({ settings, slug, apiUrl }: { settings: any; slug: string; apiUrl: string }) {
+function StorefrontPreview({
+  settings,
+  slug,
+  apiUrl,
+}: {
+  settings: any;
+  slug: string;
+  apiUrl: string;
+}) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
   const storeUrl = slug ? `${window.location.origin}/${slug}?preview=true` : "";
 
   // Save to sessionStorage for initial iframe load
   useEffect(() => {
-    sessionStorage.setItem("storefrontPreviewSettings", JSON.stringify(settings));
+    sessionStorage.setItem(
+      "storefrontPreviewSettings",
+      JSON.stringify(settings),
+    );
   }, [settings]);
 
   // After iframe loads, send live updates via postMessage (no reload needed)
@@ -2297,27 +3272,36 @@ function StorefrontPreview({ settings, slug, apiUrl }: { settings: any; slug: st
           <div className="w-3 h-3 rounded-full bg-yellow-400" />
           <div className="w-3 h-3 rounded-full bg-green-400" />
         </div>
-        <div className="flex-1 bg-white rounded-lg px-4 py-1.5 text-sm text-muted-foreground font-mono ml-3 border">
-          {storeUrl?.replace("?preview=true", "") || "https://kioscart.com/your-store"}
+        <div className="flex-1 bg-card rounded-lg px-4 py-1.5 text-sm text-muted-foreground font-mono ml-3 border">
+          {storeUrl?.replace("?preview=true", "") ||
+            "https://kioscart.com/your-store"}
         </div>
       </div>
 
       {storeUrl ? (
-        <div className="border rounded-xl overflow-hidden shadow-lg bg-white" style={{ height: "75vh" }}>
+        <div
+          className="border rounded-xl overflow-hidden shadow-lg bg-card"
+          style={{ height: "75vh" }}
+        >
           <iframe
             ref={iframeRef}
             src={storeUrl}
             className="w-full h-full border-0"
-            title="Storefront Preview"
+            title={i18nT("Storefront Preview")}
             onLoad={() => setLoaded(true)}
           />
         </div>
       ) : (
-        <div className="border rounded-xl overflow-hidden shadow-lg bg-white flex items-center justify-center" style={{ height: "75vh" }}>
+        <div
+          className="border rounded-xl overflow-hidden shadow-lg bg-card flex items-center justify-center"
+          style={{ height: "75vh" }}
+        >
           <div className="text-center text-muted-foreground">
-            <Layout className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No store configured yet</p>
-            <p className="text-sm mt-1">Save your store settings first to see the preview.</p>
+            <Layout className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-lg font-medium">{i18nT("No store configured yet")}</p>
+            <p className="text-sm mt-1">
+              {i18nT("Save your store settings first to see the preview.")}
+            </p>
           </div>
         </div>
       )}

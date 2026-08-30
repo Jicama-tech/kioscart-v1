@@ -12,6 +12,7 @@ import {
 import { Search, Plus, Package, ChevronDown, ChevronUp } from "lucide-react";
 import { CartItem } from "@/hooks/cartContext";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = __API_URL__;
 
 interface Variant {
@@ -285,9 +286,9 @@ export function KioskProductBrowser({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-slate-500">
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2" />
-        Loading products...
+        {i18nT("Loading products...")}
       </div>
     );
   }
@@ -297,9 +298,9 @@ export function KioskProductBrowser({
       {/* Search & Filter */}
       <div className="flex gap-2 mb-3">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search products..."
+            placeholder={i18nT("Search products...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-9"
@@ -307,10 +308,10 @@ export function KioskProductBrowser({
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[140px] h-9">
-            <SelectValue placeholder="Category" />
+            <SelectValue placeholder={i18nT("Category")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="all">{i18nT("All")}</SelectItem>
             {categories.map((cat) => (
               <SelectItem key={cat} value={cat}>
                 {cat}
@@ -323,9 +324,9 @@ export function KioskProductBrowser({
       {/* Product Grid */}
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+          <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
             <Package className="h-8 w-8 mb-2" />
-            <p className="text-sm">No products found</p>
+            <p className="text-sm">{i18nT("No products found")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -423,7 +424,7 @@ function ProductCard({
   })();
 
   return (
-    <div className="border rounded-lg p-2 bg-white hover:shadow-sm transition-shadow">
+    <div className="border rounded-lg p-2 bg-card hover:shadow-sm transition-shadow">
       {/* Image */}
       {product.images?.[0] && (
         <img
@@ -438,11 +439,11 @@ function ProductCard({
       )}
 
       {/* Info */}
-      <p className="text-xs font-medium text-slate-800 truncate">
+      <p className="text-xs font-medium text-foreground truncate">
         {product.productName}
       </p>
       {product.category && (
-        <p className="text-[10px] text-slate-400">{product.category}</p>
+        <p className="text-[10px] text-muted-foreground">{product.category}</p>
       )}
 
       <div className="flex items-center justify-between mt-1.5">
@@ -452,7 +453,7 @@ function ProductCard({
               <span className="text-xs font-semibold text-green-600">
                 {formatPrice(dp.discountedPrice)}
               </span>
-              <span className="text-[10px] text-slate-400 line-through">
+              <span className="text-[10px] text-muted-foreground line-through">
                 {formatPrice(dp.price)}
               </span>
             </div>
@@ -462,7 +463,7 @@ function ProductCard({
             </span>
           )}
           {hasOptions && (
-            <span className="text-[10px] text-slate-400 block">
+            <span className="text-[10px] text-muted-foreground block">
               {product.productOptions!.length} {product.optionsLabel || "option"}{product.productOptions!.length > 1 ? "s" : ""}
             </span>
           )}
@@ -491,7 +492,7 @@ function ProductCard({
             onClick={() => onAddProductVariant(product, 0)}
           >
             <Plus className="h-3 w-3 mr-0.5" />
-            Add
+            {i18nT("Add")}
           </Button>
         ) : hasSubcategories && totalVariants === 1 ? (
           <Button
@@ -501,7 +502,7 @@ function ProductCard({
             onClick={() => onAddVariant(product, 0, 0)}
           >
             <Plus className="h-3 w-3 mr-0.5" />
-            Add
+            {i18nT("Add")}
           </Button>
         ) : (
           <Button
@@ -511,7 +512,7 @@ function ProductCard({
             onClick={() => onAddSimple(product)}
           >
             <Plus className="h-3 w-3 mr-0.5" />
-            Add
+            {i18nT("Add")}
           </Button>
         )}
       </div>
@@ -548,7 +549,7 @@ function ProductCard({
                           ? "opacity-40 cursor-not-allowed"
                           : isSelected
                             ? "bg-purple-100 border-purple-400 text-purple-700"
-                            : "hover:bg-slate-50 border-slate-200"
+                            : "hover:bg-muted border-border"
                       }`}
                     >
                       {opt.title} — {formatPrice(opt.isDiscounted && opt.discountedPrice ? opt.discountedPrice : opt.price)}
@@ -568,14 +569,14 @@ function ProductCard({
                   <div
                     key={varIdx}
                     className={`flex items-center justify-between py-1 px-1.5 rounded text-[11px] ${
-                      outOfStock ? "opacity-50" : "hover:bg-slate-50"
+                      outOfStock ? "opacity-50" : "hover:bg-muted"
                     }`}
                   >
                     <div className="flex-1 min-w-0">
-                      <span className="text-slate-700 block truncate">
+                      <span className="text-foreground block truncate">
                         {variant.title}
                         {variant.measurement && (
-                          <span className="text-slate-400 ml-1">({variant.measurement})</span>
+                          <span className="text-muted-foreground ml-1">({variant.measurement})</span>
                         )}
                       </span>
                       <div className="flex items-center gap-1.5">
@@ -616,17 +617,17 @@ function ProductCard({
               {product.subcategories!.map((sub, subIdx) => (
                 <div key={subIdx}>
                   {product.subcategories!.length > 1 && (
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
                       {sub.name}
                     </p>
                   )}
 
                   {/* If subcategory has no variants, show subcategory as selectable */}
                   {sub.variants.length === 0 ? (
-                    <div className="flex items-center justify-between py-1 px-1.5 rounded text-[11px] hover:bg-slate-50">
+                    <div className="flex items-center justify-between py-1 px-1.5 rounded text-[11px] hover:bg-muted">
                       <div className="flex-1 min-w-0">
-                        <span className="text-slate-700">{sub.name}</span>
-                        <span className="text-[10px] text-slate-400 ml-1">
+                        <span className="text-foreground">{sub.name}</span>
+                        <span className="text-[10px] text-muted-foreground ml-1">
                           +{formatPrice(sub.isDiscounted && sub.discountedAdditionalPrice != null ? sub.discountedAdditionalPrice : (sub.additionalPrice || 0))}
                         </span>
                       </div>
@@ -651,14 +652,14 @@ function ProductCard({
                         <div
                           key={`${subIdx}-${varIdx}`}
                           className={`flex items-center justify-between py-1 px-1.5 rounded text-[11px] ${
-                            outOfStock ? "opacity-50" : "hover:bg-slate-50"
+                            outOfStock ? "opacity-50" : "hover:bg-muted"
                           }`}
                         >
                           <div className="flex-1 min-w-0">
-                            <span className="text-slate-700 block truncate">
+                            <span className="text-foreground block truncate">
                               {variant.title}
                               {variant.measurement && (
-                                <span className="text-slate-400 ml-1">({variant.measurement})</span>
+                                <span className="text-muted-foreground ml-1">({variant.measurement})</span>
                               )}
                             </span>
                             <div className="flex items-center gap-1.5">

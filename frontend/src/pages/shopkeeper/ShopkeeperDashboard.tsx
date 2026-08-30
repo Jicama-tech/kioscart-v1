@@ -8,6 +8,8 @@ import {
   Suspense,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from '@/components/theme-toggle';
+import { LanguageToggle } from '@/components/language-toggle';
 import {
   Card,
   CardContent,
@@ -128,6 +130,7 @@ import { ChatbotWidget } from "@/components/shopkeeper/ChatbotWidget";
 import { EarningsWidget } from "@/components/shopkeeper/EarningsWidget";
 import { Lock } from "lucide-react";
 
+import { t as i18nT } from "@/i18n/t";
 interface ShopkeeperDashboardProps {
   onLogout: () => void;
 }
@@ -168,13 +171,13 @@ const COLORS = [
 function NoAccessOverlay() {
   return (
     <div className="relative min-h-[60vh] flex items-center justify-center">
-      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 rounded-xl" />
+      <div className="absolute inset-0 bg-card/80 backdrop-blur-sm z-10 rounded-xl" />
       <div className="relative z-20 text-center p-8">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
           <AlertCircle className="h-8 w-8 text-red-500" />
         </div>
-        <h3 className="text-xl font-bold text-slate-900 mb-2">
-          Access Restricted
+        <h3 className="text-xl font-bold text-foreground mb-2">
+          {i18nT("Access Restricted")}
         </h3>
         <p className="text-sm text-muted-foreground max-w-sm">
           You don't have permission to access this section. Contact the store
@@ -187,17 +190,19 @@ function NoAccessOverlay() {
 
 // Static data moved outside component to prevent re-creation on every render
 const NAVIGATION_ITEMS = [
-  { id: "chat", label: "Chat", icon: MessageCircle },
-  { id: "dashboard", label: "Analytics", icon: Store },
-  { id: "kiosk", label: "Kiosk Mode", icon: Monitor },
-  { id: "orders", label: "Orders & Payments", icon: ShoppingCart },
-  { id: "crm", label: "CRM", icon: Users },
-  { id: "products", label: "Products", icon: Package },
-  { id: "expenses", label: "Expenses", icon: Receipt },
-  { id: "suppliers", label: "Suppliers", icon: Truck },
-  { id: "storefront", label: "Storefront", icon: Globe, isAction: true },
-  { id: "settings", label: "Settings", icon: Settings },
-  { id: "support", label: "Support", icon: LifeBuoy },
+  // `label` is the English fallback; `labelKey` is what actually renders once
+  // a language is picked. See src/i18n.
+  { id: "chat", label: i18nT("Chat"), labelKey: "nav.chat", icon: MessageCircle },
+  { id: "dashboard", label: i18nT("Analytics"), labelKey: "nav.dashboard", icon: Store },
+  { id: "kiosk", label: i18nT("Kiosk Mode"), labelKey: "nav.kiosk", icon: Monitor },
+  { id: "orders", label: i18nT("Orders & Payments"), labelKey: "nav.orders", icon: ShoppingCart },
+  { id: "crm", label: "CRM", labelKey: "nav.crm", icon: Users },
+  { id: "products", label: i18nT("Products"), labelKey: "nav.products", icon: Package },
+  { id: "expenses", label: i18nT("Expenses"), labelKey: "nav.expenses", icon: Receipt },
+  { id: "suppliers", label: i18nT("Suppliers"), labelKey: "nav.suppliers", icon: Truck },
+  { id: "storefront", label: i18nT("Storefront"), labelKey: "nav.storefront", icon: Globe, isAction: true },
+  { id: "settings", label: i18nT("Settings"), labelKey: "nav.settings", icon: Settings },
+  { id: "support", label: i18nT("Support"), labelKey: "nav.support", icon: LifeBuoy },
 ];
 
 
@@ -662,14 +667,14 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
   const stats = useMemo(
     () => [
-      { title: "Total Products", value: totalProducts, icon: Package },
-      { title: "Orders Today", value: ordersToday, icon: ShoppingCart },
+      { title: i18nT("Total Products"), value: totalProducts, icon: Package },
+      { title: i18nT("Orders Today"), value: ordersToday, icon: ShoppingCart },
       {
-        title: "Revenue This Month",
+        title: i18nT("Revenue This Month"),
         value: formatPrice(monthlyRevenue),
         icon: shopkeeperInfo?.country === "IN" ? FaRupeeSign : DollarSign,
       },
-      { title: "Active Customers", value: totalCustomers, icon: Users },
+      { title: i18nT("Active Customers"), value: totalCustomers, icon: Users },
     ],
     [
       totalProducts,
@@ -781,9 +786,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       const result = await createResponse.json();
       toast({
         duration: 5000,
-        title: "Store Initialized",
-        description:
-          "Your store has been created with default settings. You can customize it anytime!",
+        title: i18nT("Store Initialized"),
+        description: i18nT("Your store has been created with default settings. You can customize it anytime!"),
       });
 
       return result;
@@ -802,8 +806,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       if (!token) {
         toast({
           duration: 5000,
-          title: "Authorization Error",
-          description: "Please login first.",
+          title: i18nT("Authorization Error"),
+          description: i18nT("Please login first."),
           variant: "destructive",
         });
         return;
@@ -845,7 +849,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: error.message || "Failed to initialize storefront.",
         variant: "destructive",
       });
@@ -860,7 +864,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
   if (showPreview) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-card">
         {/* Floating Back Button so you aren't stuck in the preview */}
         {/* <Button
           className="fixed bottom-5 right-5 z-[999] shadow-2xl"
@@ -917,6 +921,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">
+            <LanguageToggle />
+            <ThemeToggle />
             <Button
               variant="outline"
               size="sm"
@@ -924,11 +930,11 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
               className="text-xs sm:text-sm text-muted-foreground hover:text-primary"
             >
               <HelpCircle className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Need Help?</span>
+              <span className="hidden sm:inline">{i18nT("hdr.help")}</span>
             </Button>
             <Button variant="buttonOutline" size="sm" onClick={logout}>
               <LogOut className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="hidden sm:inline">{i18nT("hdr.logout")}</span>
             </Button>
           </div>
         </div>
@@ -993,8 +999,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
                     <span className="truncate flex-1 text-left">
                       {item.id === "storefront" && loading
-                        ? "Loading..."
-                        : item.label}
+                        ? i18nT("common.loading")
+                        : i18nT(item.labelKey)}
                     </span>
                     {locked && (
                       <Lock className="h-3 w-3 ml-auto text-muted-foreground" />
@@ -1020,7 +1026,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                 {hasTabAccess("dashboard") ? (
                   <div className="space-y-4 sm:space-y-6">
                     <h2 className="text-2xl sm:text-3xl font-bold">
-                      Dashboard
+                      {i18nT("Dashboard")}
                     </h2>
 
                     {/* Stats Grid */}
@@ -1051,10 +1057,10 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-lg sm:text-xl">
-                          Quick Actions
+                          {i18nT("Quick Actions")}
                         </CardTitle>
                         <CardDescription className="text-sm">
-                          Manage your shop efficiently
+                          {i18nT("Manage your shop efficiently")}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -1065,7 +1071,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                             className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
                           >
                             <Package className="h-4 w-4 sm:h-5 sm:w-5" />
-                            Products
+                            {i18nT("Products")}
                           </Button>
                           <Button
                             onClick={() => handleTabChange("orders")}
@@ -1073,7 +1079,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                             className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
                           >
                             <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
-                            Orders
+                            {i18nT("Orders")}
                           </Button>
                           <Button
                             onClick={() => handleTabChange("crm")}
@@ -1081,7 +1087,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                             className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
                           >
                             <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-                            Customers
+                            {i18nT("Customers")}
                           </Button>
                           <Button
                             onClick={() => handleTabChange("settings")}
@@ -1089,7 +1095,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                             className="h-14 sm:h-16 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
                           >
                             <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
-                            Settings
+                            {i18nT("Settings")}
                           </Button>
                           <Button
                             onClick={handleViewStorefront}
@@ -1109,23 +1115,23 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between">
                         <div>
-                          <CardTitle>Analytics Dashboard</CardTitle>
+                          <CardTitle>{i18nT("Analytics Dashboard")}</CardTitle>
                           <CardDescription>
-                            Detailed performance metrics and insights
+                            {i18nT("Detailed performance metrics and insights")}
                           </CardDescription>
                         </div>
                         <div className="flex gap-2">
                           <select
                             value={selectedPeriod}
                             onChange={(e) => changeTimePeriod(e.target.value)}
-                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                            className="rounded-lg border border-border px-3 py-2 text-sm"
                           >
-                            <option value="monthly">Current Month</option>
-                            <option value="lastmonth">Last Month</option>
-                            <option value="lastquarter">Last Quarter</option>
-                            <option value="quarterly">Current Quarter</option>
-                            <option value="yearly">Current Year</option>
-                            <option value="lastyear">Last Year</option>
+                            <option value="monthly">{i18nT("Current Month")}</option>
+                            <option value="lastmonth">{i18nT("Last Month")}</option>
+                            <option value="lastquarter">{i18nT("Last Quarter")}</option>
+                            <option value="quarterly">{i18nT("Current Quarter")}</option>
+                            <option value="yearly">{i18nT("Current Year")}</option>
+                            <option value="lastyear">{i18nT("Last Year")}</option>
                           </select>
                           <Button
                             onClick={downloadCSV}
@@ -1133,15 +1139,15 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                             variant="outline"
                           >
                             <Download size={18} />
-                            Export
+                            {i18nT("Export")}
                           </Button>
                         </div>
                       </CardHeader>
                       <CardContent>
                         {analyticsLoading ? (
                           <div className="flex justify-center py-10">
-                            <p className="text-gray-500">
-                              Loading analytics...
+                            <p className="text-muted-foreground">
+                              {i18nT("Loading analytics...")}
                             </p>
                           </div>
                         ) : analyticsData?.totalOrders > 0 ? (
@@ -1149,8 +1155,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                               <Card>
                                 <CardHeader className="pb-2">
-                                  <CardTitle className="text-sm font-medium text-gray-600">
-                                    Total Revenue
+                                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    {i18nT("Total Revenue")}
                                   </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -1163,8 +1169,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
                               <Card>
                                 <CardHeader className="pb-2">
-                                  <CardTitle className="text-sm font-medium text-gray-600">
-                                    Total Orders
+                                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    {i18nT("Total Orders")}
                                   </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -1176,8 +1182,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
                               <Card>
                                 <CardHeader className="pb-2">
-                                  <CardTitle className="text-sm font-medium text-gray-600">
-                                    Avg Order Value
+                                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    {i18nT("Avg Order Value")}
                                   </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -1190,8 +1196,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
                               <Card>
                                 <CardHeader className="pb-2">
-                                  <CardTitle className="text-sm font-medium text-gray-600">
-                                    Total Customers
+                                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    {i18nT("Total Customers")}
                                   </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -1310,18 +1316,18 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                   <div className="mt-6 overflow-x-auto">
                                     <table className="w-full text-sm">
                                       <thead>
-                                        <tr className="border-b border-gray-200">
+                                        <tr className="border-b border-border">
                                           <th className="px-4 py-2 text-left font-semibold">
-                                            Product
+                                            {i18nT("Product")}
                                           </th>
                                           <th className="px-4 py-2 text-left font-semibold">
-                                            Category
+                                            {i18nT("Category")}
                                           </th>
                                           <th className="px-4 py-2 text-right font-semibold">
-                                            Quantity
+                                            {i18nT("Quantity")}
                                           </th>
                                           <th className="px-4 py-2 text-right font-semibold">
-                                            Revenue
+                                            {i18nT("Revenue")}
                                           </th>
                                           <th className="px-4 py-2 text-right font-semibold">
                                             %
@@ -1333,7 +1339,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                           (product: any, idx: number) => (
                                             <tr
                                               key={idx}
-                                              className="border-b border-gray-100 hover:bg-gray-50"
+                                              className="border-b border-border hover:bg-muted"
                                             >
                                               <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2">
@@ -1435,15 +1441,15 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                   <div className="mt-6 overflow-x-auto">
                                     <table className="w-full text-sm">
                                       <thead>
-                                        <tr className="border-b border-gray-200">
+                                        <tr className="border-b border-border">
                                           <th className="px-4 py-2 text-left font-semibold">
-                                            Category
+                                            {i18nT("Category")}
                                           </th>
                                           <th className="px-4 py-2 text-right font-semibold">
-                                            Items Sold
+                                            {i18nT("Items Sold")}
                                           </th>
                                           <th className="px-4 py-2 text-right font-semibold">
-                                            Revenue
+                                            {i18nT("Revenue")}
                                           </th>
                                           <th className="px-4 py-2 text-right font-semibold">
                                             %
@@ -1455,7 +1461,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                           (category: any, idx: number) => (
                                             <tr
                                               key={idx}
-                                              className="border-b border-gray-100 hover:bg-gray-50"
+                                              className="border-b border-border hover:bg-muted"
                                             >
                                               <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2">
@@ -1585,8 +1591,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                           </div>
                         ) : (
                           <div className="flex justify-center py-10">
-                            <p className="text-gray-500">
-                              No analytics data available
+                            <p className="text-muted-foreground">
+                              {i18nT("No analytics data available")}
                             </p>
                           </div>
                         )}
@@ -1602,8 +1608,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                     size={20}
                                     className="text-emerald-600"
                                   />
-                                  <h4 className="text-md font-semibold text-gray-900">
-                                    Top Customers
+                                  <h4 className="text-md font-semibold text-foreground">
+                                    {i18nT("Top Customers")}
                                   </h4>
                                 </div>
 
@@ -1613,14 +1619,14 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                     .map((customer: any, idx: number) => (
                                       <div
                                         key={idx}
-                                        className="bg-white rounded-lg p-4 border border-emerald-100 hover:border-emerald-300 hover:shadow-md transition-all duration-200"
+                                        className="bg-card rounded-lg p-4 border border-emerald-100 hover:border-emerald-300 hover:shadow-md transition-all duration-200"
                                       >
                                         <div className="flex items-start justify-between mb-2">
                                           <div className="flex-1">
-                                            <p className="text-sm font-bold text-gray-900">
+                                            <p className="text-sm font-bold text-foreground">
                                               {idx + 1}. {customer.customerName}
                                             </p>
-                                            <p className="text-xs text-gray-600 mt-1">
+                                            <p className="text-xs text-muted-foreground mt-1">
                                               {customer.whatsappNumber ||
                                                 customer.email ||
                                                 "N/A"}
@@ -1633,8 +1639,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
                                         <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-emerald-100">
                                           <div>
-                                            <p className="text-xs text-gray-600">
-                                              Total Spent
+                                            <p className="text-xs text-muted-foreground">
+                                              {i18nT("Total Spent")}
                                             </p>
                                             <p className="text-sm font-bold text-emerald-600">
                                               {analyticsData.currencySymbol}
@@ -1642,25 +1648,25 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                             </p>
                                           </div>
                                           <div>
-                                            <p className="text-xs text-gray-600">
-                                              Orders
+                                            <p className="text-xs text-muted-foreground">
+                                              {i18nT("Orders")}
                                             </p>
-                                            <p className="text-sm font-bold text-gray-900">
+                                            <p className="text-sm font-bold text-foreground">
                                               {customer.totalOrders}
                                             </p>
                                           </div>
                                           <div>
-                                            <p className="text-xs text-gray-600">
-                                              Avg Order
+                                            <p className="text-xs text-muted-foreground">
+                                              {i18nT("Avg Order")}
                                             </p>
-                                            <p className="text-sm font-bold text-gray-900">
+                                            <p className="text-sm font-bold text-foreground">
                                               {analyticsData.currencySymbol}
                                               {(customer.avgOrderValue ?? 0).toLocaleString()}
                                             </p>
                                           </div>
                                           <div>
-                                            <p className="text-xs text-gray-600">
-                                              Frequency
+                                            <p className="text-xs text-muted-foreground">
+                                              {i18nT("Frequency")}
                                             </p>
                                             <p className="text-xs font-bold uppercase bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full w-fit">
                                               {customer.orderFrequency}
@@ -1688,8 +1694,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                         size={20}
                                         className="text-red-600"
                                       />
-                                      <h4 className="text-md font-semibold text-gray-900">
-                                        Inactive Customers
+                                      <h4 className="text-md font-semibold text-foreground">
+                                        {i18nT("Inactive Customers")}
                                       </h4>
                                       <span className="ml-auto text-xs font-bold bg-red-100 text-red-700 px-2 py-1 rounded-full">
                                         {analyticsData.inactiveCustomers.length}
@@ -1702,14 +1708,14 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                         .map((customer: any, idx: number) => (
                                           <div
                                             key={idx}
-                                            className="bg-white rounded-lg p-4 border border-red-100 hover:border-red-300 hover:shadow-md transition-all duration-200"
+                                            className="bg-card rounded-lg p-4 border border-red-100 hover:border-red-300 hover:shadow-md transition-all duration-200"
                                           >
                                             <div className="flex items-start justify-between mb-2">
                                               <div className="flex-1">
-                                                <p className="text-sm font-bold text-gray-900">
+                                                <p className="text-sm font-bold text-foreground">
                                                   {customer.customerName}
                                                 </p>
-                                                <p className="text-xs text-gray-600 mt-1">
+                                                <p className="text-xs text-muted-foreground mt-1">
                                                   {customer.whatsappNumber ||
                                                     customer.email ||
                                                     "N/A"}
@@ -1723,34 +1729,34 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
                                             <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-red-100">
                                               <div>
-                                                <p className="text-xs text-gray-600">
-                                                  Total Spent
+                                                <p className="text-xs text-muted-foreground">
+                                                  {i18nT("Total Spent")}
                                                 </p>
-                                                <p className="text-sm font-bold text-gray-900">
+                                                <p className="text-sm font-bold text-foreground">
                                                   {analyticsData.currencySymbol}
                                                   {(customer.totalSpent ?? 0).toLocaleString()}
                                                 </p>
                                               </div>
                                               <div>
-                                                <p className="text-xs text-gray-600">
-                                                  Orders
+                                                <p className="text-xs text-muted-foreground">
+                                                  {i18nT("Orders")}
                                                 </p>
-                                                <p className="text-sm font-bold text-gray-900">
+                                                <p className="text-sm font-bold text-foreground">
                                                   {customer.totalOrders}
                                                 </p>
                                               </div>
                                               <div>
-                                                <p className="text-xs text-gray-600">
-                                                  Avg Order
+                                                <p className="text-xs text-muted-foreground">
+                                                  {i18nT("Avg Order")}
                                                 </p>
-                                                <p className="text-sm font-bold text-gray-900">
+                                                <p className="text-sm font-bold text-foreground">
                                                   {analyticsData.currencySymbol}
                                                   {(customer.avgOrderValue ?? 0).toLocaleString()}
                                                 </p>
                                               </div>
                                               <div>
-                                                <p className="text-xs text-gray-600">
-                                                  Last Order
+                                                <p className="text-xs text-muted-foreground">
+                                                  {i18nT("Last Order")}
                                                 </p>
                                                 <p className="text-xs font-bold text-red-600">
                                                   {customer.daysSinceLastOrder}{" "}
@@ -1783,28 +1789,28 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                 <div className="overflow-x-auto">
                                   <table className="w-full text-sm">
                                     <thead>
-                                      <tr className="border-b-2 border-gray-300 bg-gray-50">
+                                      <tr className="border-b-2 border-border bg-muted/50">
                                         <th className="px-4 py-3 text-left font-semibold">
-                                          Customer Name
+                                          {i18nT("Customer Name")}
                                         </th>
                                         <th className="px-4 py-3 text-left font-semibold">
-                                          Contact
+                                          {i18nT("Contact")}
                                         </th>
                                         <th className="px-4 py-3 text-right font-semibold">
-                                          Total Orders
+                                          {i18nT("Total Orders")}
                                         </th>
                                         <th className="px-4 py-3 text-right font-semibold">
-                                          Total Spent
+                                          {i18nT("Total Spent")}
                                         </th>
                                         <th className="px-4 py-3 text-right font-semibold">
-                                          Avg Order Value
+                                          {i18nT("Avg Order Value")}
                                         </th>
 
                                         {/* <th className="px-4 py-3 text-center font-semibold">
-                                        Last Order
+                                        {i18nT("Last Order")}
                                       </th> */}
                                         <th className="px-4 py-3 text-center font-semibold">
-                                          Last Order Date
+                                          {i18nT("Last Order Date")}
                                         </th>
                                       </tr>
                                     </thead>
@@ -1821,7 +1827,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                           return (
                                             <tr
                                               key={idx}
-                                              className={`border-b border-gray-100 hover:bg-blue-50 transition-colors ${
+                                              className={`border-b border-border hover:bg-blue-50 transition-colors ${
                                                 isInactive ? "bg-red-50" : ""
                                               }`}
                                             >
@@ -1830,7 +1836,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                                   <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
                                                     {idx + 1}
                                                   </span>
-                                                  <span className="font-medium text-gray-900">
+                                                  <span className="font-medium text-foreground">
                                                     {customer.customerName}
                                                   </span>
                                                 </div>
@@ -1847,7 +1853,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                                       target="_blank"
                                                       rel="noopener noreferrer"
                                                       className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 font-medium transition-colors"
-                                                      title="Message on WhatsApp"
+                                                      title={i18nT("Message on WhatsApp")}
                                                     >
                                                       <MessageCircle
                                                         size={12}
@@ -1875,8 +1881,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                                   {/* No Contact Fallback */}
                                                   {!customer.whatsappNumber &&
                                                     !customer.email && (
-                                                      <span className="text-gray-500 italic">
-                                                        No contact info
+                                                      <span className="text-muted-foreground italic">
+                                                        {i18nT("No contact info")}
                                                       </span>
                                                     )}
                                                 </div>
@@ -1894,7 +1900,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                                                 {(customer.avgOrderValue ?? 0).toLocaleString()}
                                               </td>
 
-                                              {/* <td className="px-4 py-3 text-center text-gray-600">
+                                              {/* <td className="px-4 py-3 text-center text-muted-foreground">
                                               {customer.daysSinceLastOrder}d ago
                                             </td> */}
                                               <td className="px-4 py-3 text-center">
@@ -1933,7 +1939,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                       <div className="space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                           <h2 className="text-2xl sm:text-3xl font-bold">
-                            Products
+                            {i18nT("Products")}
                           </h2>
                         </div>
                         <ProductManagement
@@ -1970,7 +1976,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     <Suspense fallback={<TabLoadingFallback />}>
                       <div className="space-y-4">
                         <h2 className="text-2xl sm:text-3xl font-bold">
-                          Orders & Payments
+                          {i18nT("Orders & Payments")}
                         </h2>
                         <CartManagement
                           pendingTab={ordersSubTab}
@@ -1990,7 +1996,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     <Suspense fallback={<TabLoadingFallback />}>
                       <div className="space-y-4">
                         <h2 className="text-2xl sm:text-3xl font-bold">
-                          Management Dashboard
+                          {i18nT("Management Dashboard")}
                         </h2>
                         <CRMManagement
                           pendingAction={crmPendingAction}
@@ -2124,7 +2130,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <HelpCircle className="h-5 w-5 text-primary" />
-              Frequently Asked Questions
+              {i18nT("Frequently Asked Questions")}
             </DialogTitle>
             <DialogDescription>
               Find answers to common questions about managing your store on
@@ -2150,7 +2156,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                 href="mailto:support@kioscart.com"
                 className="text-primary font-medium hover:underline"
               >
-                support@kioscart.com
+                {i18nT("support@kioscart.com")}
               </a>
             </p>
           </div>

@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { useRazorpayCheckout } from "@/hooks/useRazorpayCheckout";
 import { CreditCard } from "lucide-react";
 
+import { t as i18nT } from "@/i18n/t";
 // Type definition for UPI Apps
 interface UpiApp {
   name: string;
@@ -49,10 +50,10 @@ interface UpiApp {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-muted/50">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p className="text-slate-600">Loading Payment QR...</p>
+        <p className="text-muted-foreground">{i18nT("Loading Payment QR...")}</p>
       </div>
     </div>
   );
@@ -165,8 +166,8 @@ export default function PaymentPage() {
     if (!state?.userId || !state?.shopkeeperId) {
       toast({
         duration: 5000,
-        title: "Invalid payment data",
-        description: "Order information is missing.",
+        title: i18nT("Invalid payment data"),
+        description: i18nT("Order information is missing."),
         variant: "destructive",
       });
       navigate(-1);
@@ -650,7 +651,7 @@ Thank you!`,
           clearCart(state.shopkeeperId);
           toast({
             duration: 6000,
-            title: "Payment successful",
+            title: i18nT("Payment successful"),
             description: `Razorpay payment ${paymentId} captured.`,
           });
           setIsSubmitting(false);
@@ -659,7 +660,7 @@ Thank you!`,
           setIsSubmitting(false);
           toast({
             duration: 5000,
-            title: "Payment failed",
+            title: i18nT("Payment failed"),
             description: err?.message || "Please try again",
             variant: "destructive",
           });
@@ -670,7 +671,7 @@ Thank you!`,
       setIsSubmitting(false);
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message || "Could not start Razorpay payment",
         variant: "destructive",
       });
@@ -714,14 +715,13 @@ Thank you!`,
       clearCart(state.shopkeeperId); // Use clearCart from context
       toast({
         duration: 5000,
-        title: "Payment submitted",
-        description:
-          "Orders are processed and receipts will be issued after payment verification",
+        title: i18nT("Payment submitted"),
+        description: i18nT("Orders are processed and receipts will be issued after payment verification"),
       });
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: "Error submitting payment",
+        title: i18nT("Error submitting payment"),
         description: error.message || "Please try again later.",
         variant: "destructive",
       });
@@ -911,8 +911,8 @@ Thank you!`,
     } catch (err) {
       toast({
         duration: 5000,
-        title: "Could not generate PDF",
-        description: "Please try again.",
+        title: i18nT("Could not generate PDF"),
+        description: i18nT("Please try again."),
         variant: "destructive",
       });
     }
@@ -978,7 +978,7 @@ Thank you!`,
       if (!src) {
         toast({
           duration: 5000,
-          title: "No QR code available",
+          title: i18nT("No QR code available"),
           variant: "destructive",
         });
         return;
@@ -1007,8 +1007,8 @@ Thank you!`,
     } catch (error) {
       toast({
         duration: 5000,
-        title: "Download failed",
-        description: "Could not download the QR image. Please try again.",
+        title: i18nT("Download failed"),
+        description: i18nT("Could not download the QR image. Please try again."),
         variant: "destructive",
       });
     }
@@ -1056,9 +1056,8 @@ Thank you!`,
           // log it and inform the user.
           toast({
             duration: 5000,
-            title: "QR Code Format Not Supported",
-            description:
-              "The QR code does not contain a recognized URL. Please scan it manually.",
+            title: i18nT("QR Code Format Not Supported"),
+            description: i18nT("The QR code does not contain a recognized URL. Please scan it manually."),
             variant: "destructive",
           });
         }
@@ -1068,9 +1067,8 @@ Thank you!`,
     } catch (error) {
       toast({
         duration: 5000,
-        title: "Payment App Failed",
-        description:
-          "Could not open the payment app. Please scan the QR code manually or try to download it.",
+        title: i18nT("Payment App Failed"),
+        description: i18nT("Could not open the payment app. Please scan the QR code manually or try to download it."),
         variant: "destructive",
       });
       console.error(error);
@@ -1081,8 +1079,8 @@ Thank you!`,
 
   if (!state?.orderId) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <p className="text-xl text-gray-600">Loading payment information...</p>
+      <div className="flex items-center justify-center min-h-screen bg-muted/50">
+        <p className="text-xl text-muted-foreground">{i18nT("Loading payment information...")}</p>
       </div>
     );
   }
@@ -1093,43 +1091,43 @@ Thank you!`,
 
   if (paymentSubmitted) {
     return (
-      <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <div className="min-h-screen bg-muted/50 py-10 px-4">
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Success headline */}
           <div className="text-center space-y-2">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
               <CheckCircle className="w-10 h-10 text-green-600" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Order placed — thanks!
+            <h1 className="text-2xl font-bold text-foreground">
+              {i18nT("Order placed — thanks!")}
             </h1>
-            <p className="text-sm text-slate-600">
-              The shop has been notified. Below is your temporary order quote.
+            <p className="text-sm text-muted-foreground">
+              {i18nT("The shop has been notified. Below is your temporary order quote.")}
             </p>
           </div>
 
           {/* Receipt */}
-          <div className="rounded-xl border-2 border-dashed border-green-300 bg-white overflow-hidden shadow-sm">
+          <div className="rounded-xl border-2 border-dashed border-green-300 bg-card overflow-hidden shadow-sm">
             <div className="bg-green-50 px-4 py-3 flex items-center justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-wider text-green-700 font-semibold">
-                  Customer Quote
+                  {i18nT("Customer Quote")}
                 </p>
-                <p className="text-sm font-bold text-slate-800">
+                <p className="text-sm font-bold text-foreground">
                   Order #{state.orderId}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[11px] text-slate-500">Total</p>
+                <p className="text-[11px] text-muted-foreground">{i18nT("Total")}</p>
                 <p className="text-base font-bold text-green-700">
                   {formatPrice(state.total)}
                 </p>
               </div>
             </div>
 
-            <div className="px-4 py-3 space-y-3 text-sm text-slate-700">
+            <div className="px-4 py-3 space-y-3 text-sm text-foreground">
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
                   {state.orderType === "delivery" ? "Delivery" : "Pickup"}
                 </p>
                 {state.orderType === "delivery" && state.deliveryAddress ? (
@@ -1148,22 +1146,22 @@ Thank you!`,
                     {state.pickupDate}
                     {state.pickupTime ? ` · ${state.pickupTime}` : ""}
                     {pickupAddress ? (
-                      <span className="block text-slate-500 text-xs">
+                      <span className="block text-muted-foreground text-xs">
                         {pickupAddress}
                       </span>
                     ) : null}
                   </p>
                 )}
                 {state.instructions && (
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Note: {state.instructions}
                   </p>
                 )}
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
-                  Items
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  {i18nT("Items")}
                 </p>
                 <ul className="space-y-1">
                   {(state.cartItems || []).map((it: any, idx: number) => {
@@ -1179,12 +1177,12 @@ Thank you!`,
                         <span className="flex-1">
                           {it.productName}
                           {extras ? (
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-muted-foreground">
                               {" "}
                               ({extras})
                             </span>
                           ) : null}
-                          <span className="text-slate-500">
+                          <span className="text-muted-foreground">
                             {" "}
                             ×{it.quantity}
                           </span>
@@ -1200,11 +1198,11 @@ Thank you!`,
 
               <div className="border-t pt-2 text-xs space-y-1">
                 <div className="flex justify-between">
-                  <span>Subtotal</span>
+                  <span>{i18nT("Subtotal")}</span>
                   <span>{formatPrice(state.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Delivery</span>
+                  <span>{i18nT("Delivery")}</span>
                   <span>{formatPrice(state.deliveryFee)}</span>
                 </div>
                 <div className="flex justify-between">
@@ -1224,7 +1222,7 @@ Thank you!`,
               </div>
             </div>
 
-            <div className="bg-slate-50 border-t px-4 py-2.5 text-[11px] text-slate-600 leading-snug">
+            <div className="bg-muted/50 border-t px-4 py-2.5 text-[11px] text-muted-foreground leading-snug">
               Keep this as a temporary quote. The vendor will generate and share
               the official receipt PDF on their side once payment is verified.
             </div>
@@ -1238,7 +1236,7 @@ Thank you!`,
               className="w-full"
             >
               <Download className="mr-2 h-4 w-4" />
-              Download PDF
+              {i18nT("Download PDF")}
             </Button>
             {state.whatsAppNumber && (
               <a
@@ -1248,14 +1246,14 @@ Thank you!`,
                 className="w-full h-10 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium"
               >
                 <FaWhatsapp size={18} />
-                Send to Shopkeeper
+                {i18nT("Send to Shopkeeper")}
               </a>
             )}
             <Button
               onClick={backToStore}
               className="w-full bg-primary text-white"
             >
-              Back to Store
+              {i18nT("Back to Store")}
             </Button>
           </div>
         </div>
@@ -1264,7 +1262,7 @@ Thank you!`,
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 px-4 overflow-x-hidden">
+    <div className="min-h-screen bg-muted/50 py-6 px-4 overflow-x-hidden">
       <div className="max-w-7xl mx-auto w-full">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -1272,7 +1270,7 @@ Thank you!`,
             variant="buttonOutline"
             onClick={() => navigate(-1)}
             size="icon"
-            aria-label="Back to cart"
+            aria-label={i18nT("Back to cart")}
           >
             <ShoppingCart className="w-5 h-5" />
           </Button>
@@ -1325,13 +1323,13 @@ Thank you!`,
                           )}
                         </div>
                         {!item.isDiscounted && (
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-muted-foreground mt-1">
                             {formatPrice(item.price)} × {item.quantity}
                           </p>
                         )}
                         {item.isDiscounted && (
                           <div>
-                            <span className="text-xs text-gray-400 line-through">
+                            <span className="text-xs text-muted-foreground line-through">
                               {formatPrice(item.price)}
                             </span>{" "}
                             <span className="text-green-600">
@@ -1361,18 +1359,18 @@ Thank you!`,
             </Card>
             {/* ✅ PAYMENT SECTION - WITH GST VERIFICATION CHECK */}
             {state.total > 1000 && !state.hasDocVerification ? (
-              <Card className="mt-6 border-slate-200 bg-slate-50">
+              <Card className="mt-6 border-border bg-muted/50">
                 {/* STATUS BAR */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-2 px-6 py-3 bg-slate-100 border-b border-slate-200 rounded-t-lg">
-                  <div className="text-xs md:text-sm text-slate-700">
-                    <span className="font-semibold">Payment pending.</span>{" "}
+                <div className="flex flex-col md:flex-row items-center justify-between gap-2 px-6 py-3 bg-muted border-b border-border rounded-t-lg">
+                  <div className="text-xs md:text-sm text-foreground">
+                    <span className="font-semibold">{i18nT("Payment pending.")}</span>{" "}
                     Complete the payment and then select{" "}
-                    <span className="font-mono bg-slate-200 px-1.5 py-0.5 rounded">
+                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
                       "I Have Completed Payment"
                     </span>{" "}
                     so the shop can confirm your order.
                   </div>
-                  {/* <div className="text-xs md:text-sm text-slate-800">
+                  {/* <div className="text-xs md:text-sm text-foreground">
                     Amount:{" "}
                     <span className="font-semibold">
                       {formatPrice(state.total)}
@@ -1384,27 +1382,27 @@ Thank you!`,
                   {/* TITLE + BADGE */}
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm md:text-base font-semibold text-slate-900">
-                        Manual payment required for this order
+                      <p className="text-sm md:text-base font-semibold text-foreground">
+                        {i18nT("Manual payment required for this order")}
                       </p>
-                      <p className="text-xs md:text-sm text-slate-700 mt-1">
+                      <p className="text-xs md:text-sm text-foreground mt-1">
                         The shop’s business verification is still in progress,
                         so this high‑value payment is handled through a simple
                         manual confirmation flow.
                       </p>
                     </div>
-                    <Badge className="bg-slate-100 text-slate-800 border-slate-300 flex items-center gap-1">
+                    <Badge className="bg-muted text-foreground border-border flex items-center gap-1">
                       <AlertCircle className="w-4 h-4" />
-                      Verification in review
+                      {i18nT("Verification in review")}
                     </Badge>
                   </div>
 
                   {/* STEPS */}
-                  <div className="bg-white border border-slate-200 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-slate-900">
-                      How to complete the payment
+                  <div className="bg-card border border-border rounded-lg p-4">
+                    <p className="text-sm font-semibold text-foreground">
+                      {i18nT("How to complete the payment")}
                     </p>
-                    <ol className="mt-2 text-xs sm:text-sm text-slate-700 space-y-1.5 list-decimal list-inside">
+                    <ol className="mt-2 text-xs sm:text-sm text-foreground space-y-1.5 list-decimal list-inside">
                       <li>
                         Agree with the shop on the exact amount and payment
                         method.
@@ -1415,7 +1413,7 @@ Thank you!`,
                       </li>
                       <li>
                         Once you have paid, come back to this page and click{" "}
-                        <span className="font-mono bg-slate-200 px-1.5 py-0.5 rounded">
+                        <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
                           "I Have Completed Payment"
                         </span>{" "}
                         to submit your confirmation.
@@ -1424,8 +1422,8 @@ Thank you!`,
                   </div>
 
                   {/* INFO NOTE */}
-                  <div className="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-3">
-                    <p className="text-xs text-slate-700">
+                  <div className="bg-muted/50 border border-dashed border-border rounded-lg p-3">
+                    <p className="text-xs text-foreground">
                       After the shop finishes business verification, high‑value
                       orders like this can also be paid using automatic QR‑based
                       payments. Until then, this manual confirmation step helps
@@ -1435,8 +1433,8 @@ Thank you!`,
 
                   {/* WHATSAPP CONNECT (UNCHANGED) */}
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-900">
-                      Contact the shop for payment confirmation
+                    <p className="text-sm font-semibold text-foreground">
+                      {i18nT("Contact the shop for payment confirmation")}
                     </p>
                     <a
                       href={getWhatsAppLink()}
@@ -1445,12 +1443,12 @@ Thank you!`,
                       className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 shadow-sm"
                     >
                       <MessageCircle className="w-5 h-5" />
-                      Send order details via WhatsApp
+                      {i18nT("Send order details via WhatsApp")}
                     </a>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs text-muted-foreground">
                       The order amount and details will be auto‑filled in
                       WhatsApp. After the shop confirms the payment, click{" "}
-                      <span className="font-mono bg-slate-200 px-1 rounded">
+                      <span className="font-mono bg-muted px-1 rounded">
                         "I Have Completed Payment"
                       </span>{" "}
                       here to continue.
@@ -1464,7 +1462,7 @@ Thank you!`,
                 <CardHeader className="text-center">
                   <CardTitle className="flex items-center justify-center gap-2 text-2xl">
                     <QrCode className="w-6 h-6 text-blue-600" />
-                    Complete Your Payment
+                    {i18nT("Complete Your Payment")}
                   </CardTitle>
                   <div className="text-4xl font-bold text-green-600 mt-4">
                     {formatPrice(state.total)}
@@ -1472,16 +1470,16 @@ Thank you!`,
                 </CardHeader>
                 <CardContent className="text-center space-y-6">
                   {razorpayActive && country === "IN" && (
-                    <div className="rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white text-left">
+                    <div className="rounded-2xl overflow-hidden shadow-xl border border-border bg-card text-left">
                       {/* Branded header — platform identity is KiosCart;
                           the shop name appears as the order context below. */}
                       <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-5 py-4 text-white">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs uppercase tracking-wide opacity-80">
-                              Secure Checkout
+                              {i18nT("Secure Checkout")}
                             </p>
-                            <p className="font-semibold text-lg">KiosCart</p>
+                            <p className="font-semibold text-lg">{i18nT("KiosCart")}</p>
                             {state.merchantName && (
                               <p className="text-xs opacity-80 mt-0.5">
                                 Order from {state.merchantName}
@@ -1489,7 +1487,7 @@ Thank you!`,
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="text-xs opacity-80">Amount to pay</p>
+                            <p className="text-xs opacity-80">{i18nT("Amount to pay")}</p>
                             <p className="text-2xl font-bold">
                               {formatPrice(state.total)}
                             </p>
@@ -1498,76 +1496,76 @@ Thank you!`,
                       </div>
 
                       {/* Customer info preview */}
-                      <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 text-sm text-slate-700">
+                      <div className="px-5 py-3 border-b border-border bg-muted/50 text-sm text-foreground">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-900">
+                          <span className="font-semibold text-foreground">
                             {state.fullName || "Customer"}
                           </span>
-                          <span className="text-slate-400">·</span>
+                          <span className="text-muted-foreground">·</span>
                           <span>{state.userWhatsApp}</span>
                         </div>
                       </div>
 
                       {/* Method tiles */}
                       <div className="p-5 space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Choose payment method
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {i18nT("Choose payment method")}
                         </p>
                         <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
                             onClick={() => handleRazorpayPay("card")}
                             disabled={isSubmitting || !scriptReady}
-                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <CreditCard className="h-6 w-6 text-indigo-600" />
-                            <span className="text-sm font-semibold text-slate-800">
-                              Cards
+                            <span className="text-sm font-semibold text-foreground">
+                              {i18nT("Cards")}
                             </span>
-                            <span className="text-[10px] text-slate-500">
-                              Visa · Mastercard · RuPay
+                            <span className="text-[10px] text-muted-foreground">
+                              {i18nT("Visa · Mastercard · RuPay")}
                             </span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRazorpayPay("upi")}
                             disabled={isSubmitting || !scriptReady}
-                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Scan className="h-6 w-6 text-indigo-600" />
-                            <span className="text-sm font-semibold text-slate-800">
+                            <span className="text-sm font-semibold text-foreground">
                               UPI
                             </span>
-                            <span className="text-[10px] text-slate-500">
-                              GPay · PhonePe · Paytm
+                            <span className="text-[10px] text-muted-foreground">
+                              {i18nT("GPay · PhonePe · Paytm")}
                             </span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRazorpayPay("netbanking")}
                             disabled={isSubmitting || !scriptReady}
-                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Store className="h-6 w-6 text-indigo-600" />
-                            <span className="text-sm font-semibold text-slate-800">
-                              Netbanking
+                            <span className="text-sm font-semibold text-foreground">
+                              {i18nT("Netbanking")}
                             </span>
-                            <span className="text-[10px] text-slate-500">
-                              All major banks
+                            <span className="text-[10px] text-muted-foreground">
+                              {i18nT("All major banks")}
                             </span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRazorpayPay("wallet")}
                             disabled={isSubmitting || !scriptReady}
-                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <ShoppingCart className="h-6 w-6 text-indigo-600" />
-                            <span className="text-sm font-semibold text-slate-800">
-                              Wallets
+                            <span className="text-sm font-semibold text-foreground">
+                              {i18nT("Wallets")}
                             </span>
-                            <span className="text-[10px] text-slate-500">
-                              Mobikwik · Freecharge
+                            <span className="text-[10px] text-muted-foreground">
+                              {i18nT("Mobikwik · Freecharge")}
                             </span>
                           </button>
                         </div>
@@ -1580,7 +1578,7 @@ Thank you!`,
                           {isSubmitting ? (
                             <>
                               <Loader className="mr-2 h-5 w-5 animate-spin" />
-                              Opening secure checkout…
+                              {i18nT("Opening secure checkout…")}
                             </>
                           ) : (
                             <>
@@ -1592,23 +1590,23 @@ Thank you!`,
                       </div>
 
                       {/* Trust footer */}
-                      <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-600">
+                      <div className="px-5 py-3 border-t border-border bg-muted/50 flex items-center justify-between text-xs text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                           <CheckCircle className="h-3.5 w-3.5 text-green-600" />
                           256-bit SSL · PCI-DSS compliant
                         </span>
-                        <span className="font-semibold text-slate-700">
-                          Powered by Razorpay
+                        <span className="font-semibold text-foreground">
+                          {i18nT("Powered by Razorpay")}
                         </span>
                       </div>
                     </div>
                   )}
 
                   {razorpayActive && country === "IN" && (
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <div className="flex-1 h-px bg-slate-200" />
-                      <span>Or scan QR to pay manually</span>
-                      <div className="flex-1 h-px bg-slate-200" />
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex-1 h-px bg-muted" />
+                      <span>{i18nT("Or scan QR to pay manually")}</span>
+                      <div className="flex-1 h-px bg-muted" />
                     </div>
                   )}
                   <div ref={qrContainerRef} className="space-y-6">
@@ -1616,7 +1614,7 @@ Thank you!`,
                   {dynamicQR && country === "IN" && (
                     <div>
                       {dynamicUpiString ? (
-                        <div className="flex flex-col items-center gap-4 p-4 sm:p-6 bg-white rounded-xl shadow-lg border-2 border-blue-200">
+                        <div className="flex flex-col items-center gap-4 p-4 sm:p-6 bg-card rounded-xl shadow-lg border-2 border-blue-200">
                           <div className="w-full max-w-[280px] aspect-square">
                             <QRCode
                               value={dynamicUpiString}
@@ -1634,7 +1632,7 @@ Thank you!`,
                             className="w-full py-6 text-lg font-semibold"
                             onClick={handlePayClick}
                           >
-                            Click to Pay
+                            {i18nT("Click to Pay")}
                           </Button>
                           <div className="text-center space-y-2">
                             <p className="font-bold text-lg text-green-700">
@@ -1644,10 +1642,10 @@ Thank you!`,
                         </div>
                       ) : (
                         <div className="flex justify-center animate-pulse">
-                          <div className="w-full max-w-[288px] aspect-square bg-gray-100 rounded-xl border-4 border-dashed border-gray-300 flex items-center justify-center">
-                            <div className="text-center text-gray-500">
+                          <div className="w-full max-w-[288px] aspect-square bg-muted rounded-xl border-4 border-dashed border-border flex items-center justify-center">
+                            <div className="text-center text-muted-foreground">
                               <QrCode className="w-12 h-12 mx-auto mb-2" />
-                              <p>Generating Payment QR...</p>
+                              <p>{i18nT("Generating Payment QR...")}</p>
                             </div>
                           </div>
                         </div>
@@ -1665,10 +1663,10 @@ Thank you!`,
                         />
                       ) : (
                         <div className="flex justify-center animate-pulse">
-                          <div className="w-full max-w-[288px] aspect-square bg-gray-100 rounded-xl border-4 border-dashed border-gray-300 flex items-center justify-center">
-                            <div className="text-center text-gray-500">
+                          <div className="w-full max-w-[288px] aspect-square bg-muted rounded-xl border-4 border-dashed border-border flex items-center justify-center">
+                            <div className="text-center text-muted-foreground">
                               <QrCode className="w-12 h-12 mx-auto mb-2" />
-                              <p>Loading Payment QR...</p>
+                              <p>{i18nT("Loading Payment QR...")}</p>
                             </div>
                           </div>
                         </div>
@@ -1678,7 +1676,7 @@ Thank you!`,
                   {dynamicQR && country === "SG" && (
                     <div>
                       {dynamicUENString ? (
-                        <div className="flex flex-col items-center gap-4 p-4 sm:p-6 bg-white rounded-xl shadow-lg border-2 border-blue-200">
+                        <div className="flex flex-col items-center gap-4 p-4 sm:p-6 bg-card rounded-xl shadow-lg border-2 border-blue-200">
                           <img
                             src={dynamicUENString}
                             alt="PayNow QR"
@@ -1698,7 +1696,7 @@ Thank you!`,
                                   {mobileId}.
                                 </p>
 
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-muted-foreground">
                                   WhatsAppNumber:{" "}
                                   <span className="font-medium">
                                     {state?.whatsAppNumber}
@@ -1713,7 +1711,7 @@ Thank you!`,
                                   {uenId}.
                                 </p>
 
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-muted-foreground">
                                   WhatsAppNumber:{" "}
                                   <span className="font-medium">
                                     {state?.whatsAppNumber}
@@ -1725,10 +1723,10 @@ Thank you!`,
                         </div>
                       ) : (
                         <div className="flex justify-center animate-pulse">
-                          <div className="w-full max-w-[288px] aspect-square bg-gray-100 rounded-xl border-4 border-dashed border-gray-300 flex items-center justify-center">
-                            <div className="text-center text-gray-500">
+                          <div className="w-full max-w-[288px] aspect-square bg-muted rounded-xl border-4 border-dashed border-border flex items-center justify-center">
+                            <div className="text-center text-muted-foreground">
                               <QrCode className="w-12 h-12 mx-auto mb-2" />
-                              <p>Generating Payment QR...</p>
+                              <p>{i18nT("Generating Payment QR...")}</p>
                             </div>
                           </div>
                         </div>
@@ -1746,10 +1744,10 @@ Thank you!`,
                         />
                       ) : (
                         <div className="flex justify-center animate-pulse">
-                          <div className="w-full max-w-[288px] aspect-square bg-gray-100 rounded-xl border-4 border-dashed border-gray-300 flex items-center justify-center">
-                            <div className="text-center text-gray-500">
+                          <div className="w-full max-w-[288px] aspect-square bg-muted rounded-xl border-4 border-dashed border-border flex items-center justify-center">
+                            <div className="text-center text-muted-foreground">
                               <QrCode className="w-12 h-12 mx-auto mb-2" />
-                              <p>Loading Payment QR...</p>
+                              <p>{i18nT("Loading Payment QR...")}</p>
                             </div>
                           </div>
                         </div>
@@ -1771,7 +1769,7 @@ Thank you!`,
                     <div className="flex items-center justify-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
                       <AlertCircle className="w-4 h-4 text-red-700" />
                       <p className="text-sm font-semibold text-red-800">
-                        QR has expired. Please refresh to generate a new one.
+                        {i18nT("QR has expired. Please refresh to generate a new one.")}
                       </p>
                     </div>
                   )}
@@ -1799,32 +1797,32 @@ Thank you!`,
                       {/* Success headline */}
                       <div className="flex items-center gap-2 text-green-700 font-semibold">
                         <CheckCircle className="w-6 h-6 shrink-0" />
-                        <span>Order placed — thanks!</span>
+                        <span>{i18nT("Order placed — thanks!")}</span>
                       </div>
 
                       {/* Order Quote */}
-                      <div className="rounded-xl border-2 border-dashed border-green-300 bg-white overflow-hidden">
+                      <div className="rounded-xl border-2 border-dashed border-green-300 bg-card overflow-hidden">
                         <div className="bg-green-50 px-4 py-3 flex items-center justify-between">
                           <div>
                             <p className="text-[11px] uppercase tracking-wider text-green-700 font-semibold">
-                              Customer Quote
+                              {i18nT("Customer Quote")}
                             </p>
-                            <p className="text-sm font-bold text-slate-800">
+                            <p className="text-sm font-bold text-foreground">
                               Order #{state.orderId}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-[11px] text-slate-500">Total</p>
+                            <p className="text-[11px] text-muted-foreground">{i18nT("Total")}</p>
                             <p className="text-base font-bold text-green-700">
                               {formatPrice(state.total)}
                             </p>
                           </div>
                         </div>
 
-                        <div className="px-4 py-3 space-y-3 text-sm text-slate-700">
+                        <div className="px-4 py-3 space-y-3 text-sm text-foreground">
                           {/* Fulfilment */}
                           <div>
-                            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
+                            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
                               {state.orderType === "delivery"
                                 ? "Delivery"
                                 : "Pickup"}
@@ -1848,14 +1846,14 @@ Thank you!`,
                                   ? ` · ${state.pickupTime}`
                                   : ""}
                                 {pickupAddress ? (
-                                  <span className="block text-slate-500 text-xs">
+                                  <span className="block text-muted-foreground text-xs">
                                     {pickupAddress}
                                   </span>
                                 ) : null}
                               </p>
                             )}
                             {state.instructions && (
-                              <p className="text-xs text-slate-500 mt-1">
+                              <p className="text-xs text-muted-foreground mt-1">
                                 Note: {state.instructions}
                               </p>
                             )}
@@ -1863,8 +1861,8 @@ Thank you!`,
 
                           {/* Items */}
                           <div>
-                            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
-                              Items
+                            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                              {i18nT("Items")}
                             </p>
                             <ul className="space-y-1">
                               {(state.cartItems || []).map(
@@ -1886,12 +1884,12 @@ Thank you!`,
                                       <span className="flex-1">
                                         {it.productName}
                                         {extras ? (
-                                          <span className="text-xs text-slate-500">
+                                          <span className="text-xs text-muted-foreground">
                                             {" "}
                                             ({extras})
                                           </span>
                                         ) : null}
-                                        <span className="text-slate-500">
+                                        <span className="text-muted-foreground">
                                           {" "}
                                           ×{it.quantity}
                                         </span>
@@ -1909,11 +1907,11 @@ Thank you!`,
                           {/* Breakdown */}
                           <div className="border-t pt-2 text-xs space-y-1">
                             <div className="flex justify-between">
-                              <span>Subtotal</span>
+                              <span>{i18nT("Subtotal")}</span>
                               <span>{formatPrice(state.subtotal)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span>Delivery</span>
+                              <span>{i18nT("Delivery")}</span>
                               <span>{formatPrice(state.deliveryFee)}</span>
                             </div>
                             <div className="flex justify-between">
@@ -1940,7 +1938,7 @@ Thank you!`,
                         </div>
 
                         {/* Disclaimer strip */}
-                        <div className="bg-slate-50 border-t px-4 py-2.5 text-[11px] text-slate-600 leading-snug">
+                        <div className="bg-muted/50 border-t px-4 py-2.5 text-[11px] text-muted-foreground leading-snug">
                           Keep this as a temporary quote. The vendor will
                           generate and share the official receipt PDF on their
                           side once payment is verified.
@@ -1955,7 +1953,7 @@ Thank you!`,
                           className="w-full"
                         >
                           <Download className="mr-2 h-4 w-4" />
-                          Download PDF
+                          {i18nT("Download PDF")}
                         </Button>
                         {state.whatsAppNumber && (
                           <a
@@ -1965,14 +1963,14 @@ Thank you!`,
                             className="w-full h-10 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium"
                           >
                             <FaWhatsapp size={18} />
-                            Send to Shopkeeper
+                            {i18nT("Send to Shopkeeper")}
                           </a>
                         )}
                         <Button
                           onClick={backToStore}
                           className="w-full bg-primary text-white"
                         >
-                          Back to Store
+                          {i18nT("Back to Store")}
                         </Button>
                       </div>
                     </div>
@@ -1986,7 +1984,7 @@ Thank you!`,
             {/* Merchant Info */}
             <Card>
               <CardHeader>
-                <CardTitle>Merchant Details</CardTitle>
+                <CardTitle>{i18nT("Merchant Details")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="font-semibold text-lg">
@@ -1997,7 +1995,7 @@ Thank you!`,
 
             <Card>
               <CardHeader>
-                <CardTitle>Customer Details</CardTitle>
+                <CardTitle>{i18nT("Customer Details")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="font-semibold text-l">
@@ -2015,11 +2013,11 @@ Thank you!`,
                 <CardTitle className="flex items-center gap-2">
                   {state.orderType === "delivery" ? (
                     <>
-                      <Truck className="w-5 h-5" /> Delivery Details
+                      <Truck className="w-5 h-5" /> {i18nT("Delivery Details")}
                     </>
                   ) : (
                     <>
-                      <Store className="w-5 h-5" /> Pickup Details
+                      <Store className="w-5 h-5" /> {i18nT("Pickup Details")}
                     </>
                   )}
                 </CardTitle>
@@ -2028,7 +2026,7 @@ Thank you!`,
                 {state.orderType === "delivery" && state.deliveryAddress ? (
                   <div className="space-y-2">
                     <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 mt-1 text-gray-500" />
+                      <MapPin className="w-4 h-4 mt-1 text-muted-foreground" />
                       <div>
                         <p>{state.deliveryAddress.street}</p>
                         <p>
@@ -2041,7 +2039,7 @@ Thank you!`,
                     <Separator />
                     {state.instructions && (
                       <p className="text-l mt-2">
-                        <strong>Special Instructions:</strong>{" "}
+                        <strong>{i18nT("Special Instructions:")}</strong>{" "}
                         {state.instructions}
                       </p>
                     )}
@@ -2049,13 +2047,13 @@ Thank you!`,
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-500" />
+                      <Clock className="w-4 h-4 text-muted-foreground" />
                       <div>
                         <p>
-                          <strong>Date:</strong> {state.pickupDate}
+                          <strong>{i18nT("Date:")}</strong> {state.pickupDate}
                         </p>
                         <p>
-                          <strong>Time:</strong> {state.pickupTime}
+                          <strong>{i18nT("Time:")}</strong> {state.pickupTime}
                         </p>
                       </div>
                     </div>
@@ -2063,12 +2061,12 @@ Thank you!`,
                     {/* Pickup Address */}
                     {pickupAddress && (
                       <div className="flex items-start gap-2 pt-2 border-t">
-                        <MapPin className="w-4 h-4 mt-1 text-gray-500" />
+                        <MapPin className="w-4 h-4 mt-1 text-muted-foreground" />
                         <div>
                           <p>
-                            <strong>Pickup Address:</strong>
+                            <strong>{i18nT("Pickup Address:")}</strong>
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             {pickupAddress}
                           </p>
                         </div>
@@ -2078,7 +2076,7 @@ Thank you!`,
                     <Separator />
                     {state.instructions && (
                       <p className="text-l mt-2">
-                        <strong>Special Instructions:</strong>{" "}
+                        <strong>{i18nT("Special Instructions:")}</strong>{" "}
                         {state.instructions}
                       </p>
                     )}
@@ -2091,17 +2089,17 @@ Thank you!`,
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Receipt className="w-5 h-5" />
-                  Price Breakdown
+                  {i18nT("Price Breakdown")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span>Subtotal</span>
+                    <span>{i18nT("Subtotal")}</span>
                     <span>{formatPrice(state.subtotal)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Delivery Fee</span>
+                    <span>{i18nT("Delivery Fee")}</span>
                     <span>{formatPrice(state.deliveryFee)}</span>
                   </div>
                   <div className="flex justify-between">
@@ -2118,7 +2116,7 @@ Thank you!`,
                   </div>
 
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
-                    <span>Total</span>
+                    <span>{i18nT("Total")}</span>
                     <span className="text-green-600">
                       {formatPrice(state.total)}
                     </span>

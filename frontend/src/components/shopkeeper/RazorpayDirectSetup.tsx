@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Loader2, KeyRound, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface Status {
@@ -90,11 +91,11 @@ export function RazorpayDirectSetup({ onStatusChange }: Props = {}) {
           <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
           <div className="flex-1">
             <p className="font-semibold text-green-900">
-              Razorpay Direct is active
+              {i18nT("Razorpay Direct is active")}
             </p>
             <p className="text-sm text-green-700 mt-1">
               Key:{" "}
-              <span className="font-mono text-xs bg-white px-1.5 py-0.5 rounded border">
+              <span className="font-mono text-xs bg-card px-1.5 py-0.5 rounded border">
                 {status.keyId}
               </span>
             </p>
@@ -112,11 +113,11 @@ export function RazorpayDirectSetup({ onStatusChange }: Props = {}) {
       )}
 
       {/* Instructions */}
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
-        <p className="font-semibold text-slate-900">
-          How to get your Razorpay keys
+      <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-2 text-sm">
+        <p className="font-semibold text-foreground">
+          {i18nT("How to get your Razorpay keys")}
         </p>
-        <ol className="list-decimal list-inside space-y-1 text-slate-700">
+        <ol className="list-decimal list-inside space-y-1 text-foreground">
           <li>
             Go to{" "}
             <a
@@ -134,12 +135,12 @@ export function RazorpayDirectSetup({ onStatusChange }: Props = {}) {
             reviews within 24-72 hours.
           </li>
           <li>
-            Once activated, switch to <strong>Live Mode</strong>, then go to{" "}
+            Once activated, switch to <strong>{i18nT("Live Mode")}</strong>, then go to{" "}
             <em>Account &amp; Settings → API Keys → Generate Live Key</em>.
           </li>
-          <li>Copy the Key ID and Secret, then paste them below.</li>
+          <li>{i18nT("Copy the Key ID and Secret, then paste them below.")}</li>
         </ol>
-        <p className="text-xs text-slate-500 pt-1">
+        <p className="text-xs text-muted-foreground pt-1">
           Both test keys (<code>rzp_test_*</code>) and live keys (
           <code>rzp_live_*</code>) work here. Live keys move real money — only
           paste them after your KiosCart shop is live.
@@ -160,7 +161,7 @@ export function RazorpayDirectSetup({ onStatusChange }: Props = {}) {
                     ? "bg-red-50 text-red-700 border-red-200 text-[10px]"
                     : isTest
                       ? "bg-amber-50 text-amber-700 border-amber-200 text-[10px]"
-                      : "bg-slate-50 text-slate-600 text-[10px]"
+                      : "bg-muted/50 text-muted-foreground text-[10px]"
                 }
               >
                 {isLive ? "LIVE" : isTest ? "TEST" : "?"}
@@ -177,18 +178,18 @@ export function RazorpayDirectSetup({ onStatusChange }: Props = {}) {
           />
         </div>
         <div>
-          <Label htmlFor="rzp-key-secret">Razorpay Key Secret</Label>
+          <Label htmlFor="rzp-key-secret">{i18nT("Razorpay Key Secret")}</Label>
           <Input
             id="rzp-key-secret"
             type="password"
             value={keySecret}
             onChange={(e) => setKeySecret(e.target.value.trim())}
-            placeholder="Paste the secret shown when you generated the key"
+            placeholder={i18nT("Paste the secret shown when you generated the key")}
             disabled={submitting}
             className="font-mono text-sm"
           />
-          <p className="text-xs text-slate-500 mt-1">
-            Stored encrypted at rest. Never displayed back to you after save.
+          <p className="text-xs text-muted-foreground mt-1">
+            {i18nT("Stored encrypted at rest. Never displayed back to you after save.")}
           </p>
         </div>
         <Button
@@ -199,7 +200,7 @@ export function RazorpayDirectSetup({ onStatusChange }: Props = {}) {
           {submitting ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Verifying with Razorpay…
+              {i18nT("Verifying with Razorpay…")}
             </>
           ) : status?.configured ? (
             "Update keys"

@@ -38,6 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 
+import { t as i18nT } from "@/i18n/t";
 export interface Country {
   name: string;
   code: string;
@@ -270,7 +271,7 @@ export function CartPage() {
       } catch (error) {
         toast({
           duration: 5000,
-          title: "Error",
+          title: i18nT("Error"),
           description: error.message,
           variant: "destructive",
         });
@@ -356,7 +357,7 @@ export function CartPage() {
     if (!email) {
       toast({
         duration: 5000,
-        title: "Please enter email",
+        title: i18nT("Please enter email"),
         variant: "destructive",
       });
       return;
@@ -378,7 +379,7 @@ export function CartPage() {
         sessionStorage.removeItem("token");
         toast({
           duration: 5000,
-          title: "Email Verified",
+          title: i18nT("Email Verified"),
           description: data.message,
         });
       } else {
@@ -387,7 +388,7 @@ export function CartPage() {
     } catch (err) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message,
         variant: "destructive",
       });
@@ -414,8 +415,8 @@ export function CartPage() {
         setWhatsappVerified(true);
         toast({
           duration: 5000,
-          title: "New Customer",
-          description: "Please fill in the customer details",
+          title: i18nT("New Customer"),
+          description: i18nT("Please fill in the customer details"),
         });
         return;
       }
@@ -432,22 +433,22 @@ export function CartPage() {
         setWhatsappVerified(true);
         toast({
           duration: 3000,
-          title: "Customer Found",
-          description: "Details auto-filled successfully",
+          title: i18nT("Customer Found"),
+          description: i18nT("Details auto-filled successfully"),
         });
       } else {
         // User not found in response data — treat as new customer
         setWhatsappVerified(true);
         toast({
           duration: 5000,
-          title: "New Customer",
-          description: "Please fill in the customer details",
+          title: i18nT("New Customer"),
+          description: i18nT("Please fill in the customer details"),
         });
       }
     } catch (err) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description: err.message,
         variant: "destructive",
       });
@@ -593,8 +594,8 @@ export function CartPage() {
     if (!shopkeeperId) {
       toast({
         duration: 5000,
-        title: "Error",
-        description: "Invalid shopkeeper",
+        title: i18nT("Error"),
+        description: i18nT("Invalid shopkeeper"),
         variant: "destructive",
       });
       return;
@@ -604,8 +605,8 @@ export function CartPage() {
     if (orderFor === "customer" && (!whatsapp || whatsapp.length < 6)) {
       toast({
         duration: 5000,
-        title: "WhatsApp number required",
-        description: "Please enter a valid WhatsApp number to place the order",
+        title: i18nT("WhatsApp number required"),
+        description: i18nT("Please enter a valid WhatsApp number to place the order"),
         variant: "destructive",
       });
       return;
@@ -621,8 +622,8 @@ export function CartPage() {
       ) {
         toast({
           duration: 5000,
-          title: "Missing info",
-          description: "Please fill all delivery address fields",
+          title: i18nT("Missing info"),
+          description: i18nT("Please fill all delivery address fields"),
           variant: "destructive",
         });
         return;
@@ -631,8 +632,8 @@ export function CartPage() {
       if (!pickupDate || !pickupTime) {
         toast({
           duration: 5000,
-          title: "Missing info",
-          description: "Please select pickup date and time",
+          title: i18nT("Missing info"),
+          description: i18nT("Please select pickup date and time"),
           variant: "destructive",
         });
         return;
@@ -702,7 +703,7 @@ export function CartPage() {
     } catch (error: any) {
       toast({
         duration: 5000,
-        title: "Checkout Failed",
+        title: i18nT("Checkout Failed"),
         description: error.message || "Try again",
         variant: "destructive",
       });
@@ -716,11 +717,11 @@ export function CartPage() {
       <div className="container mx-auto max-w-xl py-8">
         <Card>
           <CardHeader>
-            <CardTitle>Invalid Shop</CardTitle>
+            <CardTitle>{i18nT("Invalid Shop")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p>Please select a valid shop to continue.</p>
-            <Button onClick={() => navigate("/")}>Go to Home</Button>
+            <p>{i18nT("Please select a valid shop to continue.")}</p>
+            <Button onClick={() => navigate("/")}>{i18nT("Go to Home")}</Button>
           </CardContent>
         </Card>
       </div>
@@ -729,7 +730,7 @@ export function CartPage() {
 
   if (shopCart.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+      <div className="min-h-screen bg-muted/50 py-4 sm:py-8">
         <div className="container mx-auto max-w-6xl px-4">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
             {/* Left: Cart Items & Order Options */}
@@ -746,7 +747,7 @@ export function CartPage() {
                   {shopCart.map((item) => (
                     <div
                       key={`${item.productId}-${item.subcategoryIndex}-${item.variantIndex}`}
-                      className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white"
+                      className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-card"
                     >
                       {item.image && (
                         <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
@@ -796,7 +797,7 @@ export function CartPage() {
                           <p className="text-sm font-medium flex items-center gap-2">
                             {item.isDiscounted && (
                               <div>
-                                <span className="text-xs text-gray-400 line-through">
+                                <span className="text-xs text-muted-foreground line-through">
                                   {formatPrice(item.price)}
                                 </span>{" "}
                                 <span className="text-green-600">
@@ -868,7 +869,7 @@ export function CartPage() {
                             {item.isDiscounted ? (
                               <>
                                 <div className="w-20">
-                                  <p className="text-xs sm:text-sm text-gray-400 line-through">
+                                  <p className="text-xs sm:text-sm text-muted-foreground line-through">
                                     {formatPrice(item.price * item.quantity)}
                                   </p>
 
@@ -935,7 +936,7 @@ export function CartPage() {
                         >
                           <FaWhatsapp size={18} className="shrink-0" />
                           <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
-                            WhatsApp Contact
+                            {i18nT("WhatsApp Contact")}
                           </span>
                         </a>
                       </Button>
@@ -949,7 +950,7 @@ export function CartPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Truck className="w-5 h-5" />
-                    Fulfillment Options
+                    {i18nT("Fulfillment Options")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -969,8 +970,8 @@ export function CartPage() {
                       >
                         <Store className="w-4 h-4 text-blue-600 shrink-0" />
                         <div>
-                          <p className="font-medium">Store Pickup</p>
-                          <p className="text-sm text-muted-foreground">Free</p>
+                          <p className="font-medium">{i18nT("Store Pickup")}</p>
+                          <p className="text-sm text-muted-foreground">{i18nT("Free")}</p>
                         </div>
                       </Label>
                     </div>
@@ -985,9 +986,9 @@ export function CartPage() {
                         >
                           <Truck className="w-4 h-4 text-green-600 shrink-0" />
                           <div>
-                            <p className="font-medium">Home Delivery</p>
+                            <p className="font-medium">{i18nT("Home Delivery")}</p>
                             <p className="text-sm text-muted-foreground">
-                              Delivery charges
+                              {i18nT("Delivery charges")}
                             </p>
                           </div>
                         </Label>
@@ -996,10 +997,10 @@ export function CartPage() {
                   </RadioGroup>
 
                   {orderType === "delivery" && (
-                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="sm:col-span-2">
-                          <Label htmlFor="street">Street Address *</Label>
+                          <Label htmlFor="street">{i18nT("Street Address *")}</Label>
                           <Input
                             id="street"
                             value={deliveryAddress.street}
@@ -1013,7 +1014,7 @@ export function CartPage() {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="city">City *</Label>
+                          <Label htmlFor="city">{i18nT("City *")}</Label>
                           <Input
                             id="city"
                             value={deliveryAddress.city}
@@ -1023,11 +1024,11 @@ export function CartPage() {
                                 city: e.target.value,
                               }))
                             }
-                            placeholder="City"
+                            placeholder={i18nT("City")}
                           />
                         </div>
                         <div>
-                          <Label htmlFor="state">State *</Label>
+                          <Label htmlFor="state">{i18nT("State *")}</Label>
                           <Input
                             id="state"
                             value={deliveryAddress.state}
@@ -1037,11 +1038,11 @@ export function CartPage() {
                                 state: e.target.value,
                               }))
                             }
-                            placeholder="State"
+                            placeholder={i18nT("State")}
                           />
                         </div>
                         <div>
-                          <Label htmlFor="zipCode">ZIP Code *</Label>
+                          <Label htmlFor="zipCode">{i18nT("ZIP Code *")}</Label>
                           <Input
                             id="zipCode"
                             value={deliveryAddress.zipCode}
@@ -1056,13 +1057,13 @@ export function CartPage() {
                         </div>
                         <div className="sm:col-span-2">
                           <Label htmlFor="instructions">
-                            Special Instructions
+                            {i18nT("Special Instructions")}
                           </Label>
                           <Textarea
                             id="instructions"
                             value={instructions}
                             onChange={(e) => setInstructions(e.target.value)}
-                            placeholder="Any special delivery instructions"
+                            placeholder={i18nT("Any special delivery instructions")}
                             rows={3}
                           />
                         </div>
@@ -1071,12 +1072,12 @@ export function CartPage() {
                   )}
 
                   {orderType === "pickup" && (
-                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
                       {isSelfOrder ? (
                         <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
                           <Clock className="w-4 h-4 text-primary" />
                           <span className="text-sm font-medium">
-                            Kiosk Order — Pickup set to now
+                            {i18nT("Kiosk Order — Pickup set to now")}
                           </span>
                         </div>
                       ) : pickupDateRequired ? (
@@ -1087,14 +1088,14 @@ export function CartPage() {
                               className="flex items-center gap-2"
                             >
                               <Calendar className="w-4 h-4" />
-                              Pickup Date *
+                              {i18nT("Pickup Date *")}
                             </Label>
                             <Select
                               value={pickupDate}
                               onValueChange={setPickupDate}
                             >
                               <SelectTrigger className="mt-2">
-                                <SelectValue placeholder="Select date" />
+                                <SelectValue placeholder={i18nT("Select date")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {getAvailablePickupDates(
@@ -1107,7 +1108,7 @@ export function CartPage() {
                                     disabled={date.isClosed}
                                     className={
                                       date.isClosed
-                                        ? "text-gray-400 italic"
+                                        ? "text-muted-foreground italic"
                                         : ""
                                     }
                                     title={
@@ -1134,14 +1135,14 @@ export function CartPage() {
                               className="flex items-center gap-2"
                             >
                               <Clock className="w-4 h-4" />
-                              Pickup Time *
+                              {i18nT("Pickup Time *")}
                             </Label>
                             <Select
                               value={pickupTime}
                               onValueChange={setPickupTime}
                             >
                               <SelectTrigger className="mt-2">
-                                <SelectValue placeholder="Select time" />
+                                <SelectValue placeholder={i18nT("Select time")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {getAvailablePickupTimes().map((time) => (
@@ -1166,21 +1167,21 @@ export function CartPage() {
                       )}
 
                       <div>
-                        <Label className="font-semibold">Pickup Address</Label>
-                        <div className="mt-1 p-3 border rounded bg-white text-sm text-muted-foreground">
+                        <Label className="font-semibold">{i18nT("Pickup Address")}</Label>
+                        <div className="mt-1 p-3 border rounded bg-card text-sm text-muted-foreground">
                           <p>{pickupAddress}</p>
                         </div>
                       </div>
 
                       <div>
                         <Label htmlFor="instructions">
-                          Special Instructions
+                          {i18nT("Special Instructions")}
                         </Label>
                         <Textarea
                           id="instructions"
                           value={instructions}
                           onChange={(e) => setInstructions(e.target.value)}
-                          placeholder="Any special delivery instructions"
+                          placeholder={i18nT("Any special delivery instructions")}
                           rows={3}
                         />
                       </div>
@@ -1196,7 +1197,7 @@ export function CartPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Package className="w-5 h-5" />
-                    Order Summary
+                    {i18nT("Order Summary")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1205,7 +1206,7 @@ export function CartPage() {
                     {!buyerGoogleLoggedIn ? (
                       <div className="text-center py-4 space-y-3">
                         <p className="text-sm text-muted-foreground">
-                          Sign in to place your order
+                          {i18nT("Sign in to place your order")}
                         </p>
                         <Button
                           onClick={handleGoogleSignIn}
@@ -1213,7 +1214,7 @@ export function CartPage() {
                           variant="buttonOutline"
                         >
                           <FaGoogle className="mr-2 h-4 w-4" />
-                          Continue with Google
+                          {i18nT("Continue with Google")}
                         </Button>
                       </div>
                     ) : (
@@ -1221,21 +1222,21 @@ export function CartPage() {
                         {/* Customer Order Fields — pre-filled from Google */}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="firstName">First Name *</Label>
+                            <Label htmlFor="firstName">{i18nT("First Name *")}</Label>
                             <Input
                               id="firstName"
                               value={firstName}
                               onChange={(e) => setFirstName(e.target.value)}
-                              placeholder="John"
+                              placeholder={i18nT("John")}
                             />
                           </div>
                           <div>
-                            <Label htmlFor="lastName">Last Name *</Label>
+                            <Label htmlFor="lastName">{i18nT("Last Name *")}</Label>
                             <Input
                               id="lastName"
                               value={lastName}
                               onChange={(e) => setLastName(e.target.value)}
-                              placeholder="Doe"
+                              placeholder={i18nT("Doe")}
                             />
                           </div>
                         </div>
@@ -1246,8 +1247,8 @@ export function CartPage() {
                             htmlFor="email"
                             className="flex items-center justify-between mb-2"
                           >
-                            <span>Email Address</span>
-                            <Badge variant="default">Verified</Badge>
+                            <span>{i18nT("Email Address")}</span>
+                            <Badge variant="default">{i18nT("Verified")}</Badge>
                           </Label>
                           <Input
                             id="email"
@@ -1264,7 +1265,7 @@ export function CartPage() {
                             htmlFor="whatsapp"
                             className="flex items-center justify-between mb-2"
                           >
-                            <span>WhatsApp *</span>
+                            <span>{i18nT("WhatsApp *")}</span>
                           </Label>
                           <div className="flex items-center space-x-2">
                             <div className="w-28">
@@ -1273,7 +1274,7 @@ export function CartPage() {
                                 onValueChange={setCountryCode}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Code" />
+                                  <SelectValue placeholder={i18nT("Code")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {countries.map((country) => (
@@ -1290,7 +1291,7 @@ export function CartPage() {
                             <Input
                               id="whatsapp"
                               type="tel"
-                              placeholder="For order updates"
+                              placeholder={i18nT("For order updates")}
                               value={whatsapp}
                               maxLength={10}
                               onChange={(e) =>
@@ -1310,19 +1311,19 @@ export function CartPage() {
                       <span>{formatPrice(subtotal)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Discount</span>
+                      <span>{i18nT("Discount")}</span>
                       <span className="text-green-600">
                         -{formatPrice(discount)}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Coupon Discount</span>
+                      <span>{i18nT("Coupon Discount")}</span>
                       <span className="text-green-600">
                         -{formatPrice(couponDiscount)}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Grand total</span>
+                      <span>{i18nT("Grand total")}</span>
                       <span>{formatPrice(grandTotal)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
@@ -1330,12 +1331,12 @@ export function CartPage() {
                       <span>{formatPrice(tax)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Delivery Fee</span>
+                      <span>{i18nT("Delivery Fee")}</span>
                       <span>{formatPrice(deliveryFee)}</span>
                     </div>
                     <div className="border-t pt-3">
                       <div className="flex justify-between font-semibold text-lg">
-                        <span>Total</span>
+                        <span>{i18nT("Total")}</span>
                         <span className="text-green-600">
                           {formatPrice(total)}
                         </span>
@@ -1366,25 +1367,25 @@ export function CartPage() {
                     {isCheckingOut ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        Processing...
+                        {i18nT("Processing...")}
                       </>
                     ) : (
                       <>
                         <CreditCard className="w-4 h-4 mr-2" />
-                        Proceed to Payment
+                        {i18nT("Proceed to Payment")}
                       </>
                     )}
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    Secure payment • No hidden charges
+                    {i18nT("Secure payment • No hidden charges")}
                   </p>
 
                   <div className="space-y-2 pt-4 border-t">
-                    <Label>Available Coupons</Label>
+                    <Label>{i18nT("Available Coupons")}</Label>
 
                     {coupons.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        No coupons available
+                        {i18nT("No coupons available")}
                       </p>
                     ) : (
                       <div className="space-y-2">
@@ -1418,7 +1419,7 @@ export function CartPage() {
                                 variant="destructive"
                                 onClick={removeCoupon}
                               >
-                                Remove
+                                {i18nT("Remove")}
                               </Button>
                             ) : (
                               <Button
@@ -1429,7 +1430,7 @@ export function CartPage() {
                                 }
                                 onClick={() => applyCoupon(coupon)}
                               >
-                                Apply
+                                {i18nT("Apply")}
                               </Button>
                             )}
                           </div>
@@ -1447,7 +1448,7 @@ export function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+    <div className="min-h-screen bg-muted/50 py-4 sm:py-8">
       <div className="container mx-auto max-w-6xl px-4">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
           {/* Left: Cart Items & Order Options */}
@@ -1464,7 +1465,7 @@ export function CartPage() {
                 {shopCart.map((item) => (
                   <div
                     key={`${item.productId}-${item.subcategoryIndex}-${item.variantIndex}`}
-                    className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white"
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-card"
                   >
                     {item.image && (
                       <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
@@ -1514,7 +1515,7 @@ export function CartPage() {
                         <p className="text-sm font-medium flex items-center gap-2">
                           {item.isDiscounted && (
                             <div>
-                              <span className="text-xs text-gray-400 line-through">
+                              <span className="text-xs text-muted-foreground line-through">
                                 {formatPrice(item.price)}
                               </span>{" "}
                               <span className="text-green-600">
@@ -1587,7 +1588,7 @@ export function CartPage() {
                           {item.isDiscounted ? (
                             <>
                               <div className="w-20">
-                                <p className="text-xs sm:text-sm text-gray-400 line-through">
+                                <p className="text-xs sm:text-sm text-muted-foreground line-through">
                                   {formatPrice(item.price * item.quantity)}
                                 </p>
 
@@ -1654,7 +1655,7 @@ export function CartPage() {
                       >
                         <FaWhatsapp size={18} className="shrink-0" />
                         <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
-                          WhatsApp Contact
+                          {i18nT("WhatsApp Contact")}
                         </span>
                       </a>
                     </Button>
@@ -1668,7 +1669,7 @@ export function CartPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Truck className="w-5 h-5" />
-                  Fulfillment Options
+                  {i18nT("Fulfillment Options")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1691,8 +1692,8 @@ export function CartPage() {
                     <RadioGroupItem value="pickup" id="pickup" />
                     <Store className="w-4 h-4 text-blue-600 shrink-0" />
                     <div>
-                      <p className="font-medium">Store Pickup</p>
-                      <p className="text-sm text-muted-foreground">Free</p>
+                      <p className="font-medium">{i18nT("Store Pickup")}</p>
+                      <p className="text-sm text-muted-foreground">{i18nT("Free")}</p>
                     </div>
                   </Label>
 
@@ -1707,9 +1708,9 @@ export function CartPage() {
                       <RadioGroupItem value="delivery" id="delivery" />
                       <Truck className="w-4 h-4 text-green-600 shrink-0" />
                       <div>
-                        <p className="font-medium">Home Delivery</p>
+                        <p className="font-medium">{i18nT("Home Delivery")}</p>
                         <p className="text-sm text-muted-foreground">
-                          Delivery charges may apply
+                          {i18nT("Delivery charges may apply")}
                         </p>
                       </div>
                     </Label>
@@ -1717,10 +1718,10 @@ export function CartPage() {
                 </RadioGroup>
 
                 {orderType === "delivery" && (
-                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="sm:col-span-2">
-                        <Label htmlFor="street">Street Address *</Label>
+                        <Label htmlFor="street">{i18nT("Street Address *")}</Label>
                         <Input
                           id="street"
                           value={deliveryAddress.street}
@@ -1734,7 +1735,7 @@ export function CartPage() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="city">City *</Label>
+                        <Label htmlFor="city">{i18nT("City *")}</Label>
                         <Input
                           id="city"
                           value={deliveryAddress.city}
@@ -1744,11 +1745,11 @@ export function CartPage() {
                               city: e.target.value,
                             }))
                           }
-                          placeholder="City"
+                          placeholder={i18nT("City")}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="state">State *</Label>
+                        <Label htmlFor="state">{i18nT("State *")}</Label>
                         <Input
                           id="state"
                           value={deliveryAddress.state}
@@ -1758,11 +1759,11 @@ export function CartPage() {
                               state: e.target.value,
                             }))
                           }
-                          placeholder="State"
+                          placeholder={i18nT("State")}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="zipCode">ZIP Code *</Label>
+                        <Label htmlFor="zipCode">{i18nT("ZIP Code *")}</Label>
                         <Input
                           id="zipCode"
                           value={deliveryAddress.zipCode}
@@ -1777,13 +1778,13 @@ export function CartPage() {
                       </div>
                       <div className="sm:col-span-2">
                         <Label htmlFor="instructions">
-                          Special Instructions
+                          {i18nT("Special Instructions")}
                         </Label>
                         <Textarea
                           id="instructions"
                           value={instructions}
                           onChange={(e) => setInstructions(e.target.value)}
-                          placeholder="Any special delivery instructions"
+                          placeholder={i18nT("Any special delivery instructions")}
                           rows={3}
                         />
                       </div>
@@ -1792,12 +1793,12 @@ export function CartPage() {
                 )}
 
                 {orderType === "pickup" && (
-                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
                     {isSelfOrder ? (
                       <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
                         <Clock className="w-4 h-4 text-primary" />
                         <span className="text-sm font-medium">
-                          Kiosk Order — Pickup set to now
+                          {i18nT("Kiosk Order — Pickup set to now")}
                         </span>
                       </div>
                     ) : pickupDateRequired ? (
@@ -1808,14 +1809,14 @@ export function CartPage() {
                             className="flex items-center gap-2"
                           >
                             <Calendar className="w-4 h-4" />
-                            Pickup Date *
+                            {i18nT("Pickup Date *")}
                           </Label>
                           <Select
                             value={pickupDate}
                             onValueChange={setPickupDate}
                           >
                             <SelectTrigger className="mt-2">
-                              <SelectValue placeholder="Select date" />
+                              <SelectValue placeholder={i18nT("Select date")} />
                             </SelectTrigger>
                             <SelectContent>
                               {getAvailablePickupDates(
@@ -1827,7 +1828,7 @@ export function CartPage() {
                                   value={date.value}
                                   disabled={date.isClosed}
                                   className={
-                                    date.isClosed ? "text-gray-400 italic" : ""
+                                    date.isClosed ? "text-muted-foreground italic" : ""
                                   }
                                   title={
                                     date.isClosed ? "Shop is closed" : undefined
@@ -1851,14 +1852,14 @@ export function CartPage() {
                             className="flex items-center gap-2"
                           >
                             <Clock className="w-4 h-4" />
-                            Pickup Time *
+                            {i18nT("Pickup Time *")}
                           </Label>
                           <Select
                             value={pickupTime}
                             onValueChange={setPickupTime}
                           >
                             <SelectTrigger className="mt-2">
-                              <SelectValue placeholder="Select time" />
+                              <SelectValue placeholder={i18nT("Select time")} />
                             </SelectTrigger>
                             <SelectContent>
                               {getAvailablePickupTimes().map((time) => (
@@ -1880,19 +1881,19 @@ export function CartPage() {
                     )}
 
                     <div>
-                      <Label className="font-semibold">Pickup Address</Label>
-                      <div className="mt-1 p-3 border rounded bg-white text-sm text-muted-foreground">
+                      <Label className="font-semibold">{i18nT("Pickup Address")}</Label>
+                      <div className="mt-1 p-3 border rounded bg-card text-sm text-muted-foreground">
                         <p>{pickupAddress}</p>
                       </div>
                     </div>
 
                     <div>
-                      <Label htmlFor="instructions">Special Instructions</Label>
+                      <Label htmlFor="instructions">{i18nT("Special Instructions")}</Label>
                       <Textarea
                         id="instructions"
                         value={instructions}
                         onChange={(e) => setInstructions(e.target.value)}
-                        placeholder="Any special delivery instructions"
+                        placeholder={i18nT("Any special delivery instructions")}
                         rows={3}
                       />
                     </div>
@@ -1908,7 +1909,7 @@ export function CartPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5" />
-                  Order Summary
+                  {i18nT("Order Summary")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1917,7 +1918,7 @@ export function CartPage() {
                   {!buyerGoogleLoggedIn ? (
                     <div className="text-center py-4 space-y-3">
                       <p className="text-sm text-muted-foreground">
-                        Sign in to place your order
+                        {i18nT("Sign in to place your order")}
                       </p>
                       <Button
                         onClick={handleGoogleSignIn}
@@ -1925,7 +1926,7 @@ export function CartPage() {
                         variant="buttonOutline"
                       >
                         <FaGoogle className="mr-2 h-4 w-4" />
-                        Continue with Google
+                        {i18nT("Continue with Google")}
                       </Button>
                     </div>
                   ) : (
@@ -1933,21 +1934,21 @@ export function CartPage() {
                       {/* Customer Order Fields — pre-filled from Google */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="firstName">First Name *</Label>
+                          <Label htmlFor="firstName">{i18nT("First Name *")}</Label>
                           <Input
                             id="firstName"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            placeholder="John"
+                            placeholder={i18nT("John")}
                           />
                         </div>
                         <div>
-                          <Label htmlFor="lastName">Last Name *</Label>
+                          <Label htmlFor="lastName">{i18nT("Last Name *")}</Label>
                           <Input
                             id="lastName"
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
-                            placeholder="Doe"
+                            placeholder={i18nT("Doe")}
                           />
                         </div>
                       </div>
@@ -1958,8 +1959,8 @@ export function CartPage() {
                           htmlFor="email"
                           className="flex items-center justify-between mb-2"
                         >
-                          <span>Email Address</span>
-                          <Badge variant="default">Verified</Badge>
+                          <span>{i18nT("Email Address")}</span>
+                          <Badge variant="default">{i18nT("Verified")}</Badge>
                         </Label>
                         <Input
                           id="email"
@@ -1976,7 +1977,7 @@ export function CartPage() {
                           htmlFor="whatsapp"
                           className="flex items-center justify-between mb-2"
                         >
-                          <span>WhatsApp *</span>
+                          <span>{i18nT("WhatsApp *")}</span>
                         </Label>
                         <div className="flex items-center space-x-2">
                           <div className="w-28">
@@ -1985,7 +1986,7 @@ export function CartPage() {
                               onValueChange={setCountryCode}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Code" />
+                                <SelectValue placeholder={i18nT("Code")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {countries.map((country) => (
@@ -2003,7 +2004,7 @@ export function CartPage() {
                             id="whatsapp"
                             type="tel"
                             maxLength={10}
-                            placeholder="For order updates"
+                            placeholder={i18nT("For order updates")}
                             value={whatsapp}
                             onChange={(e) =>
                               setWhatsapp(e.target.value.replace(/\D/g, ""))
@@ -2021,19 +2022,19 @@ export function CartPage() {
                     <span>{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span>Discount</span>
+                    <span>{i18nT("Discount")}</span>
                     <span className="text-green-600">
                       -{formatPrice(discount)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span>Coupon Discount</span>
+                    <span>{i18nT("Coupon Discount")}</span>
                     <span className="text-green-600">
                       -{formatPrice(couponDiscount)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span>Grand total</span>
+                    <span>{i18nT("Grand total")}</span>
                     <span>{formatPrice(grandTotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -2041,12 +2042,12 @@ export function CartPage() {
                     <span>{formatPrice(tax)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span>Delivery Fee</span>
+                    <span>{i18nT("Delivery Fee")}</span>
                     <span>{formatPrice(deliveryFee)}</span>
                   </div>
                   <div className="border-t pt-3">
                     <div className="flex justify-between font-semibold text-lg">
-                      <span>Total</span>
+                      <span>{i18nT("Total")}</span>
                       <span className="text-green-600">
                         {formatPrice(total)}
                       </span>
@@ -2076,25 +2077,25 @@ export function CartPage() {
                   {isCheckingOut ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Processing...
+                      {i18nT("Processing...")}
                     </>
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4 mr-2" />
-                      Proceed to Payment
+                      {i18nT("Proceed to Payment")}
                     </>
                   )}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  Secure payment • No hidden charges
+                  {i18nT("Secure payment • No hidden charges")}
                 </p>
 
                 <div className="space-y-2 pt-4 border-t">
-                  <Label>Available Coupons</Label>
+                  <Label>{i18nT("Available Coupons")}</Label>
 
                   {coupons.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      No coupons available
+                      {i18nT("No coupons available")}
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -2128,7 +2129,7 @@ export function CartPage() {
                               variant="destructive"
                               onClick={removeCoupon}
                             >
-                              Remove
+                              {i18nT("Remove")}
                             </Button>
                           ) : (
                             <Button
@@ -2137,7 +2138,7 @@ export function CartPage() {
                               disabled={subtotal < (coupon.minOrderAmount || 0)}
                               onClick={() => applyCoupon(coupon)}
                             >
-                              Apply
+                              {i18nT("Apply")}
                             </Button>
                           )}
                         </div>

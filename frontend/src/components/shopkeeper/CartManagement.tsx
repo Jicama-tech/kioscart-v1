@@ -70,6 +70,7 @@ import {
 } from "react-icons/fa";
 import { useCurrency } from "@/hooks/useCurrencyhook";
 
+import { t as i18nT } from "@/i18n/t";
 // Interfaces
 interface ProductItem {
   productId: string;
@@ -156,7 +157,7 @@ function ConfirmDeleteDialog({
     <Dialog open={open} onOpenChange={onCancel}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Order?</DialogTitle>
+          <DialogTitle>{i18nT("Delete Order?")}</DialogTitle>
           <DialogDescription>
             Are you sure you want to delete this order? This action cannot be
             undone.
@@ -164,7 +165,7 @@ function ConfirmDeleteDialog({
         </DialogHeader>
         <div className="flex justify-end space-x-2">
           <Button variant="buttonOutline" onClick={onCancel}>
-            Cancel
+            {i18nT("Cancel")}
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={loading}>
             {loading ? "Deleting..." : "Delete"}
@@ -179,10 +180,10 @@ function LoadingOverlay({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-card/60 backdrop-blur-sm" />
       <div className="relative z-10 text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
-        <p className="text-slate-600 font-medium">Loading...</p>
+        <p className="text-muted-foreground font-medium">{i18nT("Loading...")}</p>
       </div>
     </div>
   );
@@ -258,13 +259,13 @@ export function CartManagement({
         if (status === "confirmed") {
           toast({
             duration: 5000,
-            title: "Payment confirmed",
-            description: "Matched order has been updated to processing.",
+            title: i18nT("Payment confirmed"),
+            description: i18nT("Matched order has been updated to processing."),
           });
           // Refresh orders to reflect status change
           fetchOrders(currentPage, rowsPerPage);
         } else {
-          toast({ duration: 3000, title: "Payment ignored" });
+          toast({ duration: 3000, title: i18nT("Payment ignored") });
         }
       }
     } catch (err) {
@@ -305,12 +306,12 @@ export function CartManagement({
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const STATUS_OPTIONS = [
-    { label: "Pending", value: "pending" },
-    { label: "Processing", value: "processing" },
-    { label: "Ready", value: "ready" },
-    { label: "Shipped", value: "shipped" },
-    { label: "Cancelled", value: "cancelled" },
-    { label: "Completed", value: "completed" },
+    { label: i18nT("Pending"), value: "pending" },
+    { label: i18nT("Processing"), value: "processing" },
+    { label: i18nT("Ready"), value: "ready" },
+    { label: i18nT("Shipped"), value: "shipped" },
+    { label: i18nT("Cancelled"), value: "cancelled" },
+    { label: i18nT("Completed"), value: "completed" },
   ];
 
   const { toast } = useToast();
@@ -550,8 +551,8 @@ Thank you for shopping with us.
     } catch (error) {
       console.error(error);
       toast({
-        title: "Error",
-        description: "Failed to load receipt preview",
+        title: i18nT("Error"),
+        description: i18nT("Failed to load receipt preview"),
         variant: "destructive",
       });
     }
@@ -589,13 +590,13 @@ Thank you for shopping with us.
 
       toast({
         duration: 5000,
-        title: "Success",
+        title: i18nT("Success"),
         description: `Order status updated to ${newStatus}`,
       });
     } catch (error) {
       toast({
         duration: 5000,
-        title: "Error",
+        title: i18nT("Error"),
         description:
           error instanceof Error ? error.message : "Failed to update status",
         variant: "destructive",
@@ -1036,8 +1037,8 @@ Thank you for shopping with us.
     } catch (error) {
       toast({
         duration: 5000,
-        title: "Error",
-        description: "Failed to prepare print data",
+        title: i18nT("Error"),
+        description: i18nT("Failed to prepare print data"),
         variant: "destructive",
       });
     }
@@ -1067,9 +1068,8 @@ Thank you for shopping with us.
       if (!printWindow) {
         toast({
           duration: 5000,
-          title: "Print App Required",
-          description:
-            "Please install the Bluetooth Print app from the App Store to use thermal printing.",
+          title: i18nT("Print App Required"),
+          description: i18nT("Please install the Bluetooth Print app from the App Store to use thermal printing."),
           variant: "destructive",
         });
         return;
@@ -1077,9 +1077,8 @@ Thank you for shopping with us.
 
       toast({
         duration: 5000,
-        title: "Print Command Sent",
-        description:
-          "Opening Bluetooth Print app. Make sure your thermal printer is connected.",
+        title: i18nT("Print Command Sent"),
+        description: i18nT("Opening Bluetooth Print app. Make sure your thermal printer is connected."),
       });
 
       setPrintPreviewOpen(false);
@@ -1087,8 +1086,8 @@ Thank you for shopping with us.
     } catch (error) {
       toast({
         duration: 5000,
-        title: "Print Error",
-        description: "Failed to send print command to thermal printer",
+        title: i18nT("Print Error"),
+        description: i18nT("Failed to send print command to thermal printer"),
         variant: "destructive",
       });
     }
@@ -1143,14 +1142,14 @@ Thank you for shopping with us.
 
       if (!res.ok) throw new Error("Failed to delete order");
 
-      toast({ duration: 5000, title: "Order deleted successfully." });
+      toast({ duration: 5000, title: i18nT("Order deleted successfully.") });
       setDeleteDialogOpen(false);
       // Refetch current page from backend
       await fetchOrders(currentPage, rowsPerPage);
     } catch (error) {
       toast({
         duration: 5000,
-        title: "Failed to delete order.",
+        title: i18nT("Failed to delete order."),
         variant: "destructive",
       });
     } finally {
@@ -1186,8 +1185,8 @@ Thank you for shopping with us.
     } catch (error) {
       console.error(error);
       toast({
-        title: "Error",
-        description: "Failed to load receipt",
+        title: i18nT("Error"),
+        description: i18nT("Failed to load receipt"),
         variant: "destructive",
       });
     }
@@ -1329,10 +1328,10 @@ Thank you for shopping with us.
         <TabsContent value="orders">
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">No orders found</p>
+              <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-lg font-medium">{i18nT("No orders found")}</p>
               <p className="text-sm mt-1">
-                Orders will appear here when customers place them.
+                {i18nT("Orders will appear here when customers place them.")}
               </p>
             </CardContent>
           </Card>
@@ -1407,7 +1406,7 @@ Thank you for shopping with us.
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Overall Orders
+                  {i18nT("Overall Orders")}
                 </CardTitle>
                 <ShoppingCart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -1420,7 +1419,7 @@ Thank you for shopping with us.
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Overall Revenue
+                  {i18nT("Overall Revenue")}
                 </CardTitle>
                 {shopkeeperInfo?.country === "IN" ? (
                   <FaRupeeSign className="h-4 w-4 text-muted-foreground" />
@@ -1433,7 +1432,7 @@ Thank you for shopping with us.
                   {" "}
                   {formatPrice(totalRevenue)}
                 </div>
-                {/* <p className="text-xs text-muted-foreground">Till Today</p> */}
+                {/* <p className="text-xs text-muted-foreground">{i18nT("Till Today")}</p> */}
               </CardContent>
             </Card>
 
@@ -1441,7 +1440,7 @@ Thank you for shopping with us.
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Today's Orders
+                  {i18nT("Today's Orders")}
                 </CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -1449,7 +1448,7 @@ Thank you for shopping with us.
                 <div className="text-2xl font-bold text-blue-600">
                   {todaysOrders}
                 </div>
-                {/* <p className="text-xs text-muted-foreground">Orders placed today</p> */}
+                {/* <p className="text-xs text-muted-foreground">{i18nT("Orders placed today")}</p> */}
               </CardContent>
             </Card>
 
@@ -1457,7 +1456,7 @@ Thank you for shopping with us.
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Pending Orders
+                  {i18nT("Pending Orders")}
                 </CardTitle>
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -1465,7 +1464,7 @@ Thank you for shopping with us.
                 <div className="text-2xl font-bold text-red-600">
                   {pendingOrders}
                 </div>
-                {/* <p className="text-xs text-muted-foreground">Waiting For Action</p> */}
+                {/* <p className="text-xs text-muted-foreground">{i18nT("Waiting For Action")}</p> */}
               </CardContent>
             </Card>
           </div>
@@ -1473,19 +1472,19 @@ Thank you for shopping with us.
           {/* Filters Section */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Filters</CardTitle>
-              <CardDescription>Filter and sort your orders</CardDescription>
+              <CardTitle>{i18nT("Filters")}</CardTitle>
+              <CardDescription>{i18nT("Filter and sort your orders")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label>{i18nT("Status")}</Label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
+                      <SelectValue placeholder={i18nT("All statuses")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="all">{i18nT("All statuses")}</SelectItem>
                       {STATUS_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
@@ -1495,20 +1494,20 @@ Thank you for shopping with us.
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Order Type</Label>
+                  <Label>{i18nT("Order Type")}</Label>
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
                     <SelectTrigger>
-                      <SelectValue placeholder="All" />
+                      <SelectValue placeholder={i18nT("All")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="pickup">Pickup</SelectItem>
-                      <SelectItem value="delivery">Delivery</SelectItem>
+                      <SelectItem value="all">{i18nT("All")}</SelectItem>
+                      <SelectItem value="pickup">{i18nT("Pickup")}</SelectItem>
+                      <SelectItem value="delivery">{i18nT("Delivery")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>From Date</Label>
+                  <Label>{i18nT("From Date")}</Label>
                   <Input
                     type="date"
                     value={dateFrom}
@@ -1516,7 +1515,7 @@ Thank you for shopping with us.
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>To Date</Label>
+                  <Label>{i18nT("To Date")}</Label>
                   <Input
                     type="date"
                     value={dateTo}
@@ -1524,26 +1523,26 @@ Thank you for shopping with us.
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Customer Name</Label>
+                  <Label>{i18nT("Customer Name")}</Label>
                   <Input
-                    placeholder="Search by name"
+                    placeholder={i18nT("Search by name")}
                     value={customerNameFilter}
                     onChange={(e) => setCustomerNameFilter(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Total Amount</Label>
+                  <Label>{i18nT("Total Amount")}</Label>
                   <Select
                     value={amountSort}
                     onValueChange={(v) => setAmountSort(v as any)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="None" />
+                      <SelectValue placeholder={i18nT("None")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">None</SelectItem>
-                      <SelectItem value="asc">Lowest First</SelectItem>
-                      <SelectItem value="desc">Highest First</SelectItem>
+                      <SelectItem value="all">{i18nT("None")}</SelectItem>
+                      <SelectItem value="asc">{i18nT("Lowest First")}</SelectItem>
+                      <SelectItem value="desc">{i18nT("Highest First")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1553,7 +1552,7 @@ Thank you for shopping with us.
                 variant="buttonOutline"
                 className="mt-4"
               >
-                Clear All Filters
+                {i18nT("Clear All Filters")}
               </Button>
             </CardContent>
           </Card>
@@ -1564,16 +1563,16 @@ Thank you for shopping with us.
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 {/* Left: Title */}
                 <div>
-                  <CardTitle>Order Management</CardTitle>
+                  <CardTitle>{i18nT("Order Management")}</CardTitle>
                   <CardDescription>
-                    Track and manage customer orders
+                    {i18nT("Track and manage customer orders")}
                   </CardDescription>
                 </div>
 
                 {/* Right: Rows per page */}
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    Rows per page:
+                    {i18nT("Rows per page:")}
                   </span>
 
                   <Select
@@ -1602,23 +1601,23 @@ Thank you for shopping with us.
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Contact Details</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Total Amount</TableHead>
-                    <TableHead>Order Type</TableHead>
-                    <TableHead>Order Date</TableHead>
-                    <TableHead>Paid via</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{i18nT("Order ID")}</TableHead>
+                    <TableHead>{i18nT("Name")}</TableHead>
+                    <TableHead>{i18nT("Contact Details")}</TableHead>
+                    <TableHead>{i18nT("Items")}</TableHead>
+                    <TableHead>{i18nT("Total Amount")}</TableHead>
+                    <TableHead>{i18nT("Order Type")}</TableHead>
+                    <TableHead>{i18nT("Order Date")}</TableHead>
+                    <TableHead>{i18nT("Paid via")}</TableHead>
+                    <TableHead>{i18nT("Status")}</TableHead>
+                    <TableHead>{i18nT("Actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedOrders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={10} className="text-center">
-                        No orders match the selected filters.
+                        {i18nT("No orders match the selected filters.")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1701,13 +1700,13 @@ Thank you for shopping with us.
                             }
                             if (provider === "manual" || !provider) {
                               return (
-                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200">
+                                <Badge className="bg-muted text-foreground hover:bg-muted border border-border">
                                   UPI / QR
                                 </Badge>
                               );
                             }
                             return (
-                              <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200">
+                              <Badge className="bg-muted text-foreground hover:bg-muted border border-border">
                                 {provider}
                               </Badge>
                             );
@@ -1792,7 +1791,7 @@ Thank you for shopping with us.
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage((p) => p - 1)}
                   >
-                    Previous
+                    {i18nT("Previous")}
                   </Button>
 
                   <span className="text-sm">
@@ -1806,7 +1805,7 @@ Thank you for shopping with us.
                     disabled={currentPage === totalPages || totalPages === 0}
                     onClick={() => setCurrentPage((p) => p + 1)}
                   >
-                    Next
+                    {i18nT("Next")}
                   </Button>
                 </div>
               </div>
@@ -1825,12 +1824,12 @@ Thank you for shopping with us.
                 <DialogHeader>
                   <DialogTitle>Order {selectedOrder.orderId}</DialogTitle>
                   <DialogDescription>
-                    Order details and timeline
+                    {i18nT("Order details and timeline")}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-semibold">Customer</h3>
+                    <h3 className="font-semibold">{i18nT("Customer")}</h3>
                     <p>
                       Name:{" "}
                       {selectedOrder.customerName ||
@@ -1852,7 +1851,7 @@ Thank you for shopping with us.
                   </div>
 
                   <div>
-                    <h3 className="font-semibold">Items Purchased</h3>
+                    <h3 className="font-semibold">{i18nT("Items Purchased")}</h3>
                     <div className="space-y-2">
                       {selectedOrder.items.map((item, i) => (
                         <div
@@ -1867,7 +1866,7 @@ Thank you for shopping with us.
                               className="w-12 h-12 object-cover rounded"
                             />
                           ) : (
-                            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                            <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
                               <Package className="h-6 w-6" />
                             </div>
                           )}
@@ -1881,13 +1880,13 @@ Thank you for shopping with us.
                               )}
                             {item.subcategoryName &&
                               item.subcategoryName !== "Default" && (
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-muted-foreground">
                                   {item.subcategoryName}
                                 </p>
                               )}
                             {item.variantTitle &&
                               item.variantTitle !== "Default" && (
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-muted-foreground">
                                   Variant: {item.variantTitle}
                                 </p>
                               )}
@@ -1905,9 +1904,9 @@ Thank you for shopping with us.
                   </div>
 
                   <div>
-                    <h3 className="font-semibold mt-4 mb-2">Order Timeline</h3>
+                    <h3 className="font-semibold mt-4 mb-2">{i18nT("Order Timeline")}</h3>
 
-                    <div className="relative border-l border-gray-300 pl-6 space-y-6">
+                    <div className="relative border-l border-border pl-6 space-y-6">
                       {selectedOrder.statusHistory
                         .sort(
                           (a, b) =>
@@ -1939,9 +1938,9 @@ Thank you for shopping with us.
                           return (
                             <div key={index} className="relative">
                               <span
-                                className={`absolute -left-[13px] top-1.5 w-3 h-3 rounded-full ring-2 ring-white ${dotColor}`}
+                                className={`absolute -left-[13px] top-1.5 w-3 h-3 rounded-full ring-2 ring-background ${dotColor}`}
                               />
-                              <div className="bg-gray-50 p-3 rounded-md border">
+                              <div className="bg-muted/50 p-3 rounded-md border">
                                 <div className="flex items-center gap-2 mb-1">
                                   <Badge
                                     variant={badgeVariant}
@@ -1950,7 +1949,7 @@ Thank you for shopping with us.
                                     {history.status}
                                   </Badge>
                                 </div>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-muted-foreground">
                                   {new Date(history.changedAt).toLocaleString()}
                                 </p>
                               </div>
@@ -1960,7 +1959,7 @@ Thank you for shopping with us.
                     </div>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Order Summary</h3>
+                    <h3 className="font-semibold">{i18nT("Order Summary")}</h3>
                     <p>
                       Total Amount: {formatPrice(selectedOrder.totalAmount)}
                     </p>
@@ -1968,7 +1967,7 @@ Thank you for shopping with us.
                     {selectedOrder.transactionId && (
                       <p>
                         Transaction ID:{" "}
-                        <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm">
+                        <span className="font-mono bg-muted px-2 py-0.5 rounded text-sm">
                           {selectedOrder.transactionId}
                         </span>
                       </p>
@@ -1978,7 +1977,7 @@ Thank you for shopping with us.
                       selectedOrder.deliveryAddress && (
                         <>
                           <h4 className="font-semibold mt-2">
-                            Delivery Address
+                            {i18nT("Delivery Address")}
                           </h4>
                           <p>{selectedOrder.deliveryAddress.street}</p>
                           <p>
@@ -1995,7 +1994,7 @@ Thank you for shopping with us.
 
                     {selectedOrder.orderType === "pickup" && (
                       <>
-                        <h4 className="font-semibold mt-2">Pickup Details</h4>
+                        <h4 className="font-semibold mt-2">{i18nT("Pickup Details")}</h4>
                         {selectedOrder.pickupDate ? (
                           <>
                             <p>
@@ -2012,7 +2011,7 @@ Thank you for shopping with us.
                               No pickup date/time selected
                             </p>
                             <p className="text-xs text-amber-700 mt-1">
-                              Please contact the customer to arrange pickup date and time.
+                              {i18nT("Please contact the customer to arrange pickup date and time.")}
                             </p>
                           </div>
                         )}
@@ -2027,12 +2026,12 @@ Thank you for shopping with us.
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <Button onClick={closeModal}>Close</Button>
+                  <Button onClick={closeModal}>{i18nT("Close")}</Button>
                   <Button
                     variant="whatsApp"
                     onClick={sendLatestStatusToWhatsApp}
                   >
-                    <FaWhatsapp /> Send Status on WhatsApp
+                    <FaWhatsapp /> {i18nT("Send Status on WhatsApp")}
                   </Button>
                 </div>
               </DialogContent>
@@ -2042,19 +2041,19 @@ Thank you for shopping with us.
           {/* Print Preview Dialog */}
           <Dialog open={printPreviewOpen} onOpenChange={setPrintPreviewOpen}>
             <DialogContent className="max-w-md w-[90vw] sm:w-full max-h-[85vh] overflow-y-auto p-4">
-              <DialogHeader className="sticky top-0 bg-white z-10 pb-2 border-b">
+              <DialogHeader className="sticky top-0 bg-card z-10 pb-2 border-b">
                 <DialogTitle className="text-base sm:text-lg font-semibold">
-                  Print Receipt
+                  {i18nT("Print Receipt")}
                 </DialogTitle>
-                <DialogDescription className="text-sm text-gray-500">
-                  Preview of thermal printer receipt
+                <DialogDescription className="text-sm text-muted-foreground">
+                  {i18nT("Preview of thermal printer receipt")}
                 </DialogDescription>
               </DialogHeader>
 
               {printOrder && (
                 <div className="space-y-4 mt-2">
                   {/* 🧾 Thermal Receipt Style */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 font-mono text-[13px] sm:text-sm shadow-sm">
+                  <div className="bg-card border border-border rounded-lg p-4 font-mono text-[13px] sm:text-sm shadow-sm">
                     {/* Shop Info */}
                     <div className="text-center mb-2">
                       <div className="font-bold text-lg">
@@ -2069,7 +2068,7 @@ Thank you for shopping with us.
                       {shopkeeperInfo?.GSTNumber && (
                         <div>GSTIN: {shopkeeperInfo.GSTNumber}</div>
                       )}
-                      <div className="my-2 border-t border-dashed border-gray-300"></div>
+                      <div className="my-2 border-t border-dashed border-border"></div>
                     </div>
 
                     {/* Order Info */}
@@ -2094,11 +2093,11 @@ Thank you for shopping with us.
                       </div>
                     </div>
 
-                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+                    <div className="my-2 border-t border-dashed border-border"></div>
 
                     {/* Customer Info */}
                     <div className="space-y-1">
-                      <div className="font-bold">Customer:</div>
+                      <div className="font-bold">{i18nT("Customer:")}</div>
                       <div>Name: {printOrder.userId.name}</div>
                       {printOrder.userId.whatsAppNumber && (
                         <div>Phone: {printOrder.userId.whatsAppNumber}</div>
@@ -2132,11 +2131,11 @@ Thank you for shopping with us.
                       )}
                     </div>
 
-                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+                    <div className="my-2 border-t border-dashed border-border"></div>
 
                     {/* Items */}
                     <div>
-                      <div className="font-bold mb-1">Items:</div>
+                      <div className="font-bold mb-1">{i18nT("Items:")}</div>
                       {printOrder.items.map((item, index) => (
                         <div key={index} className="mb-1">
                           <div className="font-semibold">
@@ -2147,7 +2146,7 @@ Thank you for shopping with us.
                             item.subcategoryName,
                             item.variantTitle,
                           ].some((v) => v && v !== "Default") && (
-                            <div className="text-xs text-gray-600">
+                            <div className="text-xs text-muted-foreground">
                               (
                               {[
                                 item.optionTitle,
@@ -2167,7 +2166,7 @@ Thank you for shopping with us.
                       ))}
                     </div>
 
-                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+                    <div className="my-2 border-t border-dashed border-border"></div>
 
                     {/* Totals */}
                     <div className="text-right space-y-1">
@@ -2186,39 +2185,39 @@ Thank you for shopping with us.
                       </div>
                     </div>
 
-                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+                    <div className="my-2 border-t border-dashed border-border"></div>
 
                     {/* Payment Info */}
                     <div className="space-y-1">
-                      <div>Payment: Online</div>
+                      <div>{i18nT("Payment: Online")}</div>
                       <div>Status: {printOrder.status?.toUpperCase()}</div>
                     </div>
 
-                    <div className="my-2 border-t border-dashed border-gray-300"></div>
+                    <div className="my-2 border-t border-dashed border-border"></div>
 
                     {/* Footer */}
                     <div className="text-center mt-3 text-[13px]">
                       <div className="font-semibold">
-                        Thank you for your order!
+                        {i18nT("Thank you for your order!")}
                       </div>
-                      <div>Visit us again!</div>
+                      <div>{i18nT("Visit us again!")}</div>
                     </div>
                   </div>
 
-                  <div className="text-sm text-gray-600">
-                    <p>This will be sent to your Bluetooth thermal printer.</p>
-                    <p>Ensure your printer is connected and ready.</p>
+                  <div className="text-sm text-muted-foreground">
+                    <p>{i18nT("This will be sent to your Bluetooth thermal printer.")}</p>
+                    <p>{i18nT("Ensure your printer is connected and ready.")}</p>
                   </div>
                 </div>
               )}
 
               {/* ✅ Buttons fixed at bottom */}
-              <div className="flex justify-end gap-2 mt-4 sticky bottom-0 bg-white pt-3 border-t">
+              <div className="flex justify-end gap-2 mt-4 sticky bottom-0 bg-card pt-3 border-t">
                 <Button
                   variant="buttonOutline"
                   onClick={() => setPrintPreviewOpen(false)}
                 >
-                  Cancel
+                  {i18nT("Cancel")}
                 </Button>
                 <Button
                   onClick={async () =>
@@ -2227,14 +2226,14 @@ Thank you for shopping with us.
                   className="flex items-center gap-2"
                 >
                   <Printer className="h-4 w-4" />
-                  Print
+                  {i18nT("Print")}
                 </Button>
                 <Button
                   onClick={async () => await downloadReceipt(printOrder._id)}
                   className="flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
-                  Download
+                  {i18nT("Download")}
                 </Button>
               </div>
             </DialogContent>
@@ -2243,9 +2242,9 @@ Thank you for shopping with us.
           {/* 🧾 Receipt View Dialog */}
           <Dialog open={receiptViewOpen} onOpenChange={closeReceiptView}>
             <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-4">
-              <DialogHeader className="sticky top-0 bg-white z-10 pb-2 border-b">
+              <DialogHeader className="sticky top-0 bg-card z-10 pb-2 border-b">
                 <DialogTitle className="text-base sm:text-lg">
-                  Receipt View
+                  {i18nT("Receipt View")}
                 </DialogTitle>
               </DialogHeader>
 
@@ -2254,11 +2253,11 @@ Thank you for shopping with us.
                   <iframe
                     src={receiptUrl}
                     className="w-full h-full border-0 rounded-md"
-                    title="Receipt"
+                    title={i18nT("Receipt")}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500">
-                    Loading...
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    {i18nT("Loading...")}
                   </div>
                 )}
               </div>
@@ -2274,10 +2273,10 @@ Thank you for shopping with us.
                       a.click();
                     }}
                   >
-                    Download
+                    {i18nT("Download")}
                   </Button>
                 )}
-                <Button onClick={closeReceiptView}>Close</Button>
+                <Button onClick={closeReceiptView}>{i18nT("Close")}</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -2289,7 +2288,7 @@ Thank you for shopping with us.
           >
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Select Print Format</DialogTitle>
+                <DialogTitle>{i18nT("Select Print Format")}</DialogTitle>
                 <DialogDescription>
                   Choose the receipt format you want to generate for Order #
                   {printingOrder?.orderId}
@@ -2300,20 +2299,20 @@ Thank you for shopping with us.
                 {/* Option 1: Thermal 58mm */}
                 <Button
                   variant="outline"
-                  className="h-24 flex flex-col gap-2 hover:bg-slate-50 border-2 hover:border-blue-500"
+                  className="h-24 flex flex-col gap-2 hover:bg-muted border-2 hover:border-blue-500"
                   onClick={() => fetchAndPreviewReceipt("58MM")}
                 >
-                  <Receipt className="h-8 w-8 text-slate-600" />
+                  <Receipt className="h-8 w-8 text-muted-foreground" />
                   <span className="font-semibold">Thermal (58mm)</span>
                 </Button>
 
                 {/* Option 2: Standard A4 */}
                 <Button
                   variant="outline"
-                  className="h-24 flex flex-col gap-2 hover:bg-slate-50 border-2 hover:border-blue-500"
+                  className="h-24 flex flex-col gap-2 hover:bg-muted border-2 hover:border-blue-500"
                   onClick={() => fetchAndPreviewReceipt("A4")}
                 >
-                  <Printer className="h-8 w-8 text-slate-600" />
+                  <Printer className="h-8 w-8 text-muted-foreground" />
                   <span className="font-semibold">Standard (A4)</span>
                 </Button>
               </div>
@@ -2323,7 +2322,7 @@ Thank you for shopping with us.
                   variant="ghost"
                   onClick={() => setPrintSelectionOpen(false)}
                 >
-                  Cancel
+                  {i18nT("Cancel")}
                 </Button>
               </div>
             </DialogContent>
@@ -2379,24 +2378,24 @@ Thank you for shopping with us.
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Order {selectedOrder.orderId}</DialogTitle>
-              <DialogDescription>Order details and timeline</DialogDescription>
+              <DialogDescription>{i18nT("Order details and timeline")}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold">Customer</h3>
+                <h3 className="font-semibold">{i18nT("Customer")}</h3>
                 <p>Name: {selectedOrder.customerName || selectedOrder.userId?.name || "N/A"}</p>
                 <p>Email: {selectedOrder.customerEmail || selectedOrder.userId?.email || "N/A"}</p>
                 <p>WhatsApp: {selectedOrder.customerWhatsApp || selectedOrder.userId?.whatsAppNumber || "N/A"}</p>
               </div>
               <div>
-                <h3 className="font-semibold">Items Purchased</h3>
+                <h3 className="font-semibold">{i18nT("Items Purchased")}</h3>
                 <div className="space-y-2">
                   {selectedOrder.items.map((item, i) => (
                     <div key={i} className="flex items-center gap-3 p-2 border rounded">
                       {item.image ? (
                         <img loading="lazy" src={API_URL + item.image} alt={item.productName} className="w-12 h-12 object-cover rounded" />
                       ) : (
-                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
                           <Package className="h-6 w-6" />
                         </div>
                       )}
@@ -2406,10 +2405,10 @@ Thank you for shopping with us.
                           <p className="text-sm text-purple-600">{item.optionTitle}</p>
                         )}
                         {item.subcategoryName && item.subcategoryName !== "Default" && (
-                          <p className="text-sm text-gray-600">{item.subcategoryName}</p>
+                          <p className="text-sm text-muted-foreground">{item.subcategoryName}</p>
                         )}
                         {item.variantTitle && item.variantTitle !== "Default" && (
-                          <p className="text-sm text-gray-500">Variant: {item.variantTitle}</p>
+                          <p className="text-sm text-muted-foreground">Variant: {item.variantTitle}</p>
                         )}
                       </div>
                       <div className="text-right">
@@ -2421,16 +2420,16 @@ Thank you for shopping with us.
                 </div>
               </div>
               <div>
-                <h3 className="font-semibold">Order Summary</h3>
+                <h3 className="font-semibold">{i18nT("Order Summary")}</h3>
                 <p>Total Amount: {formatPrice(selectedOrder.totalAmount)}</p>
                 <p>Order Type: {selectedOrder.orderType}</p>
                 {selectedOrder.transactionId && (
-                  <p>Transaction ID: <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm">{selectedOrder.transactionId}</span></p>
+                  <p>{i18nT("Transaction ID:")} <span className="font-mono bg-muted px-2 py-0.5 rounded text-sm">{selectedOrder.transactionId}</span></p>
                 )}
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button onClick={closeModal}>Close</Button>
+              <Button onClick={closeModal}>{i18nT("Close")}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -2462,12 +2461,12 @@ function PaymentsTabContent({
   onStatusChange: (orderId: string, status: string) => void;
 }) {
   const STATUS_OPTIONS = [
-    { label: "Pending", value: "pending" },
-    { label: "Processing", value: "processing" },
-    { label: "Ready", value: "ready" },
-    { label: "Shipped", value: "shipped" },
-    { label: "Cancelled", value: "cancelled" },
-    { label: "Completed", value: "completed" },
+    { label: i18nT("Pending"), value: "pending" },
+    { label: i18nT("Processing"), value: "processing" },
+    { label: i18nT("Ready"), value: "ready" },
+    { label: i18nT("Shipped"), value: "shipped" },
+    { label: i18nT("Cancelled"), value: "cancelled" },
+    { label: i18nT("Completed"), value: "completed" },
   ];
 
   const confirmed = paymentEmails.filter((e) => e.status === "confirmed");
@@ -2485,44 +2484,44 @@ function PaymentsTabContent({
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+            <CardTitle className="text-sm font-medium">{i18nT("Pending Review")}</CardTitle>
             <Clock className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{pending.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Awaiting confirmation</p>
+            <p className="text-xs text-muted-foreground mt-1">{i18nT("Awaiting confirmation")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
+            <CardTitle className="text-sm font-medium">{i18nT("Confirmed")}</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{confirmed.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Payments verified</p>
+            <p className="text-xs text-muted-foreground mt-1">{i18nT("Payments verified")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Confirmed</CardTitle>
+            <CardTitle className="text-sm font-medium">{i18nT("Total Confirmed")}</CardTitle>
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
               {totalAmount > 0 ? formatPrice(totalAmount) : "—"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Revenue confirmed via email</p>
+            <p className="text-xs text-muted-foreground mt-1">{i18nT("Revenue confirmed via email")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ignored</CardTitle>
-            <Ban className="h-4 w-4 text-gray-400" />
+            <CardTitle className="text-sm font-medium">{i18nT("Ignored")}</CardTitle>
+            <Ban className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-400">{ignored.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Dismissed payments</p>
+            <div className="text-2xl font-bold text-muted-foreground">{ignored.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">{i18nT("Dismissed payments")}</p>
           </CardContent>
         </Card>
       </div>
@@ -2530,8 +2529,8 @@ function PaymentsTabContent({
       {/* Header with Refresh */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Payment Transactions</h3>
-          <p className="text-sm text-muted-foreground">Payments detected from your connected Gmail</p>
+          <h3 className="text-lg font-semibold">{i18nT("Payment Transactions")}</h3>
+          <p className="text-sm text-muted-foreground">{i18nT("Payments detected from your connected Gmail")}</p>
         </div>
         <Button variant="outline" size="sm" onClick={onRefresh} disabled={paymentLoading} className="flex items-center gap-2">
           <RefreshCw className={`h-4 w-4 ${paymentLoading ? "animate-spin" : ""}`} />
@@ -2543,9 +2542,9 @@ function PaymentsTabContent({
       {paymentEmails.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center">
-            <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium text-muted-foreground">No payments detected yet</p>
-            <p className="text-sm text-muted-foreground mt-1">Connect your Gmail in Settings → Payments to start tracking payment emails.</p>
+            <CreditCard className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-lg font-medium text-muted-foreground">{i18nT("No payments detected yet")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{i18nT("Connect your Gmail in Settings → Payments to start tracking payment emails.")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -2555,14 +2554,14 @@ function PaymentsTabContent({
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="font-semibold text-center">Amount</TableHead>
-                    <TableHead className="font-semibold text-center">Provider</TableHead>
-                    <TableHead className="font-semibold text-center">Reference</TableHead>
-                    <TableHead className="font-semibold text-center">Matched Order</TableHead>
-                    <TableHead className="font-semibold text-center">Order Status</TableHead>
-                    <TableHead className="font-semibold text-center">Received</TableHead>
-                    <TableHead className="font-semibold text-center">Payment Status</TableHead>
-                    <TableHead className="font-semibold text-center">Actions</TableHead>
+                    <TableHead className="font-semibold text-center">{i18nT("Amount")}</TableHead>
+                    <TableHead className="font-semibold text-center">{i18nT("Provider")}</TableHead>
+                    <TableHead className="font-semibold text-center">{i18nT("Reference")}</TableHead>
+                    <TableHead className="font-semibold text-center">{i18nT("Matched Order")}</TableHead>
+                    <TableHead className="font-semibold text-center">{i18nT("Order Status")}</TableHead>
+                    <TableHead className="font-semibold text-center">{i18nT("Received")}</TableHead>
+                    <TableHead className="font-semibold text-center">{i18nT("Payment Status")}</TableHead>
+                    <TableHead className="font-semibold text-center">{i18nT("Actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2615,7 +2614,7 @@ function PaymentsTabContent({
                               Order #{email.matchedOrderId}
                             </Button>
                           ) : (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">No match</Badge>
+                            <Badge variant="outline" className="text-xs text-muted-foreground">{i18nT("No match")}</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -2666,10 +2665,10 @@ function PaymentsTabContent({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="matched">Matched</SelectItem>
-                              <SelectItem value="unmatched">Unmatched</SelectItem>
-                              <SelectItem value="confirmed">Confirmed</SelectItem>
-                              <SelectItem value="ignored">Ignored</SelectItem>
+                              <SelectItem value="matched">{i18nT("Matched")}</SelectItem>
+                              <SelectItem value="unmatched">{i18nT("Unmatched")}</SelectItem>
+                              <SelectItem value="confirmed">{i18nT("Confirmed")}</SelectItem>
+                              <SelectItem value="ignored">{i18nT("Ignored")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>

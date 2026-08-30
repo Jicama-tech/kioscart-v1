@@ -31,6 +31,7 @@ import QRCode from "react-qr-code";
 import jsQR from "jsqr";
 import { jwtDecode } from "jwt-decode";
 
+import { t as i18nT } from "@/i18n/t";
 const apiURL = __API_URL__;
 
 interface QuickAction {
@@ -211,12 +212,12 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
     setOpenSC(s);
   };
   return (
-    <div className="mt-2 border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
-      <div className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] bg-slate-50 border-b border-slate-200 text-[12px] font-semibold text-slate-600 uppercase tracking-wide">
-        <div className="px-4 py-2.5">Product</div>
-        <div className="px-3 py-2.5">Price</div>
-        <div className="px-3 py-2.5">Stock</div>
-        <div className="px-3 py-2.5">Status</div>
+    <div className="mt-2 border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+      <div className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] bg-muted/50 border-b border-border text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
+        <div className="px-4 py-2.5">{i18nT("Product")}</div>
+        <div className="px-3 py-2.5">{i18nT("Price")}</div>
+        <div className="px-3 py-2.5">{i18nT("Stock")}</div>
+        <div className="px-3 py-2.5">{i18nT("Status")}</div>
       </div>
       {products.map((p, i) => {
         const hasChildren =
@@ -229,29 +230,29 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
           <div key={i}>
             <div
               onClick={() => hasChildren && toggleP(i)}
-              className={`grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[14px] ${hasChildren ? "cursor-pointer hover:bg-blue-50" : ""}`}
+              className={`grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-border text-[14px] ${hasChildren ? "cursor-pointer hover:bg-blue-50" : ""}`}
             >
               <div className="px-4 py-3 flex items-center gap-2 min-w-0">
                 {hasChildren ? (
                   isOpen ? (
-                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                    <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   )
                 ) : (
                   <span className="w-4 flex-shrink-0" />
                 )}
-                <span className="font-medium text-slate-900 truncate">
+                <span className="font-medium text-foreground truncate">
                   {p.name}
                 </span>
                 {p.category && (
-                  <span className="text-[11px] text-slate-400 flex-shrink-0">
+                  <span className="text-[11px] text-muted-foreground flex-shrink-0">
                     · {p.category}
                   </span>
                 )}
               </div>
-              <div className="px-3 py-3 text-slate-700">{fmt(p.price)}</div>
-              <div className="px-3 py-3 text-slate-700">
+              <div className="px-3 py-3 text-foreground">{fmt(p.price)}</div>
+              <div className="px-3 py-3 text-foreground">
                 {p.inventory ?? "—"}
               </div>
               <div className="px-3 py-3">
@@ -260,7 +261,7 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
                     p.status === "active"
                       ? "bg-emerald-100 text-emerald-700"
                       : p.status === "archived"
-                        ? "bg-slate-100 text-slate-600"
+                        ? "bg-muted text-muted-foreground"
                         : "bg-amber-100 text-amber-700"
                   }`}
                 >
@@ -270,24 +271,24 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
             </div>
 
             {isOpen && (
-              <div className="bg-slate-50/60">
+              <div className="bg-muted/60">
                 {/* Top-level variants */}
                 {(p.variants || []).map((v, vi) => (
                   <div
                     key={`v-${vi}`}
-                    className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]"
+                    className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-border text-[13px]"
                   >
-                    <div className="px-4 py-2 pl-10 flex items-center gap-2 text-slate-700">
-                      <span className="text-slate-400">·</span>
+                    <div className="px-4 py-2 pl-10 flex items-center gap-2 text-foreground">
+                      <span className="text-muted-foreground">·</span>
                       <span className="font-medium">{v.title}</span>
-                      <span className="text-[11px] text-slate-400">
-                        variant
+                      <span className="text-[11px] text-muted-foreground">
+                        {i18nT("variant")}
                       </span>
                     </div>
-                    <div className="px-3 py-2 text-slate-700">
+                    <div className="px-3 py-2 text-foreground">
                       {fmt(v.price)}
                     </div>
-                    <div className="px-3 py-2 text-slate-700">
+                    <div className="px-3 py-2 text-foreground">
                       {v.inventory ?? "—"}
                     </div>
                     <div className="px-3 py-2" />
@@ -302,24 +303,24 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
                     <div key={`sc-${si}`}>
                       <div
                         onClick={() => hasScVariants && toggleSC(k)}
-                        className={`grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px] ${hasScVariants ? "cursor-pointer hover:bg-blue-50" : ""}`}
+                        className={`grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-border text-[13px] ${hasScVariants ? "cursor-pointer hover:bg-blue-50" : ""}`}
                       >
-                        <div className="px-4 py-2 pl-8 flex items-center gap-2 text-slate-800">
+                        <div className="px-4 py-2 pl-8 flex items-center gap-2 text-foreground">
                           {hasScVariants ? (
                             scOpen ? (
-                              <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                              <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                             ) : (
-                              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                             )
                           ) : (
                             <span className="w-3.5 flex-shrink-0" />
                           )}
                           <span className="font-medium">{sc.name}</span>
-                          <span className="text-[11px] text-slate-400">
-                            subcategory
+                          <span className="text-[11px] text-muted-foreground">
+                            {i18nT("subcategory")}
                           </span>
                         </div>
-                        <div className="px-3 py-2 text-slate-700">
+                        <div className="px-3 py-2 text-foreground">
                           {sc.basePrice !== undefined ? fmt(sc.basePrice) : "—"}
                         </div>
                         <div className="px-3 py-2" />
@@ -329,16 +330,16 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
                         (sc.variants || []).map((v, vi) => (
                           <div
                             key={`scv-${si}-${vi}`}
-                            className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px] bg-white"
+                            className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-border text-[13px] bg-card"
                           >
-                            <div className="px-4 py-2 pl-14 flex items-center gap-2 text-slate-700">
-                              <span className="text-slate-400">·</span>
+                            <div className="px-4 py-2 pl-14 flex items-center gap-2 text-foreground">
+                              <span className="text-muted-foreground">·</span>
                               <span>{v.title}</span>
                             </div>
-                            <div className="px-3 py-2 text-slate-700">
+                            <div className="px-3 py-2 text-foreground">
                               {fmt(v.price)}
                             </div>
-                            <div className="px-3 py-2 text-slate-700">
+                            <div className="px-3 py-2 text-foreground">
                               {v.inventory ?? "—"}
                             </div>
                             <div className="px-3 py-2" />
@@ -351,17 +352,17 @@ function ProductTree({ products }: { products: ProductTreeItem[] }) {
                 {(p.options || []).map((o, oi) => (
                   <div
                     key={`o-${oi}`}
-                    className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-slate-100 text-[13px]"
+                    className="grid grid-cols-[1fr_70px_60px_70px] sm:grid-cols-[1fr_120px_100px_100px] border-b border-border text-[13px]"
                   >
-                    <div className="px-4 py-2 pl-10 flex items-center gap-2 text-slate-700">
-                      <span className="text-slate-400">·</span>
+                    <div className="px-4 py-2 pl-10 flex items-center gap-2 text-foreground">
+                      <span className="text-muted-foreground">·</span>
                       <span className="font-medium">{o.title}</span>
-                      <span className="text-[11px] text-slate-400">option</span>
+                      <span className="text-[11px] text-muted-foreground">{i18nT("option")}</span>
                     </div>
-                    <div className="px-3 py-2 text-slate-700">
+                    <div className="px-3 py-2 text-foreground">
                       {fmt(o.price)}
                     </div>
-                    <div className="px-3 py-2 text-slate-700">
+                    <div className="px-3 py-2 text-foreground">
                       {o.inventory ?? "—"}
                     </div>
                     <div className="px-3 py-2" />
@@ -425,69 +426,69 @@ function AnalyticsCards({
     subject === "product"
       ? [
           {
-            label: "Product Revenue",
+            label: i18nT("Product Revenue"),
             value: `${data.currency || ""}${fmt(data.revenue)}`,
-            tint: "from-blue-50 to-blue-100/60 text-blue-700",
+            tint: "from-blue-50 to-blue-100/60 text-blue-700 dark:from-blue-950/50 dark:to-blue-900/30 dark:text-blue-300",
           },
           {
-            label: "Orders",
+            label: i18nT("Orders"),
             value: fmt(data.orders),
-            tint: "from-emerald-50 to-emerald-100/60 text-emerald-700",
+            tint: "from-emerald-50 to-emerald-100/60 text-emerald-700 dark:from-emerald-950/50 dark:to-emerald-900/30 dark:text-emerald-300",
           },
           {
-            label: "Units Sold",
+            label: i18nT("Units Sold"),
             value: fmt(data.avgOrder),
-            tint: "from-amber-50 to-amber-100/60 text-amber-700",
+            tint: "from-amber-50 to-amber-100/60 text-amber-700 dark:from-amber-950/50 dark:to-amber-900/30 dark:text-amber-300",
           },
           {
-            label: "Unique Buyers",
+            label: i18nT("Unique Buyers"),
             value: fmt(data.customers),
-            tint: "from-rose-50 to-rose-100/60 text-rose-700",
+            tint: "from-rose-50 to-rose-100/60 text-rose-700 dark:from-rose-950/50 dark:to-rose-900/30 dark:text-rose-300",
           },
         ]
       : subject === "customer"
         ? [
             {
-              label: "Total Spent",
+              label: i18nT("Total Spent"),
               value: `${data.currency || ""}${fmt(data.revenue)}`,
-              tint: "from-blue-50 to-blue-100/60 text-blue-700",
+              tint: "from-blue-50 to-blue-100/60 text-blue-700 dark:from-blue-950/50 dark:to-blue-900/30 dark:text-blue-300",
             },
             {
-              label: "Orders",
+              label: i18nT("Orders"),
               value: fmt(data.orders),
-              tint: "from-emerald-50 to-emerald-100/60 text-emerald-700",
+              tint: "from-emerald-50 to-emerald-100/60 text-emerald-700 dark:from-emerald-950/50 dark:to-emerald-900/30 dark:text-emerald-300",
             },
             {
-              label: "Avg Order",
+              label: i18nT("Avg Order"),
               value: `${data.currency || ""}${fmt(data.avgOrder)}`,
-              tint: "from-amber-50 to-amber-100/60 text-amber-700",
+              tint: "from-amber-50 to-amber-100/60 text-amber-700 dark:from-amber-950/50 dark:to-amber-900/30 dark:text-amber-300",
             },
             {
-              label: "Products Bought",
+              label: i18nT("Products Bought"),
               value: fmt(data.customers),
-              tint: "from-rose-50 to-rose-100/60 text-rose-700",
+              tint: "from-rose-50 to-rose-100/60 text-rose-700 dark:from-rose-950/50 dark:to-rose-900/30 dark:text-rose-300",
             },
           ]
         : [
             {
-              label: "Total Revenue",
+              label: i18nT("Total Revenue"),
               value: `${data.currency || ""}${fmt(data.revenue)}`,
-              tint: "from-blue-50 to-blue-100/60 text-blue-700",
+              tint: "from-blue-50 to-blue-100/60 text-blue-700 dark:from-blue-950/50 dark:to-blue-900/30 dark:text-blue-300",
             },
             {
-              label: "Total Orders",
+              label: i18nT("Total Orders"),
               value: fmt(data.orders),
-              tint: "from-emerald-50 to-emerald-100/60 text-emerald-700",
+              tint: "from-emerald-50 to-emerald-100/60 text-emerald-700 dark:from-emerald-950/50 dark:to-emerald-900/30 dark:text-emerald-300",
             },
             {
-              label: "Avg Order Value",
+              label: i18nT("Avg Order Value"),
               value: `${data.currency || ""}${fmt(data.avgOrder)}`,
-              tint: "from-amber-50 to-amber-100/60 text-amber-700",
+              tint: "from-amber-50 to-amber-100/60 text-amber-700 dark:from-amber-950/50 dark:to-amber-900/30 dark:text-amber-300",
             },
             {
-              label: "Total Customers",
+              label: i18nT("Total Customers"),
               value: fmt(data.customers),
-              tint: "from-rose-50 to-rose-100/60 text-rose-700",
+              tint: "from-rose-50 to-rose-100/60 text-rose-700 dark:from-rose-950/50 dark:to-rose-900/30 dark:text-rose-300",
             },
           ];
   const subjectHeader =
@@ -507,7 +508,7 @@ function AnalyticsCards({
   return (
     <div className={compact ? "" : "mt-2"}>
       {!compact && subjectHeader && (
-        <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1.5">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
           {subjectHeader}
         </p>
       )}
@@ -517,19 +518,19 @@ function AnalyticsCards({
         {cards.map((c) => (
           <div
             key={c.label}
-            className={`rounded-xl border border-slate-200 bg-gradient-to-br ${c.tint} ${compact ? "px-2.5 py-1.5" : "px-3 py-2.5"} shadow-sm`}
+            className={`rounded-xl border border-border bg-gradient-to-br ${c.tint} ${compact ? "px-2.5 py-1.5" : "px-3 py-2.5"} shadow-sm`}
           >
             <div
               className={
                 compact
-                  ? "text-[10px] font-medium text-slate-600 truncate"
-                  : "text-[11px] font-medium text-slate-600"
+                  ? "text-[10px] font-medium text-muted-foreground truncate"
+                  : "text-[11px] font-medium text-muted-foreground"
               }
             >
               {c.label}
             </div>
             <div
-              className={`mt-0.5 ${compact ? "text-sm sm:text-base" : "text-base sm:text-lg"} font-bold text-slate-900 break-all`}
+              className={`mt-0.5 ${compact ? "text-sm sm:text-base" : "text-base sm:text-lg"} font-bold text-foreground break-all`}
             >
               {c.value}
             </div>
@@ -539,8 +540,8 @@ function AnalyticsCards({
       {!compact &&
         Array.isArray(data.topProducts) &&
         data.topProducts.length > 0 && (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1.5">
+          <div className="mt-3 rounded-xl border border-border bg-card p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
               {topProductsTitle}
             </p>
             <ul className="space-y-1">
@@ -549,10 +550,10 @@ function AnalyticsCards({
                   key={i}
                   className="flex items-center justify-between text-[13px]"
                 >
-                  <span className="text-slate-700 truncate mr-2">
+                  <span className="text-foreground truncate mr-2">
                     {i + 1}. {p.name}
                   </span>
-                  <span className="text-slate-500 flex-shrink-0">
+                  <span className="text-muted-foreground flex-shrink-0">
                     {p.revenue !== undefined
                       ? `${data.currency || ""}${fmt(p.revenue)}`
                       : ""}
@@ -627,7 +628,7 @@ function InlineCustomerForm({
   if (status === "done") {
     return (
       <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-800">
-        Customer created. They will appear in your CRM list.
+        {i18nT("Customer created. They will appear in your CRM list.")}
       </div>
     );
   }
@@ -635,37 +636,37 @@ function InlineCustomerForm({
   return (
     <form
       onSubmit={submit}
-      className="mt-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2"
+      className="mt-2 rounded-xl border border-border bg-card p-3 shadow-sm space-y-2"
     >
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[11px] font-medium text-slate-600">
-            First name
+          <label className="text-[11px] font-medium text-muted-foreground">
+            {i18nT("First name")}
           </label>
           <input
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             disabled={disabled}
-            placeholder="Vansh"
-            className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+            placeholder={i18nT("Vansh")}
+            className="mt-0.5 w-full rounded-md border border-border px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
         </div>
         <div>
-          <label className="text-[11px] font-medium text-slate-600">
-            Last name
+          <label className="text-[11px] font-medium text-muted-foreground">
+            {i18nT("Last name")}
           </label>
           <input
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             disabled={disabled}
-            placeholder="Sharma"
-            className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+            placeholder={i18nT("Sharma")}
+            className="mt-0.5 w-full rounded-md border border-border px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
         </div>
       </div>
       <div>
-        <label className="text-[11px] font-medium text-slate-600">
-          WhatsApp number
+        <label className="text-[11px] font-medium text-muted-foreground">
+          {i18nT("WhatsApp number")}
         </label>
         <div className="mt-0.5 flex gap-1.5">
           <input
@@ -673,27 +674,27 @@ function InlineCustomerForm({
             onChange={(e) => setCode(e.target.value)}
             disabled={disabled}
             placeholder="+91"
-            className="w-16 rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-16 rounded-md border border-border px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
           <input
             value={local}
             onChange={(e) => setLocal(e.target.value)}
             disabled={disabled}
             placeholder="9876543210"
-            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="flex-1 rounded-md border border-border px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
         </div>
       </div>
       <div>
-        <label className="text-[11px] font-medium text-slate-600">
-          Email (optional)
+        <label className="text-[11px] font-medium text-muted-foreground">
+          {i18nT("Email (optional)")}
         </label>
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={disabled}
-          placeholder="vansh@example.com"
-          className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+          placeholder={i18nT("vansh@example.com")}
+          className="mt-0.5 w-full rounded-md border border-border px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
       </div>
       {error && <p className="text-[12px] text-red-600">{error}</p>}
@@ -961,13 +962,13 @@ function InlineOrderForm({
         step === s
           ? "text-blue-700"
           : cart.length || chosen
-            ? "text-slate-500"
-            : "text-slate-400"
+            ? "text-muted-foreground"
+            : "text-muted-foreground"
       }`}
     >
       <span
         className={`w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] ${
-          step === s ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
+          step === s ? "bg-blue-600 text-white" : "bg-muted text-muted-foreground"
         }`}
       >
         {n}
@@ -977,12 +978,12 @@ function InlineOrderForm({
   );
 
   return (
-    <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-3 max-w-md">
+    <div className="mt-2 rounded-xl border border-border bg-card p-3 shadow-sm space-y-3 max-w-md">
       <div className="flex items-center gap-3">
         {stepBadge("customer", "Customer", 1)}
-        <span className="flex-1 h-px bg-slate-200" />
+        <span className="flex-1 h-px bg-muted" />
         {stepBadge("items", "Items", 2)}
-        <span className="flex-1 h-px bg-slate-200" />
+        <span className="flex-1 h-px bg-muted" />
         {stepBadge("payment", "Payment", 3)}
       </div>
 
@@ -990,8 +991,8 @@ function InlineOrderForm({
       {step === "customer" && (
         <div className="space-y-2">
           <div>
-            <label className="text-[11px] font-medium text-slate-600">
-              Customer name
+            <label className="text-[11px] font-medium text-muted-foreground">
+              {i18nT("Customer name")}
             </label>
             <div className="mt-0.5 flex gap-1.5">
               <input
@@ -1002,14 +1003,14 @@ function InlineOrderForm({
                   setMatches([]);
                   setChosen(null);
                 }}
-                placeholder="e.g. Vansh Sharma"
-                className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+                placeholder={i18nT("e.g. Vansh Sharma")}
+                className="flex-1 rounded-md border border-border px-2 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
               <button
                 type="button"
                 onClick={searchCustomer}
                 disabled={searching || !name.trim()}
-                className="px-3 py-1.5 rounded-md bg-slate-100 text-[13px] hover:bg-slate-200 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-md bg-muted text-[13px] hover:bg-muted disabled:opacity-50"
               >
                 {searching ? "Searching…" : "Search"}
               </button>
@@ -1019,21 +1020,21 @@ function InlineOrderForm({
           {chosen && matches.length === 1 && (
             <div className="rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-2 text-[12px]">
               <div className="font-semibold text-emerald-900">
-                Matched in CRM
+                {i18nT("Matched in CRM")}
               </div>
               <div className="mt-0.5 text-emerald-800">
                 <div>
-                  <span className="font-medium">Name:</span> {chosen.name}
+                  <span className="font-medium">{i18nT("Name:")}</span> {chosen.name}
                 </div>
                 {chosen.whatsapp && (
                   <div>
-                    <span className="font-medium">WhatsApp:</span>{" "}
+                    <span className="font-medium">{i18nT("WhatsApp:")}</span>{" "}
                     {chosen.whatsapp}
                   </div>
                 )}
                 {chosen.email && (
                   <div>
-                    <span className="font-medium">Email:</span> {chosen.email}
+                    <span className="font-medium">{i18nT("Email:")}</span> {chosen.email}
                   </div>
                 )}
               </div>
@@ -1043,7 +1044,7 @@ function InlineOrderForm({
           {matches.length > 1 && (
             <div className="rounded-md border border-amber-200 bg-amber-50 p-2 space-y-1">
               <div className="text-[12px] font-medium text-amber-900">
-                Multiple matches — pick one:
+                {i18nT("Multiple matches — pick one:")}
               </div>
               {matches.map((m) => (
                 <button
@@ -1059,11 +1060,11 @@ function InlineOrderForm({
                   className={`block w-full text-left text-[12px] px-2 py-1 rounded ${
                     chosen?.whatsapp === m.whatsapp
                       ? "bg-amber-200"
-                      : "bg-white hover:bg-amber-100"
+                      : "bg-card hover:bg-amber-100"
                   }`}
                 >
                   <span className="font-medium">{m.name}</span>{" "}
-                  <span className="text-slate-600">
+                  <span className="text-muted-foreground">
                     — {m.whatsapp || "no phone"}
                   </span>
                 </button>
@@ -1072,38 +1073,38 @@ function InlineOrderForm({
           )}
 
           {searchTried && matches.length === 0 && (
-            <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-2">
-              <div className="text-[12px] text-slate-600">
-                Not in CRM yet — enter contact details for a new customer.
+            <div className="space-y-2 rounded-md border border-border bg-muted/50 p-2">
+              <div className="text-[12px] text-muted-foreground">
+                {i18nT("Not in CRM yet — enter contact details for a new customer.")}
               </div>
               <div>
-                <label className="text-[11px] font-medium text-slate-600">
-                  WhatsApp number
+                <label className="text-[11px] font-medium text-muted-foreground">
+                  {i18nT("WhatsApp number")}
                 </label>
                 <div className="mt-0.5 flex gap-1.5">
                   <input
                     value={dial}
                     onChange={(e) => setDial(e.target.value)}
                     placeholder="+91"
-                    className="w-16 rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
+                    className="w-16 rounded-md border border-border px-2 py-1.5 text-[13px]"
                   />
                   <input
                     value={local}
                     onChange={(e) => setLocal(e.target.value)}
                     placeholder="9876543210"
-                    className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
+                    className="flex-1 rounded-md border border-border px-2 py-1.5 text-[13px]"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-[11px] font-medium text-slate-600">
-                  Email (optional)
+                <label className="text-[11px] font-medium text-muted-foreground">
+                  {i18nT("Email (optional)")}
                 </label>
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="customer@example.com"
-                  className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
+                  placeholder={i18nT("customer@example.com")}
+                  className="mt-0.5 w-full rounded-md border border-border px-2 py-1.5 text-[13px]"
                 />
               </div>
             </div>
@@ -1117,7 +1118,7 @@ function InlineOrderForm({
               disabled={!searchTried && !chosen}
               className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 disabled:opacity-60"
             >
-              Continue
+              {i18nT("Continue")}
             </button>
           </div>
         </div>
@@ -1127,16 +1128,16 @@ function InlineOrderForm({
       {step === "items" && (
         <div className="space-y-2">
           {chosen && (
-            <div className="text-[11px] text-slate-500">
+            <div className="text-[11px] text-muted-foreground">
               Customer:{" "}
-              <span className="font-medium text-slate-700">{chosen.name}</span>
+              <span className="font-medium text-foreground">{chosen.name}</span>
               {chosen.whatsapp ? ` · ${chosen.whatsapp}` : ""}
             </div>
           )}
 
           <div>
-            <label className="text-[11px] font-medium text-slate-600">
-              Product
+            <label className="text-[11px] font-medium text-muted-foreground">
+              {i18nT("Product")}
             </label>
             <select
               value={productName}
@@ -1144,9 +1145,9 @@ function InlineOrderForm({
                 setProductName(e.target.value);
                 resetItemSelection();
               }}
-              className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
+              className="mt-0.5 w-full rounded-md border border-border px-2 py-1.5 text-[13px] bg-card"
             >
-              <option value="">Select a product…</option>
+              <option value="">{i18nT("Select a product…")}</option>
               {catalog.map((p) => (
                 <option key={p.name} value={p.name}>
                   {p.name} — {fmtMoney(p.price)}
@@ -1157,8 +1158,8 @@ function InlineOrderForm({
 
           {hasSubcategories && (
             <div>
-              <label className="text-[11px] font-medium text-slate-600">
-                Subcategory
+              <label className="text-[11px] font-medium text-muted-foreground">
+                {i18nT("Subcategory")}
               </label>
               <select
                 value={subcategoryName}
@@ -1166,9 +1167,9 @@ function InlineOrderForm({
                   setSubcategoryName(e.target.value);
                   setVariantTitle("");
                 }}
-                className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
+                className="mt-0.5 w-full rounded-md border border-border px-2 py-1.5 text-[13px] bg-card"
               >
-                <option value="">Select…</option>
+                <option value="">{i18nT("Select…")}</option>
                 {product!.subcategories!.map((s) => (
                   <option key={s.name} value={s.name}>
                     {s.name}
@@ -1181,15 +1182,15 @@ function InlineOrderForm({
 
           {(subcategoryName ? subVariants.length > 0 : hasTopVariants) && (
             <div>
-              <label className="text-[11px] font-medium text-slate-600">
-                Variant
+              <label className="text-[11px] font-medium text-muted-foreground">
+                {i18nT("Variant")}
               </label>
               <select
                 value={variantTitle}
                 onChange={(e) => setVariantTitle(e.target.value)}
-                className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
+                className="mt-0.5 w-full rounded-md border border-border px-2 py-1.5 text-[13px] bg-card"
               >
-                <option value="">Select…</option>
+                <option value="">{i18nT("Select…")}</option>
                 {(subcategoryName ? subVariants : product!.variants!).map(
                   (v) => (
                     <option key={v.title} value={v.title}>
@@ -1203,15 +1204,15 @@ function InlineOrderForm({
 
           {hasOptions && (
             <div>
-              <label className="text-[11px] font-medium text-slate-600">
-                Option
+              <label className="text-[11px] font-medium text-muted-foreground">
+                {i18nT("Option")}
               </label>
               <select
                 value={optionTitle}
                 onChange={(e) => setOptionTitle(e.target.value)}
-                className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-[13px] bg-white"
+                className="mt-0.5 w-full rounded-md border border-border px-2 py-1.5 text-[13px] bg-card"
               >
-                <option value="">Select…</option>
+                <option value="">{i18nT("Select…")}</option>
                 {product!.productOptions!.map((o) => (
                   <option key={o.title} value={o.title}>
                     {o.title} — {fmtMoney(o.price)}
@@ -1223,8 +1224,8 @@ function InlineOrderForm({
 
           {product && (
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-medium text-slate-600">
-                Quantity
+              <label className="text-[11px] font-medium text-muted-foreground">
+                {i18nT("Quantity")}
               </label>
               <input
                 type="number"
@@ -1233,22 +1234,22 @@ function InlineOrderForm({
                 onChange={(e) =>
                   setQuantity(Math.max(1, Number(e.target.value) || 1))
                 }
-                className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-[13px]"
+                className="w-20 rounded-md border border-border px-2 py-1.5 text-[13px]"
               />
               <button
                 type="button"
                 onClick={addItem}
-                className="ml-auto px-3 py-1.5 rounded-full bg-slate-100 text-[13px] hover:bg-slate-200"
+                className="ml-auto px-3 py-1.5 rounded-full bg-muted text-[13px] hover:bg-muted"
               >
-                Add to order
+                {i18nT("Add to order")}
               </button>
             </div>
           )}
 
           {cart.length > 0 && (
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-2 space-y-1">
-              <div className="text-[11px] font-semibold text-slate-600 uppercase">
-                Cart
+            <div className="rounded-md border border-border bg-muted/50 p-2 space-y-1">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase">
+                {i18nT("Cart")}
               </div>
               {cart.map((c, i) => {
                 const detail = [c.subcategoryName, c.variantTitle]
@@ -1266,7 +1267,7 @@ function InlineOrderForm({
                       {detail ? ` (${detail})` : ""}
                       {opt}
                     </span>
-                    <span className="text-slate-600 mr-2">
+                    <span className="text-muted-foreground mr-2">
                       {fmtMoney(c.unitPrice * c.quantity)}
                     </span>
                     <button
@@ -1274,13 +1275,13 @@ function InlineOrderForm({
                       onClick={() => removeItem(i)}
                       className="text-[11px] text-red-600 hover:underline"
                     >
-                      Remove
+                      {i18nT("Remove")}
                     </button>
                   </div>
                 );
               })}
-              <div className="flex justify-between pt-1 border-t border-slate-200 text-[12px] font-medium">
-                <span>Subtotal</span>
+              <div className="flex justify-between pt-1 border-t border-border text-[12px] font-medium">
+                <span>{i18nT("Subtotal")}</span>
                 <span>{fmtMoney(subtotal)}</span>
               </div>
             </div>
@@ -1291,7 +1292,7 @@ function InlineOrderForm({
             <button
               type="button"
               onClick={() => setStep("customer")}
-              className="px-3 py-1.5 rounded-full text-[13px] text-slate-600 hover:text-slate-900"
+              className="px-3 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-foreground"
             >
               ← Back
             </button>
@@ -1305,7 +1306,7 @@ function InlineOrderForm({
               }}
               className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700"
             >
-              Continue
+              {i18nT("Continue")}
             </button>
           </div>
         </div>
@@ -1314,9 +1315,9 @@ function InlineOrderForm({
       {/* STEP 3 — Payment */}
       {step === "payment" && (
         <div className="space-y-2">
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-[12px] space-y-0.5">
-            <div className="font-semibold text-slate-600 uppercase text-[11px]">
-              Summary
+          <div className="rounded-md border border-border bg-muted/50 p-2 text-[12px] space-y-0.5">
+            <div className="font-semibold text-muted-foreground uppercase text-[11px]">
+              {i18nT("Summary")}
             </div>
             <div>
               Customer: <span className="font-medium">{chosen?.name}</span>
@@ -1326,22 +1327,22 @@ function InlineOrderForm({
               Subtotal:{" "}
               <span className="font-medium">{fmtMoney(subtotal)}</span>
             </div>
-            <div className="text-[11px] text-slate-500">
+            <div className="text-[11px] text-muted-foreground">
               Discount/tax (if any) applied by the system on submit.
             </div>
           </div>
           <div>
-            <label className="text-[11px] font-medium text-slate-600">
-              Payment method
+            <label className="text-[11px] font-medium text-muted-foreground">
+              {i18nT("Payment method")}
             </label>
             <div className="mt-0.5 flex gap-2">
               <label
                 className={`flex-1 rounded-md border px-3 py-2 text-[13px] ${
                   !qrReady
-                    ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+                    ? "border-border bg-muted/50 text-muted-foreground cursor-not-allowed"
                     : payment === "qr"
                       ? "border-blue-500 bg-blue-50 text-blue-700 cursor-pointer"
-                      : "border-slate-300 bg-white cursor-pointer"
+                      : "border-border bg-card cursor-pointer"
                 }`}
                 title={!qrReady ? qrSetupHint : undefined}
               >
@@ -1360,7 +1361,7 @@ function InlineOrderForm({
                 className={`flex-1 cursor-pointer rounded-md border px-3 py-2 text-[13px] ${
                   payment === "cash"
                     ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-slate-300 bg-white"
+                    : "border-border bg-card"
                 }`}
               >
                 <input
@@ -1371,7 +1372,7 @@ function InlineOrderForm({
                   onChange={() => setPayment("cash")}
                   className="mr-1.5"
                 />
-                Cash
+                {i18nT("Cash")}
               </label>
             </div>
             {!qrReady && qrSetupHint && (
@@ -1385,7 +1386,7 @@ function InlineOrderForm({
             <button
               type="button"
               onClick={() => setStep("items")}
-              className="px-3 py-1.5 rounded-full text-[13px] text-slate-600 hover:text-slate-900"
+              className="px-3 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-foreground"
             >
               ← Back
             </button>
@@ -1413,13 +1414,13 @@ function InlineOrderForm({
 
 // Tabs the chat can jump to (matches the sidebar order, minus the chat tab itself).
 const NAV_TABS: { id: string; label: string; Icon: any }[] = [
-  { id: "dashboard", label: "Analytics", Icon: Store },
-  { id: "kiosk", label: "Kiosk", Icon: Monitor },
-  { id: "orders", label: "Orders", Icon: ShoppingCart },
+  { id: "dashboard", label: i18nT("Analytics"), Icon: Store },
+  { id: "kiosk", label: i18nT("Kiosk"), Icon: Monitor },
+  { id: "orders", label: i18nT("Orders"), Icon: ShoppingCart },
   { id: "crm", label: "CRM", Icon: Users },
-  { id: "products", label: "Products", Icon: Package },
-  { id: "storefront", label: "Storefront", Icon: Globe },
-  { id: "settings", label: "Settings", Icon: Settings },
+  { id: "products", label: i18nT("Products"), Icon: Package },
+  { id: "storefront", label: i18nT("Storefront"), Icon: Globe },
+  { id: "settings", label: i18nT("Settings"), Icon: Settings },
 ];
 
 // Quick-start cards shown in page mode. Designed like ChatGPT / Claude / Gemini
@@ -1434,35 +1435,35 @@ const SUGGESTED_CARDS: {
   // Dashboard
   {
     Icon: Store,
-    tint: "text-blue-600 bg-blue-50",
+    tint: "text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/50",
     title: "Today's revenue",
     sub: "Quick snapshot of today's sales",
     prompt: "Show today's revenue",
   },
   {
     Icon: Store,
-    tint: "text-blue-600 bg-blue-50",
+    tint: "text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/50",
     title: "This month analytics",
     sub: "Revenue, orders & top products",
     prompt: "This month analytics",
   },
   {
     Icon: BarChart3,
-    tint: "text-blue-600 bg-blue-50",
+    tint: "text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/50",
     title: "Product analytics",
     sub: "Sales of any product over time",
     prompt: "Show analytics for <product>",
   },
   {
     Icon: BarChart3,
-    tint: "text-blue-600 bg-blue-50",
+    tint: "text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/50",
     title: "Customer analytics",
     sub: "Spend & favorites of any customer",
     prompt: "Show analytics for customer <name>",
   },
   {
     Icon: BarChart3,
-    tint: "text-blue-600 bg-blue-50",
+    tint: "text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/50",
     title: "Order breakdown",
     sub: "Line-item analytics for an order",
     prompt: "Breakdown of order <orderId>",
@@ -1470,14 +1471,14 @@ const SUGGESTED_CARDS: {
   // Kiosk
   {
     Icon: Monitor,
-    tint: "text-emerald-600 bg-emerald-50",
+    tint: "text-emerald-600 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/50",
     title: "Place a kiosk order",
     sub: "Opens the inline order form",
     prompt: "Place an order",
   },
   {
     Icon: Monitor,
-    tint: "text-emerald-600 bg-emerald-50",
+    tint: "text-emerald-600 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/50",
     title: "Get a receipt",
     sub: "Generate the PDF for any order",
     prompt: "Receipt for order <orderId>",
@@ -1485,21 +1486,21 @@ const SUGGESTED_CARDS: {
   // Orders
   {
     Icon: ShoppingCart,
-    tint: "text-amber-600 bg-amber-50",
+    tint: "text-amber-600 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/50",
     title: "Pending orders",
     sub: "See what still needs your action",
     prompt: "Show pending orders",
   },
   {
     Icon: ShoppingCart,
-    tint: "text-amber-600 bg-amber-50",
+    tint: "text-amber-600 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/50",
     title: "Confirm all payments",
     sub: "Mark every matched payment as paid",
     prompt: "Confirm all matched payments",
   },
   {
     Icon: ShoppingCart,
-    tint: "text-amber-600 bg-amber-50",
+    tint: "text-amber-600 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/50",
     title: "Confirm today's orders",
     sub: "Move today's pending → processing",
     prompt: "Confirm all today's orders",
@@ -1507,14 +1508,14 @@ const SUGGESTED_CARDS: {
   // CRM
   {
     Icon: Users,
-    tint: "text-rose-600 bg-rose-50",
+    tint: "text-rose-600 bg-rose-50 dark:text-rose-300 dark:bg-rose-950/50",
     title: "All customers",
     sub: "Full customer list with stats",
     prompt: "Show all my customers",
   },
   {
     Icon: Users,
-    tint: "text-rose-600 bg-rose-50",
+    tint: "text-rose-600 bg-rose-50 dark:text-rose-300 dark:bg-rose-950/50",
     title: "Add a customer",
     sub: "Opens the Add Customer form pre-filled",
     prompt: "Add customer <name>, <phone>, <email>",
@@ -1522,21 +1523,21 @@ const SUGGESTED_CARDS: {
   // Products
   {
     Icon: Package,
-    tint: "text-cyan-600 bg-cyan-50",
+    tint: "text-cyan-600 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/50",
     title: "All products",
     sub: "Browse your catalog",
     prompt: "Show all products",
   },
   {
     Icon: Package,
-    tint: "text-cyan-600 bg-cyan-50",
+    tint: "text-cyan-600 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/50",
     title: "Low stock alerts",
     sub: "Items below threshold",
     prompt: "Low stock products",
   },
   {
     Icon: Package,
-    tint: "text-cyan-600 bg-cyan-50",
+    tint: "text-cyan-600 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/50",
     title: "Add a new product",
     sub: "Opens the Add Product form",
     prompt: "Add a new Product",
@@ -1544,7 +1545,7 @@ const SUGGESTED_CARDS: {
   // Settings
   {
     Icon: Settings,
-    tint: "text-slate-600 bg-slate-100",
+    tint: "text-muted-foreground bg-muted",
     title: "Shop info",
     sub: "Your store profile",
     prompt: "Show shop info",
@@ -1552,56 +1553,56 @@ const SUGGESTED_CARDS: {
   // Learn KiosCart — explainer questions answered from the platform knowledge base.
   {
     Icon: BookOpen,
-    tint: "text-violet-600 bg-violet-50",
+    tint: "text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/50",
     title: "How do I enable delivery?",
     sub: "Set up the delivery toggle and fees",
     prompt: "How do I enable delivery?",
   },
   {
     Icon: BookOpen,
-    tint: "text-violet-600 bg-violet-50",
+    tint: "text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/50",
     title: "How do payments work?",
     sub: "UPI, PayNow, Gmail matching",
     prompt: "How do payments work in KiosCart?",
   },
   {
     Icon: BookOpen,
-    tint: "text-violet-600 bg-violet-50",
+    tint: "text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/50",
     title: "How do I add an operator?",
     sub: "Team members with role-based access",
     prompt: "How do I add an operator?",
   },
   {
     Icon: BookOpen,
-    tint: "text-violet-600 bg-violet-50",
+    tint: "text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/50",
     title: "What does Kiosk mode do?",
     sub: "Walk-in / in-store ordering",
     prompt: "What does Kiosk mode do?",
   },
   {
     Icon: BookOpen,
-    tint: "text-violet-600 bg-violet-50",
+    tint: "text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/50",
     title: "How do I create a coupon?",
     sub: "Percentage or flat discounts",
     prompt: "How do I create a coupon?",
   },
   {
     Icon: HelpCircle,
-    tint: "text-violet-600 bg-violet-50",
+    tint: "text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/50",
     title: "What hardware do I need?",
     sub: "Tablets, terminals, printers",
     prompt: "What hardware do I need to run KiosCart?",
   },
   // {
   //   Icon: HelpCircle,
-  //   tint: "text-violet-600 bg-violet-50",
+  //   tint: "text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/50",
   //   title: "Can I bulk import products?",
   //   sub: "Excel / CSV upload",
   //   prompt: "Can I bulk import products?",
   // },
   {
     Icon: HelpCircle,
-    tint: "text-violet-600 bg-violet-50",
+    tint: "text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/50",
     title: "What plans are available?",
     sub: "Starter vs Enterprise",
     prompt: "What plans does KiosCart offer?",
@@ -1610,7 +1611,7 @@ const SUGGESTED_CARDS: {
 
 // Lightweight markdown-to-HTML for chat replies. Supports:
 // - **bold** -> <strong>
-// - GFM-style tables (lines of `| col | col |`) -> styled <table>
+// - GFM-style tables (lines of `| col | col |`) -> {i18nT("styled")} <table>
 // - bullet items starting with `- ` or `* ` -> <ul>/<li>
 // - numbered items `1. ` -> <ol>/<li>
 // - blank lines and \n preserved as paragraph / line breaks
@@ -1642,16 +1643,16 @@ function renderTable(rows: string[]): string {
   const th = header
     .map(
       (c) =>
-        `<th class="px-3 py-2.5 text-left text-[13px] font-semibold text-gray-700 border-b border-gray-200 bg-gray-50">${inlineMd(c)}</th>`,
+        `<th class="px-3 py-2.5 text-left text-[13px] font-semibold text-foreground border-b border-border bg-muted/50">${inlineMd(c)}</th>`,
     )
     .join("");
   const tr = body
     .map(
       (row) =>
-        `<tr class="hover:bg-gray-50">${row.map((c) => `<td class="px-3 py-2.5 text-[14px] text-gray-800 border-b border-gray-100">${inlineMd(c)}</td>`).join("")}</tr>`,
+        `<tr class="hover:bg-muted">${row.map((c) => `<td class="px-3 py-2.5 text-[14px] text-foreground border-b border-border">${inlineMd(c)}</td>`).join("")}</tr>`,
     )
     .join("");
-  return `<div class="my-2 overflow-x-auto rounded-lg border border-gray-200"><table class="w-full border-collapse"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;
+  return `<div class="my-2 overflow-x-auto rounded-lg border border-border"><table class="w-full border-collapse"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;
 }
 function formatMessage(text: string): string {
   if (!text) return "";
@@ -2210,8 +2211,8 @@ export function ChatbotWidget({
   // On phones the floating bubble fills the viewport (with margins) instead of clipping.
   const isPage = mode === "page";
   const containerClass = isPage
-    ? "w-full h-[calc(100vh-6rem)] bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden"
-    : "fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-1.5rem)] h-[calc(100vh-6rem)] sm:w-[380px] sm:h-[520px] max-w-[400px] max-h-[640px] bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden";
+    ? "w-full h-[calc(100vh-6rem)] bg-gradient-to-b from-muted to-background flex flex-col overflow-hidden"
+    : "fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-1.5rem)] h-[calc(100vh-6rem)] sm:w-[380px] sm:h-[520px] max-w-[400px] max-h-[640px] bg-card rounded-2xl shadow-2xl border flex flex-col overflow-hidden";
   const messageMaxWidth = isPage ? "max-w-[88%] sm:max-w-[78%]" : "max-w-[88%]";
 
   return (
@@ -2228,18 +2229,18 @@ export function ChatbotWidget({
       {(isPage || open) && (
         <div className={containerClass}>
           {isPage ? (
-            <div className="flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur">
+            <div className="flex-shrink-0 border-b border-border bg-card/80 backdrop-blur">
               <div className="flex items-center gap-3 px-3 sm:pl-6 sm:pr-8 py-3 sm:py-4">
                 <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-md">
                   <Bot className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-slate-900 text-sm sm:text-base tracking-tight">
-                    KiosAI
+                  <p className="font-semibold text-foreground text-sm sm:text-base tracking-tight">
+                    {i18nT("KiosAI")}
                   </p>
-                  <p className="text-[11px] sm:text-xs text-slate-500 truncate">
-                    Your smart store assistant · Online
+                  <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
+                    {i18nT("Your smart store assistant · Online")}
                   </p>
                 </div>
               </div>
@@ -2247,19 +2248,19 @@ export function ChatbotWidget({
           ) : (
             <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-card/20 flex items-center justify-center">
                   <Bot className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm">KiosAI</p>
+                  <p className="font-bold text-sm">{i18nT("KiosAI")}</p>
                   <p className="text-[10px] opacity-80">
-                    Your smart store assistant
+                    {i18nT("Your smart store assistant")}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="p-1 hover:bg-white/20 rounded-lg transition"
+                className="p-1 hover:bg-card/20 rounded-lg transition"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -2271,33 +2272,33 @@ export function ChatbotWidget({
               the strip itself stays visible so they can re-open it. */}
           {(headerAnalytics || analyticsLoading) && (
             <div
-              className={`flex-shrink-0 border-b border-slate-200 bg-slate-50/60 ${isPage ? "px-3 sm:pl-6 sm:pr-8" : "px-3"} py-2`}
+              className={`flex-shrink-0 border-b border-border bg-muted/60 ${isPage ? "px-3 sm:pl-6 sm:pr-8" : "px-3"} py-2`}
             >
               <div className="flex items-center justify-between mb-1.5 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <BarChart3 className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                  <BarChart3 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                   <select
                     value={headerPeriod}
                     onChange={(e) => setHeaderPeriod(e.target.value)}
-                    aria-label="Analytics period"
-                    className="text-[11px] font-semibold uppercase tracking-wide text-slate-700 bg-transparent border-0 focus:outline-none focus:ring-0 cursor-pointer hover:text-blue-700 pr-1"
+                    aria-label={i18nT("Analytics period")}
+                    className="text-[11px] font-semibold uppercase tracking-wide text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 cursor-pointer hover:text-blue-700 dark:hover:text-blue-300 pr-1"
                   >
-                    <option value="today">Today</option>
-                    <option value="monthly">This Month</option>
-                    <option value="lastmonth">Last Month</option>
-                    <option value="quarterly">This Quarter</option>
-                    <option value="lastquarter">Last Quarter</option>
-                    <option value="yearly">This Year</option>
-                    <option value="lastyear">Last Year</option>
+                    <option value="today">{i18nT("Today")}</option>
+                    <option value="monthly">{i18nT("This Month")}</option>
+                    <option value="lastmonth">{i18nT("Last Month")}</option>
+                    <option value="quarterly">{i18nT("This Quarter")}</option>
+                    <option value="lastquarter">{i18nT("Last Quarter")}</option>
+                    <option value="yearly">{i18nT("This Year")}</option>
+                    <option value="lastyear">{i18nT("Last Year")}</option>
                   </select>
                   {analyticsLoading && (
-                    <Loader2 className="h-3 w-3 animate-spin text-slate-400 flex-shrink-0" />
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground flex-shrink-0" />
                   )}
                 </div>
                 <button
                   type="button"
                   onClick={() => setAnalyticsCollapsed((c) => !c)}
-                  className="text-[11px] text-slate-500 hover:text-slate-700 flex-shrink-0"
+                  className="text-[11px] text-muted-foreground hover:text-foreground flex-shrink-0"
                 >
                   {analyticsCollapsed ? "Show" : "Hide"}
                 </button>
@@ -2319,10 +2320,10 @@ export function ChatbotWidget({
                 <div className="flex flex-col items-center text-center gap-3 sm:gap-4 mb-6 sm:mb-8">
                   <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-lg">
                     <Bot className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-500 ring-2 ring-background" />
                   </div>
                   <div>
-                    <p className="text-lg sm:text-xl font-semibold text-slate-900 tracking-tight">
+                    <p className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
                       {messages[0]?.role === "bot"
                         ? messages[0].text
                             .split("\n")[0]
@@ -2330,8 +2331,8 @@ export function ChatbotWidget({
                             .replace(/[!.].*/, "")
                         : "How can I help?"}
                     </p>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                      Tap a suggestion or type your own message
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      {i18nT("Tap a suggestion or type your own message")}
                     </p>
                   </div>
                 </div>
@@ -2342,7 +2343,7 @@ export function ChatbotWidget({
                       onNavigate?.("orders", { subTab: "orders" })
                     }
                     className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-[13px] font-medium text-blue-700 hover:bg-blue-100 transition shadow-sm animate-pulse"
-                    title="View today's orders"
+                    title={i18nT("View today's orders")}
                   >
                     <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white">
                       <ShoppingCart className="h-3 w-3" strokeWidth={2.25} />
@@ -2356,7 +2357,7 @@ export function ChatbotWidget({
                       onNavigate?.("orders", { subTab: "payments" })
                     }
                     className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-emerald-300 bg-emerald-50 text-[13px] font-medium text-emerald-700 hover:bg-emerald-100 transition shadow-sm animate-pulse"
-                    title="View today's payments"
+                    title={i18nT("View today's payments")}
                   >
                     <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 text-white">
                       <BarChart3 className="h-3 w-3" strokeWidth={2.25} />
@@ -2381,7 +2382,7 @@ export function ChatbotWidget({
                     >
                       <div
                         className={`${isPage ? "w-8 h-8" : "w-6 h-6"} rounded-full flex items-center justify-center flex-shrink-0 ${
-                          msg.role === "user" ? "bg-blue-100" : "bg-gray-100"
+                          msg.role === "user" ? "bg-blue-100" : "bg-muted"
                         }`}
                       >
                         {msg.role === "user" ? (
@@ -2390,7 +2391,7 @@ export function ChatbotWidget({
                           />
                         ) : (
                           <Bot
-                            className={`${isPage ? "h-4 w-4" : "h-3 w-3"} text-gray-600`}
+                            className={`${isPage ? "h-4 w-4" : "h-3 w-3"} text-muted-foreground`}
                           />
                         )}
                       </div>
@@ -2398,7 +2399,7 @@ export function ChatbotWidget({
                         className={`rounded-2xl ${isPage ? "px-4 py-3 text-[15px] leading-relaxed" : "px-3 py-2 text-sm"} ${
                           msg.role === "user"
                             ? "bg-blue-600 text-white rounded-br-sm"
-                            : "bg-white text-slate-800 border border-slate-200 shadow-sm rounded-bl-sm"
+                            : "bg-card text-foreground border border-border shadow-sm rounded-bl-sm"
                         }`}
                       >
                         <div
@@ -2443,11 +2444,11 @@ export function ChatbotWidget({
                         const state = receiptUI[msg.id] || "idle";
                         const mongoId = msg.receipt.orderMongoId;
                         return (
-                          <div className="mt-2 ml-8 inline-block bg-white border border-emerald-200 rounded-xl px-3 py-2 shadow-sm">
+                          <div className="mt-2 ml-8 inline-block bg-card border border-emerald-200 rounded-xl px-3 py-2 shadow-sm">
                             <div className="text-[12px] font-semibold text-emerald-900 mb-0.5">
                               Order #{msg.receipt.orderId} placed
                             </div>
-                            <div className="text-[11px] text-slate-500 mb-1.5">
+                            <div className="text-[11px] text-muted-foreground mb-1.5">
                               Cash received
                               {msg.receipt.amount
                                 ? ` · Total ${msg.receipt.country === "SG" ? "S$" : "₹"}${(Number(msg.receipt.amount) || 0).toFixed(2)}`
@@ -2460,8 +2461,8 @@ export function ChatbotWidget({
                               </div>
                             ) : state === "choosing" ? (
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-[11px] text-gray-500">
-                                  Format:
+                                <span className="text-[11px] text-muted-foreground">
+                                  {i18nT("Format:")}
                                 </span>
                                 <button
                                   type="button"
@@ -2489,9 +2490,9 @@ export function ChatbotWidget({
                                       [msg.id]: "idle",
                                     }))
                                   }
-                                  className="text-[11px] px-2 py-1 rounded-full text-gray-500 hover:text-gray-700"
+                                  className="text-[11px] px-2 py-1 rounded-full text-muted-foreground hover:text-foreground"
                                 >
-                                  Cancel
+                                  {i18nT("Cancel")}
                                 </button>
                               </div>
                             ) : (
@@ -2506,28 +2507,28 @@ export function ChatbotWidget({
                                 className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
                               >
                                 <Download className="h-3 w-3" />
-                                Download receipt
+                                {i18nT("Download receipt")}
                               </button>
                             )}
                           </div>
                         );
                       })()}
                     {msg.qr && (
-                      <div className="mt-2 ml-8 inline-block bg-white border rounded-xl p-3 shadow-sm">
-                        <div className="text-xs font-semibold text-gray-700 mb-1">
+                      <div className="mt-2 ml-8 inline-block bg-card border rounded-xl p-3 shadow-sm">
+                        <div className="text-xs font-semibold text-foreground mb-1">
                           {msg.qr.country === "SG" ? "PayNow" : "UPI"} — Order #
                           {msg.qr.orderId}
                         </div>
-                        <div className="text-xs text-gray-500 mb-2">
+                        <div className="text-xs text-muted-foreground mb-2">
                           {msg.qr.shopName || ""} ·{" "}
                           {msg.qr.country === "SG" ? "S$" : "₹"}
                           {(Number(msg.qr.amount) || 0).toFixed(2)}
                         </div>
-                        <div className="bg-white p-2 rounded">
+                        <div className="bg-card p-2 rounded">
                           <QRCode value={msg.qr.qrValue} size={160} />
                         </div>
-                        <div className="text-[10px] text-gray-400 mt-1">
-                          Customer scans to pay
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          {i18nT("Customer scans to pay")}
                         </div>
                         {msg.qr.orderMongoId &&
                           (() => {
@@ -2544,8 +2545,8 @@ export function ChatbotWidget({
                             if (state === "choosing") {
                               return (
                                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                  <span className="text-[11px] text-gray-500">
-                                    Format:
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {i18nT("Format:")}
                                   </span>
                                   <button
                                     type="button"
@@ -2573,9 +2574,9 @@ export function ChatbotWidget({
                                         [msg.id]: "idle",
                                       }))
                                     }
-                                    className="text-[11px] px-2 py-1 rounded-full text-gray-500 hover:text-gray-700"
+                                    className="text-[11px] px-2 py-1 rounded-full text-muted-foreground hover:text-foreground"
                                   >
-                                    Cancel
+                                    {i18nT("Cancel")}
                                   </button>
                                 </div>
                               );
@@ -2592,7 +2593,7 @@ export function ChatbotWidget({
                                 className="mt-2 inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
                               >
                                 <Download className="h-3 w-3" />
-                                Download receipt
+                                {i18nT("Download receipt")}
                               </button>
                             );
                           })()}
@@ -2618,11 +2619,11 @@ export function ChatbotWidget({
               {loading && (
                 <div className="flex justify-start">
                   <div className="flex items-end gap-1.5">
-                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Bot className="h-3 w-3 text-gray-600" />
+                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                      <Bot className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                    <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     </div>
                   </div>
                 </div>
@@ -2632,17 +2633,17 @@ export function ChatbotWidget({
           </div>
 
           {isPage && onNavigate && (
-            <div className="flex-shrink-0 border-t border-slate-200 bg-white/70 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-2 overflow-x-auto">
+            <div className="flex-shrink-0 border-t border-border bg-card/70 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-2 overflow-x-auto">
               <div className="flex sm:flex-wrap items-center gap-1.5 w-full min-w-max sm:min-w-0">
-                <span className="text-[11px] font-medium text-slate-500 mr-1 flex-shrink-0">
-                  Jump to:
+                <span className="text-[11px] font-medium text-muted-foreground mr-1 flex-shrink-0">
+                  {i18nT("Jump to:")}
                 </span>
                 {NAV_TABS.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => onNavigate(t.id)}
-                    className="inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-md border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition flex-shrink-0"
+                    className="inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-md border border-border bg-card text-muted-foreground hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition flex-shrink-0"
                   >
                     <t.Icon className="h-3.5 w-3.5" />
                     {t.label}
@@ -2656,7 +2657,7 @@ export function ChatbotWidget({
             onSubmit={handleSubmit}
             className={
               isPage
-                ? "relative flex-shrink-0 border-t border-slate-200 bg-white/90 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-3 sm:py-4"
+                ? "relative flex-shrink-0 border-t border-border bg-card/90 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-3 sm:py-4"
                 : "p-3 border-t flex gap-2 flex-shrink-0"
             }
           >
@@ -2665,19 +2666,19 @@ export function ChatbotWidget({
               <>
                 <button
                   type="button"
-                  aria-label="Close suggestions"
+                  aria-label={i18nT("Close suggestions")}
                   onClick={() => setShowSuggestions(false)}
                   className="fixed inset-0 z-40 cursor-default"
                 />
-                <div className="absolute z-50 left-3 right-3 sm:left-6 sm:right-8 bottom-[calc(100%+0.5rem)] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 sm:p-4">
+                <div className="absolute z-50 left-3 right-3 sm:left-6 sm:right-8 bottom-[calc(100%+0.5rem)] bg-card border border-border rounded-2xl shadow-xl p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[12px] font-semibold text-slate-700 uppercase tracking-wide">
-                      Suggestions
+                    <p className="text-[12px] font-semibold text-foreground uppercase tracking-wide">
+                      {i18nT("Suggestions")}
                     </p>
                     <button
                       type="button"
                       onClick={() => setShowSuggestions(false)}
-                      className="text-slate-400 hover:text-slate-600"
+                      className="text-muted-foreground hover:text-muted-foreground"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -2692,7 +2693,7 @@ export function ChatbotWidget({
                           setShowSuggestions(false);
                           inputRef.current?.focus();
                         }}
-                        className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-slate-200 bg-white text-[13px] text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
+                        className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-border bg-card text-[13px] text-foreground hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
                       >
                         <span
                           className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}
@@ -2714,8 +2715,8 @@ export function ChatbotWidget({
                   variant={showSuggestions ? "default" : "outline"}
                   onClick={() => setShowSuggestions((s) => !s)}
                   disabled={loading}
-                  title="Suggestions"
-                  className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${showSuggestions ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-slate-300"}`}
+                  title={i18nT("Suggestions")}
+                  className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${showSuggestions ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-border"}`}
                 >
                   <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
@@ -2726,7 +2727,7 @@ export function ChatbotWidget({
                     variant={isListening ? "destructive" : "outline"}
                     onClick={toggleVoice}
                     disabled={loading}
-                    className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-slate-300"}`}
+                    className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 ${isListening ? "animate-pulse" : "border-border"}`}
                   >
                     {isListening ? (
                       <MicOff className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -2740,7 +2741,7 @@ export function ChatbotWidget({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={isListening ? "Listening…" : "Message KiosAI"}
-                  className="flex-1 h-10 sm:h-12 text-sm sm:text-base rounded-xl border-slate-300 bg-white focus-visible:ring-blue-500"
+                  className="flex-1 h-10 sm:h-12 text-sm sm:text-base rounded-xl border-border bg-card focus-visible:ring-blue-500"
                   disabled={loading || isListening}
                 />
                 <Button
@@ -2749,8 +2750,8 @@ export function ChatbotWidget({
                   variant="outline"
                   onClick={handleReset}
                   disabled={loading}
-                  title="Reset chat"
-                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 border-slate-300 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50"
+                  title={i18nT("Reset chat")}
+                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0 border-border hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50"
                 >
                   <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
@@ -2797,7 +2798,7 @@ export function ChatbotWidget({
                   variant="outline"
                   onClick={handleReset}
                   disabled={loading}
-                  title="Reset chat"
+                  title={i18nT("Reset chat")}
                   className="rounded-full w-9 h-9 p-0 flex-shrink-0 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50"
                 >
                   <RotateCcw className="h-4 w-4" />

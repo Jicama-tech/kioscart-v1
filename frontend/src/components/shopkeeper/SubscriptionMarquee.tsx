@@ -115,7 +115,7 @@ function SubscriptionMarqueeRow({
       <Item icon={<CalendarCheck className="h-3.5 w-3.5" />}>
         Valid till {validTill}
       </Item>
-      <span className="text-slate-300">•</span>
+      <span className="text-muted-foreground">•</span>
     </div>
   );
 }
@@ -141,7 +141,7 @@ export function SubscriptionMarquee({
 
   return (
     <div
-      className="relative overflow-hidden border-b border-slate-200 bg-white text-blue-700 px-2 py-2 flex-shrink-0"
+      className="relative overflow-hidden border-b border-border bg-card text-blue-700 px-2 py-2 flex-shrink-0"
       role="status"
       aria-label={`Subscription: ${normalized.planName}, ${
         normalized.fullyLapsed ? "expired" : `${normalized.daysLeft} days left`

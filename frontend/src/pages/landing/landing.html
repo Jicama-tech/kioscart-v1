@@ -1,0 +1,426 @@
+<!-- ================= NAV ================= -->
+<nav class="nav">
+  <div class="wrap">
+    <a href="#top" class="logo"><b>Kios</b><span>Cart</span></a>
+    <div class="navlinks">
+      <a href="#modules" data-i18n="nav.features">Features</a>
+      <a href="#screens" data-i18n="nav.screens">See it</a>
+      <a href="#steps" data-i18n="nav.how">How it works</a>
+      <a href="#ask" data-i18n="nav.faq">Questions</a>
+    </div>
+    <div class="navright">
+      <div class="langwrap">
+        <button class="langbtn" id="langbtn" aria-haspopup="true" aria-expanded="false">
+          <span id="langlabel">EN</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="langmenu" id="langmenu" role="menu">
+          <button data-lang="en" aria-current="true">English<em>EN</em></button>
+          <button data-lang="hi" aria-current="false">हिन्दी<em>HI</em></button>
+        </div>
+      </div>
+      <a href="/login" class="btn btn-primary btn-sm" data-i18n="nav.cta">Start free</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero" id="top">
+  <canvas id="mosaic" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <div>
+      <p class="eyebrow" data-i18n="hero.eyebrow">Unified commerce engine</p>
+      <h1><span data-i18n="hero.h1a">Your whole shop.</span><br><em data-i18n="hero.h1b">One screen.</em></h1>
+      <p class="lede" data-i18n="hero.sub">Counter, online store, payments and books. One system, one stock count, one login.</p>
+      <div class="herocta">
+        <a href="/login" class="btn btn-primary" data-i18n="hero.cta1">Start free</a>
+        <a href="#screens" class="btn btn-ghost" data-i18n="hero.cta2">See it working</a>
+      </div>
+      <div class="herofacts">
+        <span><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><i style="font-style:normal" data-i18n="hero.f1">No new hardware</i></span>
+        <span><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><i style="font-style:normal" data-i18n="hero.f2">Live in minutes</i></span>
+        <span><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><i style="font-style:normal" data-i18n="hero.f3">Free to start</i></span>
+      </div>
+    </div>
+
+    <div class="tablet" aria-hidden="true">
+      <div class="screen">
+        <div class="pane left">
+          <div class="paneh" data-i18n="mock.menu">Menu</div>
+          <div class="prods" id="prods">
+            <div class="prod" data-i="0"><div class="dot" style="background:linear-gradient(150deg,#8B5A2B,#4A2E16)"></div><div class="nm" data-i18n="mock.p1">Cold Brew</div><div class="pr">4.50</div></div>
+            <div class="prod" data-i="1"><div class="dot" style="background:linear-gradient(150deg,#D8A055,#8A6027)"></div><div class="nm" data-i18n="mock.p2">Croissant</div><div class="pr">4.50</div></div>
+            <div class="prod" data-i="2"><div class="dot" style="background:linear-gradient(150deg,#5C93D6,#2A4B78)"></div><div class="nm" data-i18n="mock.p3">Sparkling</div><div class="pr">4.50</div></div>
+            <div class="prod"><div class="dot" style="background:linear-gradient(150deg,#4FA695,#1F5148)"></div><div class="nm" data-i18n="mock.p4">Matcha</div><div class="pr">5.20</div></div>
+            <div class="prod"><div class="dot" style="background:linear-gradient(150deg,#9B7BE8,#4A3579)"></div><div class="nm" data-i18n="mock.p5">Muffin</div><div class="pr">3.80</div></div>
+            <div class="prod"><div class="dot" style="background:linear-gradient(150deg,#F58033,#8A4416)"></div><div class="nm" data-i18n="mock.p6">Espresso</div><div class="pr">2.90</div></div>
+          </div>
+        </div>
+        <div class="pane cart">
+          <div class="paneh" data-i18n="mock.cart">Cart</div>
+          <div class="citems">
+            <div class="ci" id="ci0"><b data-i18n="mock.p1">Cold Brew</b><span>4.50</span></div>
+            <div class="ci" id="ci1"><b data-i18n="mock.p2">Croissant</b><span>4.50</span></div>
+            <div class="ci" id="ci2"><b data-i18n="mock.p3">Sparkling</b><span>4.50</span></div>
+            <div class="ci" id="ci3"><b data-i18n="mock.tax">Tax</b><span>1.08</span></div>
+          </div>
+          <div class="ctot">
+            <i data-i18n="mock.total">Total</i>
+            <b id="total">0.00</b>
+          </div>
+          <div class="cpay" data-i18n="mock.charge">Charge</div>
+        </div>
+        <div class="payover" id="payover">
+          <div class="qrbox" id="qrbox"></div>
+          <div class="paylabel" data-i18n="mock.scan">Scan to pay</div>
+          <div class="paydone" id="paydone">
+            <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+            <span data-i18n="mock.paid">Paid</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= REPLACES ================= -->
+<section class="replaces">
+  <div class="wrap reveal">
+    <h3 data-i18n="rep.title">One tablet replaces</h3>
+    <div class="strike">
+      <span data-i18n="rep.1">the bill book</span>
+      <span data-i18n="rep.2">the calculator</span>
+      <span data-i18n="rep.3">the stock register</span>
+      <span data-i18n="rep.4">the card machine</span>
+      <span data-i18n="rep.5">a separate website</span>
+      <span data-i18n="rep.6">the month-end spreadsheet</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MODULES ================= -->
+<section id="modules">
+  <div class="wrap">
+    <div class="shead reveal">
+      <p class="eyebrow" data-i18n="mod.eyebrow">Everything included</p>
+      <h2 data-i18n="mod.h2">Seven tools. One login.</h2>
+      <p class="lede" data-i18n="mod.lede">Nothing here is an add-on and nothing costs extra to switch on.</p>
+    </div>
+
+    <div class="pillars reveal">
+      <div class="pillar"><div class="k">01</div><h4 data-i18n="pil.1t">Sell</h4><p data-i18n="pil.1p">At the counter and online, from one catalogue.</p></div>
+      <div class="pillar"><div class="k">02</div><h4 data-i18n="pil.2t">Get paid</h4><p data-i18n="pil.2p">Three ways, all landing in the same books.</p></div>
+      <div class="pillar"><div class="k">03</div><h4 data-i18n="pil.3t">Grow</h4><p data-i18n="pil.3p">See what sells, hear what customers say.</p></div>
+    </div>
+
+    <div class="mods">
+      <article class="card mod reveal">
+        <svg class="ic" stroke="#F58033" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 20h8M12 16v4M7 7h6M7 11h4"/></svg>
+        <span class="tag" data-i18n="m1.tag">Counter</span>
+        <h3 data-i18n="m1.t">Kiosk &amp; POS</h3>
+        <p data-i18n="m1.p">Any tablet becomes a counter. Products, cart, checkout.</p>
+        <ul><li data-i18n="m1.a">Variants</li><li data-i18n="m1.b">Categories</li><li data-i18n="m1.c">Self-checkout</li></ul>
+      </article>
+
+      <article class="card mod reveal">
+        <svg class="ic" stroke="#4FA695" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h5"/></svg>
+        <span class="tag" data-i18n="m2.tag">Money in</span>
+        <h3 data-i18n="m2.t">Payments</h3>
+        <p data-i18n="m2.p">Dynamic QR, cards and net banking. Secure by default.</p>
+        <ul><li data-i18n="m2.a">Dynamic QR</li><li data-i18n="m2.b">Cards</li><li data-i18n="m2.c">Net banking</li></ul>
+      </article>
+
+      <article class="card mod reveal">
+        <svg class="ic" stroke="#5C93D6" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
+        <span class="tag" data-i18n="m3.tag">Stock</span>
+        <h3 data-i18n="m3.t">Inventory</h3>
+        <p data-i18n="m3.p">Live stock across counter and website. Alerts before you run out.</p>
+        <ul><li data-i18n="m3.a">Low-stock alerts</li><li data-i18n="m3.b">Bulk CSV import</li></ul>
+      </article>
+
+      <article class="card mod reveal">
+        <svg class="ic" stroke="#9B7BE8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>
+        <span class="tag" data-i18n="m4.tag">Online</span>
+        <h3 data-i18n="m4.t">Your own website</h3>
+        <p data-i18n="m4.p">A real store on your own domain, sharing one stock count.</p>
+        <ul><li data-i18n="m4.a">Custom domain</li><li data-i18n="m4.b">Responsive</li><li data-i18n="m4.c">CSS &amp; HTML editor</li></ul>
+      </article>
+
+      <article class="card mod reveal">
+        <svg class="ic" stroke="#F58033" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11M13 13h4M13 16.5h4"/></svg>
+        <span class="tag" data-i18n="m5.tag">Books</span>
+        <h3 data-i18n="m5.t">Accounting</h3>
+        <p data-i18n="m5.p">Sales, purchases and expenses, ready to export as a table.</p>
+        <ul><li data-i18n="m5.a">Tax engine</li><li data-i18n="m5.b">One-click export</li></ul>
+      </article>
+
+      <article class="card mod reveal">
+        <svg class="ic" stroke="#4FA695" viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H7l-4 3V12a8 8 0 018-8h2a8 8 0 018 8z"/><path d="M9 11h6M9 14.5h4"/></svg>
+        <span class="tag" data-i18n="m6.tag">Customers</span>
+        <h3 data-i18n="m6.t">Reviews &amp; replies</h3>
+        <p data-i18n="m6.p">Every review in one place. Reply without leaving the app.</p>
+        <ul><li data-i18n="m6.a">One-tap reply</li><li data-i18n="m6.b">Rating history</li></ul>
+      </article>
+
+      <article class="card mod wide reveal">
+        <svg class="ic" style="width:44px;height:44px;flex:none" stroke="#9B7BE8" viewBox="0 0 24 24"><path d="M12 3l2 4.5L18.5 9 14 10.5 12 15l-2-4.5L5.5 9 10 7.5 12 3z"/><path d="M18 16l.9 2.1 2.1.9-2.1.9L18 22l-.9-2.1-2.1-.9 2.1-.9L18 16z"/></svg>
+        <div class="txt">
+          <span class="tag" data-i18n="m7.tag">Insight</span>
+          <h3 style="margin:8px 0 8px" data-i18n="m7.t">Ask your shop a question</h3>
+          <p data-i18n="m7.p">Type it the way you'd say it out loud. The AI reads your own sales and answers with a number, not a chart you have to decode.</p>
+        </div>
+        <div class="card" style="padding:18px 20px;background:rgba(155,123,232,.10);border-color:rgba(155,123,232,.35);max-width:330px">
+          <p style="font-size:14.5px;color:var(--muted)" data-i18n="m7.q">"Which item sells most on weekends?"</p>
+          <p style="font-size:15.5px;color:#D9CBFA;font-weight:600;margin-top:10px" data-i18n="m7.a">Cold Brew — 38% of Sat &amp; Sun sales.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="extras reveal">
+      <span data-i18n="ex.1">Profile setup</span>
+      <span data-i18n="ex.2">Custom domain</span>
+      <span data-i18n="ex.3">Tax engine</span>
+      <span data-i18n="ex.4">Smart opening hours</span>
+      <span data-i18n="ex.5">Coupons, BOGO, flash sales</span>
+      <span data-i18n="ex.6">Bulk import &amp; export</span>
+      <span data-i18n="ex.7">Code editor</span>
+      <span data-i18n="ex.8">Works on every screen</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SCREENS ================= -->
+<!-- NOTE FOR THE DEV: replace these CSS mock-ups with real product screenshots before launch. -->
+<section id="screens">
+  <div class="wrap">
+    <div class="shead reveal">
+      <p class="eyebrow" data-i18n="scr.eyebrow">See it</p>
+      <h2 data-i18n="scr.h2">This is the whole job.</h2>
+      <p class="lede" data-i18n="scr.lede">Three screens cover a trading day: take the order, take the money, read the day back.</p>
+    </div>
+    <div class="tabs reveal" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-shot="s1" data-i18n="scr.t1">The counter</button>
+      <button class="tab" role="tab" aria-selected="false" data-shot="s2" data-i18n="scr.t2">The payment</button>
+      <button class="tab" role="tab" aria-selected="false" data-shot="s3" data-i18n="scr.t3">The day</button>
+    </div>
+
+    <div class="shot on reveal" id="s1">
+      <div class="browserbar"><i></i><i></i><i></i><b>kioscart.com / counter</b></div>
+      <div class="cmock">
+        <div>
+          <div class="cats">
+            <span class="sel" data-i18n="scr.cat1">All</span>
+            <span data-i18n="scr.cat2">Coffee</span>
+            <span data-i18n="scr.cat3">Bakery</span>
+            <span data-i18n="scr.cat4">Cold</span>
+          </div>
+          <div class="cprods">
+            <div class="cp"><div class="sw" style="background:linear-gradient(150deg,#8B5A2B,#4A2E16)"></div><div class="n" data-i18n="mock.p1">Cold Brew</div><div class="p">4.50</div></div>
+            <div class="cp"><div class="sw" style="background:linear-gradient(150deg,#D8A055,#8A6027)"></div><div class="n" data-i18n="mock.p2">Croissant</div><div class="p">4.50</div></div>
+            <div class="cp"><div class="sw" style="background:linear-gradient(150deg,#5C93D6,#2A4B78)"></div><div class="n" data-i18n="mock.p3">Sparkling</div><div class="p">4.50</div></div>
+            <div class="cp"><div class="sw" style="background:linear-gradient(150deg,#4FA695,#1F5148)"></div><div class="n" data-i18n="mock.p4">Matcha</div><div class="p">5.20</div></div>
+            <div class="cp"><div class="sw" style="background:linear-gradient(150deg,#9B7BE8,#4A3579)"></div><div class="n" data-i18n="mock.p5">Muffin</div><div class="p">3.80</div></div>
+            <div class="cp"><div class="sw" style="background:linear-gradient(150deg,#F58033,#8A4416)"></div><div class="n" data-i18n="mock.p6">Espresso</div><div class="p">2.90</div></div>
+            <div class="cp"><div class="sw" style="background:linear-gradient(150deg,#C9A98B,#6B5745)"></div><div class="n" data-i18n="mock.p7">Latte</div><div class="p">4.20</div></div>
+            <div class="cp"><div class="sw" style="background:linear-gradient(150deg,#E0685A,#7A2E26)"></div><div class="n" data-i18n="mock.p8">Cookie</div><div class="p">2.40</div></div>
+          </div>
+        </div>
+        <div class="corder">
+          <div class="oh" data-i18n="mock.order">Order 41</div>
+          <div class="oline"><b data-i18n="mock.p1">Cold Brew</b><span>4.50</span></div>
+          <div class="oline"><b data-i18n="mock.p2">Croissant</b><span>4.50</span></div>
+          <div class="oline"><b data-i18n="mock.p3">Sparkling</b><span>4.50</span></div>
+          <div class="oline" style="color:var(--dim)"><b style="color:var(--dim);font-weight:400" data-i18n="mock.tax">Tax</b><span>1.08</span></div>
+          <div class="ot"><i data-i18n="mock.total">Total</i><b>14.58</b></div>
+          <div class="obtn" data-i18n="mock.charge">Charge</div>
+        </div>
+      </div>
+      <p class="shotnote" data-i18n="scr.n1">Tap a product, it lands in the cart. Variants and categories included.</p>
+    </div>
+
+    <div class="shot reveal" id="s2">
+      <div class="browserbar"><i></i><i></i><i></i><b>kioscart.com / payment</b></div>
+      <div class="rows">
+        <div class="row h"><span data-i18n="scr.c1">Method</span><span data-i18n="scr.c2">Reference</span><span class="amt" data-i18n="scr.c3">Amount</span><span data-i18n="scr.c4">Status</span></div>
+        <div class="row"><b data-i18n="scr.r1">Dynamic QR</b><span class="mono hidesm">#KC-40921</span><span class="amt">14.58</span><span class="chipok" data-i18n="scr.ok">Settled</span></div>
+        <div class="row"><b data-i18n="scr.r2">Card</b><span class="mono hidesm">#KC-40920</span><span class="amt">32.10</span><span class="chipok" data-i18n="scr.ok">Settled</span></div>
+        <div class="row"><b data-i18n="scr.r3">Net banking</b><span class="mono hidesm">#KC-40919</span><span class="amt">128.00</span><span class="chipok" data-i18n="scr.ok">Settled</span></div>
+        <div class="row"><b data-i18n="scr.r1">Dynamic QR</b><span class="mono hidesm">#KC-40918</span><span class="amt">6.40</span><span class="chipok" data-i18n="scr.ok">Settled</span></div>
+      </div>
+      <p class="shotnote" data-i18n="scr.n2">Every payment method writes to the same ledger, in the same second.</p>
+    </div>
+
+    <div class="shot reveal" id="s3">
+      <div class="browserbar"><i></i><i></i><i></i><b>kioscart.com / reports</b></div>
+      <div class="kpis">
+        <div class="kpi"><div class="l" data-i18n="scr.k1">Sales</div><div class="v">1,284</div><div class="d">+12%</div></div>
+        <div class="kpi"><div class="l" data-i18n="scr.k2">Orders</div><div class="v">96</div><div class="d">+8%</div></div>
+        <div class="kpi"><div class="l" data-i18n="scr.k3">Avg. basket</div><div class="v">13.4</div><div class="d">+4%</div></div>
+        <div class="kpi"><div class="l" data-i18n="scr.k4">Low stock</div><div class="v">3</div><div class="d" style="color:var(--orange-lt)" data-i18n="scr.k4d">Reorder</div></div>
+      </div>
+      <div class="bars">
+        <i style="height:46%"></i><i style="height:62%"></i><i style="height:54%"></i><i style="height:71%"></i><i style="height:88%"></i><i style="height:100%"></i><i style="height:79%"></i>
+      </div>
+      <div class="barlabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+      <p class="shotnote" data-i18n="scr.n3">Same numbers your accountant gets, exported as a table.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PAYMENTS ================= -->
+<section id="payments">
+  <div class="wrap">
+    <div class="shead reveal">
+      <p class="eyebrow" data-i18n="pay.eyebrow">Payments &amp; books</p>
+      <h2 data-i18n="pay.h2">Every way to get paid.</h2>
+      <p class="lede" data-i18n="pay.lede">And the bookkeeping is finished before the customer leaves.</p>
+    </div>
+    <div class="paygrid reveal">
+      <div class="card paycard">
+        <svg stroke="#F58033" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v3M18 21h3M14 21h1"/></svg>
+        <h3 data-i18n="pay.1t">Dynamic QR</h3>
+        <p data-i18n="pay.1p">A fresh code per order. Nothing to type, nothing to mistype.</p>
+      </div>
+      <div class="card paycard">
+        <svg stroke="#4FA695" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h5"/></svg>
+        <h3 data-i18n="pay.2t">Cards</h3>
+        <p data-i18n="pay.2p">PCI-compliant processing, without your own card machine.</p>
+      </div>
+      <div class="card paycard">
+        <svg stroke="#5C93D6" viewBox="0 0 24 24"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18"/></svg>
+        <h3 data-i18n="pay.3t">Net banking</h3>
+        <p data-i18n="pay.3p">For the larger orders and the regular accounts.</p>
+      </div>
+    </div>
+    <div class="flow reveal">
+      <span class="fc" data-i18n="pay.f1">Sales</span><span class="fa">+</span>
+      <span class="fc" data-i18n="pay.f2">Purchases</span><span class="fa">+</span>
+      <span class="fc" data-i18n="pay.f3">Expenses</span><span class="fa">&rarr;</span>
+      <span class="fc out" data-i18n="pay.f4">One export file</span>
+      <p data-i18n="pay.f5">Hand it to your accountant, or load it straight into your accounting software.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STEPS ================= -->
+<section id="steps">
+  <div class="wrap">
+    <div class="shead reveal">
+      <p class="eyebrow" data-i18n="st.eyebrow">Launch</p>
+      <h2 data-i18n="st.h2">Open in four steps.</h2>
+      <p class="lede" data-i18n="st.lede">Most shops are taking their first order the same afternoon.</p>
+    </div>
+    <div class="steps">
+      <div class="card step reveal"><div class="n">01</div><h3 data-i18n="st.1t">Register</h3><p data-i18n="st.1p">Your shop name, your details. Two minutes.</p></div>
+      <div class="card step reveal"><div class="n">02</div><h3 data-i18n="st.2t">Set up</h3><p data-i18n="st.2p">Hours, tax, payment methods, domain.</p></div>
+      <div class="card step reveal"><div class="n">03</div><h3 data-i18n="st.3t">Add products</h3><p data-i18n="st.3p">One by one, or import the whole list from a file.</p></div>
+      <div class="card step reveal"><div class="n">04</div><h3 data-i18n="st.4t">Go live</h3><p data-i18n="st.4p">Counter and website open together.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= AI FAQ ================= -->
+<section id="ask">
+  <div class="wrap">
+    <div class="shead reveal">
+      <p class="eyebrow" data-i18n="ask.eyebrow">Questions</p>
+      <h2 data-i18n="ask.h2">Ask instead of reading.</h2>
+      <p class="lede" data-i18n="ask.lede">The same assistant that answers questions about your sales answers questions about KiosCart.</p>
+    </div>
+    <div class="card askbox reveal">
+      <div class="askrow">
+        <input id="askinput" type="text" data-i18n-ph="ask.ph" placeholder="Ask anything about KiosCart…" aria-label="Ask about KiosCart">
+        <button class="btn btn-primary" id="asksend" data-i18n="ask.send">Ask</button>
+      </div>
+      <div class="suggest" id="suggest">
+        <button data-k="cost" data-i18n="ask.q1">What does it cost?</button>
+        <button data-k="hardware" data-i18n="ask.q2">Do I need special hardware?</button>
+        <button data-k="both" data-i18n="ask.q3">Can I run my shop and my website together?</button>
+        <button data-k="popup" data-i18n="ask.q4">Is it good for pop-ups?</button>
+        <button data-k="secure" data-i18n="ask.q5">How secure are payments?</button>
+        <button data-k="design" data-i18n="ask.q6">Can I change how my shop looks?</button>
+      </div>
+      <div class="answer empty" id="answer" data-i18n="ask.idle" aria-live="polite">Pick a question, or type your own.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PROOF (placeholder — see note) ================= -->
+<!-- NOTE FOR THE DEV: these are empty slots on purpose. Do not launch with placeholder
+     text visible. Either paste three real merchant quotes here, or delete this whole
+     <section> until you have them. An empty proof section costs more trust than none. -->
+<section id="proof">
+  <div class="wrap">
+    <div class="shead reveal">
+      <p class="eyebrow" data-i18n="pr.eyebrow">To be filled in</p>
+      <h2 data-i18n="pr.h2">Three merchants, three sentences.</h2>
+      <p class="lede" data-i18n="pr.lede">Placeholder slots. Drop in real quotes with a shop name and a photo, or remove this section until you have them.</p>
+    </div>
+    <div class="proof reveal">
+      <div class="pslot"><div class="stars">★★★★★</div><p data-i18n="pr.slot">Your merchant's own words, one or two sentences.</p><div class="who" data-i18n="pr.who">Name · Shop · City</div></div>
+      <div class="pslot"><div class="stars">★★★★★</div><p data-i18n="pr.slot">Your merchant's own words, one or two sentences.</p><div class="who" data-i18n="pr.who">Name · Shop · City</div></div>
+      <div class="pslot"><div class="stars">★★★★★</div><p data-i18n="pr.slot">Your merchant's own words, one or two sentences.</p><div class="who" data-i18n="pr.who">Name · Shop · City</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FINAL CTA ================= -->
+<section class="finalcta" id="cta">
+  <div class="wrap reveal">
+    <h2><span data-i18n="cta.h1">Open your shop</span><br><em data-i18n="cta.h2">on KiosCart.</em></h2>
+    <p class="lede" data-i18n="cta.sub">Free to start. Talk to us when you outgrow it.</p>
+    <div class="herocta">
+      <a href="/login" class="btn btn-primary" data-i18n="cta.b1">Start free</a>
+      <a href="mailto:hello@jicama.tech" class="btn btn-ghost" data-i18n="cta.b2">Talk to us</a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="wrap">
+    <div class="fgrid">
+      <div class="fabout">
+        <div class="logo"><b>Kios</b><span>Cart</span></div>
+        <p data-i18n="ft.about">The counter and the website, running as one shop.</p>
+        <div class="socials">
+          <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r=".6" fill="currentColor" stroke="none"/></svg></a>
+          <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" style="stroke:none"><path fill="currentColor" style="fill:var(--muted)" d="M13.5 21v-7h2.4l.4-2.8h-2.8V9.4c0-.8.2-1.4 1.4-1.4H16.4V5.5C16.1 5.5 15.2 5.4 14.2 5.4c-2.1 0-3.5 1.3-3.5 3.6v2.2H8.3V14h2.4v7z"/></svg></a>
+          <a href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 01-13.3 7.9L3 21l1.2-4.5A9 9 0 1121 12z"/><path d="M8.8 9.2c.3 2.4 3.6 5.7 6 6l1-1.4 2 1-.6 1.6c-2.9.5-7.9-4.5-7.4-7.4l1.6-.6z"/></svg></a>
+        </div>
+      </div>
+      <div>
+        <h4 data-i18n="ft.prod">Product</h4>
+        <ul>
+          <li><a href="#modules" data-i18n="ft.p1">Kiosk &amp; POS</a></li>
+          <li><a href="#payments" data-i18n="ft.p2">Payments</a></li>
+          <li><a href="#modules" data-i18n="ft.p3">Online store</a></li>
+          <li><a href="#modules" data-i18n="ft.p4">Accounting</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 data-i18n="ft.comp">Company</h4>
+        <ul>
+          <li><a href="/about" data-i18n="ft.c1">About</a></li>
+          <li><a href="#ask" data-i18n="ft.c2">Questions</a></li>
+          <li><a href="/admin-login" data-i18n="ft.c3">Admin</a></li>
+          <li><a href="/agent-login" data-i18n="ft.c4">Agent login</a></li>
+          <li><a href="/login" data-i18n="ft.c5">Shop login</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 data-i18n="ft.contact">Contact</h4>
+        <ul>
+          <li><a href="https://kioscart.com">kioscart.com</a></li>
+          <!-- TODO: switch to hello@kioscart.com once the mailbox exists -->
+          <li><a href="mailto:hello@jicama.tech">hello@jicama.tech</a></li>
+          <li><a href="tel:+6590037950">+65 9003 7950</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="fbot">
+      <span data-i18n="ft.rights">© 2026 KiosCart. Powered by Jicama.tech</span>
+      <span><a href="/privacy-policy" data-i18n="ft.privacy">Privacy</a> &nbsp;·&nbsp; <a href="/terms" data-i18n="ft.terms">Terms</a></span>
+    </div>
+  </div>
+</footer>
