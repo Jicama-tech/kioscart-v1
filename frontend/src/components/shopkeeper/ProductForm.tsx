@@ -627,6 +627,17 @@ export function ProductForm({ product, onSave, onClose }: any) {
             {product ? "Edit Product" : "Add New Product"}
           </h3>
           <div className="flex gap-2">
+            {/* The way back to the list — this replaces the old "Back to
+                Products" header, so it sits with the other actions. */}
+            {onClose && (
+              <Button
+                variant="buttonOutline"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+            )}
             <Button onClick={handleSubmit} disabled={!isValid || isSubmitting}>
               <Save className="h-4 w-4 mr-2" />
               {isSubmitting
