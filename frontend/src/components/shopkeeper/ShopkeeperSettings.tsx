@@ -222,7 +222,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     number | null
   >(null);
   // Keep in sync with the dashboard's NAVIGATION_ITEMS ids so operators can be
-  // granted access to every tab the shopkeeper sees (incl. Chat & Support).
+  // granted access to every tab the shopkeeper sees (incl. Support). "chat" is
+  // the exception: it is no longer a sidebar tab, but the id still gates the
+  // floating AI assistant, so keep it in this list.
   const ALL_TABS = [
     "chat",
     "dashboard",
@@ -237,7 +239,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     "support",
   ];
   const TAB_LABELS: Record<string, string> = {
-    chat: "Chat (Assistant)",
+    chat: "AI Assistant (chat bubble)",
     dashboard: "Dashboard",
     orders: "Orders & Payments",
     products: "Products",

@@ -1707,6 +1707,9 @@ export function ChatbotWidget({
   mode = "floating",
 }: ChatbotWidgetProps) {
   const { isModuleEnabled } = useSubscription();
+  // Page mode = the chat fills a dashboard tab. Floating mode = the bottom-right
+  // launcher + panel. Declared up here so the data effects can branch on it.
+  const isPage = mode === "page";
   // In page mode the chat is always "open".
   const [open, setOpen] = useState(mode === "page");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1882,8 +1885,9 @@ export function ChatbotWidget({
   // Fetch the analytics snapshot for the header strip — same endpoint the
   // Dashboard page hits, so the shopkeeper sees identical numbers in both places.
   // Re-fires whenever the chat opens or the chosen period changes.
+  // Floating mode has no room for the strip, so it doesn't pay for the request.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isPage) return;
     let cancelled = false;
     (async () => {
       const token = sessionStorage.getItem("token");
@@ -1927,7 +1931,7 @@ export function ChatbotWidget({
     return () => {
       cancelled = true;
     };
-  }, [open, headerPeriod]);
+  }, [open, headerPeriod, isPage]);
 
   // Today's order + payment counts for the welcome-state pills.
   useEffect(() => {
@@ -2207,12 +2211,11 @@ export function ChatbotWidget({
 
   if (!isModuleEnabled("chatbot")) return null;
 
-  // Page-mode: fill the parent fully (no card chrome). Floating-mode: original bubble.
-  // On phones the floating bubble fills the viewport (with margins) instead of clipping.
-  const isPage = mode === "page";
+  // Page-mode: fill the parent fully (no card chrome). Floating-mode: the panel.
+  // On phones the floating panel fills the viewport (with margins) instead of clipping.
   const containerClass = isPage
     ? "w-full h-[calc(100vh-6rem)] bg-gradient-to-b from-muted to-background flex flex-col overflow-hidden"
-    : "fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-1.5rem)] h-[calc(100vh-6rem)] sm:w-[380px] sm:h-[520px] max-w-[400px] max-h-[640px] bg-card rounded-2xl shadow-2xl border flex flex-col overflow-hidden";
+    : "fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-1.5rem)] h-[calc(100vh-6rem)] sm:w-[420px] sm:h-[600px] max-w-[440px] max-h-[calc(100vh-6rem)] bg-card rounded-2xl shadow-2xl border flex flex-col overflow-hidden";
   const messageMaxWidth = isPage ? "max-w-[88%] sm:max-w-[78%]" : "max-w-[88%]";
 
   return (
@@ -2270,7 +2273,7 @@ export function ChatbotWidget({
           {/* Always-on analytics strip — same KPIs as the Analytics page.
               Auto-collapses once the shopkeeper sends their first message;
               the strip itself stays visible so they can re-open it. */}
-          {(headerAnalytics || analyticsLoading) && (
+          {isPage && (headerAnalytics || analyticsLoading) && (
             <div
               className={`flex-shrink-0 border-b border-border bg-muted/60 ${isPage ? "px-3 sm:pl-6 sm:pr-8" : "px-3"} py-2`}
             >
@@ -2315,15 +2318,27 @@ export function ChatbotWidget({
             className={`flex-1 overflow-y-auto ${isPage ? "px-3 py-4 sm:pl-6 sm:pr-8 sm:py-6" : "p-3"}`}
           >
             {/* Welcome / empty state — shown only until the shopkeeper sends their first message. */}
-            {isPage && !messages.some((m) => m.role === "user") && (
-              <div className="max-w-[900px] mx-auto pt-4 sm:pt-6 pb-6 sm:pb-10">
-                <div className="flex flex-col items-center text-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-                  <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-lg">
-                    <Bot className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+            {!messages.some((m) => m.role === "user") && (
+              <div
+                className={
+                  isPage
+                    ? "max-w-[900px] mx-auto pt-4 sm:pt-6 pb-6 sm:pb-10"
+                    : "pt-2 pb-4"
+                }
+              >
+                <div
+                  className={`flex flex-col items-center text-center ${isPage ? "gap-3 sm:gap-4 mb-6 sm:mb-8" : "gap-2 mb-4"}`}
+                >
+                  <div
+                    className={`relative ${isPage ? "w-12 h-12 sm:w-14 sm:h-14" : "w-11 h-11"} rounded-2xl bg-gradient-to-br from-blue-500 to-sky-600 flex items-center justify-center shadow-lg`}
+                  >
+                    <Bot className={`${isPage ? "h-6 w-6 sm:h-7 sm:w-7" : "h-6 w-6"} text-white`} />
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-500 ring-2 ring-background" />
                   </div>
                   <div>
-                    <p className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
+                    <p
+                      className={`${isPage ? "text-lg sm:text-xl" : "text-base"} font-semibold text-foreground tracking-tight`}
+                    >
                       {messages[0]?.role === "bot"
                         ? messages[0].text
                             .split("\n")[0]
@@ -2331,18 +2346,22 @@ export function ChatbotWidget({
                             .replace(/[!.].*/, "")
                         : "How can I help?"}
                     </p>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                    <p
+                      className={`${isPage ? "text-xs sm:text-sm" : "text-[11px]"} text-muted-foreground mt-1`}
+                    >
                       {i18nT("Tap a suggestion or type your own message")}
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+                <div
+                  className={`flex flex-wrap justify-center ${isPage ? "gap-2 sm:gap-3" : "gap-1.5"}`}
+                >
                   <button
                     type="button"
                     onClick={() =>
                       onNavigate?.("orders", { subTab: "orders" })
                     }
-                    className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-[13px] font-medium text-blue-700 hover:bg-blue-100 transition shadow-sm animate-pulse"
+                    className={`group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-blue-300 bg-blue-50 ${isPage ? "text-[13px]" : "text-[12px]"} font-medium text-blue-700 hover:bg-blue-100 transition shadow-sm animate-pulse`}
                     title={i18nT("View today's orders")}
                   >
                     <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white">
@@ -2356,7 +2375,7 @@ export function ChatbotWidget({
                     onClick={() =>
                       onNavigate?.("orders", { subTab: "payments" })
                     }
-                    className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-emerald-300 bg-emerald-50 text-[13px] font-medium text-emerald-700 hover:bg-emerald-100 transition shadow-sm animate-pulse"
+                    className={`group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-emerald-300 bg-emerald-50 ${isPage ? "text-[13px]" : "text-[12px]"} font-medium text-emerald-700 hover:bg-emerald-100 transition shadow-sm animate-pulse`}
                     title={i18nT("View today's payments")}
                   >
                     <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 text-white">
@@ -2369,7 +2388,7 @@ export function ChatbotWidget({
               </div>
             )}
             <div
-              className={`${isPage ? "space-y-5 w-full" : "space-y-3"} ${isPage && !messages.some((m) => m.role === "user") ? "hidden" : ""}`}
+              className={`${isPage ? "space-y-5 w-full" : "space-y-3"} ${!messages.some((m) => m.role === "user") ? "hidden" : ""}`}
             >
               {messages.map((msg) => (
                 <div
@@ -2632,9 +2651,13 @@ export function ChatbotWidget({
             </div>
           </div>
 
-          {isPage && onNavigate && (
-            <div className="flex-shrink-0 border-t border-border bg-card/70 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-2 overflow-x-auto">
-              <div className="flex sm:flex-wrap items-center gap-1.5 w-full min-w-max sm:min-w-0">
+          {onNavigate && (
+            <div
+              className={`flex-shrink-0 border-t border-border bg-card/70 backdrop-blur ${isPage ? "px-3 sm:pl-6 sm:pr-8" : "px-3"} py-2 overflow-x-auto`}
+            >
+              <div
+                className={`flex items-center gap-1.5 w-full min-w-max ${isPage ? "sm:flex-wrap sm:min-w-0" : ""}`}
+              >
                 <span className="text-[11px] font-medium text-muted-foreground mr-1 flex-shrink-0">
                   {i18nT("Jump to:")}
                 </span>
@@ -2658,11 +2681,11 @@ export function ChatbotWidget({
             className={
               isPage
                 ? "relative flex-shrink-0 border-t border-border bg-card/90 backdrop-blur px-3 sm:pl-6 sm:pr-8 py-3 sm:py-4"
-                : "p-3 border-t flex gap-2 flex-shrink-0"
+                : "relative p-3 border-t flex gap-2 flex-shrink-0"
             }
           >
-            {/* Suggestions popover (page mode) — anchored above the composer. */}
-            {isPage && showSuggestions && (
+            {/* Suggestions popover — anchored above the composer in both modes. */}
+            {showSuggestions && (
               <>
                 <button
                   type="button"
@@ -2670,7 +2693,9 @@ export function ChatbotWidget({
                   onClick={() => setShowSuggestions(false)}
                   className="fixed inset-0 z-40 cursor-default"
                 />
-                <div className="absolute z-50 left-3 right-3 sm:left-6 sm:right-8 bottom-[calc(100%+0.5rem)] bg-card border border-border rounded-2xl shadow-xl p-3 sm:p-4">
+                <div
+                  className={`absolute z-50 bottom-[calc(100%+0.5rem)] bg-card border border-border rounded-2xl shadow-xl ${isPage ? "left-3 right-3 sm:left-6 sm:right-8 p-3 sm:p-4" : "left-2 right-2 p-3"}`}
+                >
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[12px] font-semibold text-foreground uppercase tracking-wide">
                       {i18nT("Suggestions")}
@@ -2683,7 +2708,9 @@ export function ChatbotWidget({
                       <X className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2 max-h-[280px] overflow-y-auto">
+                  <div
+                    className={`flex flex-wrap gap-2 overflow-y-auto ${isPage ? "max-h-[280px]" : "max-h-[220px]"}`}
+                  >
                     {SUGGESTED_CARDS.map((c) => (
                       <button
                         key={c.title}
@@ -2693,7 +2720,7 @@ export function ChatbotWidget({
                           setShowSuggestions(false);
                           inputRef.current?.focus();
                         }}
-                        className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-border bg-card text-[13px] text-foreground hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm"
+                        className={`group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full border border-border bg-card ${isPage ? "text-[13px]" : "text-[12px]"} text-foreground hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition shadow-sm`}
                       >
                         <span
                           className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${c.tint}`}
@@ -2766,6 +2793,17 @@ export function ChatbotWidget({
               </div>
             ) : (
               <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={showSuggestions ? "default" : "outline"}
+                  onClick={() => setShowSuggestions((v) => !v)}
+                  disabled={loading}
+                  title={i18nT("Suggestions")}
+                  className={`rounded-full w-9 h-9 p-0 flex-shrink-0 ${showSuggestions ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}`}
+                >
+                  <Sparkles className="h-4 w-4" />
+                </Button>
                 {hasVoice && (
                   <Button
                     type="button"
