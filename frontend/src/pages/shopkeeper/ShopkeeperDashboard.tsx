@@ -192,7 +192,6 @@ function NoAccessOverlay() {
 const NAVIGATION_ITEMS = [
   // `label` is the English fallback; `labelKey` is what actually renders once
   // a language is picked. See src/i18n.
-  { id: "chat", label: i18nT("Chat"), labelKey: "nav.chat", icon: MessageCircle },
   { id: "dashboard", label: i18nT("Analytics"), labelKey: "nav.dashboard", icon: Store },
   { id: "kiosk", label: i18nT("Kiosk Mode"), labelKey: "nav.kiosk", icon: Monitor },
   { id: "orders", label: i18nT("Orders & Payments"), labelKey: "nav.orders", icon: ShoppingCart },
@@ -278,7 +277,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   const apiUrl = __API_URL__;
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("chat");
+  const [activeTab, setActiveTab] = useState("dashboard");
   // Bot-driven sub-UI request consumed by the target tab on arrival
   // (e.g. "open Add Product form"). Cleared after the tab reads it.
   const [productPendingAction, setProductPendingAction] = useState<{
@@ -330,7 +329,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   };
 
   // If a restricted operator lands on a tab they can't access (e.g. the
-  // default "chat" tab isn't in their accessTabs), redirect them to the
+  // default "dashboard" tab isn't in their accessTabs), redirect them to the
   // first tab they are allowed to see.
   useEffect(() => {
     if (!hasTabAccess(activeTab)) {
@@ -975,7 +974,6 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                   crm: "crm",
                   storefront: "storefront",
                   kiosk: "kiosk",
-                  chat: "chatbot",
                   support: "support",
                 };
                 const moduleKey = navToModule[item.id];
@@ -2030,52 +2028,6 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                 )}
               </TabsContent>
 
-              <TabsContent
-                value="chat"
-                // forceMount keeps the chat in the DOM when the shopkeeper
-                // switches to another tab, so the conversation, the inline
-                // order/customer forms, the QR card, and any in-flight scroll
-                // position survive the round-trip. data-[state=inactive]:hidden
-                // applies a CSS hide while it isn't the active tab.
-                forceMount
-                className="mt-0 p-0 -mx-4 -my-4 md:-mx-6 md:-my-6 data-[state=inactive]:hidden"
-              >
-                <ModuleGate moduleKey="chatbot">
-                <ChatbotWidget
-                  mode="page"
-                  onNavigate={(tab, extras) => {
-                    if (tab === "products" && extras?.action) {
-                      // `key` forces ProductManagement to re-run the pending-action
-                      // effect even when the same bot intent fires twice in a row.
-                      setProductPendingAction({
-                        action: extras.action,
-                        productName: extras.productName,
-                        key: Date.now(),
-                      });
-                    }
-                    if (tab === "crm" && extras?.action === "add") {
-                      setCrmPendingAction({
-                        action: "add",
-                        prefill: extras.customerPrefill,
-                        key: Date.now(),
-                      });
-                    }
-                    if (
-                      tab === "orders" &&
-                      (extras?.subTab === "orders" ||
-                        extras?.subTab === "payments")
-                    ) {
-                      setOrdersSubTab({
-                        tab: extras.subTab,
-                        key: Date.now(),
-                      });
-                    }
-                    setActiveTab(tab);
-                  }}
-                />
-                </ModuleGate>
-              </TabsContent>
-
               <TabsContent value="settings" className="mt-0">
                 {hasTabAccess("settings") ? (
                   <Suspense fallback={<TabLoadingFallback />}>
@@ -2163,7 +2115,40 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Chatbot is now a sidebar tab (mode="page") rendered inside the Tabs above. */}
+      {/* Floating AI assistant — a bottom-right launcher that opens a compact
+          panel over whatever tab is showing. It replaces the old "Chat" sidebar
+          tab, so it lives outside <Tabs> and stays mounted across tab switches
+          (the conversation and any inline forms survive navigation). */}
+      {hasTabAccess("chat") && (
+        <ChatbotWidget
+          mode="floating"
+          onNavigate={(tab, extras) => {
+            if (tab === "products" && extras?.action) {
+              // `key` forces ProductManagement to re-run the pending-action
+              // effect even when the same bot intent fires twice in a row.
+              setProductPendingAction({
+                action: extras.action,
+                productName: extras.productName,
+                key: Date.now(),
+              });
+            }
+            if (tab === "crm" && extras?.action === "add") {
+              setCrmPendingAction({
+                action: "add",
+                prefill: extras.customerPrefill,
+                key: Date.now(),
+              });
+            }
+            if (
+              tab === "orders" &&
+              (extras?.subTab === "orders" || extras?.subTab === "payments")
+            ) {
+              setOrdersSubTab({ tab: extras.subTab, key: Date.now() });
+            }
+            setActiveTab(tab);
+          }}
+        />
+      )}
     </div>
   );
 }
