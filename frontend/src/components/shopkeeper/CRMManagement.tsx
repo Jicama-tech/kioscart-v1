@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { avatarAccent, initials, statAccent } from "@/lib/accents";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -86,6 +87,7 @@ import { useCurrency } from "@/hooks/useCurrencyhook";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 
 import { t as i18nT } from "@/i18n/t";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 // Mock WhatsApp icon
 // const FaWhatsapp = ({ className = "" }) => (
 //   <div className={`${className} text-green-600`}>📱</div>
@@ -494,6 +496,7 @@ export function CustomerDetailModal({
             </Card>
 
             {/* Order History */}
+            <FeatureGate feature="crmOrderHistory">
             <Card>
               <CardHeader>
                 <CardTitle>Order History ({customer.orders.length})</CardTitle>
@@ -541,6 +544,7 @@ export function CustomerDetailModal({
                 </div>
               </CardContent>
             </Card>
+            </FeatureGate>
           </div>
 
           <div className="flex justify-end space-x-2 mt-4">
@@ -2462,9 +2466,6 @@ export function CRMManagement({
       name: apiCustomer.user.name,
       email: apiCustomer.user.email,
       whatsapp: apiCustomer.user.whatsapp,
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-        apiCustomer.user.name,
-      )}`,
       totalOrders: apiCustomer.orderCount,
       totalSpent: apiCustomer.totalSpent,
       averageOrderValue: apiCustomer.avgOrderValue,
@@ -2520,11 +2521,6 @@ export function CRMManagement({
           : user.name || "Unknown",
       email: user.email || "",
       whatsapp: user.whatsAppNumber || user.whatsapp || "",
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-        user.firstName && user.lastName
-          ? `${user.firstName} ${user.lastName}`
-          : user.name || "Unknown",
-      )}`,
       totalOrders: 0,
       totalSpent: 0,
       averageOrderValue: 0,
@@ -2722,57 +2718,50 @@ export function CRMManagement({
 
   return (
     <div className="space-y-6">
-      {/* CRM Stats Cards */}
+      {/* CRM Stats Cards — same accent order as the dashboard tiles, so
+          "first card is blue" reads the same on every screen. */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {i18nT("Total Customers")}
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCustomers}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {i18nT("Active Customers")}
-            </CardTitle>
-            <FaUsers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeCustomers}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {i18nT("Local Customers")}
-            </CardTitle>
-            <FaMapMarkerAlt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.localCustomers}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {i18nT("International Customers")}
-            </CardTitle>
-            <FaMapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.internationalCustomers}
-            </div>
-          </CardContent>
-        </Card>
+        {[
+          {
+            label: i18nT("Total Customers"),
+            value: stats.totalCustomers,
+            Icon: Users,
+          },
+          {
+            label: i18nT("Active Customers"),
+            value: stats.activeCustomers,
+            Icon: FaUsers,
+          },
+          {
+            label: i18nT("Local Customers"),
+            value: stats.localCustomers,
+            Icon: FaMapMarkerAlt,
+          },
+          {
+            label: i18nT("International Customers"),
+            value: stats.internationalCustomers,
+            Icon: FaMapPin,
+          },
+        ].map((card, index) => {
+          const accent = statAccent(index);
+          return (
+            <Card key={card.label} className={`border-l-4 ${accent.ring}`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {card.label}
+                </CardTitle>
+                <span
+                  className={`inline-flex items-center justify-center h-7 w-7 rounded-lg flex-shrink-0 ${accent.chip}`}
+                >
+                  <card.Icon className={`h-4 w-4 ${accent.icon}`} />
+                </span>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{card.value}</div>
+              </CardContent>
+            </Card>
+          );
+        })}
 
         {/* <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -2800,13 +2789,15 @@ export function CRMManagement({
           </div>
 
           <div>
-            <Button
-              onClick={() => setShowProductMarketing(true)}
-              className="w-full md:w-auto mr-2"
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {i18nT("Product Marketing")}
-            </Button>
+            <FeatureGate feature="crmMarketingCampaign">
+              <Button
+                onClick={() => setShowProductMarketing(true)}
+                className="w-full md:w-auto mr-2"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {i18nT("Product Marketing")}
+              </Button>
+            </FeatureGate>
             <Button
               onClick={() => addNewCustomer()}
               className="w-full md:w-auto"
@@ -2876,12 +2867,30 @@ export function CRMManagement({
                         <TableCell className="font-medium">
                           <div className="flex items-center space-x-3">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={customer.avatar} />
-                              <AvatarFallback>
-                                {customer.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
+                              {/* Only rendered when there is a real photo.
+                                  These used to be pointed at a generated
+                                  ui-avatars.com URL for every customer, which
+                                  always loaded — so Radix never fell through to
+                                  the fallback below and every avatar showed
+                                  that service's grey default instead of the
+                                  colour here. */}
+                              {customer.avatar && (
+                                <AvatarImage src={customer.avatar} />
+                              )}
+                              {/* Colour is hashed off the customer id, so it
+                                  survives renames, re-sorts and reloads. Seeded
+                                  with the id rather than the name for exactly
+                                  that reason. */}
+                              <AvatarFallback
+                                className={`text-xs font-semibold ${avatarAccent(
+                                  // `||` not `??`: an id that arrives as an
+                                  // empty string is as useless a seed as a
+                                  // missing one, and `??` would keep it and
+                                  // fall through to the grey no-seed branch.
+                                  customer.id || customer.name,
+                                )}`}
+                              >
+                                {initials(customer.name)}
                               </AvatarFallback>
                             </Avatar>
                             <div>
@@ -2940,20 +2949,22 @@ export function CRMManagement({
                               <Mail size={16} />
                               <span>{customer.email}</span>
                             </a>
-                            {customer.whatsapp && (
-                              <a
-                                href={`https://wa.me/${customer.whatsapp.replace(
-                                  /\D/g,
-                                  "",
-                                )}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-green-600 hover:underline flex items-center gap-1"
-                              >
-                                <FaWhatsapp size={16} />
-                                <span>{customer.whatsapp}</span>
-                              </a>
-                            )}
+                            <FeatureGate feature="crmWhatsappMessage">
+                              {customer.whatsapp && (
+                                <a
+                                  href={`https://wa.me/${customer.whatsapp.replace(
+                                    /\D/g,
+                                    "",
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-green-600 hover:underline flex items-center gap-1"
+                                >
+                                  <FaWhatsapp size={16} />
+                                  <span>{customer.whatsapp}</span>
+                                </a>
+                              )}
+                            </FeatureGate>
                           </div>
                         </TableCell>
 

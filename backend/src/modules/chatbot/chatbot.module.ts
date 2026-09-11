@@ -10,6 +10,7 @@ import { OperatorSchema } from "../operators/entities/operator.entity";
 import { PlanSchema } from "../plans/entities/plan.entity";
 import { PaymentEmailSchema } from "../payment-emails/schemas/payment-email.schema";
 import { UserSchema } from "../users/schemas/user.schema";
+import { ShopkeeperAnalyticsModule } from "../shopkeepers/shopkeeper-analytics.module";
 
 @Module({
   imports: [
@@ -23,6 +24,9 @@ import { UserSchema } from "../users/schemas/user.schema";
       { name: "PaymentEmail", schema: PaymentEmailSchema },
       { name: "User", schema: UserSchema },
     ]),
+    // For the chatbot's get_analytics tool, which calls the report service
+    // directly rather than through the (guarded) analytics HTTP route.
+    ShopkeeperAnalyticsModule,
   ],
   controllers: [ChatbotController],
   providers: [ChatbotService],

@@ -10,11 +10,14 @@ import {
   Req,
   BadRequestException,
 } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AdminGuard } from "../auth/guards/admin.guard";
 import { AdminPaymentsService } from "./admin-payments.service";
 
+// Every route here moves platform money (payouts, releases, refunds), so the
+// class-wide guard is AdminGuard: JwtAuthGuard alone let any signed-in
+// shopkeeper read and act on the whole platform ledger.
 @Controller("admin/payments")
-@UseGuards(JwtAuthGuard)
+@UseGuards(AdminGuard)
 export class AdminPaymentsController {
   constructor(private readonly service: AdminPaymentsService) {}
 

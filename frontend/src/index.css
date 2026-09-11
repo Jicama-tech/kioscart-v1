@@ -47,8 +47,15 @@
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 0 90% 70%;
-    --accent-foreground: 0 0% 100%;
+    /* shadcn spends `accent` as the neutral hover/focus surface: ghost
+       buttons, dropdown and context menu items, command results, menubar,
+       toggles — 23 places across components/ui. It was a saturated red here
+       (hue 0) and purple in dark, so every one of those flashed a brand-less
+       colour on hover, which is what theme-toggle and language-toggle were
+       each locally patching around. Tuned to a quiet surface a shade off the
+       background, which is what those components expect. */
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 11%;
 
     --eShop: 150 80% 45%;
     --eShop-foreground: 0 0% 100%;
@@ -133,8 +140,8 @@
     --muted: 217 33% 17%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 280 85% 65%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 217 33% 24%;
+    --accent-foreground: 210 40% 98%;
 
     --eShop: 150 80% 45%;
     --eShop-foreground: 0 0% 100%;

@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { SubscriptionAccessModule } from "./common/subscription/subscription-access.module";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -33,6 +34,7 @@ import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 
 @Module({
   imports: [
+    SubscriptionAccessModule,
     ConfigModule.forRoot({ isGlobal: true }),
     PaymentGatewaysModule,
     MailModule,

@@ -386,7 +386,7 @@ const Eshop = () => {
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             <div className={cn("flex items-start gap-4")}>
               <div className="w-12 h-12 gradient-eshop rounded-full flex items-center justify-center flex-shrink-0 shadow-card">
-                <span className="text-accent-foreground font-bold text-lg">
+                <span className="text-white font-bold text-lg">
                   1
                 </span>
               </div>
@@ -402,7 +402,7 @@ const Eshop = () => {
             </div>
             <div className={cn("flex items-start gap-4")}>
               <div className="w-12 h-12 gradient-eshop rounded-full flex items-center justify-center flex-shrink-0 shadow-card">
-                <span className="text-accent-foreground font-bold text-lg">
+                <span className="text-white font-bold text-lg">
                   2
                 </span>
               </div>
@@ -418,7 +418,7 @@ const Eshop = () => {
             </div>
             <div className={cn("flex items-start gap-4")}>
               <div className="w-12 h-12 gradient-eshop rounded-full flex items-center justify-center flex-shrink-0 shadow-card">
-                <span className="text-accent-foreground font-bold text-lg">
+                <span className="text-white font-bold text-lg">
                   3
                 </span>
               </div>
@@ -433,7 +433,7 @@ const Eshop = () => {
             </div>
             <div className={cn("flex items-start gap-4")}>
               <div className="w-12 h-12 gradient-eshop rounded-full flex items-center justify-center flex-shrink-0 shadow-card">
-                <span className="text-accent-foreground font-bold text-lg">
+                <span className="text-white font-bold text-lg">
                   4
                 </span>
               </div>

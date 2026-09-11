@@ -13,11 +13,14 @@ import {
   UploadedFile,
   UseInterceptors,
   UploadedFiles,
+  ForbiddenException,
 } from "@nestjs/common";
 import { ShopkeeperStoresService } from "./shopkeeper-stores.service";
 import { CreateShopkeeperStoreDto } from "./dto/create-shopkeeper-store.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { AuthGuard } from "@nestjs/passport";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 import { UpdateShopkeeperStoreDto } from "./dto/update-shopkeeper-store.dto";
 import { diskStorage } from "multer";
 import * as path from "path";
@@ -49,16 +52,55 @@ const storage = diskStorage({
   },
 });
 
+/**
+ * Guards are per-route, never on the controller: the storefront reads below
+ * (bundle by slug, detail by shop name, detail by shopkeeper id) are what the
+ * live customer-facing shop and the checkout pages fetch with no token at all,
+ * so requiring a JWT on this class would take every storefront offline.
+ *
+ * The two writes are the theme builder saving settings. They are sold per plan
+ * (see the "storefront" group in frontend/src/lib/planModules.ts) and until now
+ * were enforced only in the dashboard UI, so a shop on a plan without the theme
+ * builder could still save a themed storefront by calling the API directly.
+ */
 @Controller("shopkeeper-stores")
 export class ShopkeeperStoresController {
   constructor(
     private readonly shopkeeperStoresService: ShopkeeperStoresService,
   ) {}
 
+  /**
+   * The JWT `sub` (mapped to `userId` by JwtStrategy) is the owning shopkeeper.
+   * Operator-minted tokens carry the parent owner's id, so an operator passes
+   * their owner's checks without a special case.
+   */
+  private callerId(req: any): string {
+    const id = String(req?.user?.userId || "");
+    if (!id) throw new ForbiddenException("Not your account");
+    return id;
+  }
+
   @Post("add-store-settings")
-  @UseGuards(AuthGuard("jwt"))
-  create(@Body() createShopkeeperStoreDto: CreateShopkeeperStoreDto) {
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("storefront")
+  create(
+    @Req() req: any,
+    @Body() createShopkeeperStoreDto: CreateShopkeeperStoreDto,
+  ) {
     try {
+      // The shop to create settings for arrives in the body, so it was a
+      // free choice of the caller. The dashboard already sends the token's
+      // own `sub` here, so pinning it to the token changes nothing for the
+      // real client and closes the cross-shop write.
+      const shopkeeperId = this.callerId(req);
+      if (
+        createShopkeeperStoreDto.shopkeeperId &&
+        String(createShopkeeperStoreDto.shopkeeperId) !== shopkeeperId
+      ) {
+        throw new ForbiddenException("Not your store");
+      }
+      createShopkeeperStoreDto.shopkeeperId = shopkeeperId;
+
       console.log(createShopkeeperStoreDto, "createShopkeeperStoreDto");
       return this.shopkeeperStoresService.create(createShopkeeperStoreDto);
     } catch (error) {
@@ -112,7 +154,8 @@ export class ShopkeeperStoresController {
   }
 
   @Patch("update-store-settings")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("storefront")
   @UseInterceptors(
     FileFieldsInterceptor(
       [
@@ -148,7 +191,9 @@ export class ShopkeeperStoresController {
     @Body() updateShopkeeperStoreDto: UpdateShopkeeperStoreDto,
   ) {
     try {
-      const id = req.user.userId;
+      // No :shopkeeperId to check against — the row updated is chosen by the
+      // token's own id, so the route can only ever write the caller's store.
+      const id = this.callerId(req);
 
       console.log("Received body:", updateShopkeeperStoreDto);
       console.log("Received files:", files);

@@ -51,6 +51,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { jwtDecode } from "jwt-decode";
 import { t as i18nT } from "@/i18n/t";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 import {
   Plus,
   Loader2,
@@ -320,8 +321,12 @@ export default function SuppliersDirectory() {
   return (
     <Tabs defaultValue="directory" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="directory">{i18nT("Supplier Directory")}</TabsTrigger>
-        <TabsTrigger value="requirements">{i18nT("Business Requirements")}</TabsTrigger>
+        <FeatureGate feature="supplierDirectory">
+          <TabsTrigger value="directory">{i18nT("Supplier Directory")}</TabsTrigger>
+        </FeatureGate>
+        <FeatureGate feature="supplierRequirements">
+          <TabsTrigger value="requirements">{i18nT("Business Requirements")}</TabsTrigger>
+        </FeatureGate>
       </TabsList>
 
       <TabsContent value="requirements" className="mt-0">
@@ -333,7 +338,9 @@ export default function SuppliersDirectory() {
               </div>
             }
           >
-            <SupplierRequests scope="business" shopkeeperId={shopkeeperId} />
+            <FeatureGate feature="supplierRequests">
+              <SupplierRequests scope="business" shopkeeperId={shopkeeperId} />
+            </FeatureGate>
           </Suspense>
         ) : (
           <Card>

@@ -1,5 +1,6 @@
 import { en } from "./en";
 import { hi } from "./hi";
+import { gu } from "./gu";
 import type { Lang } from "./index";
 
 /**
@@ -19,7 +20,7 @@ import type { Lang } from "./index";
  */
 let current: Lang = "en";
 
-const DICTS: Record<Lang, Record<string, string>> = { en, hi };
+const DICTS: Record<Lang, Record<string, string>> = { en, hi, gu };
 
 export function setCurrentLang(l: Lang) {
   current = l;

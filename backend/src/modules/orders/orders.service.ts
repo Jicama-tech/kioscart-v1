@@ -26,6 +26,7 @@ import { CouponService } from "../coupon/coupon.service";
 import { ShopkeeperStoresService } from "../shopkeeper-stores/shopkeeper-stores.service";
 import { ShopfrontStore } from "../shopkeeper-stores/entities/shopkeeper-store.entity";
 import { UpdateOrderDto } from "./dto/update-order.dto";
+import { SubscriptionAccessService } from "../../common/subscription/subscription-access.service";
 
 function asObjectId(id: string | Types.ObjectId): Types.ObjectId | string {
   // If already an ObjectId
@@ -53,6 +54,7 @@ export class OrdersService {
     private readonly usersService: UsersService,
     private readonly couponService: CouponService,
     private readonly shopkeeperStoreService: ShopkeeperStoresService,
+    private readonly subscriptionAccess: SubscriptionAccessService,
   ) {}
 
   private formatPriceByCountry(amount: number, countryCode: string): string {
@@ -184,7 +186,15 @@ export class OrdersService {
     }
 
     // 2. WhatsApp to customer (if WhatsApp available)
-    if (dto.whatsAppNumber && dto.whatsAppNumber !== "kiosk-order") {
+    //
+    // Gated on the SHOP's plan, not the caller's: the customer placing the
+    // order has no subscription, and it is the shopkeeper who is paying for
+    // the ability to notify. Resolved from dto.shopkeeperId for that reason.
+    const waNotifications = await this.subscriptionAccess.isEnabled(
+      String(dto.shopkeeperId),
+      "whatsappOrderNotifications",
+    );
+    if (waNotifications && dto.whatsAppNumber && dto.whatsAppNumber !== "kiosk-order") {
       try {
         const customerName = dto.fullName || user?.name || "Customer";
         const message =
@@ -227,7 +237,7 @@ export class OrdersService {
     }
 
     // 4. WhatsApp to shopkeeper (new order alert)
-    if (shopkeeper?.whatsappNumber) {
+    if (waNotifications && shopkeeper?.whatsappNumber) {
       try {
         await this.sendWhatsAppToShopkeeper(
           shopkeeper.whatsappNumber,
@@ -1293,7 +1303,11 @@ export class OrdersService {
         );
       }
 
-      if (user?.whatsAppNumber && shopkeeper?.whatsappNumber) {
+      const statusWaEnabled = await this.subscriptionAccess.isEnabled(
+        String(shopkeeper?._id || shopkeeper),
+        "whatsappOrderNotifications",
+      );
+      if (statusWaEnabled && user?.whatsAppNumber && shopkeeper?.whatsappNumber) {
         await this.sendWhatsAppToUser(
           user.whatsAppNumber, // Corrected casing
           user.name,

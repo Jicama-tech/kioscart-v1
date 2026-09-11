@@ -30,6 +30,8 @@ import { UpsertSupplierConfigDto } from "./dto/upsert-supplier-config.dto";
 import { UpdateSupplierStatusDto } from "./dto/update-supplier-status.dto";
 import { RecordSupplierPaymentDto } from "./dto/record-supplier-payment.dto";
 import { AddSupplierNoteDto } from "./dto/add-supplier-note.dto";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 
 function generateFileName(_req: any, file: any, cb: any) {
   const ext = path.extname(file.originalname);
@@ -316,7 +318,8 @@ export class SuppliersController {
   // ---------- SHOPKEEPER: supplier CRM (identity list) ----------
 
   @Post("create-by-shopkeeper/:shopkeeperId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   createByShopkeeper(
     @Param("shopkeeperId") shopkeeperId: string,
     @Body() dto: CreateSupplierDto,
@@ -327,7 +330,8 @@ export class SuppliersController {
   }
 
   @Patch("update-by-shopkeeper/:shopkeeperId/:supplierId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   updateByShopkeeper(
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("supplierId") supplierId: string,
@@ -343,7 +347,8 @@ export class SuppliersController {
   }
 
   @Delete("delete-by-shopkeeper/:shopkeeperId/:supplierId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async deleteForShopkeeper(
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("supplierId") supplierId: string,
@@ -359,7 +364,8 @@ export class SuppliersController {
 
   // Which products this supplier has been engaged for (eye icon in the CRM).
   @Get("history/:shopkeeperId/:supplierId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async supplierProductHistory(
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("supplierId") supplierId: string,
@@ -374,7 +380,8 @@ export class SuppliersController {
   }
 
   @Get("list-by-shopkeeper/:shopkeeperId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   listSuppliersByShopkeeper(
     @Param("shopkeeperId") shopkeeperId: string,
     @Req() req: any,
@@ -388,7 +395,8 @@ export class SuppliersController {
   // Requirements derived from what actually sold recently, so the
   // shopkeeper doesn't retype what the system already knows.
   @Get("product/:productId/requirement-suggestions")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async requirementSuggestions(
     @Param("productId") productId: string,
     @Req() req: any,
@@ -400,7 +408,8 @@ export class SuppliersController {
 
   // Which requirements are covered, by whom, and what's still to source.
   @Get("product/:productId/fulfilment")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async requirementFulfilment(
     @Param("productId") productId: string,
     @Req() req: any,
@@ -411,7 +420,8 @@ export class SuppliersController {
   }
 
   @Get("product/:productId/config")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async getConfig(@Param("productId") productId: string, @Req() req: any) {
     await this.assertOwnsProduct(req, productId);
     const data = await this.suppliersService.getConfig(productId);
@@ -419,7 +429,8 @@ export class SuppliersController {
   }
 
   @Patch("product/:productId/config")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async upsertConfig(
     @Param("productId") productId: string,
     @Body() dto: UpsertSupplierConfigDto,
@@ -431,7 +442,8 @@ export class SuppliersController {
   }
 
   @Patch("product/:productId/enabled")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async setEnabled(
     @Param("productId") productId: string,
     @Body() body: { enabled: boolean },
@@ -448,7 +460,8 @@ export class SuppliersController {
   // ---------- SHOPKEEPER: business-wide list ----------
 
   @Get("business/:shopkeeperId/config")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async getBusinessConfig(
     @Param("shopkeeperId") shopkeeperId: string,
     @Req() req: any,
@@ -462,7 +475,8 @@ export class SuppliersController {
   }
 
   @Patch("business/:shopkeeperId/config")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async upsertBusinessConfig(
     @Param("shopkeeperId") shopkeeperId: string,
     @Body() dto: UpsertSupplierConfigDto,
@@ -477,7 +491,8 @@ export class SuppliersController {
   }
 
   @Patch("business/:shopkeeperId/enabled")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async setBusinessEnabled(
     @Param("shopkeeperId") shopkeeperId: string,
     @Body() body: { enabled: boolean },
@@ -492,7 +507,8 @@ export class SuppliersController {
   }
 
   @Get("business/:shopkeeperId/fulfilment")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async businessFulfilment(
     @Param("shopkeeperId") shopkeeperId: string,
     @Req() req: any,
@@ -507,7 +523,8 @@ export class SuppliersController {
 
   // Quotations against the business list only (product quotes excluded).
   @Get("business/:shopkeeperId/requests")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async listBusinessRequests(
     @Param("shopkeeperId") shopkeeperId: string,
     @Req() req: any,
@@ -520,7 +537,8 @@ export class SuppliersController {
   // ---------- SHOPKEEPER: quotations ----------
 
   @Get("product/:productId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async listByProduct(@Param("productId") productId: string, @Req() req: any) {
     await this.assertOwnsProduct(req, productId);
     const data = await this.suppliersService.listByProduct(productId);
@@ -528,7 +546,8 @@ export class SuppliersController {
   }
 
   @Get("shopkeeper/:shopkeeperId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async listByShopkeeper(
     @Param("shopkeeperId") shopkeeperId: string,
     @Req() req: any,
@@ -539,7 +558,8 @@ export class SuppliersController {
   }
 
   @Get("request/:id")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async getOne(@Param("id") id: string, @Req() req: any) {
     await this.assertOwnsRequest(req, id);
     const data = await this.suppliersService.getOne(id);
@@ -548,7 +568,8 @@ export class SuppliersController {
 
   // Goods received at / returned from the shop. Separate from payment.
   @Patch("request/:id/check")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async checkItems(
     @Param("id") id: string,
     @Body()
@@ -572,7 +593,8 @@ export class SuppliersController {
   }
 
   @Patch("request/:id/status")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async updateStatus(
     @Param("id") id: string,
     @Body() dto: UpdateSupplierStatusDto,
@@ -584,7 +606,8 @@ export class SuppliersController {
   }
 
   @Post("request/:id/record-payment")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   @UseInterceptors(supplierUpload("proofScreenshot"))
   async recordPayment(
     @Param("id") id: string,
@@ -601,7 +624,8 @@ export class SuppliersController {
   }
 
   @Post("request/:id/notes")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequiresFeature("suppliers")
   async addNote(
     @Param("id") id: string,
     @Body() dto: AddSupplierNoteDto,

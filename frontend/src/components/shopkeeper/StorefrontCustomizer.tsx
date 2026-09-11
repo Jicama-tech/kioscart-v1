@@ -49,6 +49,8 @@ import { useEffect } from "react";
 import ImageCropModal from "../ui/imageCropModal";
 
 import { t as i18nT } from "@/i18n/t";
+import { ModuleGate } from "@/components/ui/ModuleGate";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 function DebouncedColorInput({
   value,
   onChange,
@@ -974,6 +976,7 @@ export function StorefrontCustomizer({
 
             {/* General Tab */}
             <TabsContent value="general" className="space-y-6">
+              <ModuleGate moduleKey="storefrontGeneral">
               <Card>
                 <CardHeader>
                   <CardTitle>{i18nT("Store Information")}</CardTitle>
@@ -1132,6 +1135,7 @@ export function StorefrontCustomizer({
                       />
                     </div>
 
+                    <FeatureGate feature="storefrontSlug">
                     <div className="space-y-2">
                       <Label htmlFor="slug">{i18nT("Store Link (slug)")}</Label>
                       <div className="flex items-center">
@@ -1164,6 +1168,7 @@ export function StorefrontCustomizer({
                         </Button>
                       </div>
                     </div>
+                    </FeatureGate>
                   </div>
                 </CardContent>
               </Card>
@@ -1344,10 +1349,12 @@ export function StorefrontCustomizer({
                   </div>
                 </CardContent>
               </Card>
+              </ModuleGate>
             </TabsContent>
 
             {/* Design Tab */}
             <TabsContent value="design" className="space-y-6">
+              <ModuleGate moduleKey="storefrontDesign">
               <Card>
                 <CardHeader>
                   <CardTitle>{i18nT("Theme & Colors")}</CardTitle>
@@ -1655,6 +1662,7 @@ export function StorefrontCustomizer({
                         </details>
 
                         {/* 3. Banner / Hero */}
+                        <FeatureGate feature="storefrontBanner">
                         <div className="border rounded-lg overflow-hidden">
                           <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40">
                             <span className="text-xs font-semibold">
@@ -2145,6 +2153,7 @@ export function StorefrontCustomizer({
                             </div>
                           )}
                         </div>
+                        </FeatureGate>
 
                         {/* 4. Featured Product */}
                         <div className="border rounded-lg overflow-hidden">
@@ -3066,6 +3075,7 @@ export function StorefrontCustomizer({
                   })()}
                 </CardContent>
               </Card>
+              </ModuleGate>
             </TabsContent>
 
             {/* Features Tab */}
@@ -3080,7 +3090,12 @@ export function StorefrontCustomizer({
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {Object.entries(settings.features).map(([key, value]) => (
+                      {Object.entries(settings.features)
+                        .filter(([key]) => {
+                          const planKey = STOREFRONT_FEATURE_PLAN_KEYS[key];
+                          return !planKey || isModuleEnabled(planKey);
+                        })
+                        .map(([key, value]) => (
                         <div
                           key={key}
                           className="flex items-center justify-between"
@@ -3102,7 +3117,7 @@ export function StorefrontCustomizer({
                             }
                           />
                         </div>
-                      ))}
+                        ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -3111,6 +3126,7 @@ export function StorefrontCustomizer({
 
             {/* SEO Tab */}
             <TabsContent value="seo" className="relative space-y-6">
+              <ModuleGate moduleKey="storefrontSeo">
               {/* Blurred container */}
               <div className="filter blur-sm select-none pointer-events-none">
                 <Card>
@@ -3212,6 +3228,7 @@ export function StorefrontCustomizer({
                   <span>{i18nT("This feature is under development")}</span>
                 </div>
               </div>
+              </ModuleGate>
             </TabsContent>
           </Tabs>
         </div>
@@ -3308,6 +3325,22 @@ function StorefrontPreview({
     </div>
   );
 }
+
+/**
+ * Storefront toggles that a plan can withhold, keyed by the switch name the
+ * customiser already uses. Search and filters ship as one plan feature, so both
+ * switches ride on the same key. A switch missing from this map is not sold
+ * separately and always shows.
+ */
+const STOREFRONT_FEATURE_PLAN_KEYS: Record<string, string> = {
+  showSearch: "storefrontSearch",
+  showFilters: "storefrontSearch",
+  showReviews: "storefrontReviews",
+  showWishlist: "storefrontWishlist",
+  showQuickView: "storefrontQuickView",
+  showSocialMedia: "storefrontSocialLinks",
+  showNewsletter: "storefrontNewsletter",
+};
 
 function getFeatureDescription(key: string): string {
   const descriptions: { [key: string]: string } = {

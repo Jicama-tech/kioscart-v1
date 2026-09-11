@@ -555,12 +555,14 @@ export class AdminService {
   }
 
   async getPlatformPayment() {
-    let doc: any = await this.platformPaymentModel.findOne().lean();
-    if (!doc) {
-      const created: any = await this.platformPaymentModel.create({});
-      doc = created.toObject();
-    }
-    return doc;
+    const doc: any = await this.platformPaymentModel.findOne().lean();
+    if (doc) return doc;
+    // A GET must not write: this used to create({}) an empty settings row on
+    // every first read. Hand back the schema defaults unsaved instead and let
+    // updatePlatformPayment (which already handles "no row yet") create it.
+    const defaults: any = new this.platformPaymentModel().toObject();
+    delete defaults._id;
+    return defaults;
   }
 
   async updatePlatformPayment(body: any, qrPublicUrl?: string | null) {

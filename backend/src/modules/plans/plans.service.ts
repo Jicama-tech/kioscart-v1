@@ -8,10 +8,14 @@ import { Model } from "mongoose";
 import { CreatePlanDto } from "./dto/create-plan.dto";
 import { UpdatePlanDto } from "./dto/update-plan.dto";
 import { Plan, PlanDocument } from "../plans/entities/plan.entity";
+import { SubscriptionAccessService } from "../../common/subscription/subscription-access.service";
 
 @Injectable()
 export class PlansService {
-  constructor(@InjectModel(Plan.name) private planModel: Model<PlanDocument>) {}
+  constructor(
+    @InjectModel(Plan.name) private planModel: Model<PlanDocument>,
+    private readonly subscriptionAccess: SubscriptionAccessService,
+  ) {}
 
   async create(createPlanDto: CreatePlanDto): Promise<Plan> {
     try {
@@ -57,6 +61,9 @@ export class PlansService {
     if (!updatedPlan) {
       throw new NotFoundException(`Plan with ID ${id} not found`);
     }
+    // The feature switches just changed for everyone on this plan, so the
+    // guard must not keep serving its cached copy.
+    this.subscriptionAccess.invalidateAll();
     return updatedPlan;
   }
 
@@ -65,14 +72,17 @@ export class PlansService {
     if (!result) {
       throw new NotFoundException(`Plan with ID ${id} not found`);
     }
+    this.subscriptionAccess.invalidateAll();
   }
 
   async toggleActive(id: string): Promise<Plan> {
     const plan = await this.findOne(id);
     plan.isActive = !plan.isActive;
-    return await this.planModel
+    const toggled = await this.planModel
       .findByIdAndUpdate(id, plan, { new: true })
       .exec();
+    this.subscriptionAccess.invalidateAll();
+    return toggled;
   }
 
   async setDefault(id: string): Promise<Plan> {

@@ -35,6 +35,7 @@ import { FaDollarSign, FaRupeeSign } from "react-icons/fa";
 import { BlurWrapper } from "../ui/BlurWrapper";
 
 import { t as i18nT } from "@/i18n/t";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 // Interfaces
 interface ProductOption {
   id: number;
@@ -1023,17 +1024,19 @@ export function ProductForm({ product, onSave, onClose }: any) {
                     <CardTitle className="text-base">
                       Product Options (Size / Quantity / Pack)
                     </CardTitle>
-                    <Switch
-                      checked={formData.hasOptions || false}
-                      onCheckedChange={(checked) => {
-                        handleInputChange("hasOptions", checked);
-                        if (!checked) {
-                          handleInputChange("productOptions", []);
-                          handleInputChange("optionsLabel", "");
-                        }
-                      }}
-                      disabled={isSubmitting}
-                    />
+                    <FeatureGate feature="productOptions" mode="lock">
+                      <Switch
+                        checked={formData.hasOptions || false}
+                        onCheckedChange={(checked) => {
+                          handleInputChange("hasOptions", checked);
+                          if (!checked) {
+                            handleInputChange("productOptions", []);
+                            handleInputChange("optionsLabel", "");
+                          }
+                        }}
+                        disabled={isSubmitting}
+                      />
+                    </FeatureGate>
                   </div>
                 </CardHeader>
                 {formData.hasOptions && (
@@ -1206,16 +1209,18 @@ export function ProductForm({ product, onSave, onClose }: any) {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{i18nT("Variants")}</CardTitle>
-                    <Button
-                      type="button"
-                      variant="buttonOutline"
-                      size="sm"
-                      onClick={handleAddProductVariant}
-                      disabled={isSubmitting}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      {i18nT("Add Variant")}
-                    </Button>
+                    <FeatureGate feature="productVariants" mode="lock">
+                      <Button
+                        type="button"
+                        variant="buttonOutline"
+                        size="sm"
+                        onClick={handleAddProductVariant}
+                        disabled={isSubmitting}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        {i18nT("Add Variant")}
+                      </Button>
+                    </FeatureGate>
                   </div>
                 </CardHeader>
                 {hasVariants && (
@@ -1406,15 +1411,17 @@ export function ProductForm({ product, onSave, onClose }: any) {
                   <Label className="text-lg font-semibold">
                     {i18nT("Subcategories & Variants (Optional)")}
                   </Label>
-                  <Button
-                    type="button"
-                    variant="buttonOutline"
-                    onClick={handleAddSubcategory}
-                    disabled={isSubmitting}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    {i18nT("Add Subcategory")}
-                  </Button>
+                  <FeatureGate feature="productSubcategories" mode="lock">
+                    <Button
+                      type="button"
+                      variant="buttonOutline"
+                      onClick={handleAddSubcategory}
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      {i18nT("Add Subcategory")}
+                    </Button>
+                  </FeatureGate>
                 </div>
 
                 {hasSubcategories && (
@@ -2031,6 +2038,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                               </div>
                             )}
 
+                            <FeatureGate feature="productVariants" mode="lock">
                             <Button
                               type="button"
                               variant="buttonOutline"
@@ -2047,6 +2055,7 @@ export function ProductForm({ product, onSave, onClose }: any) {
                               <Plus className="mr-2 h-4 w-4" />
                               {i18nT("Add Variant")}
                             </Button>
+                            </FeatureGate>
                           </div>
                         </CardContent>
                       )}
@@ -2101,11 +2110,13 @@ export function ProductForm({ product, onSave, onClose }: any) {
               <CardTitle>{i18nT("Product Images (Maximum 3)")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <ProductImageUpload
-                images={formData.images}
-                onImagesChange={handleImagesChange}
-                maxImages={3}
-              />
+              <FeatureGate feature="productImages">
+                <ProductImageUpload
+                  images={formData.images}
+                  onImagesChange={handleImagesChange}
+                  maxImages={3}
+                />
+              </FeatureGate>
               <p className="text-sm text-muted-foreground mt-2">
                 Upload up to 3 high-quality images of your product. The first
                 image will be used as the main product image.

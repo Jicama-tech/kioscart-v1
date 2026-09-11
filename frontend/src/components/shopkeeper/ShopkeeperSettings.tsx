@@ -71,6 +71,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { ModuleGate } from "@/components/ui/ModuleGate";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 import { jwtDecode } from "jwt-decode";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { format } from "date-fns";
@@ -99,6 +100,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 
 import { t as i18nT } from "@/i18n/t";
+import { groupsForModule } from "@/lib/planModules";
 interface ShopkeeperSettingsProps {
   onSave?: (settings: any) => void;
 }
@@ -1088,10 +1090,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     }));
   };
 
-  const createCoupon = async (payload: any) => {
+  const createCoupon = async (payload: any, token: string) => {
     const res = await fetch(`${apiURL}/coupons/create-coupon`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -1103,10 +1108,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     return res.json();
   };
 
-  const updateCoupon = async (id: string, payload: any) => {
+  const updateCoupon = async (id: string, payload: any, token: string) => {
     const res = await fetch(`${apiURL}/coupons/update-coupon/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -1152,9 +1160,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       };
 
       if (isEditMode && coupon._id) {
-        await updateCoupon(coupon._id, payload);
+        await updateCoupon(coupon._id, payload, token);
       } else {
-        await createCoupon(payload);
+        await createCoupon(payload, token);
       }
 
       setOpenCouponDialog(false);
@@ -1170,8 +1178,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
   const handleDeleteCoupon = async (id: string) => {
     try {
+      const token = sessionStorage.getItem("token");
+      if (!token) throw new Error("Please login to continue");
       const res = await fetch(`${apiURL}/coupons/delete-coupon/${id}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         const err = await res.json();
@@ -1186,9 +1197,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
   const handleToggleActiveCoupon = async (id: string, isActive: boolean) => {
     try {
+      const token = sessionStorage.getItem("token");
+      if (!token) throw new Error("Please login to continue");
       const res = await fetch(`${apiURL}/coupons/update-coupon/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ isActive }),
       });
       if (!res.ok) {
@@ -1723,6 +1739,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
             },
           },
         );
@@ -2084,6 +2101,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   </div>
 
                   {/* ✅ BUSINESS INFO CARD */}
+                  <FeatureGate feature="settingsBusinessInfo">
                   <Card className="border-blue-200">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -2140,8 +2158,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       </div>
                     </CardContent>
                   </Card>
+                  </FeatureGate>
 
                   {/* ✅ ADDRESS CARD */}
+                  <FeatureGate feature="settingsAddress">
                   <Card className="border-blue-200">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -2178,6 +2198,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       </div>
                     </CardContent>
                   </Card>
+                  </FeatureGate>
                 </div>
               )}
 
@@ -2865,53 +2886,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     <div>
                       <h4 className="text-sm font-semibold mb-3">{i18nT("Modules")}</h4>
                       <div className="space-y-2">
-                        {[
-                          { label: i18nT("Product Management"), color: "blue", items: [
-                            { key: "products", label: i18nT("Products") },
-                            { key: "bulkImport", label: "Bulk Import / Export" },
-                          ]},
-                          { label: i18nT("Order Management"), color: "amber", items: [
-                            { key: "orders", label: i18nT("Orders") },
-                            { key: "receipts", label: i18nT("Receipt Printing") },
-                          ]},
-                          { label: i18nT("Online Storefront"), color: "emerald", items: [
-                            { key: "storefront", label: i18nT("Storefront") },
-                            { key: "customDomain", label: i18nT("Custom Domain") },
-                            { key: "instagram", label: i18nT("Instagram Integration") },
-                            { key: "videoSection", label: i18nT("Video Section") },
-                            { key: "ourStory", label: i18nT("Our Story Section") },
-                          ]},
-                          { label: i18nT("Analytics"), color: "purple", items: [
-                            { key: "analytics", label: i18nT("Analytics & Reports") },
-                          ]},
-                          { label: i18nT("Payments"), color: "indigo", items: [
-                            { key: "staticQR", label: i18nT("Static QR") },
-                            { key: "dynamicQR", label: i18nT("Dynamic QR") },
-                            { key: "paymentTracking", label: i18nT("Payment Tracking (Gmail)") },
-                            { key: "razorpay", label: i18nT("Card Payments (Razorpay)") },
-                          ]},
-                          { label: "CRM / Customers", color: "pink", items: [
-                            { key: "crm", label: i18nT("Customer Management") },
-                          ]},
-                          { label: i18nT("Coupons"), color: "orange", items: [
-                            { key: "coupons", label: i18nT("Coupon Management") },
-                          ]},
-                          { label: i18nT("Kiosk Mode"), color: "cyan", items: [
-                            { key: "kiosk", label: "Kiosk / POS Mode" },
-                          ]},
-                          { label: i18nT("Operators"), color: "rose", items: [
-                            { key: "operators", label: i18nT("Multi-User Operators") },
-                          ]},
-                          { label: i18nT("Communication"), color: "green", items: [
-                            { key: "whatsappQR", label: i18nT("WhatsApp QR") },
-                            { key: "chatbot", label: i18nT("Smart Assistant") },
-                          ]},
-                        ].map((group) => {
+                        {groupsForModule("shopkeeper").map((group) => {
                           const groupHasAny = group.items.some((i) => subscription.modules[i.key]?.enabled);
                           if (!groupHasAny) return (
                             <div key={group.label} className="rounded-lg border border-border bg-muted/50 p-3 opacity-60">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-muted-foreground">{group.label}</span>
+                                <span className="text-sm font-medium text-muted-foreground">{i18nT(group.label)}</span>
                                 <Badge variant="secondary" className="text-xs">{i18nT("OFF")}</Badge>
                               </div>
                             </div>
@@ -2919,7 +2899,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                           return (
                             <div key={group.label} className="rounded-lg border border-green-200 bg-green-50 overflow-hidden">
                               <div className="flex items-center justify-between p-3">
-                                <span className="text-sm font-semibold text-green-700">{group.label}</span>
+                                <span className="text-sm font-semibold text-green-700">{i18nT(group.label)}</span>
                                 <Badge variant="default" className="text-xs">ON</Badge>
                               </div>
                               <div className="border-t border-green-200/60 divide-y divide-green-100">
@@ -2928,7 +2908,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                   const on = config?.enabled;
                                   return (
                                     <div key={item.key} className="flex items-center justify-between px-4 py-1.5 pl-6">
-                                      <span className="text-xs">{item.label}</span>
+                                      <span className="text-xs">{i18nT(item.label)}</span>
                                       <div className="flex items-center gap-1.5">
                                         {item.key === "products" && on && (
                                           <span className="text-xs text-muted-foreground">
@@ -3152,6 +3132,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         </TabsContent>
 
         <TabsContent value="branding">
+          <ModuleGate moduleKey="settingsBranding">
           <BlurWrapper>
             <Card>
               <CardHeader>
@@ -3195,9 +3176,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           </BlurWrapper>
+          </ModuleGate>
         </TabsContent>
 
         <TabsContent value="products">
+          <ModuleGate moduleKey="settingsProductDefaults">
           <BlurWrapper>
             <Card>
               <CardHeader>
@@ -3251,6 +3234,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           </BlurWrapper>
+          </ModuleGate>
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
@@ -4106,6 +4090,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         </TabsContent>
 
         <TabsContent value="shipping">
+          <ModuleGate moduleKey="settingsShipping">
           <BlurWrapper>
             <Card>
               <CardHeader>
@@ -4152,6 +4137,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           </BlurWrapper>
+          </ModuleGate>
         </TabsContent>
 
         <TabsContent value="receipts">

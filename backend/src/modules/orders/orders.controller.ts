@@ -7,21 +7,53 @@ import {
   Patch,
   Query,
   BadRequestException,
+  ForbiddenException,
   InternalServerErrorException,
   Delete,
+  Req,
   Res,
   NotFoundException,
+  UseGuards,
 } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
 import { OrdersService } from "./orders.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { OrderStatus } from "./entities/order.entity";
 import { UpdateOrderDto } from "./dto/update-order.dto";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 import { Response } from "express";
 
 @Controller("orders")
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  /**
+   * The shop id in these URLs is not a secret — it is decoded from the login
+   * token by the dashboard, printed in storefront links and pasted into QR
+   * codes — so a valid token on its own proves nothing about whose orders are
+   * being read. The JWT `userId` is the owning shopkeeper even on an
+   * operator-minted token (see auth/strategies/jwt.strategy.ts), so an
+   * operator passes their parent shop's check without a separate branch.
+   */
+  private assertOwnShop(req: any, shopkeeperId: string) {
+    if (String(req?.user?.userId || "") !== String(shopkeeperId || "")) {
+      throw new ForbiddenException("Not your shop");
+    }
+  }
+
+  // Status updates are keyed on an order id, not a shop id, so ownership has
+  // to be read off the order itself. getOrderById populates shopkeeperId,
+  // hence the _id-or-raw-id unwrap.
+  private async assertOwnsOrder(req: any, orderId: string) {
+    const order: any = await this.ordersService.getOrderById(orderId);
+    const ownerId = String(order?.shopkeeperId?._id || order?.shopkeeperId || "");
+    this.assertOwnShop(req, ownerId);
+  }
+
+  // Deliberately public: this is the storefront checkout. The buyer is a
+  // customer, not a shopkeeper, and carries no token — see paymentPage.tsx.
+  // Locking it (or gating it on a plan key) would take the shop offline.
   @Post("create-order")
   async create(@Body() dto: CreateOrderDto) {
     try {
@@ -41,11 +73,15 @@ export class OrdersController {
   }
 
   @Get("get-orders/shopkeeper/:shopkeeperId")
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("orders")
   async getByField(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Query("page") page?: string,
     @Query("limit") limit?: string,
   ) {
+    this.assertOwnShop(req, shopkeeperId);
     try {
       const pageNum = page ? parseInt(page, 10) : undefined;
       const limitNum = limit ? parseInt(limit, 10) : undefined;
@@ -65,10 +101,16 @@ export class OrdersController {
   }
 
   @Patch(":orderId/status")
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("orders", "ordersStatusUpdate")
   async updateOrderStatus(
+    @Req() req: any,
     @Param("orderId") orderId: string,
     @Body() updateDTO: UpdateOrderDto,
   ) {
+    // Outside the try below on purpose — that catch turns everything into a
+    // 400, which would hide the 403/404 this check is meant to return.
+    await this.assertOwnsOrder(req, orderId);
     try {
       return await this.ordersService.updateOrderStatus(orderId, updateDTO);
     } catch (err) {
@@ -77,7 +119,16 @@ export class OrdersController {
   }
 
   @Get("customers/:shopkeeperId")
-  async getCustomersByShopkeeper(@Param("shopkeeperId") shopkeeperId: string) {
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  // Keyed on "orders" rather than "crm": the dashboard overview reads this
+  // list too, so gating it on the CRM tab would blank out a plan that only
+  // bought Orders.
+  @RequiresFeature("orders")
+  async getCustomersByShopkeeper(
+    @Req() req: any,
+    @Param("shopkeeperId") shopkeeperId: string,
+  ) {
+    this.assertOwnShop(req, shopkeeperId);
     try {
       return await this.ordersService.getCustomersWithOrderSummary(
         shopkeeperId,
@@ -110,8 +161,13 @@ export class OrdersController {
     }
   }
 
+  // Ownership is read off the order, same as the status update — deleting
+  // someone else's order was reachable with no token at all.
   @Delete("delete-order/:orderId")
-  async deleteOrder(@Param("orderId") orderId: string) {
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("orders")
+  async deleteOrder(@Param("orderId") orderId: string, @Req() req: any) {
+    await this.assertOwnsOrder(req, orderId);
     try {
       return await this.ordersService.deleteOrder(orderId);
     } catch (error) {
@@ -168,7 +224,13 @@ export class OrdersController {
   }
 
   @Get("shopkeeper-info/:shopkeeperId")
-  async getShopkeeperInfo(@Param("shopkeeperId") shopkeeperId: string) {
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("orders")
+  async getShopkeeperInfo(
+    @Req() req: any,
+    @Param("shopkeeperId") shopkeeperId: string,
+  ) {
+    this.assertOwnShop(req, shopkeeperId);
     try {
       const shopkeeperInfo =
         await this.ordersService.getShopkeeperInfo(shopkeeperId);

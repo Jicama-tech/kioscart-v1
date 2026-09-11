@@ -16,7 +16,7 @@ import { AdminService } from "./admin.service";
 import { CreateAdminDto } from "./dto/create-admin.dto";
 import { LocalDto } from "../auth/dto/local.dto";
 import { LoginDto } from "./dto/login.dto";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AdminGuard } from "../auth/guards/admin.guard";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { extname } from "path";
@@ -26,8 +26,10 @@ import { extname } from "path";
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  // Minting another admin is a privilege escalation, so only an existing
+  // admin may do it — this guard had been commented out.
   @Post("create-admin")
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   async create(@Body() createAdminDto: CreateAdminDto) {
     try {
       // const creatorId = req.user.sub; // sub from JWT payload
@@ -37,6 +39,8 @@ export class AdminController {
     }
   }
 
+  // Public on purpose: this is how an admin gets a token in the first place,
+  // which is why this controller guards per route instead of class-wide.
   @Post("login-admin")
   login(@Body() dto: LoginDto) {
     try {
@@ -48,7 +52,7 @@ export class AdminController {
   }
 
   @Get("dashboard-stats")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   pendingApprovals() {
     try {
       return this.adminService.getDashboardData();
@@ -58,7 +62,7 @@ export class AdminController {
   }
 
   @Patch("approve/:id")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   approveApplicant(
     @Param("id") id: string,
     @Body("role") role: "Organizer" | "Shopkeeper",
@@ -72,7 +76,7 @@ export class AdminController {
 
   // ✅ Reject Applicant (Organizer or Shopkeeper)
   @Patch("reject/:id")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   rejectApplicant(
     @Param("id") id: string,
     @Body("role") role: "Organizer" | "Shopkeeper",
@@ -85,28 +89,32 @@ export class AdminController {
   }
 
   @Get()
+  @UseGuards(AdminGuard)
   findAll() {
     return this.adminService.findAll();
   }
 
   @Get("shopkeepers-overview")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   async getShopkeepersOverview() {
     return this.adminService.getShopkeepersOverview();
   }
 
   @Get("users-overview")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   async getUsersOverview() {
     return this.adminService.getUsersOverview();
   }
 
+  // Payout bank/UPI details and the QR the platform collects on — admin only.
   @Get("platform-payment")
+  @UseGuards(AdminGuard)
   getPlatformPayment() {
     return this.adminService.getPlatformPayment();
   }
 
   @Patch("platform-payment")
+  @UseGuards(AdminGuard)
   @UseInterceptors(
     FileInterceptor("qrCode", {
       storage: diskStorage({
@@ -144,17 +152,19 @@ export class AdminController {
   }
 
   @Get(":id")
+  @UseGuards(AdminGuard)
   findOne(@Param("id") id: string) {
     return this.adminService.findOne(+id);
   }
 
   @Post("cleanup-soft-deleted")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   async cleanupSoftDeleted() {
     return this.adminService.cleanupSoftDeleted();
   }
 
   @Delete(":id")
+  @UseGuards(AdminGuard)
   remove(@Param("id") id: string) {
     return this.adminService.remove(+id);
   }

@@ -1238,4 +1238,11 @@ export const hi: Record<string, string> = {
   "Bug report": "गड़बड़ी की रिपोर्ट",
   "Feature request": "नई सुविधा का सुझाव",
   "General help": "सामान्य मदद",
+
+  // ===== sidebar controls =====
+  "Hide sidebar": "साइडबार छिपाएँ",
+  "Show sidebar": "साइडबार दिखाएँ",
+  "Resize sidebar": "साइडबार की चौड़ाई बदलें",
+  "Drag to resize · drag left to close · double-click to reset":
+    "चौड़ाई बदलने के लिए खींचें · बंद करने के लिए बाएँ खींचें · रीसेट के लिए डबल-क्लिक करें",
 };

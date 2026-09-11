@@ -30,6 +30,7 @@ import {
 import { Plan, PlanDocument } from "../plans/entities/plan.entity";
 import { PaymentGatewayFactory } from "../payment-gateways/gateway.factory";
 import { encryptSecret } from "../../common/secrets.util";
+import { SubscriptionAccessService } from "../../common/subscription/subscription-access.service";
 
 @Injectable()
 export class ShopkeepersService {
@@ -43,6 +44,7 @@ export class ShopkeepersService {
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly gatewayFactory: PaymentGatewayFactory,
+    private readonly subscriptionAccess: SubscriptionAccessService,
   ) {}
 
   private normalizeEmail(email: string): string {
@@ -1438,8 +1440,10 @@ export class ShopkeepersService {
 
     const plan = await this.planModel.findById(shopkeeper.planId).lean();
 
-    const productLimit = (plan?.modules as any)?.products?.limit || 0;
-    await this.enforceProductLimit(shopkeeperId, productLimit);
+    // This read used to call enforceProductLimit(), so merely fetching the
+    // subscription soft-deleted products over the plan's limit. Reconciling the
+    // limit belongs to the write moments that change it — addSubscriptionPlan()
+    // and checkAndDowngradeExpired() — not to a GET the dashboard polls.
 
     const now = new Date();
     const expiry = shopkeeper.planExpiryDate ? new Date(shopkeeper.planExpiryDate) : null;
@@ -1483,6 +1487,9 @@ export class ShopkeepersService {
     );
     shopkeeper.pricePaid = plan.price.toString();
     await shopkeeper.save();
+    // Drop the guard's cached copy so the new plan applies on the very next
+    // request rather than up to CACHE_TTL_MS later.
+    this.subscriptionAccess.invalidate(id);
 
     const newLimit = (plan.modules as any)?.products?.limit || 0;
     await this.enforceProductLimit(id, newLimit);
@@ -1513,6 +1520,7 @@ export class ShopkeepersService {
       );
       sk.pricePaid = defaultPlan.price.toString();
       await sk.save();
+      this.subscriptionAccess.invalidate(sk._id.toString());
       await this.enforceProductLimit(sk._id.toString(), newLimit);
       count++;
     }
@@ -1528,6 +1536,7 @@ export class ShopkeepersService {
     shopkeeper.planExpiryDate = new Date();
 
     await shopkeeper.save();
+    this.subscriptionAccess.invalidate(id);
     return { message: "Subscription cancelled", data: shopkeeper };
   }
 }

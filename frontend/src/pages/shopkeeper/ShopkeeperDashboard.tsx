@@ -52,8 +52,7 @@ import {
   Mail,
   MessageCircle,
   HelpCircle,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronRight,
   LifeBuoy,
   Receipt,
   Truck,
@@ -126,7 +125,14 @@ import {
   useSubscription,
 } from "@/context/SubscriptionContext";
 import { ModuleGate } from "@/components/ui/ModuleGate";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 import { ChatbotWidget } from "@/components/shopkeeper/ChatbotWidget";
+import { statAccent } from "@/lib/accents";
+import {
+  useDraggableTab,
+  useIsLargeScreen,
+  useResizableSidebar,
+} from "@/hooks/useResizableSidebar";
 import { EarningsWidget } from "@/components/shopkeeper/EarningsWidget";
 import { Lock } from "lucide-react";
 
@@ -357,6 +363,26 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
       );
     } catch {}
   }, [sidebarCollapsed]);
+  // Drag-to-resize width for the desktop sidebar. Independent of the collapse
+  // flag: collapsing hides the sidebar without forgetting how wide it was, so
+  // re-opening restores the width the shopkeeper had chosen.
+  const {
+    width: sidebarWidth,
+    dragging: sidebarDragging,
+    willCollapse: sidebarWillCollapse,
+    handleProps: sidebarHandleProps,
+  } = useResizableSidebar("shopkeeperSidebarWidth", () =>
+    setSidebarCollapsed(true),
+  );
+  // Vertical position of the re-open tab shown while the sidebar is collapsed,
+  // so it can be parked clear of whichever heading the active tab renders.
+  const {
+    top: reopenTabTop,
+    dragging: reopenTabDragging,
+    consumeDragClick: consumeReopenTabDrag,
+    handleProps: reopenTabHandleProps,
+  } = useDraggableTab("shopkeeperReopenTabTop");
+  const isDesktop = useIsLargeScreen();
   const [loading, setLoading] = useState(false);
   const [shopName, setShopName] = useState("KiosCart Store");
   const [slug, setSlug] = useState("");
@@ -465,6 +491,15 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { isModuleEnabled, subscription: subData } = useSubscription();
+
+  // Past expiry AND past the grace window. isModuleEnabled turns every module
+  // off in this state, so each panel renders the generic upgrade card and the
+  // KPIs read zero — without a standing explanation that just looks broken. A
+  // toast is the wrong shape for it: a toast disappears, and this state does
+  // not resolve itself until the shopkeeper renews.
+  const planFullyLapsed = Boolean(
+    subData?.isExpired && !subData?.inGracePeriod,
+  );
 
   useEffect(() => {
     if (subData?.inGracePeriod) {
@@ -657,11 +692,34 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
   const formatPercentage = (value: number) => `${value.toFixed(1)}%`;
 
-  const downloadCSV = () => {
-    window.open(
-      `${apiUrl}/shopkeeper/analytics/${shopkeeperInfo._id}/export/excel/${selectedPeriod}`,
-      "_blank",
-    );
+  // Fetched with the token and saved from a blob rather than opened with
+  // window.open: a browser navigation carries no Authorization header, so the
+  // moment the analytics routes require a JWT, window.open would 401. This is
+  // the same shape PnLReport already uses for its PDF download.
+  const downloadCSV = async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(
+        `${apiUrl}/shopkeeper/analytics/${shopkeeperInfo._id}/export/excel/${selectedPeriod}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) throw new Error("Failed to export analytics");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `analytics_${selectedPeriod}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({
+        title: i18nT("Error"),
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const stats = useMemo(
@@ -896,22 +954,6 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
               )}
             </Button>
 
-            {/* Desktop sidebar collapse toggle */}
-            <Button
-              variant="buttonOutline"
-              size="sm"
-              className="hidden lg:inline-flex"
-              onClick={() => setSidebarCollapsed((c) => !c)}
-              title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-              aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-            >
-              {sidebarCollapsed ? (
-                <PanelLeftOpen className="h-5 w-5" />
-              ) : (
-                <PanelLeftClose className="h-5 w-5" />
-              )}
-            </Button>
-
             <Store className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
             <h1 className="text-lg sm:text-xl font-bold hidden sm:block">
               {shopName}
@@ -920,8 +962,12 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <LanguageToggle />
-            <ThemeToggle />
+            <FeatureGate feature="languages">
+              <LanguageToggle />
+            </FeatureGate>
+            <FeatureGate feature="themes">
+              <ThemeToggle />
+            </FeatureGate>
             <Button
               variant="outline"
               size="sm"
@@ -939,8 +985,39 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
         </div>
       </header>
 
+      {/* Fully-lapsed banner. Never gated on a module key or a plan feature:
+          renewing is the only way out of this state, which is also why the
+          sidebar leaves Settings ungated. */}
+      {planFullyLapsed && (
+        <div
+          role="alert"
+          className="flex-shrink-0 border-b border-rose-200 bg-rose-50 text-rose-700 px-4 sm:px-6 py-2.5
+            dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <p className="flex-1 text-xs sm:text-sm">
+              <span className="font-semibold">
+                {i18nT("Your plan has expired.")}
+              </span>{" "}
+              {i18nT("Every panel stays locked until you renew.")}{" "}
+              {i18nT("Go to Settings > Profile > Change Plan")}
+            </p>
+            {hasTabAccess("settings") && (
+              <Button
+                size="sm"
+                className="self-start sm:self-auto"
+                onClick={() => handleTabChange("settings")}
+              >
+                {i18nT("Change Plan")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main container with fixed sidebar and scrollable content */}
-      <div className="flex flex-1 overflow-hidden z-40">
+      <div className="relative flex flex-1 overflow-hidden z-40">
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div
@@ -949,15 +1026,30 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
           />
         )}
 
-        {/* Sidebar */}
+        {/* Sidebar.
+
+            Width is an inline style rather than a Tailwind class because it is
+            a live drag value and Tailwind cannot emit a class per pixel. An
+            inline width would otherwise beat the `w-64` class at every
+            breakpoint, so it is only set once `isDesktop` is true — below lg
+            the sidebar is a fixed-width slide-over and `w-64` stays in charge. */}
         <aside
+          style={
+            // Only drive width from JS on desktop. Below lg the drawer is a
+            // fixed-width slide-over, so leave the class to do the work.
+            isDesktop
+              ? { width: sidebarCollapsed ? 0 : sidebarWidth }
+              : undefined
+          }
           className={`
             fixed lg:static lg:translate-x-0
             border-r bg-card/95 backdrop-blur-sm lg:bg-muted/30
-            h-full z-50 transition-all duration-300 ease-in-out
+            h-full z-50 ease-in-out
             flex-shrink-0 overflow-hidden
             w-64
-            ${sidebarCollapsed ? "lg:w-0 lg:border-r-0" : "lg:w-64"}
+            ${sidebarDragging ? "" : "transition-all duration-300"}
+            ${sidebarCollapsed ? "lg:border-r-0" : ""}
+            ${sidebarWillCollapse ? "opacity-40" : ""}
             ${
               sidebarOpen
                 ? "translate-x-0"
@@ -975,6 +1067,12 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                   storefront: "storefront",
                   kiosk: "kiosk",
                   support: "support",
+                  // Settings is deliberately absent: it holds the Change Plan
+                  // screen, so locking it would trap a shopkeeper on the plan
+                  // that locked it.
+                  dashboard: "analytics",
+                  expenses: "expenses",
+                  suppliers: "suppliers",
                 };
                 const moduleKey = navToModule[item.id];
                 const locked = moduleKey ? !isModuleEnabled(moduleKey) : false;
@@ -1012,6 +1110,59 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
           </div>
         </aside>
 
+        {/* Resize handle. A 1px visual seam with a wider invisible hit area, so
+            it is easy to grab without drawing a thick bar. Hidden while the
+            sidebar is collapsed — there is no edge to drag. Keyboard users get
+            the same control: it is focusable and takes arrow keys. */}
+        {!sidebarCollapsed && (
+          <div
+            {...sidebarHandleProps}
+            title={i18nT("Drag to resize · drag left to close · double-click to reset")}
+            aria-label={i18nT("Resize sidebar")}
+            className={`hidden lg:block relative w-1 flex-shrink-0 cursor-col-resize group
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-primary
+              ${
+                sidebarWillCollapse
+                  ? "bg-destructive"
+                  : sidebarDragging
+                    ? "bg-primary"
+                    : "bg-transparent hover:bg-primary/40"
+              }
+              transition-colors`}
+          >
+            {/* Widens the grab target to 9px without widening the seam. */}
+            <span className="absolute inset-y-0 -left-1 -right-1" />
+          </div>
+        )}
+
+        {/* Re-open tab. The sidebar is closed by dragging the handle past the
+            threshold, which leaves no edge to grab — so this is the only way
+            back in, pinned where the sidebar used to be. It also slides up and
+            down (drag, or arrow keys once focused) so it can be moved off
+            whatever heading the active tab starts with; the position sticks. */}
+        {sidebarCollapsed && (
+          <button
+            type="button"
+            {...reopenTabHandleProps}
+            style={{ top: reopenTabTop }}
+            onClick={() => {
+              // Swallow the click that ends a reposition, or every drag would
+              // also re-open the sidebar.
+              if (consumeReopenTabDrag()) return;
+              setSidebarCollapsed(false);
+            }}
+            title={i18nT("Show sidebar · drag to move up or down")}
+            aria-label={i18nT("Show sidebar")}
+            className={`hidden lg:flex absolute left-0 z-40 h-9 w-7 items-center justify-center
+              rounded-r-md border border-l-0 bg-card text-muted-foreground shadow-sm
+              hover:bg-primary/10 hover:text-primary hover:border-primary/40
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-primary
+              ${reopenTabDragging ? "cursor-grabbing border-primary/40 text-primary" : "cursor-grab transition-colors"}`}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
+
         {/* Main Content - Now the only scrollable element */}
         <main className="flex-1 overflow-y-auto">
           <div className="p-3 sm:p-4 lg:p-6">
@@ -1027,29 +1178,46 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                       {i18nT("Dashboard")}
                     </h2>
 
-                    {/* Stats Grid */}
+                    {/* Stats Grid — each tile keeps its own accent (fixed by
+                        position in `stats`, never by value), and pairs the hue
+                        with an icon and a label so the colour is never the only
+                        thing telling them apart. */}
+                    <FeatureGate feature="analyticsKpiCards">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-                      {stats.map((stat, index) => (
-                        <Card key={index}>
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-xs sm:text-sm font-medium truncate">
-                              {stat.title}
-                            </CardTitle>
-                            <stat.icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <div className="text-lg sm:text-2xl font-bold">
-                              {stat.value}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                      {stats.map((stat, index) => {
+                        const accent = statAccent(index);
+                        return (
+                          <Card
+                            key={index}
+                            className={`border-l-4 ${accent.ring}`}
+                          >
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                              <CardTitle className="text-xs sm:text-sm font-medium truncate">
+                                {stat.title}
+                              </CardTitle>
+                              <span
+                                className={`inline-flex items-center justify-center h-7 w-7 rounded-lg flex-shrink-0 ${accent.chip}`}
+                              >
+                                <stat.icon className={`h-4 w-4 ${accent.icon}`} />
+                              </span>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <div className="text-lg sm:text-2xl font-bold">
+                                {stat.value}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
+                    </FeatureGate>
 
                     {/* Razorpay earnings (held vs released) */}
-                    {shopkeeperId && (
-                      <EarningsWidget shopkeeperId={shopkeeperId} />
-                    )}
+                    <FeatureGate feature="analyticsEarnings">
+                      {shopkeeperId && (
+                        <EarningsWidget shopkeeperId={shopkeeperId} />
+                      )}
+                    </FeatureGate>
 
                     {/* Quick Actions */}
                     <Card>
@@ -1119,6 +1287,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                           </CardDescription>
                         </div>
                         <div className="flex gap-2">
+                          <FeatureGate feature="analyticsPeriodFilter">
                           <select
                             value={selectedPeriod}
                             onChange={(e) => changeTimePeriod(e.target.value)}
@@ -1131,14 +1300,17 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                             <option value="yearly">{i18nT("Current Year")}</option>
                             <option value="lastyear">{i18nT("Last Year")}</option>
                           </select>
-                          <Button
-                            onClick={downloadCSV}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Download size={18} />
-                            {i18nT("Export")}
-                          </Button>
+                          </FeatureGate>
+                          <FeatureGate feature="analyticsExport">
+                            <Button
+                              onClick={downloadCSV}
+                              size="sm"
+                              variant="outline"
+                            >
+                              <Download size={18} />
+                              {i18nT("Export")}
+                            </Button>
+                          </FeatureGate>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -1206,7 +1378,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                               </Card>
                             </div>
                             {/* Revenue Trend Chart */}
-                            {analyticsData.revenueTrend &&
+                            {isModuleEnabled("analyticsRevenueTrend") &&
+                              analyticsData.revenueTrend &&
                               analyticsData?.revenueTrend.length > 0 && (
                                 <div>
                                   <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
@@ -1254,7 +1427,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                               )}
 
                             {/* Product Performance - Pie Chart */}
-                            {analyticsData.topProducts &&
+                            {isModuleEnabled("analyticsTopProducts") &&
+                              analyticsData.topProducts &&
                               analyticsData.topProducts.length > 0 && (
                                 <div>
                                   <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
@@ -1381,7 +1555,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                               )}
 
                             {/* Category Performance - Pie Chart */}
-                            {analyticsData.categoryPerformance &&
+                            {isModuleEnabled("analyticsCategoryPerf") &&
+                              analyticsData.categoryPerformance &&
                               analyticsData.categoryPerformance.length > 0 && (
                                 <div>
                                   <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
@@ -1919,11 +2094,13 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                       </CardContent>
                     </Card>
 
-                    {shopkeeperId && (
-                      <Suspense fallback={<TabLoadingFallback />}>
-                        <PnLReport shopkeeperId={shopkeeperId} period={selectedPeriod} />
-                      </Suspense>
-                    )}
+                    <FeatureGate feature="pnlReport">
+                      {shopkeeperId && (
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <PnLReport shopkeeperId={shopkeeperId} period={selectedPeriod} />
+                        </Suspense>
+                      )}
+                    </FeatureGate>
                   </div>
                 ) : (
                   <NoAccessOverlay />
@@ -2054,9 +2231,11 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
               <TabsContent value="expenses" className="mt-0">
                 {hasTabAccess("expenses") ? (
-                  <Suspense fallback={<TabLoadingFallback />}>
-                    <ExpenseManagement />
-                  </Suspense>
+                  <ModuleGate moduleKey="expenses">
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <ExpenseManagement />
+                    </Suspense>
+                  </ModuleGate>
                 ) : (
                   <NoAccessOverlay />
                 )}
@@ -2064,9 +2243,11 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
 
               <TabsContent value="suppliers" className="mt-0">
                 {hasTabAccess("suppliers") ? (
-                  <Suspense fallback={<TabLoadingFallback />}>
-                    <SuppliersDirectory />
-                  </Suspense>
+                  <ModuleGate moduleKey="suppliers">
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <SuppliersDirectory />
+                    </Suspense>
+                  </ModuleGate>
                 ) : (
                   <NoAccessOverlay />
                 )}

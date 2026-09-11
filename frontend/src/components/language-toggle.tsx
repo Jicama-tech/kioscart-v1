@@ -9,15 +9,15 @@ import {
 import { cn } from "@/lib/utils";
 import { LANG_LABELS, useI18n, type Lang } from "@/i18n";
 
-const LANGS: Lang[] = ["en", "hi"];
+const LANGS: Lang[] = ["en", "hi", "gu"];
 
 // Same hover discipline as ThemeToggle: primary only, never the accent red.
 const HOVER = "hover:bg-primary/10 hover:text-primary focus-visible:text-primary";
 
 /**
  * Language picker for the login screen and the dashboard, mirroring the
- * EN/HI menu in the landing page's nav. Shows the current code so the state is
- * readable at a glance, the way the landing page's does.
+ * EN/HI/GU menu in the landing page's nav. Shows the current code so the state
+ * is readable at a glance, the way the landing page's does.
  */
 export function LanguageToggle({ className }: { className?: string }) {
   const { lang, setLang, t } = useI18n();

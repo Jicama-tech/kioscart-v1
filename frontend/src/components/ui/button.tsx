@@ -20,8 +20,15 @@ const buttonVariants = cva(
         // the active/default variant.
         buttonOutline:
           "border border-input bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/40",
-        outline: "border border-input bg-background hover:bg-seconday/80",
-        outline1: "bg-background hover:bg-seconday/80",
+        // These two hovered to `bg-seconday/80` — "secondary" misspelled, so
+        // Tailwind emitted nothing and 110 outline buttons across the app had
+        // no hover feedback at all. Spelling it correctly would have given
+        // them a loud cyan wash (--secondary is 199 89% 48%), so they follow
+        // buttonOutline's primary tint instead, which is already documented
+        // above as the treatment that works in both themes.
+        outline:
+          "border border-input bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/40",
+        outline1: "bg-background hover:bg-primary/10 hover:text-primary",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",

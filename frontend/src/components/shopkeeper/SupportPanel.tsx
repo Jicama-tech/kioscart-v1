@@ -35,6 +35,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 import { t as i18nT } from "@/i18n/t";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 const apiURL = __API_URL__;
 
 type Category = "bug" | "feature_request" | "general" | "billing" | "other";
@@ -254,6 +255,7 @@ export default function SupportPanel() {
       </div>
 
       {/* ── Submit form ───────────────────────────────────────────────── */}
+      <FeatureGate feature="supportSubmit">
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">{i18nT("Submit a support request")}</CardTitle>
@@ -396,7 +398,10 @@ export default function SupportPanel() {
         </CardContent>
       </Card>
 
+      </FeatureGate>
+
       {/* ── History ──────────────────────────────────────────────────── */}
+      <FeatureGate feature="supportMyTickets">
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">{i18nT("My tickets")}</CardTitle>
@@ -480,6 +485,7 @@ export default function SupportPanel() {
           )}
         </CardContent>
       </Card>
+      </FeatureGate>
     </div>
   );
 }
