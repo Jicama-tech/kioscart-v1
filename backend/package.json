@@ -27,7 +27,7 @@
     "@types/compression": "^1.8.1",
     "@zxing/library": "^0.21.3",
     "axios": "^1.12.2",
-    "baileys": "^6.7.19",
+    "baileys": "^6.7.24",
     "bcrypt": "^5.1.1",
     "canvas": "^3.2.0",
     "class-transformer": "^0.5.1",
