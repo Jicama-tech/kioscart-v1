@@ -15,6 +15,7 @@ import { ShopkeepersModule } from "../shopkeepers/shopkeepers.module";
 import { UsersModule } from "../users/users.module";
 import { CouponModule } from "../coupon/coupon.module";
 import { ShopkeeperStoresModule } from "../shopkeeper-stores/shopkeeper-stores.module";
+import { WhatsappModule } from "../whatsapp/whatsapp.module";
 
 @Module({
   imports: [
@@ -28,6 +29,10 @@ import { ShopkeeperStoresModule } from "../shopkeeper-stores/shopkeeper-stores.m
     UsersModule,
     CouponModule,
     ShopkeeperStoresModule,
+    // Customer order messages go out from the shop's own linked number when
+    // it has one (Settings › WhatsApp). WhatsappModule is a leaf, so this
+    // import cannot cycle back here.
+    WhatsappModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService], // Remove MailService here, provided by MailModule

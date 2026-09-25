@@ -3,8 +3,10 @@ import {
   Get,
   Param,
   Query,
+  Req,
   Res,
   BadRequestException,
+  ForbiddenException,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -12,6 +14,9 @@ import {
 import { Response } from "express";
 import { ShopkeeperAnalyticsService } from "./shopkeeper-analytics-report.service";
 import { ReportPeriod } from "./dto/analytics-report.dto";
+import { AuthGuard } from "@nestjs/passport";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 
 /**
  * ShopkeeperAnalyticsController
@@ -22,8 +27,37 @@ import { ReportPeriod } from "./dto/analytics-report.dto";
  * Includes data export to Excel format
  */
 @Controller("shopkeeper/analytics")
+// The docblock above always claimed these endpoints were authenticated; until
+// now nothing enforced it, so any caller could read another shop's revenue by
+// guessing an id. The JWT guard makes the claim true and the subscription
+// guard puts the reports behind the plan feature that sells them.
+@UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+@RequiresFeature("analytics")
 export class ShopkeeperAnalyticsController {
   constructor(private readonly analyticsService: ShopkeeperAnalyticsService) {}
+
+  /**
+   * Every route below is keyed on a :shopkeeperId taken from the URL, and the
+   * guards above only prove the caller is signed in and that *their own* plan
+   * sells analytics — neither says the id is theirs. Without this check any
+   * shopkeeper could read another shop's revenue, customers and P&L by
+   * editing the id in the URL.
+   *
+   * The identity comes from `userId` (not `sub`) because these routes use the
+   * passport strategy, which maps sub -> userId (see auth/strategies/
+   * jwt.strategy.ts). On an operator-minted token that is still the parent
+   * owner's id, so operators pass their owner's check — same rule the
+   * SubscriptionGuard already uses to bill an operator against the shop.
+   *
+   * No admin escape hatch: admins have their own module, and the sibling
+   * lockdown in suppliers.controller.ts made the shop-scoped routes owner-only.
+   */
+  private assertOwnShop(req: any, shopkeeperId: string) {
+    const callerId = String(req?.user?.userId || req?.user?.sub || "");
+    if (!callerId || callerId !== String(shopkeeperId)) {
+      throw new ForbiddenException("Not your shop");
+    }
+  }
 
   /**
    * Generate complete analytics report (Monthly, Quarterly, Yearly)
@@ -50,9 +84,12 @@ export class ShopkeeperAnalyticsController {
   @Get(":shopkeeperId/report/:period")
   @HttpCode(HttpStatus.OK)
   async getAnalyticsReport(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     // Validate period parameter
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       throw new BadRequestException(
@@ -102,9 +139,12 @@ export class ShopkeeperAnalyticsController {
   @Get(":shopkeeperId/quick-summary")
   @HttpCode(HttpStatus.OK)
   async getQuickSummary(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Query("days") days?: number
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     // Use default of 30 days if not specified
     const lookbackDays = days || 30;
 
@@ -150,12 +190,18 @@ export class ShopkeeperAnalyticsController {
    * Content-Disposition: attachment; filename="analytics_monthly_123.xlsx"
    */
   @Get(":shopkeeperId/export/excel/:period")
+  @RequiresFeature("analytics", "analyticsExport")
   @HttpCode(HttpStatus.OK)
   async exportToExcel(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string,
     @Res() res: Response
   ) {
+    // Thrown, not written to `res`, because nothing has been sent yet — Nest's
+    // exception filter still owns the response until the export starts.
+    this.assertOwnShop(req, shopkeeperId);
+
     // Validate period parameter
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       return res.status(HttpStatus.BAD_REQUEST).json({
@@ -225,9 +271,12 @@ export class ShopkeeperAnalyticsController {
   @Get(":shopkeeperId/orders/:period")
   @HttpCode(HttpStatus.OK)
   async getDetailedOrders(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     // Validate period parameter
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       throw new BadRequestException(
@@ -303,9 +352,12 @@ export class ShopkeeperAnalyticsController {
   @Get(":shopkeeperId/products/:period")
   @HttpCode(HttpStatus.OK)
   async getProductPerformance(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     // Validate period parameter
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       throw new BadRequestException(
@@ -393,9 +445,12 @@ export class ShopkeeperAnalyticsController {
   @Get(":shopkeeperId/customers/:period")
   @HttpCode(HttpStatus.OK)
   async getCustomerInsights(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     // Validate period parameter
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       throw new BadRequestException(
@@ -475,9 +530,12 @@ export class ShopkeeperAnalyticsController {
   @Get(":shopkeeperId/trends/:period")
   @HttpCode(HttpStatus.OK)
   async getRevenueTrends(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     // Validate period parameter
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       throw new BadRequestException(
@@ -556,9 +614,12 @@ export class ShopkeeperAnalyticsController {
   @Get(":shopkeeperId/summary/:period")
   @HttpCode(HttpStatus.OK)
   async getSummaryMetrics(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     // Validate period parameter
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       throw new BadRequestException(
@@ -616,11 +677,15 @@ export class ShopkeeperAnalyticsController {
    * Endpoint: GET /shopkeeper/analytics/:shopkeeperId/pnl/:period
    */
   @Get(":shopkeeperId/pnl/:period")
+  @RequiresFeature("analytics", "pnlReport")
   @HttpCode(HttpStatus.OK)
   async getPnLReport(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string,
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       throw new BadRequestException(
         `Invalid period. Use: ${Object.values(ReportPeriod).join(", ")}`,
@@ -641,12 +706,16 @@ export class ShopkeeperAnalyticsController {
    * Endpoint: GET /shopkeeper/analytics/:shopkeeperId/pnl/export/pdf/:period
    */
   @Get(":shopkeeperId/pnl/export/pdf/:period")
+  @RequiresFeature("analytics", "pnlReport", "analyticsExport")
   @HttpCode(HttpStatus.OK)
   async exportPnLPdf(
+    @Req() req: any,
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("period") period: string,
     @Res() res: Response,
   ) {
+    this.assertOwnShop(req, shopkeeperId);
+
     if (!Object.values(ReportPeriod).includes(period as ReportPeriod)) {
       return res.status(HttpStatus.BAD_REQUEST).json({
         success: false,

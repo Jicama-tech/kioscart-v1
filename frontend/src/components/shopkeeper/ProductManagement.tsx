@@ -53,6 +53,7 @@ import { useCurrency } from "@/hooks/useCurrencyhook";
 import { jwtDecode } from "jwt-decode";
 
 import { t as i18nT } from "@/i18n/t";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 interface ProductOptionItem {
   id: number;
   title: string;
@@ -1033,15 +1034,17 @@ export function ProductManagement({
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Warehouse className="h-4 w-4 text-muted-foreground" />
-              <span className="ml-2 text-sm font-medium">{i18nT("Total Stock")}</span>
-            </div>
-            <div className="text-2xl font-bold">{totalStock}</div>
-          </CardContent>
-        </Card>
+        <FeatureGate feature="productInventory">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Warehouse className="h-4 w-4 text-muted-foreground" />
+                <span className="ml-2 text-sm font-medium">{i18nT("Total Stock")}</span>
+              </div>
+              <div className="text-2xl font-bold">{totalStock}</div>
+            </CardContent>
+          </Card>
+        </FeatureGate>
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
@@ -1097,13 +1100,15 @@ export function ProductManagement({
                   <span>Limit reached ({products.length}/{productLimit}). Upgrade plan to add more.</span>
                 </div>
               ) : (
-                <Button onClick={openAddDialog} size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Product
-                  {productLimit > 0 && (
-                    <span className="ml-2 text-xs opacity-80">({products.length}/{productLimit})</span>
-                  )}
-                </Button>
+                <FeatureGate feature="productAddEdit">
+                  <Button onClick={openAddDialog} size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Product
+                    {productLimit > 0 && (
+                      <span className="ml-2 text-xs opacity-80">({products.length}/{productLimit})</span>
+                    )}
+                  </Button>
+                </FeatureGate>
               )}
             </div>
           </div>
@@ -1119,6 +1124,7 @@ export function ProductManagement({
           />
 
           {/* Search and Filters */}
+          <FeatureGate feature="productSearchFilters">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1154,6 +1160,7 @@ export function ProductManagement({
               </SelectContent>
             </Select>
           </div>
+          </FeatureGate>
 
           {/* Product Tree Table */}
           {loading ? (

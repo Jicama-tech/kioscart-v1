@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import OpenAI from "openai";
+import { ShopkeeperAnalyticsService } from "../shopkeepers/shopkeeper-analytics-report.service";
+import { ReportPeriod } from "../shopkeepers/dto/analytics-report.dto";
 
 export interface QuickAction {
   label: string;
@@ -154,6 +156,7 @@ export class ChatbotService {
     @InjectModel("Plan") private planModel: Model<any>,
     @InjectModel("PaymentEmail") private paymentEmailModel: Model<any>,
     @InjectModel("User") private userModel: Model<any>,
+    private readonly analyticsService: ShopkeeperAnalyticsService,
   ) {
     // Provider priority: Qwen (Alibaba DashScope) if key is set, else Groq.
     // Qwen's free/paid tiers are more generous and its tool-calling is more
@@ -5285,11 +5288,19 @@ Hard rules — violations are bugs:
       }
       case "get_analytics": {
         try {
-          const r = await fetch(
-            `http://localhost:${process.env.PORT || 3000}/shopkeeper/analytics/${sid}/report/${input.period}`,
+          // Call the analytics service directly instead of re-entering our own
+          // HTTP route: that route sits behind the JWT + subscription guards, and
+          // a server-to-self fetch carries no Authorization header, so the hop
+          // could only ever 401. The shop is already resolved to `sid` here,
+          // which is exactly what the route's ownership check would have proved.
+          if (
+            !Object.values(ReportPeriod).includes(input.period as ReportPeriod)
+          )
+            return { error: "Failed" };
+          const d: any = await this.analyticsService.generateAnalyticsReport(
+            sid,
+            input.period as ReportPeriod,
           );
-          if (!r.ok) return { error: "Failed" };
-          const d = (await r.json()).data;
           // Normalise topProducts to the shape the chatbot widget renders
           // ({ name, sold, revenue }). The analytics report itself uses
           // { productName, totalQuantity, totalRevenue }, which would otherwise

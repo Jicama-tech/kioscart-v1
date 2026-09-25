@@ -20,18 +20,10 @@ import {
   ToggleLeft,
   Package,
   Loader2,
-  ShoppingCart,
-  Globe,
-  BarChart3,
-  CreditCard,
-  Users,
-  Tag,
-  Monitor,
-  UserPlus,
-  MessageCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { groupsForModule, type PlanModuleGroup } from "@/lib/planModules";
 
 const apiURL = __API_URL__;
 
@@ -60,119 +52,7 @@ interface Plan {
   updatedAt?: string;
 }
 
-const MODULE_GROUPS = [
-  {
-    id: "products",
-    label: "Product Management",
-    icon: Package,
-    color: "blue",
-    items: [
-      { key: "products", label: "Products", hasLimit: true },
-      { key: "bulkImport", label: "Bulk Import / Export", hasLimit: false },
-    ],
-  },
-  {
-    id: "orders",
-    label: "Order Management",
-    icon: ShoppingCart,
-    color: "amber",
-    items: [
-      { key: "orders", label: "Orders", hasLimit: false },
-      { key: "receipts", label: "Receipt Printing", hasLimit: false },
-    ],
-  },
-  {
-    id: "storefront",
-    label: "Online Storefront",
-    icon: Globe,
-    color: "emerald",
-    items: [
-      { key: "storefront", label: "Storefront", hasLimit: false },
-      { key: "customDomain", label: "Custom Domain", hasLimit: false },
-      { key: "instagram", label: "Instagram Integration", hasLimit: false },
-      { key: "videoSection", label: "Video Section", hasLimit: false },
-      { key: "ourStory", label: "Our Story Section", hasLimit: false },
-    ],
-  },
-  {
-    id: "analytics",
-    label: "Analytics Dashboard",
-    icon: BarChart3,
-    color: "purple",
-    items: [
-      { key: "analytics", label: "Analytics & Reports", hasLimit: false },
-    ],
-  },
-  {
-    id: "payments",
-    label: "Payments",
-    icon: CreditCard,
-    color: "indigo",
-    items: [
-      { key: "staticQR", label: "Static QR", hasLimit: false },
-      { key: "dynamicQR", label: "Dynamic QR", hasLimit: false },
-      { key: "paymentTracking", label: "Payment Tracking (Gmail)", hasLimit: false },
-      { key: "razorpay", label: "Card Payments (Razorpay)", hasLimit: false },
-    ],
-  },
-  {
-    id: "crm",
-    label: "CRM / Customers",
-    icon: Users,
-    color: "pink",
-    items: [
-      { key: "crm", label: "Customer Management", hasLimit: false },
-    ],
-  },
-  {
-    id: "coupons",
-    label: "Coupons & Discounts",
-    icon: Tag,
-    color: "orange",
-    items: [
-      { key: "coupons", label: "Coupon Management", hasLimit: false },
-    ],
-  },
-  {
-    id: "kiosk",
-    label: "Kiosk Mode",
-    icon: Monitor,
-    color: "cyan",
-    items: [
-      { key: "kiosk", label: "Kiosk / POS Mode", hasLimit: false },
-    ],
-  },
-  {
-    id: "operators",
-    label: "Operators",
-    icon: UserPlus,
-    color: "rose",
-    items: [
-      { key: "operators", label: "Multi-User Operators", hasLimit: false },
-    ],
-  },
-  {
-    id: "communication",
-    label: "Communication",
-    icon: MessageCircle,
-    color: "green",
-    items: [
-      { key: "whatsappQR", label: "WhatsApp QR", hasLimit: false },
-    ],
-  },
-  {
-    id: "assistant",
-    label: "Assistant & Support",
-    icon: MessageCircle,
-    color: "cyan",
-    items: [
-      { key: "chatbot", label: "AI Chatbot (Smart Assistant)", hasLimit: false },
-      { key: "support", label: "Support Tickets", hasLimit: false },
-    ],
-  },
-];
 
-const ALL_MODULE_KEYS = MODULE_GROUPS.flatMap((g) => g.items.map((i) => i.key));
 
 const EMPTY_FORM = {
   planName: "",
@@ -189,6 +69,43 @@ function getToken() {
   return sessionStorage.getItem("token") || "";
 }
 
+const MS_PER_DAY = 86_400_000;
+
+/** Midnight today, so the day maths is not skewed by the current clock time. */
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * `validityInDays` rendered as the date a plan bought today would end.
+ *
+ * Formatted from local parts rather than `toISOString()`, which converts to UTC
+ * first and so lands on the previous day for anyone east of Greenwich — India
+ * included, which is most of the people using this.
+ */
+function daysToEndDate(days: number): string {
+  const d = startOfToday();
+  d.setDate(d.getDate() + (Number.isFinite(days) && days > 0 ? days : 0));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Inverse of `daysToEndDate`: a picked end date back into a day count. */
+function endDateToDays(value: string): number | null {
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const target = new Date(y, m - 1, d);
+  target.setHours(0, 0, 0, 0);
+  const diff = Math.round(
+    (target.getTime() - startOfToday().getTime()) / MS_PER_DAY,
+  );
+  // A plan has to last at least a day; the input's `min` blocks earlier dates
+  // but typing into it can still get past that.
+  return Math.max(1, diff);
+}
+
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; badge: string }> = {
   blue:    { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-700",    badge: "bg-blue-100 text-blue-800" },
   amber:   { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",   badge: "bg-amber-100 text-amber-800" },
@@ -200,6 +117,10 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string; badg
   cyan:    { bg: "bg-cyan-50",    border: "border-cyan-200",    text: "text-cyan-700",    badge: "bg-cyan-100 text-cyan-800" },
   rose:    { bg: "bg-rose-50",    border: "border-rose-200",    text: "text-rose-700",    badge: "bg-rose-100 text-rose-800" },
   green:   { bg: "bg-green-50",   border: "border-green-200",   text: "text-green-700",   badge: "bg-green-100 text-green-800" },
+  teal:    { bg: "bg-teal-50",    border: "border-teal-200",    text: "text-teal-700",    badge: "bg-teal-100 text-teal-800" },
+  sky:     { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-700",     badge: "bg-sky-100 text-sky-800" },
+  violet:  { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-700",  badge: "bg-violet-100 text-violet-800" },
+  slate:   { bg: "bg-slate-50",   border: "border-slate-200",   text: "text-slate-700",   badge: "bg-slate-100 text-slate-800" },
 };
 
 export default function SubscriptionsPage() {
@@ -222,11 +143,11 @@ export default function SubscriptionsPage() {
     });
   };
 
-  const isGroupEnabled = (group: typeof MODULE_GROUPS[0]) => {
+  const isGroupEnabled = (group: PlanModuleGroup) => {
     return group.items.some((item) => form.modules[item.key]?.enabled);
   };
 
-  const toggleGroupAll = (group: typeof MODULE_GROUPS[0], enabled: boolean) => {
+  const toggleGroupAll = (group: PlanModuleGroup, enabled: boolean) => {
     setForm((prev) => {
       const updated = { ...prev.modules };
       group.items.forEach((item) => {
@@ -379,9 +300,17 @@ export default function SubscriptionsPage() {
     });
   };
 
+  // Counted against the keys this plan's forModule actually offers, so a
+  // shopkeeper plan is not scored out of the organizer keys it can never use.
+  const planKeys = (plan: Plan) =>
+    groupsForModule(plan.forModule || "shopkeeper").flatMap((g) =>
+      g.items.map((i) => i.key),
+    );
+
   const getEnabledCount = (plan: Plan) => {
     if (!plan.modules) return 0;
-    return ALL_MODULE_KEYS.filter((k) => (plan.modules as any)?.[k]?.enabled).length;
+    return planKeys(plan).filter((k) => plan.modules?.[k]?.enabled)
+      .length;
   };
 
   return (
@@ -424,7 +353,7 @@ export default function SubscriptionsPage() {
                         <Badge className="bg-indigo-600">Default</Badge>
                       )}
                       <Badge variant="outline">
-                        {getEnabledCount(plan)}/{ALL_MODULE_KEYS.length} modules
+                        {getEnabledCount(plan)}/{planKeys(plan).length} modules
                       </Badge>
                     </div>
                   </div>
@@ -445,8 +374,8 @@ export default function SubscriptionsPage() {
                 </p>
                 {plan.modules && (
                   <div className="flex flex-wrap gap-1">
-                    {MODULE_GROUPS.filter((g) =>
-                      g.items.some((i) => (plan.modules as any)?.[i.key]?.enabled)
+                    {groupsForModule(plan.forModule || "shopkeeper").filter((g) =>
+                      g.items.some((i) => plan.modules?.[i.key]?.enabled)
                     ).map((g) => {
                       const c = COLOR_MAP[g.color];
                       return (
@@ -511,14 +440,43 @@ export default function SubscriptionsPage() {
                   onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Validity (days)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={form.validityInDays}
-                  onChange={(e) => setForm({ ...form, validityInDays: Number(e.target.value) })}
-                />
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>Validity</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-24 shrink-0"
+                    aria-label="Validity in days"
+                    value={form.validityInDays}
+                    onChange={(e) =>
+                      setForm({ ...form, validityInDays: Number(e.target.value) })
+                    }
+                  />
+                  <span className="text-sm text-muted-foreground shrink-0">
+                    days, or
+                  </span>
+                  <Input
+                    type="date"
+                    // Today would be a zero-day plan, so the earliest valid
+                    // end date is tomorrow.
+                    min={daysToEndDate(1)}
+                    className="flex-1 min-w-0"
+                    aria-label="Validity end date"
+                    value={daysToEndDate(form.validityInDays)}
+                    onChange={(e) => {
+                      const days = endDateToDays(e.target.value);
+                      if (days !== null) {
+                        setForm({ ...form, validityInDays: days });
+                      }
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Saved as a duration, counted from each shopkeeper&apos;s own
+                  purchase date — the date here just shows where{" "}
+                  {form.validityInDays || 0} days lands if bought today.
+                </p>
               </div>
             </div>
 
@@ -546,7 +504,7 @@ export default function SubscriptionsPage() {
             <div className="space-y-3">
               <Label className="text-base font-semibold">Modules</Label>
               <div className="space-y-2">
-                {MODULE_GROUPS.map((group) => {
+                {groupsForModule(form.forModule).map((group) => {
                   const colors = COLOR_MAP[group.color];
                   const groupEnabled = isGroupEnabled(group);
                   const isExpanded = expandedGroups.has(group.id);
@@ -594,11 +552,18 @@ export default function SubscriptionsPage() {
                       {isExpanded && (
                         <div className="border-t border-gray-200/60 divide-y divide-gray-200/40">
                           {group.items.map((item) => {
-                            const current = form.modules[item.key] || { enabled: false };
+                            const current: ModuleConfig = form.modules[item.key] || { enabled: false };
                             const itemEnabled = current.enabled;
                             return (
                               <div key={item.key} className="flex items-center justify-between px-4 py-2.5 pl-12">
-                                <span className="text-sm">{item.label}</span>
+                                <div className="min-w-0 pr-3">
+                                  <span className="text-sm">{item.label}</span>
+                                  {item.note && (
+                                    <p className="text-[11px] text-muted-foreground leading-tight">
+                                      {item.note}
+                                    </p>
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-2">
                                   {item.hasLimit && itemEnabled && (
                                     <div className="flex items-center gap-1.5">
@@ -608,7 +573,7 @@ export default function SubscriptionsPage() {
                                         min={0}
                                         className="w-20 h-7 text-xs"
                                         placeholder="Unlimited"
-                                        value={(current as any).limit || ""}
+                                        value={current.limit || ""}
                                         onChange={(e) =>
                                           updateModule(item.key, "limit", e.target.value ? Number(e.target.value) : 0)
                                         }

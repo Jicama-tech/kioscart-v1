@@ -7,9 +7,13 @@ import {
   Delete,
   BadRequestException,
   Query,
+  UseGuards,
 } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
 import { OtpService } from "./otp.service";
 import { CreateOtpDto } from "./dto/create-otp.dto";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 
 @Controller("otp")
 export class OtpController {
@@ -48,7 +52,14 @@ export class OtpController {
 
   // WhatsApp quick send test
   // Usage: POST /otp/whatsapp/send { to: "+9198...", text: "Hello" }
+  //
+  // Was completely unauthenticated: any caller could send arbitrary WhatsApp
+  // messages to any number through the shop's paired account, which is both a
+  // spam relay and a fast way to get that number banned. Nothing in the app
+  // calls it, so requiring a token costs nothing and closes the hole.
   @Post("whatsapp/send")
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("whatsappQR")
   async sendWhatsApp(@Body() body: { to: string; text: string }) {
     if (!body?.to || !body?.text)
       throw new BadRequestException("to and text are required");

@@ -21,9 +21,14 @@ import { ExpensesService, RequestActor } from "./expenses.service";
 import { CreateExpenseDto } from "./dto/create-expense.dto";
 import { UpdateExpenseDto } from "./dto/update-expense.dto";
 import { RejectExpenseDto } from "./dto/reject-expense.dto";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 
 @Controller("expenses")
-@UseGuards(AuthGuard("jwt"))
+@UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+// The whole module is a plan feature; individual routes add their own keys on
+// top where a sub-feature is sold separately.
+@RequiresFeature("expenses")
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
@@ -47,6 +52,7 @@ export class ExpensesController {
   }
 
   @Post()
+  @RequiresFeature("expenses", "expenseAddEdit")
   @UseInterceptors(
     FileInterceptor("invoice", {
       storage: diskStorage({
@@ -103,11 +109,13 @@ export class ExpensesController {
   }
 
   @Patch(":id/approve")
+  @RequiresFeature("expenses", "expenseApprovals")
   async approve(@Param("id") id: string, @Req() req: any) {
     return this.expensesService.approve(id, this.getActor(req));
   }
 
   @Patch(":id/reject")
+  @RequiresFeature("expenses", "expenseApprovals")
   async reject(@Param("id") id: string, @Body() dto: RejectExpenseDto, @Req() req: any) {
     return this.expensesService.reject(id, this.getActor(req), dto.reason);
   }

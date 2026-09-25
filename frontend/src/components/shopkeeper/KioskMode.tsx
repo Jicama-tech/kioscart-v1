@@ -18,6 +18,7 @@ import { KioskParkedCarts } from "./KioskParkedCarts";
 import { KioskCheckoutDialog } from "./KioskCheckoutDialog";
 
 import { t as i18nT } from "@/i18n/t";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 const apiURL = __API_URL__;
 
 interface KioskModeProps {
@@ -113,6 +114,7 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
       </div>
 
       {/* Parked Carts Row */}
+      <FeatureGate feature="kioskParkedCarts">
       <KioskParkedCarts
         carts={parkedCarts}
         getCartTotal={getCartTotal}
@@ -124,6 +126,7 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
         }}
         onDelete={deleteCart}
       />
+      </FeatureGate>
 
       {/* Main Split Layout */}
       <div className="flex-1 flex gap-4 min-h-0">
@@ -133,11 +136,13 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
             {i18nT("Products")}
           </h3>
           <div className="flex-1 overflow-hidden">
-            <KioskProductBrowser
-              onAddItem={addItem}
-              activeCartId={activeCartId}
-              formatPrice={formatPrice}
-            />
+            <FeatureGate feature="kioskProductBrowser">
+              <KioskProductBrowser
+                onAddItem={addItem}
+                activeCartId={activeCartId}
+                formatPrice={formatPrice}
+              />
+            </FeatureGate>
           </div>
         </div>
 
@@ -202,6 +207,7 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
       </Dialog>
 
       {/* Checkout Dialog */}
+      <FeatureGate feature="kioskCheckout">
       {activeCart && (
         <KioskCheckoutDialog
           open={checkoutOpen}
@@ -213,6 +219,7 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
           onOrderPlaced={handleOrderPlaced}
         />
       )}
+      </FeatureGate>
     </div>
   );
 }

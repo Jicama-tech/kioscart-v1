@@ -1,13 +1,16 @@
 import { Controller, Post, Body, UseGuards, Req, Get, Query } from "@nestjs/common";
 import { ChatbotService } from "./chatbot.service";
 import { AuthGuard } from "@nestjs/passport";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 
 @Controller("chatbot")
 export class ChatbotController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
   @Post("message")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("chatbot")
   async handleMessage(@Req() req: any, @Body("message") message: string) {
     const shopkeeperId = req.user.userId;
     // Pass the JWT-resolved display name through so greetings can use it
@@ -50,7 +53,8 @@ export class ChatbotController {
   // pre-fills if found, so the shopkeeper doesn't have to retype phone/email
   // for repeat customers.
   @Get("customer-search")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("chatbot")
   async customerSearch(@Req() req: any, @Query("q") q: string) {
     const shopkeeperId = req.user.userId;
     return this.chatbotService.searchCustomersForOrderForm(shopkeeperId, q || "");

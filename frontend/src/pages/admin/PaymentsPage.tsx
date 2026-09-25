@@ -81,7 +81,7 @@ export default function PaymentsPage({ onLogout }: PaymentsPageProps) {
   const [refundReason, setRefundReason] = useState("");
 
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
+    typeof window !== "undefined" ? sessionStorage.getItem("token") || "" : "";
   const authHeaders = useMemo(
     () => ({ Authorization: `Bearer ${token}` }),
     [token],

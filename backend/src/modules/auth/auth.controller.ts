@@ -79,7 +79,16 @@ export class AuthController {
   @Post("register")
   async register(@Body() createUserDto: CreateUserDto) {
     try {
-      const result = await this.usersService.create(createUserDto);
+      // provider/providerId are the server's to set, never the caller's: the
+      // pair { provider: "Shopkeeper", providerId: <shop> } is what makes a
+      // user one of that shop's CRM customers (and a WhatsApp campaign
+      // recipient), and shop ids are public. Passed through, anyone could
+      // plant numbers in any shop's audience from this unauthenticated route.
+      const result = await this.usersService.create({
+        ...createUserDto,
+        provider: undefined,
+        providerId: undefined,
+      });
       return result;
     } catch (error) {
       console.error("Registration error:", error);

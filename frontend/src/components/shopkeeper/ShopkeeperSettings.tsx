@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { FaWhatsapp } from "react-icons/fa";
 import { GmailPaymentSection } from "./GmailPaymentSection";
 import { RazorpayDirectSetup } from "./RazorpayDirectSetup";
+import { WhatsAppSettings } from "./WhatsAppSettings";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -71,6 +73,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { ModuleGate } from "@/components/ui/ModuleGate";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 import { jwtDecode } from "jwt-decode";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { format } from "date-fns";
@@ -99,6 +102,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 
 import { t as i18nT } from "@/i18n/t";
+import { groupsForModule } from "@/lib/planModules";
 interface ShopkeeperSettingsProps {
   onSave?: (settings: any) => void;
 }
@@ -203,6 +207,32 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   const [paymentQrPreview, setPaymentQrPreview] = useState<string | null>(null);
   const apiURL = __API_URL__;
 
+  // Who is looking, decoded once (same shape as ShopkeeperDashboard). An
+  // operator's token carries the parent shop's id plus its own `operatorId`
+  // and `accessTabs`.
+  const { isOperator, accessTabs } = useMemo(() => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        return {
+          isOperator: !!decoded.operatorId,
+          accessTabs: decoded.accessTabs as string[] | undefined,
+        };
+      }
+    } catch {
+      // An unreadable token falls through to the owner view; every request
+      // below is still authorised by the API.
+    }
+    return { isOperator: false, accessTabs: undefined as string[] | undefined };
+  }, []);
+  // Opt-in for operators, unlike the dashboard's hasTabAccess which lets an
+  // operator with no `accessTabs` see everything: an operator must have been
+  // granted "whatsapp" explicitly, matching the API's TabsGuard — otherwise the
+  // tab would open onto a panel that 403s.
+  const canSeeWhatsapp =
+    !isOperator || (accessTabs ?? []).includes("whatsapp");
+
   // Country codes for WhatsApp
   const [countries, setCountries] = useState<Country[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
@@ -224,7 +254,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   // Keep in sync with the dashboard's NAVIGATION_ITEMS ids so operators can be
   // granted access to every tab the shopkeeper sees (incl. Support). "chat" is
   // the exception: it is no longer a sidebar tab, but the id still gates the
-  // floating AI assistant, so keep it in this list.
+  // floating AI assistant, so keep it in this list. "whatsapp" is the other
+  // exception: not a sidebar tab but the Settings › WhatsApp sub-tab, which
+  // the API's TabsGuard checks on every /whatsapp route.
   const ALL_TABS = [
     "chat",
     "dashboard",
@@ -237,6 +269,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     "expenses",
     "suppliers",
     "support",
+    "whatsapp",
   ];
   const TAB_LABELS: Record<string, string> = {
     chat: "AI Assistant (chat bubble)",
@@ -250,7 +283,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     expenses: "Expenses",
     suppliers: "Suppliers",
     support: "Support",
+    whatsapp: "WhatsApp Connection (Settings › WhatsApp)",
   };
+  // What a new operator starts with: everything except WhatsApp. Whoever holds
+  // that tab can unlink the shop's phone or pair a different one — messages to
+  // every customer would then come from that number — so the owner has to
+  // grant it on purpose rather than inherit it by not unticking a box.
+  const DEFAULT_OPERATOR_TABS = ALL_TABS.filter((t) => t !== "whatsapp");
 
   const [operatorForm, setOperatorForm] = useState<{
     name: string;
@@ -263,7 +302,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     operatorCountryCode: "+91",
     operatorEmail: "",
     operatorLocalNumber: "",
-    accessTabs: [...ALL_TABS],
+    accessTabs: [...DEFAULT_OPERATOR_TABS],
   });
   const [isSavingOperators, setIsSavingOperators] = useState(false);
 
@@ -1088,10 +1127,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     }));
   };
 
-  const createCoupon = async (payload: any) => {
+  const createCoupon = async (payload: any, token: string) => {
     const res = await fetch(`${apiURL}/coupons/create-coupon`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -1103,10 +1145,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     return res.json();
   };
 
-  const updateCoupon = async (id: string, payload: any) => {
+  const updateCoupon = async (id: string, payload: any, token: string) => {
     const res = await fetch(`${apiURL}/coupons/update-coupon/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -1152,9 +1197,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       };
 
       if (isEditMode && coupon._id) {
-        await updateCoupon(coupon._id, payload);
+        await updateCoupon(coupon._id, payload, token);
       } else {
-        await createCoupon(payload);
+        await createCoupon(payload, token);
       }
 
       setOpenCouponDialog(false);
@@ -1170,8 +1215,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
   const handleDeleteCoupon = async (id: string) => {
     try {
+      const token = sessionStorage.getItem("token");
+      if (!token) throw new Error("Please login to continue");
       const res = await fetch(`${apiURL}/coupons/delete-coupon/${id}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         const err = await res.json();
@@ -1186,9 +1234,14 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
   const handleToggleActiveCoupon = async (id: string, isActive: boolean) => {
     try {
+      const token = sessionStorage.getItem("token");
+      if (!token) throw new Error("Please login to continue");
       const res = await fetch(`${apiURL}/coupons/update-coupon/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ isActive }),
       });
       if (!res.ok) {
@@ -1281,7 +1334,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         operatorCountryCode: "+91",
         operatorEmail: "",
         operatorLocalNumber: "",
-        accessTabs: [...ALL_TABS],
+        accessTabs: [...DEFAULT_OPERATOR_TABS],
       });
       setEditingOperatorIndex(null);
     } catch (err: any) {
@@ -1723,6 +1776,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
             },
           },
         );
@@ -1799,7 +1853,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="flex w-full">
+        {/* Up to seven nowrap triggers do not fit a phone, so the row scrolls
+            sideways instead of spilling out of the card. `justify-start`
+            because a centred row that overflows clips its first tab out of
+            reach; on wider screens the flex-1 triggers fill the row either
+            way, so it looks as before. `h-auto` + `overflow-y-hidden` let a
+            desktop scrollbar add height rather than sit on the triggers. */}
+        <TabsList className="flex w-full h-auto justify-start overflow-x-auto overflow-y-hidden [scrollbar-width:thin]">
           <TabsTrigger value="profile" className="flex-1 flex items-center justify-center gap-2">
             <Store className="w-4 h-4" />
             {i18nT("Profile")}
@@ -1827,6 +1887,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             Coupons
             {!isModuleEnabled("coupons") && <Lock className="w-3 h-3 ml-1" />}
           </TabsTrigger>
+          {canSeeWhatsapp && (
+            <TabsTrigger value="whatsapp" className={`flex-1 flex items-center justify-center gap-2 ${!isModuleEnabled("whatsappConnect") ? "opacity-50" : ""}`}>
+              <FaWhatsapp className="w-4 h-4" />
+              {i18nT("WhatsApp")}
+              {!isModuleEnabled("whatsappConnect") && <Lock className="w-3 h-3 ml-1" />}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -2084,6 +2151,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                   </div>
 
                   {/* ✅ BUSINESS INFO CARD */}
+                  <FeatureGate feature="settingsBusinessInfo">
                   <Card className="border-blue-200">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -2140,8 +2208,10 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       </div>
                     </CardContent>
                   </Card>
+                  </FeatureGate>
 
                   {/* ✅ ADDRESS CARD */}
+                  <FeatureGate feature="settingsAddress">
                   <Card className="border-blue-200">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -2178,6 +2248,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       </div>
                     </CardContent>
                   </Card>
+                  </FeatureGate>
                 </div>
               )}
 
@@ -2865,53 +2936,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     <div>
                       <h4 className="text-sm font-semibold mb-3">{i18nT("Modules")}</h4>
                       <div className="space-y-2">
-                        {[
-                          { label: i18nT("Product Management"), color: "blue", items: [
-                            { key: "products", label: i18nT("Products") },
-                            { key: "bulkImport", label: "Bulk Import / Export" },
-                          ]},
-                          { label: i18nT("Order Management"), color: "amber", items: [
-                            { key: "orders", label: i18nT("Orders") },
-                            { key: "receipts", label: i18nT("Receipt Printing") },
-                          ]},
-                          { label: i18nT("Online Storefront"), color: "emerald", items: [
-                            { key: "storefront", label: i18nT("Storefront") },
-                            { key: "customDomain", label: i18nT("Custom Domain") },
-                            { key: "instagram", label: i18nT("Instagram Integration") },
-                            { key: "videoSection", label: i18nT("Video Section") },
-                            { key: "ourStory", label: i18nT("Our Story Section") },
-                          ]},
-                          { label: i18nT("Analytics"), color: "purple", items: [
-                            { key: "analytics", label: i18nT("Analytics & Reports") },
-                          ]},
-                          { label: i18nT("Payments"), color: "indigo", items: [
-                            { key: "staticQR", label: i18nT("Static QR") },
-                            { key: "dynamicQR", label: i18nT("Dynamic QR") },
-                            { key: "paymentTracking", label: i18nT("Payment Tracking (Gmail)") },
-                            { key: "razorpay", label: i18nT("Card Payments (Razorpay)") },
-                          ]},
-                          { label: "CRM / Customers", color: "pink", items: [
-                            { key: "crm", label: i18nT("Customer Management") },
-                          ]},
-                          { label: i18nT("Coupons"), color: "orange", items: [
-                            { key: "coupons", label: i18nT("Coupon Management") },
-                          ]},
-                          { label: i18nT("Kiosk Mode"), color: "cyan", items: [
-                            { key: "kiosk", label: "Kiosk / POS Mode" },
-                          ]},
-                          { label: i18nT("Operators"), color: "rose", items: [
-                            { key: "operators", label: i18nT("Multi-User Operators") },
-                          ]},
-                          { label: i18nT("Communication"), color: "green", items: [
-                            { key: "whatsappQR", label: i18nT("WhatsApp QR") },
-                            { key: "chatbot", label: i18nT("Smart Assistant") },
-                          ]},
-                        ].map((group) => {
+                        {groupsForModule("shopkeeper").map((group) => {
                           const groupHasAny = group.items.some((i) => subscription.modules[i.key]?.enabled);
                           if (!groupHasAny) return (
                             <div key={group.label} className="rounded-lg border border-border bg-muted/50 p-3 opacity-60">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-muted-foreground">{group.label}</span>
+                                <span className="text-sm font-medium text-muted-foreground">{i18nT(group.label)}</span>
                                 <Badge variant="secondary" className="text-xs">{i18nT("OFF")}</Badge>
                               </div>
                             </div>
@@ -2919,7 +2949,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                           return (
                             <div key={group.label} className="rounded-lg border border-green-200 bg-green-50 overflow-hidden">
                               <div className="flex items-center justify-between p-3">
-                                <span className="text-sm font-semibold text-green-700">{group.label}</span>
+                                <span className="text-sm font-semibold text-green-700">{i18nT(group.label)}</span>
                                 <Badge variant="default" className="text-xs">ON</Badge>
                               </div>
                               <div className="border-t border-green-200/60 divide-y divide-green-100">
@@ -2928,7 +2958,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                   const on = config?.enabled;
                                   return (
                                     <div key={item.key} className="flex items-center justify-between px-4 py-1.5 pl-6">
-                                      <span className="text-xs">{item.label}</span>
+                                      <span className="text-xs">{i18nT(item.label)}</span>
                                       <div className="flex items-center gap-1.5">
                                         {item.key === "products" && on && (
                                           <span className="text-xs text-muted-foreground">
@@ -2984,7 +3014,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       operatorCountryCode: countryCode,
                       operatorEmail: "",
                       operatorLocalNumber: "",
-                      accessTabs: [...ALL_TABS],
+                      accessTabs: [...DEFAULT_OPERATOR_TABS],
                     });
                     setEditingOperatorIndex(null);
                     setOperatorDialogOpen(true);
@@ -3021,7 +3051,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                 operatorCountryCode: countryCode,
                                 operatorEmail: op.email,
                                 operatorLocalNumber: "",
-                                accessTabs: op.accessTabs || [...ALL_TABS],
+                                accessTabs: op.accessTabs || [...DEFAULT_OPERATOR_TABS],
                               });
                               setEditingOperatorIndex(index);
                               setOperatorDialogOpen(true);
@@ -3118,7 +3148,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 <div id="access-tabs-panel" className="hidden mt-2 space-y-1 border rounded-lg p-3 bg-muted/30">
                   {ALL_TABS.map((tab) => (
                     <div key={tab} className="flex items-center justify-between py-1.5 px-1">
-                      <Label className="text-sm cursor-pointer">{TAB_LABELS[tab]}</Label>
+                      <Label className="text-sm cursor-pointer">{i18nT(TAB_LABELS[tab])}</Label>
                       <Switch
                         checked={operatorForm.accessTabs.includes(tab)}
                         onCheckedChange={(checked) => {
@@ -3152,6 +3182,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         </TabsContent>
 
         <TabsContent value="branding">
+          <ModuleGate moduleKey="settingsBranding">
           <BlurWrapper>
             <Card>
               <CardHeader>
@@ -3195,9 +3226,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           </BlurWrapper>
+          </ModuleGate>
         </TabsContent>
 
         <TabsContent value="products">
+          <ModuleGate moduleKey="settingsProductDefaults">
           <BlurWrapper>
             <Card>
               <CardHeader>
@@ -3251,6 +3284,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           </BlurWrapper>
+          </ModuleGate>
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
@@ -4106,6 +4140,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         </TabsContent>
 
         <TabsContent value="shipping">
+          <ModuleGate moduleKey="settingsShipping">
           <BlurWrapper>
             <Card>
               <CardHeader>
@@ -4152,6 +4187,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               </CardContent>
             </Card>
           </BlurWrapper>
+          </ModuleGate>
         </TabsContent>
 
         <TabsContent value="receipts">
@@ -4480,6 +4516,21 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           </Card>
           </ModuleGate>
         </TabsContent>
+
+        {canSeeWhatsapp && (
+          <TabsContent value="whatsapp">
+            {/* Not a plain ModuleGate: a shop whose plan lost the add-on may
+                still have a phone linked, and must be able to switch it off
+                or unlink it. The locked panel shows the upgrade card and
+                offers only those two, reading the status once instead of
+                polling. */}
+            {isModuleEnabled("whatsappConnect") ? (
+              <WhatsAppSettings />
+            ) : (
+              <WhatsAppSettings locked />
+            )}
+          </TabsContent>
+        )}
 
         <Dialog open={openCouponDialog} onOpenChange={setOpenCouponDialog}>
           <DialogContent className="max-w-lg">

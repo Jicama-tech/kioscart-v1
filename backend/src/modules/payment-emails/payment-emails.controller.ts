@@ -13,6 +13,8 @@ import {
 import { AuthGuard } from "@nestjs/passport";
 import { GmailService } from "./gmail.service";
 import { PaymentEmailsService } from "./payment-emails.service";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 
 @Controller("payment-emails")
 export class PaymentEmailsController {
@@ -47,7 +49,8 @@ export class PaymentEmailsController {
 
   // Check connection status
   @Get("status")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("paymentTracking")
   async status(@Req() req: any) {
     const shopkeeperId = req.user?.userId || req.user?.sub || req.user?._id;
     const connection = await this.gmailService.getStatus(shopkeeperId);
@@ -56,7 +59,8 @@ export class PaymentEmailsController {
 
   // Disconnect Gmail
   @Delete("disconnect")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("paymentTracking")
   async disconnect(@Req() req: any) {
     const shopkeeperId = req.user?.userId || req.user?.sub || req.user?._id;
     await this.gmailService.disconnect(shopkeeperId);
@@ -65,7 +69,8 @@ export class PaymentEmailsController {
 
   // Toggle active/inactive
   @Patch("toggle")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("paymentTracking")
   async toggle(@Req() req: any, @Query("active") active: string) {
     const shopkeeperId = req.user?.userId || req.user?.sub || req.user?._id;
     const isActive = active === "true";
@@ -75,7 +80,8 @@ export class PaymentEmailsController {
 
   // Manual poll trigger
   @Post("poll")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("paymentTracking")
   async manualPoll(@Req() req: any) {
     const shopkeeperId = req.user?.userId || req.user?.sub || req.user?._id;
     const connections = await this.gmailService.getActiveConnections();
@@ -91,7 +97,8 @@ export class PaymentEmailsController {
 
   // Get detected payment emails
   @Get("emails")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("paymentTracking")
   async getEmails(@Req() req: any, @Query("status") status?: string) {
     const shopkeeperId = req.user?.userId || req.user?.sub || req.user?._id;
     const emails = await this.paymentEmailsService.getPaymentEmails(
@@ -103,7 +110,8 @@ export class PaymentEmailsController {
 
   // Update payment email status (confirm/ignore)
   @Patch("emails/:id")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("paymentTracking")
   async updateEmailStatus(
     @Param("id") id: string,
     @Query("status") status: "confirmed" | "ignored",

@@ -29,6 +29,7 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
   const { toast } = useToast();
   const [data, setData] = useState<PnLData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   const token = sessionStorage.getItem("token") || "";
@@ -45,6 +46,15 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
       const res = await fetch(`${apiURL}/shopkeeper/analytics/${shopkeeperId}/pnl/${period}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      // 403 here is the paywall, not a failure. The plan simply does not
+      // include pnlReport, so the report withdraws quietly instead of
+      // accusing the shopkeeper's own dashboard of being broken. Normally
+      // FeatureGate means we never mount at all and never get here; this
+      // covers the component being rendered from somewhere ungated.
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
       if (!res.ok) throw new Error("Failed to load P&L report");
       const json = await res.json();
       setData(json.data);
@@ -54,6 +64,8 @@ export function PnLReport({ shopkeeperId, period }: { shopkeeperId: string; peri
       setLoading(false);
     }
   };
+
+  if (forbidden) return null;
 
   const downloadPdf = async () => {
     setDownloading(true);

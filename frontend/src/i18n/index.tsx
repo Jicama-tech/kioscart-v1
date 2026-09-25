@@ -9,54 +9,67 @@ import {
 } from "react";
 import { en } from "./en";
 import { hi } from "./hi";
+import { gu } from "./gu";
 import { setCurrentLang } from "./t";
 
 /**
- * English/Hindi for the React side of the app — the login screen and the
- * shopkeeper dashboard.
+ * English/Hindi/Gujarati for the React side of the app — the login screen and
+ * the shopkeeper dashboard.
  *
  * The landing page has its own DOM-based switcher (data-i18n attributes, see
  * pages/landing/landing.script.ts) because it is mounted as raw markup and
  * cannot use hooks. The two share one localStorage key, so a visitor who picks
  * हिन्दी on the homepage stays in Hindi through sign-in and into the dashboard.
  *
- * Adding a string: add it to en.ts, then hi.ts. A key with no Hindi value
- * falls back to the English one rather than rendering the raw key, so a
- * partially translated screen degrades to English instead of to gibberish.
+ * Adding a string: add it to en.ts, then to hi.ts and gu.ts. A key with no
+ * translated value falls back to the English one rather than rendering the raw
+ * key, so a partially translated screen degrades to English instead of to
+ * gibberish.
  */
 
-export type Lang = "en" | "hi";
+export type Lang = "en" | "hi" | "gu";
 
 export const LANG_KEY = "kioscart:lang";
 
 export const LANG_LABELS: Record<Lang, { name: string; short: string }> = {
   en: { name: "English", short: "EN" },
   hi: { name: "हिन्दी", short: "HI" },
+  gu: { name: "ગુજરાતી", short: "GU" },
 };
 
-// Devanagari is not in the Latin stacks the dashboard loads, so pull the face
-// only when someone actually switches — English users never pay for it.
-const HI_FONT =
-  "https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap";
+// Neither Devanagari nor Gujarati is in the Latin stacks the dashboard loads,
+// so pull a face only when someone actually switches to that script — English
+// users never pay for either.
+const SCRIPT_FONTS: Partial<Record<Lang, string>> = {
+  hi: "https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap",
+  gu: "https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;500;600;700&display=swap",
+};
 
-const DICTS: Record<Lang, Record<string, string>> = { en, hi };
+const DICTS: Record<Lang, Record<string, string>> = { en, hi, gu };
+
+function isLang(v: unknown): v is Lang {
+  return v === "en" || v === "hi" || v === "gu";
+}
 
 function readStored(): Lang {
   try {
     const v = localStorage.getItem(LANG_KEY);
-    if (v === "en" || v === "hi") return v;
+    if (isLang(v)) return v;
   } catch {
     // private mode / storage disabled — fall through to English
   }
   return "en";
 }
 
-function ensureHindiFont() {
-  if (document.getElementById("kc-hi-font")) return;
+function ensureScriptFont(l: Lang) {
+  const href = SCRIPT_FONTS[l];
+  if (!href) return;
+  const id = `kc-${l}-font`;
+  if (document.getElementById(id)) return;
   const link = document.createElement("link");
-  link.id = "kc-hi-font";
+  link.id = id;
   link.rel = "stylesheet";
-  link.href = HI_FONT;
+  link.href = href;
   document.head.appendChild(link);
 }
 
@@ -77,12 +90,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   setCurrentLang(lang);
 
   useEffect(() => {
-    if (lang === "hi") ensureHindiFont();
+    ensureScriptFont(lang);
     document.documentElement.lang = lang;
   }, [lang]);
 
   const setLang = useCallback((l: Lang) => {
-    if (l === "hi") ensureHindiFont();
+    ensureScriptFont(l);
     try {
       localStorage.setItem(LANG_KEY, l);
     } catch {

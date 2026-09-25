@@ -26,13 +26,16 @@ import { diskStorage } from "multer";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
 import * as fs from "fs";
+import { SubscriptionGuard } from "../../common/subscription/subscription.guard";
+import { RequiresFeature } from "../../common/subscription/requires-feature.decorator";
 
 @Controller("products")
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post("create-product")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("products", "productAddEdit")
   @UseInterceptors(
     FilesInterceptor("images", 3, {
       // Limit to 3 images maximum
@@ -109,7 +112,8 @@ export class ProductsController {
   }
 
   @Get("shopkeeper-products")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("products")
   async getShopkeeperProducts(@Req() req: any) {
     try {
       const shopkeeperId = req.user.userId;
@@ -138,7 +142,8 @@ export class ProductsController {
   }
 
   @Patch(":id")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("products", "productAddEdit")
   @UseInterceptors(
     FilesInterceptor("images", 3, {
       // Limit to 3 images maximum
@@ -205,6 +210,10 @@ export class ProductsController {
   }
 
   @Delete(":id")
+  // Previously unauthenticated: any caller who knew (or guessed) an id could
+  // delete another shop's product. The JWT guard closes that outright.
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("products", "productAddEdit")
   remove(@Param("id") id: string) {
     try {
       return this.productsService.remove(id);
@@ -215,7 +224,8 @@ export class ProductsController {
 
   // Enhanced Excel Template Generation with Demo Data and Working Dropdowns
   @Get("excel/download-template")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("products", "bulkImport")
   async downloadExcelTemplate(@Req() req, @Res() res: Response) {
     try {
       const shopkeeperId = req.user.userId;
@@ -242,7 +252,8 @@ export class ProductsController {
 
   // Enhanced Excel Import with 3-image limit and proper error handling
   @Post("excel/import")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("products", "bulkImport")
   @UseInterceptors(
     FileInterceptor("file", {
       storage: diskStorage({
@@ -299,7 +310,8 @@ export class ProductsController {
 
   // Bulk upload images with 3-image limit per product
   @Post("bulk-upload-images")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("products", "productImages")
   @UseInterceptors(
     FilesInterceptor("images", 50, {
       // Allow up to 50 total images for bulk upload
@@ -422,7 +434,8 @@ export class ProductsController {
 
   // Validate product data before save
   @Post("validate")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), SubscriptionGuard)
+  @RequiresFeature("products")
   async validateProduct(@Body() productData: CreateProductDto) {
     try {
       const errors = [];

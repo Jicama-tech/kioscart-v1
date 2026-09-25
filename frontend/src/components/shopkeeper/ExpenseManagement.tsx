@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { jwtDecode } from "jwt-decode";
 
 import { t as i18nT } from "@/i18n/t";
+import { FeatureGate } from "@/components/ui/FeatureGate";
 const apiURL = __API_URL__;
 
 const CATEGORIES = [
@@ -318,11 +319,14 @@ export function ExpenseManagement() {
             {i18nT("Track business expenses feeding into your P&amp;L report.")}
           </p>
         </div>
-        <Button onClick={() => setView("form")}>
-          <Plus className="h-4 w-4 mr-2" /> {i18nT("Add Expense")}
-        </Button>
+        <FeatureGate feature="expenseAddEdit">
+          <Button onClick={() => setView("form")}>
+            <Plus className="h-4 w-4 mr-2" /> {i18nT("Add Expense")}
+          </Button>
+        </FeatureGate>
       </div>
 
+      <FeatureGate feature="expenseStats">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -337,6 +341,7 @@ export function ExpenseManagement() {
           </CardHeader>
         </Card>
       </div>
+      </FeatureGate>
 
       <Card>
         <CardContent className="p-0">
@@ -403,6 +408,7 @@ export function ExpenseManagement() {
                         </td>
                         <td className="p-3 whitespace-nowrap">
                           {e.status === "pending" && !isOperator && (
+                            <FeatureGate feature="expenseApprovals">
                             <div className="flex gap-2">
                               <Button size="sm" variant="outline" onClick={() => approve(e._id)}>
                                 {i18nT("Approve")}
@@ -411,6 +417,7 @@ export function ExpenseManagement() {
                                 {i18nT("Reject")}
                               </Button>
                             </div>
+                            </FeatureGate>
                           )}
                         </td>
                       </tr>

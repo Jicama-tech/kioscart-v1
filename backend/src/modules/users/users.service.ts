@@ -1,4 +1,4 @@
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import {
   Injectable,
   InternalServerErrorException,
@@ -6,6 +6,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { User, UserDocument } from "./schemas/user.schema";
@@ -386,11 +387,25 @@ export class UsersService {
     shopkeeperId: string,
   ) {
     try {
-      // 1. Check if user exists
+      // 1. Check if user exists. A malformed id would otherwise surface as a
+      // Mongoose CastError, i.e. a 500, for what is just a bad request.
+      if (!Types.ObjectId.isValid(userId)) {
+        throw new BadRequestException("User not found");
+      }
       const existingUser = await this.userModel.findById(userId);
 
       if (!existingUser) {
         throw new BadRequestException("User not found");
+      }
+
+      // 1b. The caller has already been proven to own `shopkeeperId`, but the
+      // user id is a separate URL parameter. Without this a shop could rename
+      // (and rewrite the e-mail and WhatsApp number of) any user in the
+      // database, including other shops' customers.
+      if (!(await this.isCustomerOfShop(existingUser, shopkeeperId))) {
+        throw new ForbiddenException(
+          "This customer does not belong to your shop.",
+        );
       }
 
       // 2. Check for duplicate WhatsApp / Email (excluding current user)
@@ -405,12 +420,48 @@ export class UsersService {
       //   );
       // }
 
-      // 3. Update fields
+      // 3. Update fields. The name is the shop's to correct for any of its
+      // customers. The e-mail and WhatsApp number are not: a user is one
+      // global record, the Google and WhatsApp-OTP logins find the account
+      // by exactly those two fields, and every other shop the customer buys
+      // from messages that number. "Has an order here" is far too weak to
+      // rewrite them on (an order can be placed for any number without
+      // logging in), so only a customer this shop created, and that no
+      // other shop has an order for, can have them changed here.
+      const ownsContact = await this.shopOwnsContactDetails(
+        existingUser,
+        shopkeeperId,
+      );
+      if (!ownsContact) {
+        // The CRM form always sends both fields back, so only a real change
+        // is refused — compared loosely enough that the same number written
+        // another way ("+91 98…" vs "98…") is not one.
+        const changesEmail =
+          data.email !== undefined &&
+          !sameEmail(data.email, existingUser.email);
+        const changesNumber =
+          data.whatsAppNumber !== undefined &&
+          !samePhone(data.whatsAppNumber, existingUser.whatsAppNumber);
+        if (changesEmail || changesNumber) {
+          throw new ForbiddenException(
+            "This customer's e-mail and WhatsApp number are managed by the customer. You can change the name only.",
+          );
+        }
+      }
+
       existingUser.firstName = data.firstName;
       existingUser.lastName = data.lastName;
       existingUser.name = `${data.firstName} ${data.lastName}`;
-      existingUser.email = data.email;
-      existingUser.whatsAppNumber = data.whatsAppNumber;
+      // Contact details change only when the form sent them. The CRM form
+      // leaves both out when it shows them locked (a customer who also
+      // ordered here) — and assigning `undefined` would silently erase the
+      // customer's number. When it does send them, the WhatsApp number is
+      // always present and a blank e-mail is omitted, so clearing the e-mail
+      // from the form still clears it.
+      if (ownsContact && data.whatsAppNumber !== undefined) {
+        existingUser.email = data.email;
+        existingUser.whatsAppNumber = data.whatsAppNumber;
+      }
 
       const updatedUser = await existingUser.save();
 
@@ -421,6 +472,77 @@ export class UsersService {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Whether this shop may rewrite a customer's e-mail and WhatsApp number:
+   * it created the record (provider "Shopkeeper" + its id), and no other
+   * shop has an order for that user — once another shop does, the record is
+   * that shop's customer too, and its messages follow the number.
+   */
+  private async shopOwnsContactDetails(
+    user: { _id: unknown; provider?: string; providerId?: string },
+    shopkeeperId: string,
+  ): Promise<boolean> {
+    const shopId = String(shopkeeperId || "");
+    if (
+      !shopId ||
+      user.provider !== "Shopkeeper" ||
+      String(user.providerId) !== shopId
+    ) {
+      return false;
+    }
+    // Raw collection and both id forms, for the reasons in isCustomerOfShop.
+    const elsewhere = await this.userModel.db.collection("orders").findOne(
+      {
+        userId: { $in: bothIdForms(String(user._id)) },
+        shopkeeperId: { $nin: bothIdForms(shopId) },
+      },
+      { projection: { _id: 1 } },
+    );
+    return !elsewhere;
+  }
+
+  /**
+   * Whether a user is one of this shop's customers, i.e. someone the CRM
+   * lists and so may edit: either the shop created them (provider
+   * "Shopkeeper" + providerId = shop, exactly how createUserByShopkeeper and
+   * the assistant's create_customer tool store them), or they have placed at
+   * least one order there (the order half of the CRM list, see
+   * OrdersService.getCustomersWithOrderSummary).
+   *
+   * The order lookup goes through the connection's raw `orders` collection
+   * rather than an injected Order model: UsersModule does not register Order,
+   * and the raw driver also skips schema casting. That matters because older
+   * orders hold userId/shopkeeperId as plain strings (getCustomersWithOrderSummary
+   * matches shopkeeperId as a string and has to $toObjectId the userId), while
+   * newer ones hold ObjectIds; a cast query would silently miss one of the two
+   * forms, so both are matched explicitly.
+   *
+   * Soft-deleted orders still count. The CRM list does not exclude them, so a
+   * customer the shop can see must also be one it can edit.
+   */
+  async isCustomerOfShop(
+    user: { _id: unknown; provider?: string; providerId?: string },
+    shopkeeperId: string,
+  ): Promise<boolean> {
+    const shopId = String(shopkeeperId || "");
+    if (!shopId) return false;
+
+    if (user.provider === "Shopkeeper" && String(user.providerId) === shopId) {
+      return true;
+    }
+
+    const order = await this.userModel.db
+      .collection("orders")
+      .findOne(
+        {
+          userId: { $in: bothIdForms(String(user._id)) },
+          shopkeeperId: { $in: bothIdForms(shopId) },
+        },
+        { projection: { _id: 1 } },
+      );
+    return !!order;
   }
 
   async fetchUsersByShopkeeperId(shopkeeperId: string) {
@@ -547,4 +669,36 @@ export class UsersService {
       throw error;
     }
   }
+}
+
+/** An id as a string and, when it is one, as an ObjectId — orders hold
+ * either form (see isCustomerOfShop). */
+function bothIdForms(id: string): unknown[] {
+  return Types.ObjectId.isValid(id) ? [id, new Types.ObjectId(id)] : [id];
+}
+
+function sameEmail(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+  return norm(a) === norm(b);
+}
+
+/**
+ * Whether two WhatsApp numbers are the same number, written differently. The
+ * CRM form sends it back with its dial code ("+919876543210") while an older
+ * record may hold it without one ("98765 43210", "IN9876543210", "0987…").
+ * Only decides whether an edit is refused; a number the shop may not change
+ * is never written either way.
+ */
+function samePhone(a: unknown, b: unknown): boolean {
+  const digits = (v: unknown) =>
+    String(v ?? "").replace(/\D/g, "").replace(/^0+/, "");
+  const da = digits(a);
+  const db = digits(b);
+  if (da === db) return true;
+  if (!da || !db) return false;
+  const [short, long] = da.length <= db.length ? [da, db] : [db, da];
+  // A national number of 8+ digits behind a country code of up to 3.
+  return (
+    short.length >= 8 && long.length - short.length <= 3 && long.endsWith(short)
+  );
 }

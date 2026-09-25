@@ -10,6 +10,7 @@ import {
   Post,
   Param,
   BadRequestException,
+  ForbiddenException,
   Query,
   Patch,
 } from "@nestjs/common";
@@ -18,6 +19,8 @@ import { Request, Response } from "express";
 import { UsersService } from "./users.service";
 import { JwtService } from "@nestjs/jwt";
 import { CreateUserDto } from "./dto/create-users.dto";
+import { TabsGuard } from "../../common/tabs/tabs.guard";
+import { Tabs } from "../../common/tabs/tabs.decorator";
 
 @Controller("users")
 export class UsersController {
@@ -25,6 +28,43 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
   ) {}
+
+  /**
+   * The three CRM routes below (fetch/create/update-user-by-shopkeeper) take
+   * the shop id from the URL, and shop ids are public — they sit in storefront
+   * and cart links — so a valid token alone proves nothing. The shop in the URL
+   * has to be the caller's own. Unguarded, anyone could download a shop's
+   * customer list with phone numbers, or rename any user in the database.
+   *
+   * The JWT subject is always the owning shopkeeper: an operator token is
+   * minted with the parent owner's id (auth.controller mintShopkeeperToken),
+   * so operators pass their owner's checks without a separate branch. A
+   * buyer's token carries the buyer's own user id, which never equals a shop
+   * id, so it is refused here too.
+   *
+   * Platform admins are let through so support can repair a shop's customer
+   * records, the same convention as ShopkeepersController.isSelfOrAdmin.
+   *
+   * Passing as the shop is not the whole answer for operators, though: their
+   * token carries the owner's id, so the check above lets every operator in.
+   * TabsGuard adds the owner's per-operator choice — the `crm` tab, the same
+   * one the campaign routes require for the same customer numbers — so an
+   * operator kept out of the CRM cannot read or repoint customers' numbers
+   * (which a later campaign would then message).
+   */
+  private isSelfOrAdmin(req: any, shopkeeperId: string): boolean {
+    const roles = Array.isArray(req?.user?.roles) ? req.user.roles : [];
+    if (roles.some((r: any) => String(r).toLowerCase() === "admin")) return true;
+
+    const callerId = String(req?.user?.userId || req?.user?.sub || "");
+    return !!callerId && callerId === String(shopkeeperId);
+  }
+
+  private assertSelfOrAdmin(req: any, shopkeeperId: string) {
+    if (!this.isSelfOrAdmin(req, shopkeeperId)) {
+      throw new ForbiddenException("Not your shop");
+    }
+  }
 
   @Get("google")
   @UseGuards(AuthGuard("google"))
@@ -84,7 +124,14 @@ export class UsersController {
       if (existingUser) {
         throw new ConflictException("User with this email already exists.");
       }
-      return await this.usersService.create(createUserDto);
+      // Never the caller's provider/providerId — see AuthController.register:
+      // { provider: "Shopkeeper", providerId } would make this user one of
+      // any shop's campaign audience.
+      return await this.usersService.create({
+        ...createUserDto,
+        provider: undefined,
+        providerId: undefined,
+      });
     } catch (error) {
       throw new InternalServerErrorException(
         "An error occurred during registration.",
@@ -225,11 +272,17 @@ export class UsersController {
     }
   }
 
+  // Called by the CRM "Add customer" form and the assistant's inline customer
+  // form (ChatbotWidget); both send the shop's own token — hence either tab.
   @Post("create-user-by-shopkeeper/:shopkeeperId")
+  @UseGuards(AuthGuard("jwt"), TabsGuard)
+  @Tabs("crm", "chat")
   async createUserByShopkeeper(
     @Body() createUserDto: CreateUserDto,
     @Param("shopkeeperId") shopkeeperId: string,
+    @Req() req: any,
   ) {
+    this.assertSelfOrAdmin(req, shopkeeperId);
     try {
       return await this.usersService.createUserByShopkeeper(
         createUserDto,
@@ -240,12 +293,19 @@ export class UsersController {
     }
   }
 
+  // Owning the shop is not enough here: the user id is a second, independent
+  // URL parameter, so the service also refuses (403) a user who is not one of
+  // this shop's customers.
   @Patch("update-user-by-shopkeeper/:shopkeeperId/:userId")
+  @UseGuards(AuthGuard("jwt"), TabsGuard)
+  @Tabs("crm")
   async updateUserByShopkeeper(
     @Param("shopkeeperId") shopkeeperId: string,
     @Param("userId") userId: string,
     @Body() updateUserDto: CreateUserDto,
+    @Req() req: any,
   ) {
+    this.assertSelfOrAdmin(req, shopkeeperId);
     try {
       return await this.usersService.updateUserByShopkeeper(
         userId,
@@ -258,7 +318,13 @@ export class UsersController {
   }
 
   @Get("fetch-users-by-shopkeeper/:shopkeeperId")
-  async fetchUsersByShopkeeperId(@Param("shopkeeperId") shopkeeperId: string) {
+  @UseGuards(AuthGuard("jwt"), TabsGuard)
+  @Tabs("crm")
+  async fetchUsersByShopkeeperId(
+    @Param("shopkeeperId") shopkeeperId: string,
+    @Req() req: any,
+  ) {
+    this.assertSelfOrAdmin(req, shopkeeperId);
     try {
       return await this.usersService.fetchUsersByShopkeeperId(shopkeeperId);
     } catch (error) {

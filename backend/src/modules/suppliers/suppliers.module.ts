@@ -16,6 +16,7 @@ import { ProductSchema } from "../products/entities/product.entity";
 import { ShopkeeperSchema } from "../shopkeepers/schemas/shopkeeper.schema";
 import { OrderSchema } from "../orders/entities/order.entity";
 import { MailModule } from "../roles/mail.module";
+import { WhatsappModule } from "../whatsapp/whatsapp.module";
 
 @Module({
   imports: [
@@ -30,6 +31,9 @@ import { MailModule } from "../roles/mail.module";
     ]),
     // Lifecycle notifications go out on every quotation/payment/status event.
     MailModule,
+    // ...and are mirrored on the shop's own WhatsApp when it is linked. A
+    // leaf module (models only), so importing it here cannot form a cycle.
+    WhatsappModule,
     // JwtAuthGuard injects JwtService; it verifies with JWT_ACCESS_SECRET.
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET || "your_jwt_access_secret",

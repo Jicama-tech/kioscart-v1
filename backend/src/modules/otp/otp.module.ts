@@ -8,12 +8,16 @@ import { Otp, OtpSchema } from "./entities/otp.entity";
 import { ShopkeepersModule } from "../shopkeepers/shopkeepers.module";
 import { OrganizersModule } from "../organizers/organizers.module";
 import { AgentsModule } from "../agents/agents.module";
+import { WhatsappModule } from "../whatsapp/whatsapp.module";
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Otp.name, schema: OtpSchema }]),
     JwtModule.register({}),
     MailModule,
+    // OtpService registers the platform number with ShopWhatsappService.
+    // WhatsappModule is a leaf, so this cannot cycle back here.
+    WhatsappModule,
     forwardRef(() => ShopkeepersModule),
     forwardRef(() => OrganizersModule),
     forwardRef(() => AgentsModule),

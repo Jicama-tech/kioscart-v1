@@ -26,6 +26,13 @@ import { CouponService } from "../coupon/coupon.service";
 import { ShopkeeperStoresService } from "../shopkeeper-stores/shopkeeper-stores.service";
 import { ShopfrontStore } from "../shopkeeper-stores/entities/shopkeeper-store.entity";
 import { UpdateOrderDto } from "./dto/update-order.dto";
+import { SubscriptionAccessService } from "../../common/subscription/subscription-access.service";
+import {
+  NotifyRoute,
+  ShopWhatsappService,
+} from "../whatsapp/shop-whatsapp.service";
+import { orderStatusCopy, OrderStatusCopy } from "./order-status-copy";
+import { plainName } from "../whatsapp/whatsapp-text";
 
 function asObjectId(id: string | Types.ObjectId): Types.ObjectId | string {
   // If already an ObjectId
@@ -35,6 +42,43 @@ function asObjectId(id: string | Types.ObjectId): Types.ObjectId | string {
     return new Types.ObjectId(id);
   // Else keep as string
   return id;
+}
+
+/**
+ * The order reference for a message sent from the shop's own number.
+ *
+ * The client supplies `orderId`, so it is only repeated when it is exactly
+ * what the storefront generates (frontend/src/lib/orderId.ts):
+ * `{shop slug}-order-{base36 time}{4 random}`, with THIS shop's slug and a
+ * time within a day of the order — which leaves a caller four characters of
+ * say. Anything else (a crafted id, or an older format) is shown as a short
+ * reference derived from the order's database id, which nobody chooses.
+ */
+function shopOrderRef(
+  order: { orderId?: string; _id?: unknown; createdAt?: Date | string },
+  shopName?: string,
+): string {
+  const id = String(order?.orderId ?? "");
+  const match = /^([a-z0-9]{1,20})-order-([a-z0-9]{8})[a-z0-9]{4}$/.exec(id);
+  if (match) {
+    const slug =
+      String(shopName ?? "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .slice(0, 20) || "store";
+    const stamped = parseInt(match[2], 36);
+    const createdAt = order?.createdAt
+      ? new Date(order.createdAt).getTime()
+      : Date.now();
+    if (
+      match[1] === slug &&
+      Math.abs(stamped - createdAt) < 24 * 60 * 60 * 1000
+    ) {
+      return id;
+    }
+  }
+  const fromDb = String(order?._id ?? "").slice(-8).toUpperCase();
+  return fromDb ? `#${fromDb}` : "—";
 }
 
 @Injectable()
@@ -53,6 +97,8 @@ export class OrdersService {
     private readonly usersService: UsersService,
     private readonly couponService: CouponService,
     private readonly shopkeeperStoreService: ShopkeeperStoresService,
+    private readonly subscriptionAccess: SubscriptionAccessService,
+    private readonly shopWhatsapp: ShopWhatsappService,
   ) {}
 
   private formatPriceByCountry(amount: number, countryCode: string): string {
@@ -131,9 +177,20 @@ export class OrdersService {
       const savedOrder = await order.save();
 
       // Send notifications (non-blocking — don't fail the order if notifications fail)
-      this.sendOrderCreationNotifications(savedOrder, user, dto).catch(
-        (err) =>
-          console.error("Order notification failed:", err.message),
+      const notifications = this.sendOrderCreationNotifications(
+        savedOrder,
+        user,
+        dto,
+      );
+      // Recorded now, synchronously, so the Razorpay webhook — which can
+      // arrive while these are still running — waits for how the owner was
+      // alerted instead of guessing (RazorpayWebhookService).
+      this.shopWhatsapp.trackOwnerAlert(
+        `order:${String(savedOrder._id)}`,
+        notifications,
+      );
+      notifications.catch((err) =>
+        console.error("Order notification failed:", err.message),
       );
 
       return savedOrder;
@@ -144,11 +201,14 @@ export class OrdersService {
     }
   }
 
+  /** Resolves to how the shop owner was alerted on WhatsApp (see
+   * NotifyRoute), or null if they were not reached that way. */
   private async sendOrderCreationNotifications(
     order: any,
     user: any,
     dto: CreateOrderDto,
-  ) {
+  ): Promise<NotifyRoute | null> {
+    let ownerAlert: NotifyRoute | null = null;
     // Fetch shopkeeper details
     const shopkeeper = await this.shopkeeperModel
       .findById(dto.shopkeeperId)
@@ -184,21 +244,48 @@ export class OrdersService {
     }
 
     // 2. WhatsApp to customer (if WhatsApp available)
-    if (dto.whatsAppNumber && dto.whatsAppNumber !== "kiosk-order") {
+    //
+    // Gated on the SHOP's plan, not the caller's: the customer placing the
+    // order has no subscription, and it is the shopkeeper who is paying for
+    // the ability to notify. Resolved from dto.shopkeeperId for that reason.
+    const waNotifications = await this.subscriptionAccess.isEnabled(
+      String(dto.shopkeeperId),
+      "whatsappOrderNotifications",
+    );
+    if (waNotifications && dto.whatsAppNumber && dto.whatsAppNumber !== "kiosk-order") {
       try {
         const customerName = dto.fullName || user?.name || "Customer";
-        const message =
+        const buildMessage = (name: string, orderRef: string) =>
           `🛒 Order Received!\n\n` +
-          `Hi ${customerName},\n\n` +
+          `Hi ${name},\n\n` +
           `Your order has been placed successfully!\n\n` +
-          `📋 Order ID: ${order.orderId}\n` +
+          `📋 Order ID: ${orderRef}\n` +
           `💰 Amount: ${formattedAmount}\n` +
           `📦 Items: ${dto.items?.length || 0}\n` +
           `🏪 Merchant: ${shopkeeperName}\n\n` +
           `⏳ Waiting for merchant confirmation.\n` +
           `We'll notify you once your order is confirmed.\n\n` +
           `Thank you! 🙏`;
-        await this.sendWhatsAppMessage(dto.whatsAppNumber, message);
+        // From the shop's own linked number when it has one — the customer
+        // sees the shop they ordered from, and can reply to it — with the
+        // caller-typed parts made safe to send from a real shop's number (see
+        // whatsapp-text.ts). Otherwise the existing CallMeBot path, with the
+        // message exactly as before.
+        const sentFromShop = await this.shopWhatsapp.trySendFromShop(
+          String(dto.shopkeeperId),
+          dto.whatsAppNumber,
+          buildMessage(
+            plainName(customerName),
+            shopOrderRef(order, shopkeeper?.shopName),
+          ),
+          shopkeeperCountry,
+        );
+        if (!sentFromShop) {
+          await this.sendWhatsAppMessage(
+            dto.whatsAppNumber,
+            buildMessage(customerName, order.orderId),
+          );
+        }
       } catch (err) {
         console.error("Order confirmation WhatsApp failed:", err.message);
       }
@@ -226,20 +313,24 @@ export class OrdersService {
       }
     }
 
-    // 4. WhatsApp to shopkeeper (new order alert)
-    if (shopkeeper?.whatsappNumber) {
+    // 4. WhatsApp to shopkeeper (new order alert) — the same alert as the
+    // email above.
+    const ownerNumber = shopkeeper?.whatsappNumber || shopkeeper?.phone;
+    if (waNotifications && ownerNumber) {
       try {
-        await this.sendWhatsAppToShopkeeper(
-          shopkeeper.whatsappNumber,
-          shopkeeperName,
-          order.orderId,
-          order.totalAmount,
-          dto.items?.length || 0,
+        ownerAlert = await this.sendWhatsAppToShopkeeper(
+          ownerNumber,
+          shopkeeper,
+          order,
+          dto,
+          formattedAmount,
+          dto.fullName || user?.name || "Customer",
         );
       } catch (err) {
         console.error("Shopkeeper WhatsApp alert failed:", err.message);
       }
     }
+    return ownerAlert;
   }
 
   // WhatsApp chat link generator
@@ -1278,30 +1369,18 @@ export class OrdersService {
 
       await order.save();
 
-      const user = order.userId as any;
-      const shopkeeper = order.shopkeeperId as any;
-
-      if (user?.email) {
-        await this.mailService.sendOrderStatusEmail(
-          user.name,
-          user.email,
-          order.orderId,
-          newStatus !== OrderStatus.Cancelled,
-          newStatus,
-          order.totalAmount,
-          shopkeeper.name || shopkeeper.shopName,
-        );
-      }
-
-      if (user?.whatsAppNumber && shopkeeper?.whatsappNumber) {
-        await this.sendWhatsAppToUser(
-          user.whatsAppNumber, // Corrected casing
-          user.name,
-          order.orderId,
-          newStatus !== OrderStatus.Cancelled,
-          newStatus,
-          shopkeeper.name || shopkeeper.shopName,
-          shopkeeper.whatsappNumber, // Corrected casing
+      // Notify from the UPDATED order. `order` above was fetched without
+      // populate, so its userId and shopkeeperId are bare ObjectIds — reading
+      // the customer's email and WhatsApp off it always found nothing, and no
+      // status email or WhatsApp was ever sent. Not awaited, like the order-
+      // creation notices: the status is already saved, so a slow or failing
+      // send must neither hold up the shopkeeper's click nor turn it into a
+      // 500. An unchanged status is not news, so nothing is sent for it.
+      if (updatedOrder && order.status !== newStatus) {
+        void this.sendOrderStatusNotifications(updatedOrder, newStatus).catch(
+          (err) => {
+            console.error("Order status notifications failed:", err?.message);
+          },
         );
       }
       return order;
@@ -1518,39 +1597,132 @@ export class OrdersService {
     }
   }
 
-  // WhatsApp to Shopkeeper (New Order)
+  /**
+   * WhatsApp to Shopkeeper (New Order).
+   *
+   * Through the shop's WhatsApp connection when it has one — notify() with
+   * `toShopOwner` picks the number that will actually ring the owner (the
+   * platform's, when the alert would otherwise go from their own linked device
+   * to itself and land silently in "Message yourself"). Otherwise the
+   * existing CallMeBot path. The order came in through a public checkout, so
+   * the customer's name and the order id are the cleaned versions.
+   */
   private async sendWhatsAppToShopkeeper(
     phone: string,
-    shopkeeperName: string,
-    orderId: string,
-    amount: number,
-    itemCount: number,
-  ) {
-    const message = `🔔 New Order Alert!\n\nHi ${shopkeeperName},\n\nYou received a new order:\n📋 Order ID: ${orderId}\n💰 Amount: ₹${amount.toFixed(
-      2,
-    )}\n📦 Items: ${itemCount}\n\nPlease confirm or reject the payment in your dashboard.\n\nThank you! 🙏`;
-    await this.sendWhatsAppMessage(phone, message);
+    shopkeeper: any,
+    order: any,
+    dto: CreateOrderDto,
+    formattedAmount: string,
+    customerName: string,
+  ): Promise<NotifyRoute | null> {
+    const shopName = shopkeeper?.shopName || "Merchant";
+    const message =
+      `🔔 New Order Alert!\n\n` +
+      `Hi ${shopName},\n\n` +
+      `You received a new order:\n` +
+      `📋 Order ID: ${shopOrderRef(order, shopkeeper?.shopName)}\n` +
+      `👤 Customer: ${plainName(customerName)}\n` +
+      `💰 Amount: ${formattedAmount}\n` +
+      `📦 Items: ${dto.items?.length || 0}\n` +
+      `🚚 Type: ${dto.orderType === "delivery" ? "Delivery" : "Pickup"}\n\n` +
+      `Please confirm or reject it in your dashboard.\n\n` +
+      `Thank you! 🙏`;
+    const route = await this.shopWhatsapp.notifyRoute({
+      shopId: String(shopkeeper?._id || dto.shopkeeperId),
+      to: phone,
+      text: message,
+      country: shopkeeper?.country,
+      toShopOwner: true,
+    });
+    if (!route) await this.sendWhatsAppMessage(phone, message);
+    return route;
+  }
+
+  /**
+   * Tell the customer their order changed status — email and WhatsApp, each
+   * on its own so one failing does not stop the other. `order` must be the
+   * POPULATED order (userId and shopkeeperId as documents).
+   */
+  private async sendOrderStatusNotifications(order: any, newStatus: string) {
+    const user = order.userId as any;
+    const shopkeeper = order.shopkeeperId as any;
+    const shopName = shopkeeper?.shopName || shopkeeper?.name || "Merchant";
+    const copy = orderStatusCopy(newStatus, shopName);
+    if (!copy) return;
+
+    if (user?.email) {
+      try {
+        await this.mailService.sendOrderStatusEmail(
+          user.name,
+          user.email,
+          order.orderId,
+          newStatus,
+          order.totalAmount,
+          shopName,
+        );
+      } catch (err) {
+        console.error("Order status email failed:", err?.message);
+      }
+    }
+
+    // Gated on the SHOP's plan, as the order-received message is.
+    const shopkeeperId = String(shopkeeper?._id || shopkeeper || "");
+    const waEnabled =
+      !!shopkeeperId &&
+      (await this.subscriptionAccess.isEnabled(
+        shopkeeperId,
+        "whatsappOrderNotifications",
+      ));
+    if (waEnabled && user?.whatsAppNumber) {
+      try {
+        await this.sendWhatsAppToUser(
+          user.whatsAppNumber,
+          user.name || "Customer",
+          order,
+          copy,
+          shopkeeper,
+        );
+      } catch (err) {
+        console.error("Order status WhatsApp failed:", err?.message);
+      }
+    }
   }
 
   // WhatsApp to User (Order Status Update)
   private async sendWhatsAppToUser(
     phone: string,
     userName: string,
-    orderId: string,
-    accepted: boolean,
-    status: string,
-    shopkeeperName: string,
-    shopkeeperPhone: string,
+    order: any,
+    copy: OrderStatusCopy,
+    shopkeeper: any,
   ) {
-    const statusText = accepted ? "✅ Confirmed" : "❌ Rejected";
-    const message = `${statusText} Order Update\n\nHi ${userName},\n\nYour order ${orderId} has been ${
-      accepted ? "confirmed" : "rejected"
-    } by ${shopkeeperName}.\n\n📋 Current Status: ${status.toUpperCase()}\n\n${
-      accepted
-        ? "Your order is being processed!"
-        : "Please contact the shopkeeper for more details."
-    }\n\nThank you! 🙏\n\nContact Shopkeeper: ${shopkeeperPhone}`;
-    await this.sendWhatsAppMessage(phone, message);
+    const contact = shopkeeper?.whatsappNumber || shopkeeper?.phone;
+    const buildMessage = (name: string, orderRef: string) =>
+      `${copy.emoji} ${copy.title}\n\n` +
+      `Hi ${name},\n\n` +
+      `${copy.sentence}\n\n` +
+      `📋 Order ID: ${orderRef}\n` +
+      `📌 Status: ${String(order.status || "").toUpperCase()}\n\n` +
+      `Thank you! 🙏` +
+      (contact ? `\n\nContact the shop: ${contact}` : "");
+    // Same routing as the order confirmation: the shop's own linked number
+    // first, with the customer-typed parts made safe for it; the existing
+    // CallMeBot path, with the raw values, when it has none.
+    const sentFromShop = await this.shopWhatsapp.trySendFromShop(
+      String(shopkeeper?._id || ""),
+      phone,
+      buildMessage(
+        plainName(userName),
+        shopOrderRef(order, shopkeeper?.shopName),
+      ),
+      shopkeeper?.country,
+    );
+    if (!sentFromShop) {
+      await this.sendWhatsAppMessage(
+        phone,
+        buildMessage(userName, order.orderId),
+      );
+    }
   }
 
   // Generic WhatsApp sender using CallMeBot (Free)

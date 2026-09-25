@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { SubscriptionAccessModule } from "./common/subscription/subscription-access.module";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -30,9 +31,12 @@ import { PaymentGatewaysModule } from "./modules/payment-gateways/payment-gatewa
 import { AppFeedbackModule } from "./modules/app-feedback/app-feedback.module";
 import { ExpensesModule } from "./modules/expenses/expenses.module";
 import { SuppliersModule } from "./modules/suppliers/suppliers.module";
+import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
+import { CampaignsModule } from "./modules/campaigns/campaigns.module";
 
 @Module({
   imports: [
+    SubscriptionAccessModule,
     ConfigModule.forRoot({ isGlobal: true }),
     PaymentGatewaysModule,
     MailModule,
@@ -66,6 +70,8 @@ import { SuppliersModule } from "./modules/suppliers/suppliers.module";
     AppFeedbackModule,
     ExpensesModule,
     SuppliersModule,
+    WhatsappModule,
+    CampaignsModule,
   ],
 })
 export class AppModule {}

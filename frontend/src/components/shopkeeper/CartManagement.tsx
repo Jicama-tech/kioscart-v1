@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ModuleGate } from "@/components/ui/ModuleGate";
+import { FeatureGate } from "@/components/ui/FeatureGate";
+import { STATUS_ACCENTS, statAccent } from "@/lib/accents";
 import { Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -336,6 +338,7 @@ export function CartManagement({
 
       const res = await fetch(
         `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}?page=${page}&limit=${limit}`,
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -369,6 +372,7 @@ export function CartManagement({
       // Only fetch the latest 5 orders to check for new ones
       const res = await fetch(
         `${API_URL}/orders/get-orders/shopkeeper/${shopkeeperId}?page=1&limit=5`,
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -571,9 +575,13 @@ Thank you for shopping with us.
   ) {
     try {
       setLoading(true);
+      const token = sessionStorage.getItem("token");
       const res = await fetch(`${API_URL}/orders/${orderId}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ status: newStatus, notes: note || undefined }),
       });
 
@@ -1352,7 +1360,9 @@ Thank you for shopping with us.
                   if (!token) return;
                   const decoded: any = jwtDecode(token);
                   const sid = decoded.sub;
-                  const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`);
+                  const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
                   if (res.ok) {
                     const data = await res.json();
                     const allOrders = Array.isArray(data) ? data : (data.orders || []);
@@ -1400,75 +1410,56 @@ Thank you for shopping with us.
         </TabsList>
 
         <TabsContent value="orders">
-          {/* Top stats */}
+          {/* Top stats — accents assigned by position, matching the dashboard
+              and CRM tiles. The value text stays in ink: the chip beside it
+              carries the colour, so the number is never the low-contrast part. */}
+          <FeatureGate feature="ordersStatCards">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            {/* 🛒 Total Orders */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {i18nT("Overall Orders")}
-                </CardTitle>
-                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalOrders}</div>
-              </CardContent>
-            </Card>
-
-            {/* 💰 Total Revenue */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {i18nT("Overall Revenue")}
-                </CardTitle>
-                {shopkeeperInfo?.country === "IN" ? (
-                  <FaRupeeSign className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <FaDollarSign className="h-4 w-4 text-muted-foreground" />
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {" "}
-                  {formatPrice(totalRevenue)}
-                </div>
-                {/* <p className="text-xs text-muted-foreground">{i18nT("Till Today")}</p> */}
-              </CardContent>
-            </Card>
-
-            {/* 📈 Average Order Value */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {i18nT("Today's Orders")}
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {todaysOrders}
-                </div>
-                {/* <p className="text-xs text-muted-foreground">{i18nT("Orders placed today")}</p> */}
-              </CardContent>
-            </Card>
-
-            {/* 📅 New: Today's Orders */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {i18nT("Pending Orders")}
-                </CardTitle>
-                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {pendingOrders}
-                </div>
-                {/* <p className="text-xs text-muted-foreground">{i18nT("Waiting For Action")}</p> */}
-              </CardContent>
-            </Card>
+            {[
+              {
+                label: i18nT("Overall Orders"),
+                value: totalOrders,
+                Icon: ShoppingCart,
+              },
+              {
+                label: i18nT("Overall Revenue"),
+                value: formatPrice(totalRevenue),
+                Icon: shopkeeperInfo?.country === "IN" ? FaRupeeSign : FaDollarSign,
+              },
+              {
+                label: i18nT("Today's Orders"),
+                value: todaysOrders,
+                Icon: TrendingUp,
+              },
+              {
+                label: i18nT("Pending Orders"),
+                value: pendingOrders,
+                Icon: ShoppingBag,
+              },
+            ].map((card, index) => {
+              const accent = statAccent(index);
+              return (
+                <Card key={card.label} className={`border-l-4 ${accent.ring}`}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      {card.label}
+                    </CardTitle>
+                    <span
+                      className={`inline-flex items-center justify-center h-7 w-7 rounded-lg flex-shrink-0 ${accent.chip}`}
+                    >
+                      <card.Icon className={`h-4 w-4 ${accent.icon}`} />
+                    </span>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{card.value}</div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+          </FeatureGate>
 
+          <FeatureGate feature="ordersFilters">
           {/* Filters Section */}
           <Card className="mb-6">
             <CardHeader>
@@ -1556,6 +1547,7 @@ Thank you for shopping with us.
               </Button>
             </CardContent>
           </Card>
+          </FeatureGate>
 
           {/* Orders Table */}
           <Card>
@@ -1713,26 +1705,38 @@ Thank you for shopping with us.
                           })()}
                         </TableCell>
                         <TableCell>
-                          <Select
-                            value={order.status}
-                            onValueChange={(val) =>
-                              promptStatusChange(order._id, val)
+                          {/* Locked plans still see the status, just cannot
+                              change it — an empty cell in a status column
+                              reads as missing data, not as a locked feature. */}
+                          <FeatureGate
+                            feature="ordersStatusUpdate"
+                            fallback={
+                              <span className="text-sm capitalize">
+                                {order.status}
+                              </span>
                             }
                           >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STATUS_OPTIONS.map((option) => (
-                                <SelectItem
-                                  key={option.value}
-                                  value={option.value}
-                                >
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            <Select
+                              value={order.status}
+                              onValueChange={(val) =>
+                                promptStatusChange(order._id, val)
+                              }
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {STATUS_OPTIONS.map((option) => (
+                                  <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FeatureGate>
                         </TableCell>
 
                         <TableCell>
@@ -2357,7 +2361,9 @@ Thank you for shopping with us.
                   if (!token) return;
                   const decoded: any = jwtDecode(token);
                   const sid = decoded.sub;
-                  const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`);
+                  const res = await fetch(`${API_URL}/orders/get-orders/shopkeeper/${sid}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
                   if (res.ok) {
                     const data = await res.json();
                     const allOrders = Array.isArray(data) ? data : (data.orders || []);
@@ -2480,50 +2486,57 @@ function PaymentsTabContent({
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
+      {/* Stats — these four report a STATE (waiting / confirmed / dismissed),
+          so they use the reserved status accents rather than the categorical
+          ones, and each keeps its icon and caption so the hue is never the only
+          thing saying which is which. The number itself stays in ink; the chip
+          beside it carries the colour. */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{i18nT("Pending Review")}</CardTitle>
-            <Clock className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{pending.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">{i18nT("Awaiting confirmation")}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{i18nT("Confirmed")}</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{confirmed.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">{i18nT("Payments verified")}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{i18nT("Total Confirmed")}</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {totalAmount > 0 ? formatPrice(totalAmount) : "—"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{i18nT("Revenue confirmed via email")}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{i18nT("Ignored")}</CardTitle>
-            <Ban className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">{ignored.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">{i18nT("Dismissed payments")}</p>
-          </CardContent>
-        </Card>
+        {[
+          {
+            label: i18nT("Pending Review"),
+            value: pending.length,
+            caption: i18nT("Awaiting confirmation"),
+            Icon: Clock,
+            accent: STATUS_ACCENTS.warning,
+          },
+          {
+            label: i18nT("Confirmed"),
+            value: confirmed.length,
+            caption: i18nT("Payments verified"),
+            Icon: CheckCircle,
+            accent: STATUS_ACCENTS.good,
+          },
+          {
+            label: i18nT("Total Confirmed"),
+            value: totalAmount > 0 ? formatPrice(totalAmount) : "—",
+            caption: i18nT("Revenue confirmed via email"),
+            Icon: DollarSign,
+            accent: STATUS_ACCENTS.good,
+          },
+          {
+            label: i18nT("Ignored"),
+            value: ignored.length,
+            caption: i18nT("Dismissed payments"),
+            Icon: Ban,
+            accent: STATUS_ACCENTS.neutral,
+          },
+        ].map((card) => (
+          <Card key={card.label} className={`border-l-4 ${card.accent.ring}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{card.label}</CardTitle>
+              <span
+                className={`inline-flex items-center justify-center h-7 w-7 rounded-lg flex-shrink-0 ${card.accent.chip}`}
+              >
+                <card.Icon className={`h-4 w-4 ${card.accent.icon}`} />
+              </span>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{card.value}</div>
+              <p className="text-xs text-muted-foreground mt-1">{card.caption}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Header with Refresh */}

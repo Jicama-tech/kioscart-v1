@@ -35,41 +35,19 @@ export class Plan {
   @Prop()
   description?: string; // Optional plan description
 
+  /**
+   * Per-feature switches for this plan, keyed by module id — e.g.
+   * { products: { enabled: true, limit: 50 }, bulkImport: { enabled: false } }.
+   *
+   * Deliberately an open record rather than a literal listing every key. The
+   * catalog of keys lives in the frontend (src/lib/planModules.ts), is edited
+   * far more often than this schema, and a closed type here only ever drifted
+   * behind it — it still named 22 keys when the editor offered many more.
+   * Mongo persists this as a free-form object either way, so the enumeration
+   * bought nothing but a second list to forget to update.
+   */
   @Prop({ type: Object, default: {} })
-  modules: {
-    // Product Management
-    products?: { enabled: boolean; limit: number };
-    bulkImport?: { enabled: boolean };
-    // Order Management
-    orders?: { enabled: boolean };
-    receipts?: { enabled: boolean };
-    // Storefront
-    storefront?: { enabled: boolean };
-    customDomain?: { enabled: boolean };
-    instagram?: { enabled: boolean };
-    videoSection?: { enabled: boolean };
-    ourStory?: { enabled: boolean };
-    // Analytics
-    analytics?: { enabled: boolean };
-    // Payments
-    staticQR?: { enabled: boolean };
-    dynamicQR?: { enabled: boolean };
-    paymentTracking?: { enabled: boolean };
-    razorpay?: { enabled: boolean };
-    // CRM
-    crm?: { enabled: boolean };
-    // Coupons
-    coupons?: { enabled: boolean };
-    // Kiosk
-    kiosk?: { enabled: boolean };
-    // Operators
-    operators?: { enabled: boolean; limit: number };
-    // Communication
-    whatsappQR?: { enabled: boolean };
-    // Assistant & Support
-    chatbot?: { enabled: boolean };
-    support?: { enabled: boolean };
-  };
+  modules: Record<string, { enabled: boolean; limit?: number }>;
 
   @Prop({ required: true, default: "shopkeeper" })
   forModule: string;

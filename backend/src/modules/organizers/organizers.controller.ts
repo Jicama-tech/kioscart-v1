@@ -11,11 +11,13 @@ import {
   ParseUUIDPipe,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { OrganizersService } from "./organizers.service";
 import { LocalDto } from "../auth/dto/local.dto";
 import { LoginDto } from "../admin/dto/login.dto";
 import { AuthGuard } from "@nestjs/passport";
+import { AdminGuard } from "../auth/guards/admin.guard";
 import { CreateOrganizerDto } from "./dto/createOrganizer.dto";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { UpdateOrganizerDto } from "./dto/updateOrganizer.dto";
@@ -39,7 +41,34 @@ function qrStorage() {
 export class OrganizersController {
   constructor(private organizersService: OrganizersService) {}
 
+  /**
+   * `:id` on the organizer-scoped routes is the organizer being read or
+   * changed, so the caller must be that organizer. An operator's token is
+   * minted under the parent organizer's id (sub -> userId in jwt.strategy,
+   * with operatorId alongside), so this one comparison covers operators too.
+   * Admins pass regardless — the admin console manages organizers on their
+   * behalf.
+   */
+  private assertSelfOrAdmin(req: any, id: string) {
+    const rawRoles = req?.user?.roles;
+    const roles = Array.isArray(rawRoles)
+      ? rawRoles
+      : rawRoles
+        ? [rawRoles]
+        : [];
+    if (roles.some((r: any) => String(r).toLowerCase() === "admin")) return;
+
+    const callerId = String(req?.user?.userId || "");
+    if (!callerId || callerId !== String(id || "")) {
+      throw new ForbiddenException("Not your organizer account");
+    }
+  }
+
+  // Raw insert with an arbitrary body — it can set approved/subscribed
+  // directly, so it stays admin-only. Public signup goes through
+  // POST /organizers/register, which forces pending + unapproved.
   @Post()
+  @UseGuards(AdminGuard)
   async create(@Body() body: any) {
     return this.organizersService.create(body);
   }
@@ -95,9 +124,16 @@ export class OrganizersController {
   }
 
   @Get(":email")
-  async getByEmail(@Param("email") email: string) {
+  @UseGuards(AuthGuard("jwt"))
+  async getByEmail(@Req() req, @Param("email") email: string) {
     try {
-      return await this.organizersService.findByEmail(email);
+      const result = await this.organizersService.findByEmail(email);
+      // Returns the whole organizer record (payment QR, GST, subscription),
+      // so it is a self-lookup only. Checked on the record's id rather than
+      // its email because an operator's token carries the operator's own
+      // email but the parent organizer's id.
+      this.assertSelfOrAdmin(req, String((result as any)?.data?._id ?? ""));
+      return result;
     } catch (error) {
       console.log(error);
       throw error;
@@ -105,9 +141,10 @@ export class OrganizersController {
   }
 
   @Get("profile-get/:id")
-  // @UseGuards(AuthGuard("jwt"))
-  async getProfile(@Param("id") id: string) {
+  @UseGuards(AuthGuard("jwt"))
+  async getProfile(@Req() req, @Param("id") id: string) {
     try {
+      this.assertSelfOrAdmin(req, id);
       return this.organizersService.getProfile(id);
     } catch (error) {
       console.log(error);
@@ -115,12 +152,18 @@ export class OrganizersController {
     }
   }
 
+  // Approval is the admin's call — organizers must not be able to flip their
+  // own approved flag (the admin console uses PATCH /admin/approve/:id).
   @Patch(":id/approve")
+  @UseGuards(AdminGuard)
   async approve(@Param("id") id: string) {
     return this.organizersService.approve(id);
   }
 
   @Patch("profile/:id")
+  // Guards run before interceptors, so an unauthorized caller never gets a
+  // QR image written to ./uploads/organizerPayments.
+  @UseGuards(AuthGuard("jwt"))
   @UseInterceptors(
     FileInterceptor("paymentURL", {
       storage: qrStorage(),
@@ -137,10 +180,15 @@ export class OrganizersController {
     }),
   )
   async updateProfile(
+    @Req() req,
     @Param("id") id: string,
     @UploadedFile() paymentFile: Express.Multer.File,
     @Body() body: UpdateOrganizerDto,
   ) {
+    // Outside the try: the catch below swallows instead of rethrowing, which
+    // would turn the 403 into a silent success.
+    this.assertSelfOrAdmin(req, id);
+
     try {
       const paymentQrPublicUrl = paymentFile?.filename
         ? `/uploads/organizerPayments/${paymentFile.filename}`
@@ -162,11 +210,14 @@ export class OrganizersController {
   }
 
   @Patch("add-subscription-plan-for-organizer/:id/plan/:planSelected")
+  @UseGuards(AuthGuard("jwt"))
   async addSubscriptionPlan(
+    @Req() req,
     @Param("id") id: string,
     @Param("planSelected") planSelected: string,
   ) {
     try {
+      this.assertSelfOrAdmin(req, id);
       return await this.organizersService.addSubscriptionPlan(id, planSelected);
     } catch (error) {
       throw error;
@@ -174,8 +225,10 @@ export class OrganizersController {
   }
 
   @Patch("cancel-subscription-for-organizer/:id")
-  async cancelSubscription(@Param("id") id: string) {
+  @UseGuards(AuthGuard("jwt"))
+  async cancelSubscription(@Req() req, @Param("id") id: string) {
     try {
+      this.assertSelfOrAdmin(req, id);
       return await this.organizersService.cancelSubscription(id);
     } catch (error) {
       throw error;
