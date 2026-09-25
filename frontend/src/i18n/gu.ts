@@ -1245,4 +1245,292 @@ export const gu: Record<string, string> = {
   "Resize sidebar": "સાઇડબારની પહોળાઈ બદલો",
   "Drag to resize · drag left to close · double-click to reset":
     "પહોળાઈ બદલવા ખેંચો · બંધ કરવા ડાબે ખેંચો · રીસેટ માટે ડબલ-ક્લિક કરો",
+  // ===== WhatsApp connection =====
+  "Upgrade your plan to connect your own WhatsApp number":
+    "તમારો પોતાનો WhatsApp નંબર જોડવા તમારો પ્લાન અપગ્રેડ કરો",
+  "WhatsApp Connection (Settings › WhatsApp)": "WhatsApp કનેક્શન (સેટિંગ્સ › WhatsApp)",
+  "WhatsApp Connection (shop's own number)": "WhatsApp કનેક્શન (દુકાનનો પોતાનો નંબર)",
+  "Paid add-on — off unless switched on here · Settings › WhatsApp tab":
+    "પેઇડ ઍડ-ઑન — અહીં ચાલુ કર્યા વગર બંધ રહે છે · સેટિંગ્સ › WhatsApp ટૅબ",
+  "WhatsApp Contact QR on Receipts": "રસીદ પર WhatsApp સંપર્ક QR",
+  "WhatsApp Connection": "WhatsApp કનેક્શન",
+  "Send order messages to your customers from your shop's own WhatsApp number.":
+    "ગ્રાહકોને ઑર્ડરના મેસેજ તમારી દુકાનના પોતાના WhatsApp નંબર પરથી મોકલો.",
+  "Loading WhatsApp connection…": "WhatsApp કનેક્શન લોડ થઈ રહ્યું છે…",
+  "Your account does not have access to WhatsApp.": "તમારા એકાઉન્ટને WhatsApp ની પરવાનગી નથી.",
+  "WhatsApp could not be reached. Try again in a moment.":
+    "WhatsApp સાથે સંપર્ક થઈ શક્યો નહીં. થોડી વારમાં ફરી પ્રયત્ન કરો.",
+  "Order confirmations and status updates to your customers are sent from the number you link here.":
+    "ગ્રાહકોને ઑર્ડરની પુષ્ટિ અને સ્ટેટસ અપડેટ એ જ નંબર પરથી જશે જે તમે અહીં લિંક કરશો.",
+  "Your plan does not include WhatsApp order notifications, so order confirmations are not sent on WhatsApp. You can still send a test message.":
+    "તમારા પ્લાનમાં WhatsApp ઑર્ડર નોટિફિકેશન શામેલ નથી, એટલે ઑર્ડરની પુષ્ટિ WhatsApp પર મોકલાતી નથી. તમે છતાં ટેસ્ટ મેસેજ મોકલી શકો છો.",
+  "Your phone does not need to stay open, but it must go online every few days — WhatsApp unlinks a device whose phone stays offline for about two weeks.":
+    "ફોનને હંમેશા ખુલ્લો રાખવાની જરૂર નથી, પણ થોડા દિવસે એક વાર તેને ઇન્ટરનેટ સાથે જોડાવું જોઈએ — ફોન લગભગ બે અઠવાડિયા ઑફલાઇન રહે તો WhatsApp આ લિંક હટાવી દે છે.",
+  "Only send messages your customers expect. Bulk or promotional spam can get this number blocked by WhatsApp.":
+    "ફક્ત એવા જ મેસેજ મોકલો જેની ગ્રાહકો અપેક્ષા રાખે છે. જથ્થાબંધ કે પ્રચારવાળા સ્પામ મેસેજ મોકલવાથી WhatsApp આ નંબર બ્લૉક કરી શકે છે.",
+  "Send messages from my WhatsApp": "મારા WhatsApp પરથી મેસેજ મોકલો",
+  "Links this shop to your WhatsApp as a device, the same way WhatsApp Web does. Replies arrive on your phone.":
+    "આ દુકાન તમારા WhatsApp સાથે એક ડિવાઇસ તરીકે જોડાય છે, બરાબર WhatsApp Web ની જેમ. જવાબ તમારા ફોન પર આવશે.",
+  "Off": "બંધ",
+  "Not connected": "જોડાયેલું નથી",
+  "Connecting…": "જોડાઈ રહ્યું છે…",
+  "Waiting for you to scan": "તમારા સ્કૅનની રાહ",
+  "Connected": "જોડાયેલું",
+  "Linked as +{number}": "+{number} સાથે લિંક છે",
+  "Paused. This shop is still linked to +{number}, so switching back on needs no new scan.":
+    "અટકાવેલું છે. આ દુકાન હજી પણ +{number} સાથે લિંક છે, એટલે ફરી ચાલુ કરવા નવું સ્કૅન કરવું નહીં પડે.",
+  "WhatsApp pairing QR code": "WhatsApp જોડવાનો QR કોડ",
+  "Scan this with the phone you want to send from": "જે ફોન પરથી મેસેજ મોકલવા છે, તેનાથી આ સ્કૅન કરો",
+  "Open WhatsApp on that phone": "એ ફોનમાં WhatsApp ખોલો",
+  "Tap Settings › Linked devices › Link a device": "Settings › Linked devices › Link a device પર ટૅપ કરો",
+  "Point the phone at this code": "ફોનને આ કોડ તરફ રાખો",
+  "A fresh code appears in {seconds}s if this one is not scanned.":
+    "આ સ્કૅન ન થાય તો {seconds} સેકન્ડમાં નવો કોડ આવશે.",
+  "Getting a fresh code…": "નવો કોડ આવી રહ્યો છે…",
+  "If nobody scans for a few minutes the codes stop. Click Show QR code again when you are ready.":
+    "થોડી મિનિટ સુધી કોઈ સ્કૅન ન કરે તો કોડ આવતા બંધ થઈ જાય છે. તૈયાર હો ત્યારે ફરી “QR કોડ બતાવો” પર ક્લિક કરો.",
+  "Preparing the QR code…": "QR કોડ તૈયાર થઈ રહ્યો છે…",
+  "Opening the connection…": "કનેક્શન ખૂલી રહ્યું છે…",
+  "No phone is linked yet. Show a QR code and scan it with the phone you want to send from.":
+    "હજી કોઈ ફોન લિંક નથી. QR કોડ બતાવો અને જે ફોન પરથી મેસેજ મોકલવા છે તેનાથી સ્કૅન કરો.",
+  "This shop was linked to +{number} but is not connected right now.":
+    "આ દુકાન +{number} સાથે લિંક હતી, પણ અત્યારે જોડાયેલી નથી.",
+  "Show QR code": "QR કોડ બતાવો",
+  "Reconnect": "ફરી જોડો",
+  "Send a test message": "ટેસ્ટ મેસેજ મોકલો",
+  "Include the country code, e.g. +91 98765 43210. Numbers without one use your shop's country.":
+    "દેશનો કોડ સાથે લખો, જેમ કે +91 98765 43210. કોડ વગરના નંબર પર તમારી દુકાનના દેશનો કોડ લાગશે.",
+  "Hello! This is a test message from our shop.": "નમસ્તે! આ અમારી દુકાન તરફથી એક ટેસ્ટ મેસેજ છે.",
+  "Send test": "ટેસ્ટ મોકલો",
+  "Unlink this phone": "આ ફોન અનલિંક કરો",
+  "Switching WhatsApp off keeps the link, so turning it back on needs no new scan.":
+    "WhatsApp બંધ કરવાથી લિંક રહે છે, એટલે ફરી ચાલુ કરવા નવું સ્કૅન કરવું પડતું નથી.",
+  "Unlink this phone?": "આ ફોન અનલિંક કરવો છે?",
+  "Your shop stops sending WhatsApp messages from this number until a phone is scanned again. To pause sending instead, switch WhatsApp off — that keeps the link.":
+    "જ્યાં સુધી કોઈ ફોન ફરી સ્કૅન ન થાય, ત્યાં સુધી તમારી દુકાન આ નંબર પરથી WhatsApp મેસેજ નહીં મોકલે. થોડો સમય રોકવું હોય તો WhatsApp બંધ કરો — તેનાથી લિંક રહે છે.",
+  "Unlink": "અનલિંક કરો",
+  "That did not work": "આ થઈ શક્યું નહીં",
+  "Could not reach the server. Check your internet connection and try again.":
+    "સર્વર સાથે સંપર્ક થઈ શક્યો નહીં. તમારું ઇન્ટરનેટ કનેક્શન તપાસો અને ફરી પ્રયત્ન કરો.",
+  "Phone unlinked": "ફોન અનલિંક થઈ ગયો",
+  "Test message sent": "ટેસ્ટ મેસેજ મોકલી દીધો",
+  "Sent to {phone}.": "{phone} ને મોકલ્યો.",
+  "Test message not sent": "ટેસ્ટ મેસેજ ગયો નહીં",
+  "WhatsApp capacity on this server is full. Please contact support.":
+    "આ સર્વર પર WhatsApp ની જગ્યા ભરાઈ ગઈ છે. કૃપા કરીને સપોર્ટનો સંપર્ક કરો.",
+  "WhatsApp needs to be linked again. Click Link WhatsApp and scan the new code.":
+    "WhatsApp ફરી લિંક કરવું પડશે. નીચેના બટન પર ક્લિક કરો અને નવો કોડ સ્કૅન કરો.",
+  "This phone was unlinked from WhatsApp. Link again to keep sending.":
+    "આ ફોન WhatsApp પરથી અનલિંક થઈ ગયો. મેસેજ મોકલતા રહેવા ફરી લિંક કરો.",
+  "This WhatsApp link was opened somewhere else. Click Reconnect to take it back.":
+    "આ WhatsApp લિંક બીજે ક્યાંક ખોલાઈ. તેને પાછી લેવા “ફરી જોડો” પર ક્લિક કરો.",
+  "WhatsApp refused this number (it may be restricted). Check the phone.":
+    "WhatsApp એ આ નંબર નકાર્યો (કદાચ તેના પર રોક છે). ફોન તપાસો.",
+  "The QR code expired before it was scanned. Click Show QR code when you are ready.":
+    "સ્કૅન થાય તે પહેલાં QR કોડની મુદત પૂરી થઈ ગઈ. તૈયાર હો ત્યારે “QR કોડ બતાવો” પર ક્લિક કરો.",
+  "Reconnecting after a dropped connection…": "કનેક્શન તૂટ્યા પછી ફરી જોડી રહ્યા છીએ…",
+  "Only a shop account can link WhatsApp.": "ફક્ત દુકાનનું એકાઉન્ટ જ WhatsApp લિંક કરી શકે છે.",
+  "Turn WhatsApp on first.": "પહેલાં WhatsApp ચાલુ કરો.",
+  "Please wait a few seconds before sending another test.":
+    "બીજો ટેસ્ટ મોકલતા પહેલાં થોડી સેકન્ડ રાહ જુઓ.",
+  "WhatsApp is not connected. Link your phone in Settings › WhatsApp first.":
+    "WhatsApp જોડાયેલું નથી. પહેલાં સેટિંગ્સ › WhatsApp માં તમારો ફોન લિંક કરો.",
+  "Include the country code, e.g. +91 98765 43210": "દેશનો કોડ સાથે લખો, જેમ કે +91 98765 43210",
+  "Your current plan does not include this feature. Upgrade your plan to continue.":
+    "તમારા હાલના પ્લાનમાં આ સુવિધા નથી. આગળ વધવા પ્લાન અપગ્રેડ કરો.",
+  "WhatsApp has not been reachable for a while. Trying again every 5 minutes — or click Reconnect to try now.":
+    "થોડા સમયથી WhatsApp સાથે સંપર્ક થઈ શકતો નથી. દર 5 મિનિટે ફરી પ્રયત્ન થાય છે — અથવા અત્યારે પ્રયત્ન કરવા “ફરી જોડો” પર ક્લિક કરો.",
+  "WhatsApp Connection is not part of this shop's current plan, so nothing is sent from this number. It reconnects on its own once the plan includes it again.":
+    "WhatsApp કનેક્શન આ દુકાનના હાલના પ્લાનમાં નથી, એટલે આ નંબર પરથી કંઈ મોકલાતું નથી. પ્લાનમાં તે ફરી સામેલ થતાં જ તે જાતે ફરી જોડાઈ જશે.",
+  "WhatsApp did not send the message. Check that the phone has internet and try again.":
+    "WhatsApp એ મેસેજ મોકલ્યો નહીં. ફોનમાં ઇન્ટરનેટ ચાલુ છે કે નહીં તે તપાસો અને ફરી પ્રયત્ન કરો.",
+  "Could not draw the QR code. Please try again.":
+    "QR કોડ બની શક્યો નહીં. ફરી પ્રયત્ન કરો.",
+  "Could not reach WhatsApp to start linking. Click Show QR code to try again.":
+    "લિંક કરવાનું શરૂ કરવા WhatsApp સાથે સંપર્ક થઈ શક્યો નહીં. ફરી પ્રયત્ન કરવા “QR કોડ બતાવો” પર ક્લિક કરો.",
+  "Could not start WhatsApp. Please try again, or contact support if it keeps happening.":
+    "WhatsApp શરૂ થઈ શક્યું નહીં. કૃપા કરીને ફરી પ્રયત્ન કરો, અને વારંવાર આવું થાય તો સપોર્ટનો સંપર્ક કરો.",
+  "Please wait a few seconds before trying again.":
+    "ફરી પ્રયત્ન કરતા પહેલાં થોડી સેકન્ડ રાહ જુઓ.",
+  "Your linked WhatsApp number": "તમારો લિંક કરેલો WhatsApp નંબર",
+  "WhatsApp Connection is not part of your current plan, so nothing is sent from +{number}. You can switch it off or unlink the phone here.":
+    "WhatsApp કનેક્શન તમારા હાલના પ્લાનમાં નથી, એટલે +{number} પરથી કંઈ મોકલાતું નથી. તમે તેને અહીં બંધ કરી શકો છો અથવા ફોન અનલિંક કરી શકો છો.",
+  "WhatsApp Connection is not part of your current plan, so nothing is sent from +{number}. You can unlink the phone here.":
+    "WhatsApp કનેક્શન તમારા હાલના પ્લાનમાં નથી, એટલે +{number} પરથી કંઈ મોકલાતું નથી. તમે અહીં ફોન અનલિંક કરી શકો છો.",
+  "WhatsApp Connection is not part of your current plan, so nothing is sent from your number. You can switch it off here.":
+    "WhatsApp કનેક્શન તમારા હાલના પ્લાનમાં નથી, એટલે તમારા નંબર પરથી કંઈ મોકલાતું નથી. તમે તેને અહીં બંધ કરી શકો છો.",
+  "Switch off": "બંધ કરો",
+  "WhatsApp switched off": "WhatsApp બંધ કર્યું",
+
+  // ===== WhatsApp campaigns =====
+  "WhatsApp Campaign": "WhatsApp કૅમ્પેન",
+  "Send a personalised message to the customers you choose, from your shop's own WhatsApp.":
+    "તમે પસંદ કરો એ ગ્રાહકોને તમારી દુકાનના પોતાના WhatsApp પરથી વ્યક્તિગત મેસેજ મોકલો.",
+  "New campaign": "નવું કૅમ્પેન",
+  "History": "ઇતિહાસ",
+  "A campaign is sending right now.": "અત્યારે એક કૅમ્પેન મોકલાઈ રહ્યું છે.",
+  "A campaign is paused.": "એક કૅમ્પેન અટકાવેલું છે.",
+  "View progress": "પ્રગતિ જુઓ",
+  "Link your WhatsApp in Settings › WhatsApp to send campaigns automatically.":
+    "કૅમ્પેન આપમેળે મોકલવા માટે સેટિંગ્સ › WhatsApp માં તમારું WhatsApp લિંક કરો.",
+  "Until then, each customer below has an Open in WhatsApp button with their message already written, to send from your phone one by one.":
+    "ત્યાં સુધી નીચે દરેક ગ્રાહક સાથે “WhatsApp માં ખોલો” બટન છે, જેમાં તેનો મેસેજ પહેલેથી લખેલો છે — તમારા ફોન પરથી એક પછી એક મોકલો.",
+  "{selected} of {total} selected": "{total} માંથી {selected} પસંદ કર્યા",
+  "Search by name or number": "નામ કે નંબરથી શોધો",
+  "Select all": "બધા પસંદ કરો",
+  "Select none": "બધાની પસંદગી હટાવો",
+  "No customers yet. Customers appear here after their first order.":
+    "હજી કોઈ ગ્રાહક નથી. પહેલો ઑર્ડર આવ્યા પછી ગ્રાહકો અહીં દેખાશે.",
+  "No customers match your search.": "તમારી શોધ સાથે કોઈ ગ્રાહક મેળ ખાતો નથી.",
+  "Open in WhatsApp": "WhatsApp માં ખોલો",
+  "Opted out": "માર્કેટિંગ બંધ",
+  "No WhatsApp": "WhatsApp નથી",
+  "Kiosk walk-in": "કિઓસ્ક ગ્રાહક",
+  "Choose up to {count} customers per campaign.":
+    "એક કૅમ્પેનમાં વધુમાં વધુ {count} ગ્રાહકો પસંદ કરો.",
+  "Up to {count} customers per campaign": "એક કૅમ્પેનમાં વધુમાં વધુ {count} ગ્રાહકો",
+  "{count} more were not selected. Send this campaign, then select them for the next one.":
+    "બીજા {count} ગ્રાહકો પસંદ થયા નથી. આ કૅમ્પેન મોકલો, પછી આગલા કૅમ્પેન માટે તેમને પસંદ કરો.",
+  "Shop name": "દુકાનનું નામ",
+  "Store link": "સ્ટોર લિંક",
+  "Hi {{first_name}}, our new {{product}} is here! See it at {{store_link}}":
+    "નમસ્તે {{first_name}}, અમારું નવું {{product}} આવી ગયું છે! અહીં જુઓ: {{store_link}}",
+  "Fallback when a name is missing:": "નામ ન હોય ત્યારે વિકલ્પ:",
+  "Vary the wording:": "શબ્દોમાં વિવિધતા:",
+  "With a photo attached, WhatsApp allows up to {count} characters per message.":
+    "ફોટો સાથે હોય ત્યારે WhatsApp દરેક મેસેજમાં વધુમાં વધુ {count} અક્ષરની મંજૂરી આપે છે.",
+  "Your message uses unknown placeholders:": "તમારા મેસેજમાં અજાણ્યા પ્લેસહોલ્ડર છે:",
+  "Fix or remove them before sending.": "મોકલતા પહેલાં તેને સુધારો અથવા હટાવો.",
+  "Product (optional)": "પ્રોડક્ટ (વૈકલ્પિક)",
+  "No product": "કોઈ પ્રોડક્ટ નહીં",
+  "Attach product photo": "પ્રોડક્ટનો ફોટો જોડો",
+  "This product has no photo.": "આ પ્રોડક્ટનો કોઈ ફોટો નથી.",
+  "Add price list": "કિંમત યાદી ઉમેરો",
+  "Adds the product name and the prices of the variants you tick below the message.":
+    "મેસેજની નીચે પ્રોડક્ટનું નામ અને તમે પસંદ કરેલા વેરિઅન્ટની કિંમતો ઉમેરે છે.",
+  "Adds the product name and its price below the message.":
+    "મેસેજની નીચે પ્રોડક્ટનું નામ અને તેની કિંમત ઉમેરે છે.",
+  "Adds the product name and the prices of all its variants below the message.":
+    "મેસેજની નીચે પ્રોડક્ટનું નામ અને તેના બધા વેરિઅન્ટની કિંમતો ઉમેરે છે.",
+  "Choose up to {count} variants, or all of them.":
+    "વધુમાં વધુ {count} વેરિઅન્ટ પસંદ કરો, અથવા બધા.",
+  "Write a message and choose customers to see exactly what each one will receive.":
+    "મેસેજ લખો અને ગ્રાહકો પસંદ કરો, જેથી દરેકને બરાબર શું મળશે તે જોઈ શકો.",
+  "Preparing the preview…": "ઝલક તૈયાર થઈ રહી છે…",
+  "The preview could not be loaded. Try again in a moment.":
+    "ઝલક લોડ થઈ શકી નહીં. થોડી વારમાં ફરી પ્રયત્ન કરો.",
+  "Customer {current} of {total}": "{total} માંથી ગ્રાહક {current}",
+  "Previous customer": "પાછલો ગ્રાહક",
+  "Next customer": "આગલો ગ્રાહક",
+  "{count} will receive this": "{count} ને આ મળશે",
+  "{count} will be skipped": "{count} છોડી દેવાશે",
+  "Takes about {minutes} min": "લગભગ {minutes} મિનિટ લાગશે",
+  "{count} messages left today": "આજે {count} મેસેજ બાકી",
+  "Only {count} can go out today. The campaign pauses at the daily limit — resume it tomorrow for the rest.":
+    "આજે ફક્ત {count} મેસેજ જઈ શકે છે. રોજની મર્યાદા પર કૅમ્પેન અટકી જશે — બાકીના માટે કાલે તેને આગળ વધારો.",
+  "Send to {count} customers": "{count} ગ્રાહકોને મોકલો",
+  "Send campaign": "કૅમ્પેન મોકલો",
+  "Sending needs a linked WhatsApp. Use the Open in WhatsApp buttons to send by hand.":
+    "મોકલવા માટે લિંક કરેલું WhatsApp જોઈએ. જાતે મોકલવા “WhatsApp માં ખોલો” બટન વાપરો.",
+  "Messages go out one at a time, a few seconds apart, from your linked WhatsApp.":
+    "મેસેજ તમારા લિંક કરેલા WhatsApp પરથી એક પછી એક, થોડી સેકન્ડના અંતરે જાય છે.",
+  "Send to {count} customers?": "{count} ગ્રાહકોને મોકલવું છે?",
+  "WhatsApp may block numbers that send unwanted bulk messages. Only message customers who expect to hear from you.":
+    "અનિચ્છનીય જથ્થાબંધ મેસેજ મોકલતા નંબરોને WhatsApp બ્લૉક કરી શકે છે. ફક્ત એવા જ ગ્રાહકોને મેસેજ કરો જેઓ તમારા મેસેજની અપેક્ષા રાખે છે.",
+  "Messages go out one at a time, a few seconds apart, so this takes about {minutes} min. You can stop it at any time.":
+    "મેસેજ એક પછી એક, થોડી સેકન્ડના અંતરે જાય છે, એટલે આમાં લગભગ {minutes} મિનિટ લાગશે. તમે તેને ગમે ત્યારે રોકી શકો છો.",
+  "Send now": "હમણાં મોકલો",
+  "Campaign started": "કૅમ્પેન શરૂ થઈ ગયું",
+  "Campaign not started": "કૅમ્પેન શરૂ થયું નહીં",
+  "All campaigns": "બધા કૅમ્પેન",
+  "Loading campaign…": "કૅમ્પેન લોડ થઈ રહ્યું છે…",
+  "This campaign could not be loaded. Try again in a moment.":
+    "આ કૅમ્પેન લોડ થઈ શક્યું નહીં. થોડી વારમાં ફરી પ્રયત્ન કરો.",
+  "by {name}": "{name} દ્વારા",
+  "Campaign progress": "કૅમ્પેનની પ્રગતિ",
+  "{done} of {total} done": "{total} માંથી {done} પૂરા",
+  "{count} sent": "{count} મોકલાયા",
+  "{count} failed": "{count} નિષ્ફળ",
+  "{count} skipped": "{count} છોડી દેવાયા",
+  "{count} waiting": "{count} રાહમાં",
+  "Stop": "રોકો",
+  "Campaign stopped": "કૅમ્પેન રોકી દેવાયું",
+  "Campaign resumed": "કૅમ્પેન આગળ વધાર્યું",
+  "Sending continues if you leave this screen. Stop takes effect after the current message.":
+    "આ સ્ક્રીન છોડશો તો પણ મોકલવાનું ચાલુ રહેશે. “રોકો” હાલના મેસેજ પછી લાગુ થાય છે.",
+  "Resume sends to the customers still waiting. Stop skips them and closes the campaign.":
+    "“આગળ વધારો” રાહમાં બાકી ગ્રાહકોને મોકલે છે. “રોકો” તેમને છોડીને કૅમ્પેન બંધ કરે છે.",
+  "Stopping after the current message": "હાલના મેસેજ પછી અટકી જશે",
+  "This campaign had already finished.": "આ કૅમ્પેન પહેલેથી પૂરું થઈ ગયું હતું.",
+  "The campaign did not stop": "કૅમ્પેન અટક્યું નહીં",
+  "It is paused, with customers still waiting. Press Stop again.":
+    "તે અટકાવેલું છે અને ગ્રાહકો હજી રાહમાં છે. “રોકો” ફરી દબાવો.",
+  "Customers ({count})": "ગ્રાહકો ({count})",
+  "Campaigns could not be loaded. Try again in a moment.":
+    "કૅમ્પેન લોડ થઈ શક્યા નહીં. થોડી વારમાં ફરી પ્રયત્ન કરો.",
+  "Loading campaigns…": "કૅમ્પેન લોડ થઈ રહ્યા છે…",
+  "No campaigns yet. Your sent campaigns will appear here.":
+    "હજી કોઈ કૅમ્પેન નથી. તમે મોકલેલા કૅમ્પેન અહીં દેખાશે.",
+  "(no message)": "(કોઈ મેસેજ નથી)",
+  "{count} customers": "{count} ગ્રાહકો",
+  "Queued": "કતારમાં",
+  "Sending": "મોકલાઈ રહ્યું છે",
+  "Paused": "અટકાવેલું",
+  "Failed": "નિષ્ફળ",
+  "Waiting": "રાહમાં",
+  "Sent": "મોકલાયું",
+  "Skipped": "છોડી દેવાયું",
+  "Marketing messages": "માર્કેટિંગ મેસેજ",
+  "When off, WhatsApp campaigns skip this customer.":
+    "બંધ હોય ત્યારે WhatsApp કૅમ્પેન આ ગ્રાહકને છોડી દે છે.",
+  "Marketing messages turned off": "માર્કેટિંગ મેસેજ બંધ કર્યા",
+  "Marketing messages turned on": "માર્કેટિંગ મેસેજ ચાલુ કર્યા",
+  "Campaigns already sending or paused will skip this customer too.":
+    "હાલ મોકલાઈ રહેલા કે અટકાવેલા કૅમ્પેન પણ આ ગ્રાહકને છોડી દેશે.",
+  "No WhatsApp number": "WhatsApp નંબર નથી",
+  "Shop's own number": "દુકાનનો પોતાનો નંબર",
+  "Opted out of marketing": "માર્કેટિંગ મેસેજ બંધ છે",
+  "Invalid number": "ખોટો નંબર",
+  "Duplicate number": "ડુપ્લિકેટ નંબર",
+  "Not on WhatsApp": "WhatsApp પર નથી",
+  "Message too long": "મેસેજ બહુ લાંબો",
+  "WhatsApp did not send the message.": "WhatsApp એ મેસેજ મોકલ્યો નહીં.",
+  "Sending was interrupted and this message may have gone out, so it was not sent again.":
+    "મોકલવાનું વચ્ચે અટકી ગયું અને આ મેસેજ કદાચ જઈ ચૂક્યો છે, એટલે તેને ફરી મોકલ્યો નથી.",
+  "Nobody in this selection can receive a WhatsApp message.":
+    "આ પસંદગીમાં કોઈ પણ WhatsApp મેસેજ મેળવી શકે તેમ નથી.",
+  "Link your WhatsApp in Settings › WhatsApp before sending a campaign.":
+    "કૅમ્પેન મોકલતા પહેલાં સેટિંગ્સ › WhatsApp માં તમારું WhatsApp લિંક કરો.",
+  "A campaign is already sending. Wait for it to finish or stop it first.":
+    "એક કૅમ્પેન પહેલેથી મોકલાઈ રહ્યું છે. તે પૂરું થાય ત્યાં સુધી રાહ જુઓ અથવા પહેલાં તેને રોકો.",
+  "Campaign sending is busy right now. Try again in a few minutes.":
+    "અત્યારે કૅમ્પેન મોકલવામાં ભીડ છે. થોડી મિનિટ પછી ફરી પ્રયત્ન કરો.",
+  "A campaign can go to at most {count} customers. Select fewer customers.":
+    "એક કૅમ્પેન વધુમાં વધુ {count} ગ્રાહકોને જઈ શકે છે. ઓછા ગ્રાહકો પસંદ કરો.",
+  "Daily limit reached ({count} messages). Resume tomorrow.":
+    "રોજની મર્યાદા પૂરી થઈ ({count} મેસેજ). કાલે આગળ વધારો.",
+  "WhatsApp disconnected. Reconnect it in Settings › WhatsApp, then resume.":
+    "WhatsApp નું કનેક્શન તૂટી ગયું. સેટિંગ્સ › WhatsApp માં તેને ફરી જોડો, પછી કૅમ્પેન આગળ વધારો.",
+  "This plan no longer includes WhatsApp campaigns.": "આ પ્લાનમાં હવે WhatsApp કૅમ્પેન શામેલ નથી.",
+  "The server restarted while this campaign was sending. Resume to continue.":
+    "આ કૅમ્પેન મોકલાતું હતું ત્યારે સર્વર ફરી શરૂ થયું. ચાલુ રાખવા આગળ વધારો.",
+  "Sending stopped because of a server error. Resume to try again.":
+    "સર્વરની ભૂલને કારણે મોકલવાનું અટકી ગયું. ફરી પ્રયત્ન કરવા આગળ વધારો.",
+  "Only a paused campaign can be resumed.": "ફક્ત અટકાવેલું કૅમ્પેન જ આગળ વધારી શકાય છે.",
+  "Campaign not found.": "કૅમ્પેન મળ્યું નહીં.",
+  "The product photo could not be found, so messages are sent without it.":
+    "પ્રોડક્ટનો ફોટો મળ્યો નહીં, એટલે મેસેજ તેના વગર મોકલાશે.",
+  "Choose the customers to send to, or send to all customers.":
+    "જે ગ્રાહકોને મોકલવું છે તેમને પસંદ કરો, અથવા બધા ગ્રાહકોને મોકલો.",
+  "Write a message first.": "પહેલાં મેસેજ લખો.",
+  "Only a shop account can send WhatsApp campaigns.":
+    "ફક્ત દુકાનનું એકાઉન્ટ જ WhatsApp કૅમ્પેન મોકલી શકે છે.",
+  "Shop not found.": "દુકાન મળી નહીં.",
+  "Product not found.": "પ્રોડક્ટ મળ્યું નહીં.",
+  "Customer not found.": "ગ્રાહક મળ્યો નહીં.",
+  "Invalid shop id.": "દુકાનની ID ખોટી છે.",
+  "This customer ordered from your shop, so their WhatsApp number and e-mail belong to their own account. You can change the name only.":
+    "આ ગ્રાહકે તમારી દુકાનમાંથી ઑર્ડર કર્યો છે, એટલે તેમનો WhatsApp નંબર અને ઈ-મેલ તેમના પોતાના એકાઉન્ટના છે. તમે ફક્ત નામ બદલી શકો છો.",
+  "This customer's e-mail and WhatsApp number are managed by the customer. You can change the name only.":
+    "આ ગ્રાહકનો ઈ-મેલ અને WhatsApp નંબર ગ્રાહક પોતે સંભાળે છે. તમે ફક્ત નામ બદલી શકો છો.",
 };

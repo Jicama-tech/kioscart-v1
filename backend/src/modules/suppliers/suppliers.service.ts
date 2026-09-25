@@ -27,6 +27,31 @@ import { SupplierRespondDto } from "./dto/supplier-respond.dto";
 import { RecordSupplierPaymentDto } from "./dto/record-supplier-payment.dto";
 import { AddSupplierNoteDto } from "./dto/add-supplier-note.dto";
 import { MailService } from "../roles/mail.service";
+import { ShopWhatsappService } from "../whatsapp/shop-whatsapp.service";
+import { plainText } from "../whatsapp/whatsapp-text";
+
+/**
+ * What a lifecycle update says, shared by the email and its WhatsApp mirror
+ * so the two can never tell a recipient different things.
+ */
+type SupplierUpdate = {
+  heading: string;
+  summary: string;
+  supplierName: string;
+  productName: string;
+  /** Label for `productName` — "Business" for shop-wide quotes. */
+  subjectLabel?: string;
+  status: string;
+  rows: Array<[string, string]>;
+  note?: string;
+  shopName?: string;
+};
+
+/**
+ * Upper bound on one WhatsApp update. An email has room for a table of every
+ * quoted line; a chat message that scrolls off the screen does not get read.
+ */
+const WHATSAPP_UPDATE_MAX = 900;
 
 function parseJson<T>(raw: unknown, fallback: T): T {
   if (raw == null || raw === "") return fallback;
@@ -47,7 +72,8 @@ function parseJson<T>(raw: unknown, fallback: T): T {
  * shareable link path (kioscart builds it client-side instead) and the
  * per-organizer custom-SMTP resolver (kioscart's MailService uses one fixed
  * transporter for everyone). Lifecycle email notifications themselves are
- * ported below via `notify()`.
+ * ported below via `notify()`, which also mirrors each one on the shop's own
+ * WhatsApp when it is linked.
  */
 /**
  * Which requirement list an operation targets: one product's list, or the
@@ -114,6 +140,7 @@ export class SuppliersService implements OnModuleInit {
     // selling), mirroring eventsh-v1's Stall.selectedAddOns suggestions.
     @InjectModel("Order") private orderModel: Model<any>,
     private readonly mailService: MailService,
+    private readonly shopWhatsapp: ShopWhatsappService,
   ) {}
 
   // ============ NOTIFICATIONS ============
@@ -121,6 +148,13 @@ export class SuppliersService implements OnModuleInit {
   /**
    * Send a lifecycle update. `audience` decides who hears about it: the
    * supplier, the shopkeeper, or both.
+   *
+   * Every update goes out by email and, when the shop has linked its own
+   * WhatsApp (Settings › WhatsApp) and its plan includes it, as a WhatsApp
+   * message too — one per recipient. The two channels are sent side by side
+   * and guarded separately, so a recipient with a phone number but no email
+   * address still hears about it, and a WhatsApp failure can never cost
+   * anyone the email.
    *
    * Never throws — a bounced notification must not roll back the state
    * change that triggered it.
@@ -135,67 +169,205 @@ export class SuppliersService implements OnModuleInit {
       note?: string;
     },
   ) {
+    let product: any;
+    let shopkeeper: any;
+    let supplierDoc: any;
     try {
-      const [product, shopkeeper] = await Promise.all([
+      [product, shopkeeper] = await Promise.all([
         this.productModel.findById(req.productId).select("name").lean(),
         this.shopkeeperModel
           .findById(req.shopkeeperId)
-          .select("email businessEmail shopName name country")
+          // whatsappNumber and phone are where the shop's own copy goes on
+          // WhatsApp; the rest feeds the email.
+          .select("email businessEmail shopName name country whatsappNumber phone")
           .lean(),
       ]);
 
       // The request may arrive unpopulated depending on the caller.
-      const supplierDoc: any =
+      supplierDoc =
         req.supplierId && (req.supplierId as any).name
           ? req.supplierId
           : await this.supplierModel.findById(req.supplierId).lean();
-
-      const to: string[] = [];
-      if (audience === "supplier" || audience === "both") {
-        if (supplierDoc?.email) to.push(supplierDoc.email);
-        if (supplierDoc?.businessEmail) to.push(supplierDoc.businessEmail);
-      }
-      if (audience === "shopkeeper" || audience === "both") {
-        if ((shopkeeper as any)?.email) to.push((shopkeeper as any).email);
-        if ((shopkeeper as any)?.businessEmail)
-          to.push((shopkeeper as any).businessEmail);
-      }
-      if (to.length === 0) return;
-
-      const country = (shopkeeper as any)?.country;
-      const sym = country === "SG" ? "SG$" : "₹";
-      const money = (n: number) => `${sym}${Number(n || 0).toLocaleString()}`;
-
-      const fe = process.env.FRONTEND_URL || "http://localhost:8080";
-
-      await this.mailService.sendSupplierUpdate({
-        to,
-        heading: payload.heading,
-        summary: payload.summary,
-        supplierName: supplierDoc?.companyName || supplierDoc?.name || "Supplier",
-        // Business-wide quotes have no product — the shop is what the
-        // supplier is quoting for, so name that instead.
-        ...(((req as any).scope === "business")
-          ? {
-              productName:
-                (shopkeeper as any)?.shopName ||
-                (shopkeeper as any)?.name ||
-                "your business",
-              subjectLabel: "Business",
-            }
-          : { productName: (product as any)?.name || "your product" }),
-        status: req.status,
-        rows: [["Amount payable", money(this.payable(req))], ...(payload.rows || [])],
-        note: payload.note,
-        shopName: (shopkeeper as any)?.shopName || (shopkeeper as any)?.name,
-        ctaLabel: "Open dashboard",
-        ctaUrl: `${fe}/login`,
-      });
     } catch (err: any) {
       this.logger.warn(
         `Supplier notification failed for ${req._id}: ${err?.message || err}`,
       );
+      return;
     }
+
+    const toSupplier = audience === "supplier" || audience === "both";
+    const toShopkeeper = audience === "shopkeeper" || audience === "both";
+
+    const country = shopkeeper?.country;
+    const sym = country === "SG" ? "SG$" : "₹";
+    const money = (n: number) => `${sym}${Number(n || 0).toLocaleString()}`;
+    const shopName = shopkeeper?.shopName || shopkeeper?.name;
+
+    const update: SupplierUpdate = {
+      heading: payload.heading,
+      summary: payload.summary,
+      supplierName: supplierDoc?.companyName || supplierDoc?.name || "Supplier",
+      // Business-wide quotes have no product — the shop is what the
+      // supplier is quoting for, so name that instead.
+      ...(((req as any).scope === "business")
+        ? { productName: shopName || "your business", subjectLabel: "Business" }
+        : { productName: product?.name || "your product" }),
+      status: req.status,
+      rows: [["Amount payable", money(this.payable(req))], ...(payload.rows || [])],
+      note: payload.note,
+      shopName,
+    };
+
+    const emails: string[] = [];
+    if (toSupplier) {
+      if (supplierDoc?.email) emails.push(supplierDoc.email);
+      if (supplierDoc?.businessEmail) emails.push(supplierDoc.businessEmail);
+    }
+    if (toShopkeeper) {
+      if (shopkeeper?.email) emails.push(shopkeeper.email);
+      if (shopkeeper?.businessEmail) emails.push(shopkeeper.businessEmail);
+    }
+
+    const sendEmail = async () => {
+      if (emails.length === 0) return;
+      try {
+        const fe = process.env.FRONTEND_URL || "http://localhost:8080";
+        await this.mailService.sendSupplierUpdate({
+          to: emails,
+          ...update,
+          ctaLabel: "Open dashboard",
+          ctaUrl: `${fe}/login`,
+        });
+      } catch (err: any) {
+        this.logger.warn(
+          `Supplier notification email failed for ${req._id}: ${err?.message || err}`,
+        );
+      }
+    };
+
+    const sendWhatsapp = async (recipient: "supplier" | "shopkeeper") => {
+      try {
+        // notify() does nothing unless this shop's WhatsApp is connected and
+        // its plan includes it, and rate-limits what it does send.
+        await this.shopWhatsapp.notify({
+          shopId: String(req.shopkeeperId),
+          // The supplier's `phone` first: it is what both the public form
+          // and the supplier directory fill in, stored with its dial code
+          // ("+91…"). `whatsAppNumber` is not set by either form today and
+          // is only a fallback. The shop's own copy goes to the number it
+          // gave for WhatsApp, else its contact phone.
+          to:
+            recipient === "supplier"
+              ? supplierDoc?.phone || supplierDoc?.whatsAppNumber
+              : shopkeeper?.whatsappNumber || shopkeeper?.phone,
+          text: this.supplierUpdateText(update, recipient),
+          // The SHOP's country, for a number stored without a "+". Never the
+          // supplier's `countryCode`: that holds a dial code ("+91"), which
+          // is not a country notify() can read.
+          country,
+          // Lets notify() route the shop's own copy around WhatsApp's
+          // "Message yourself", where an alert from the linked number to
+          // that same number would arrive without a notification.
+          toShopOwner: recipient === "shopkeeper",
+          // The shop's copies are caused by the supplier — a counter-offer can
+          // be answered again and again — and alerts to the owner skip the
+          // per-recipient ceiling. Capping them per supplier keeps one
+          // supplier from spending the shop's whole WhatsApp budget.
+          throttleKey:
+            recipient === "shopkeeper"
+              ? `supplier:${String(supplierDoc?._id || req.supplierId || req._id)}`
+              : undefined,
+          // Every supplier-bound update is the shop's own signed-in action
+          // (approve, pay, check goods in), so it is not capped per supplier
+          // per hour; the shop-wide ceilings still apply.
+          shopInitiated: recipient === "supplier",
+        });
+      } catch (err: any) {
+        this.logger.warn(
+          `Supplier notification WhatsApp failed for ${req._id}: ${err?.message || err}`,
+        );
+      }
+    };
+
+    await Promise.all([
+      sendEmail(),
+      toSupplier ? sendWhatsapp("supplier") : undefined,
+      toShopkeeper ? sendWhatsapp("shopkeeper") : undefined,
+    ]);
+  }
+
+  /**
+   * The WhatsApp version of a supplier update email, for one recipient: the
+   * same facts as a few plain lines, at most WHATSAPP_UPDATE_MAX characters.
+   *
+   * Free text goes through plainText (one line, no invisible characters,
+   * links replaced). For the shop's own copy that is a safeguard rather than
+   * tidying: the supplier's name, company and note arrive through the public
+   * quotation form, and this message reaches the shop owner from a number
+   * they trust. Headings, rows and the shopkeeper's own notes to a supplier
+   * get the same treatment so there is one rule to reason about — a link in a
+   * shopkeeper's note to a supplier is rare, and the email still carries it
+   * verbatim. Only the shop's and the product's names are merely kept to one
+   * line: they are the shop's own words about itself, which whatsapp-text.ts
+   * leaves alone, and a shop called "Foodie.in" would otherwise be signed
+   * "[link removed]".
+   */
+  private supplierUpdateText(
+    update: SupplierUpdate,
+    recipient: "supplier" | "shopkeeper",
+  ): string {
+    const oneLine = (text: unknown, max: number) => {
+      const s = String(text ?? "").replace(/\s+/g, " ").trim();
+      return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+    };
+
+    const top =
+      `🧾 ${plainText(update.heading, 80)}\n` +
+      `${update.subjectLabel || "Product"}: ${oneLine(update.productName, 80)}`;
+    const summary = plainText(update.summary, 240);
+    const signOff = `— ${oneLine(update.shopName, 60) || "KiosCart"}`;
+
+    const facts: string[] = [];
+    // The supplier knows who they are; the shop needs to know who replied.
+    if (recipient === "shopkeeper") {
+      facts.push(`Supplier: ${plainText(update.supplierName, 60) || "Supplier"}`);
+    }
+    const status = plainText(update.status, 40);
+    if (status) facts.push(`Status: ${status}`);
+
+    const compose = (lines: string[], note: string) =>
+      [top, summary, lines.join("\n"), note && `Note: ${note}`, signOff]
+        .filter(Boolean)
+        .join("\n\n");
+
+    // A delivery update lists every quoted line, so rows are added only while
+    // they fit, keeping room for a "+N more" line. The amounts come first —
+    // they are the point of most of these updates — but a note is what the
+    // person chose to say ("3 boxes arrived damaged"), so up to 160
+    // characters are held back for it before the rows fill the rest.
+    const noteLength = plainText(update.note, 300).length;
+    const keepForNote = noteLength
+      ? Math.min(noteLength, 160) + "\n\nNote: ".length
+      : 0;
+    const rows = (update.rows || [])
+      .map(([label, value]) => [plainText(label, 40), plainText(value, 300)])
+      .filter(([label, value]) => label && value)
+      .map(([label, value]) => `${label}: ${value}`);
+    for (let i = 0; i < rows.length; i++) {
+      const next = compose([...facts, rows[i]], "").length;
+      if (next > WHATSAPP_UPDATE_MAX - 20 - keepForNote) {
+        facts.push(`+${rows.length - i} more`);
+        break;
+      }
+      facts.push(rows[i]);
+    }
+
+    // The note gets whatever room is left, up to its own cap.
+    const room =
+      WHATSAPP_UPDATE_MAX - compose(facts, "").length - "\n\nNote: ".length;
+    const note =
+      noteLength && room >= 20 ? plainText(update.note, Math.min(300, room)) : "";
+    return compose(facts, note);
   }
 
   /**

@@ -18,6 +18,7 @@ import { OtpModule } from "../otp/otp.module";
 import { OrdersModule } from "../orders/orders.module";
 import { RazorpayWebhookController } from "./webhooks/razorpay-webhook.controller";
 import { RazorpayWebhookService } from "./webhooks/razorpay-webhook.service";
+import { WhatsappModule } from "../whatsapp/whatsapp.module";
 
 @Module({
   imports: [
@@ -30,6 +31,9 @@ import { RazorpayWebhookService } from "./webhooks/razorpay-webhook.service";
     forwardRef(() => ShopkeepersModule),
     forwardRef(() => OtpModule),
     forwardRef(() => OrdersModule),
+    // The webhook skips its own shop alert when the shop's WhatsApp already
+    // sent one. A leaf module, so no forwardRef is needed.
+    WhatsappModule,
   ],
   controllers: [PaymentsController, RazorpayWebhookController],
   providers: [PaymentsService, CheckoutService, RazorpayWebhookService],

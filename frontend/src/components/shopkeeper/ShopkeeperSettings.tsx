@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { FaWhatsapp } from "react-icons/fa";
 import { GmailPaymentSection } from "./GmailPaymentSection";
 import { RazorpayDirectSetup } from "./RazorpayDirectSetup";
+import { WhatsAppSettings } from "./WhatsAppSettings";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -205,6 +207,32 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   const [paymentQrPreview, setPaymentQrPreview] = useState<string | null>(null);
   const apiURL = __API_URL__;
 
+  // Who is looking, decoded once (same shape as ShopkeeperDashboard). An
+  // operator's token carries the parent shop's id plus its own `operatorId`
+  // and `accessTabs`.
+  const { isOperator, accessTabs } = useMemo(() => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        return {
+          isOperator: !!decoded.operatorId,
+          accessTabs: decoded.accessTabs as string[] | undefined,
+        };
+      }
+    } catch {
+      // An unreadable token falls through to the owner view; every request
+      // below is still authorised by the API.
+    }
+    return { isOperator: false, accessTabs: undefined as string[] | undefined };
+  }, []);
+  // Opt-in for operators, unlike the dashboard's hasTabAccess which lets an
+  // operator with no `accessTabs` see everything: an operator must have been
+  // granted "whatsapp" explicitly, matching the API's TabsGuard — otherwise the
+  // tab would open onto a panel that 403s.
+  const canSeeWhatsapp =
+    !isOperator || (accessTabs ?? []).includes("whatsapp");
+
   // Country codes for WhatsApp
   const [countries, setCountries] = useState<Country[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
@@ -226,7 +254,9 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
   // Keep in sync with the dashboard's NAVIGATION_ITEMS ids so operators can be
   // granted access to every tab the shopkeeper sees (incl. Support). "chat" is
   // the exception: it is no longer a sidebar tab, but the id still gates the
-  // floating AI assistant, so keep it in this list.
+  // floating AI assistant, so keep it in this list. "whatsapp" is the other
+  // exception: not a sidebar tab but the Settings › WhatsApp sub-tab, which
+  // the API's TabsGuard checks on every /whatsapp route.
   const ALL_TABS = [
     "chat",
     "dashboard",
@@ -239,6 +269,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     "expenses",
     "suppliers",
     "support",
+    "whatsapp",
   ];
   const TAB_LABELS: Record<string, string> = {
     chat: "AI Assistant (chat bubble)",
@@ -252,7 +283,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     expenses: "Expenses",
     suppliers: "Suppliers",
     support: "Support",
+    whatsapp: "WhatsApp Connection (Settings › WhatsApp)",
   };
+  // What a new operator starts with: everything except WhatsApp. Whoever holds
+  // that tab can unlink the shop's phone or pair a different one — messages to
+  // every customer would then come from that number — so the owner has to
+  // grant it on purpose rather than inherit it by not unticking a box.
+  const DEFAULT_OPERATOR_TABS = ALL_TABS.filter((t) => t !== "whatsapp");
 
   const [operatorForm, setOperatorForm] = useState<{
     name: string;
@@ -265,7 +302,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     operatorCountryCode: "+91",
     operatorEmail: "",
     operatorLocalNumber: "",
-    accessTabs: [...ALL_TABS],
+    accessTabs: [...DEFAULT_OPERATOR_TABS],
   });
   const [isSavingOperators, setIsSavingOperators] = useState(false);
 
@@ -1297,7 +1334,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         operatorCountryCode: "+91",
         operatorEmail: "",
         operatorLocalNumber: "",
-        accessTabs: [...ALL_TABS],
+        accessTabs: [...DEFAULT_OPERATOR_TABS],
       });
       setEditingOperatorIndex(null);
     } catch (err: any) {
@@ -1816,7 +1853,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="flex w-full">
+        {/* Up to seven nowrap triggers do not fit a phone, so the row scrolls
+            sideways instead of spilling out of the card. `justify-start`
+            because a centred row that overflows clips its first tab out of
+            reach; on wider screens the flex-1 triggers fill the row either
+            way, so it looks as before. `h-auto` + `overflow-y-hidden` let a
+            desktop scrollbar add height rather than sit on the triggers. */}
+        <TabsList className="flex w-full h-auto justify-start overflow-x-auto overflow-y-hidden [scrollbar-width:thin]">
           <TabsTrigger value="profile" className="flex-1 flex items-center justify-center gap-2">
             <Store className="w-4 h-4" />
             {i18nT("Profile")}
@@ -1844,6 +1887,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             Coupons
             {!isModuleEnabled("coupons") && <Lock className="w-3 h-3 ml-1" />}
           </TabsTrigger>
+          {canSeeWhatsapp && (
+            <TabsTrigger value="whatsapp" className={`flex-1 flex items-center justify-center gap-2 ${!isModuleEnabled("whatsappConnect") ? "opacity-50" : ""}`}>
+              <FaWhatsapp className="w-4 h-4" />
+              {i18nT("WhatsApp")}
+              {!isModuleEnabled("whatsappConnect") && <Lock className="w-3 h-3 ml-1" />}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -2964,7 +3014,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                       operatorCountryCode: countryCode,
                       operatorEmail: "",
                       operatorLocalNumber: "",
-                      accessTabs: [...ALL_TABS],
+                      accessTabs: [...DEFAULT_OPERATOR_TABS],
                     });
                     setEditingOperatorIndex(null);
                     setOperatorDialogOpen(true);
@@ -3001,7 +3051,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                                 operatorCountryCode: countryCode,
                                 operatorEmail: op.email,
                                 operatorLocalNumber: "",
-                                accessTabs: op.accessTabs || [...ALL_TABS],
+                                accessTabs: op.accessTabs || [...DEFAULT_OPERATOR_TABS],
                               });
                               setEditingOperatorIndex(index);
                               setOperatorDialogOpen(true);
@@ -3098,7 +3148,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                 <div id="access-tabs-panel" className="hidden mt-2 space-y-1 border rounded-lg p-3 bg-muted/30">
                   {ALL_TABS.map((tab) => (
                     <div key={tab} className="flex items-center justify-between py-1.5 px-1">
-                      <Label className="text-sm cursor-pointer">{TAB_LABELS[tab]}</Label>
+                      <Label className="text-sm cursor-pointer">{i18nT(TAB_LABELS[tab])}</Label>
                       <Switch
                         checked={operatorForm.accessTabs.includes(tab)}
                         onCheckedChange={(checked) => {
@@ -4466,6 +4516,21 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           </Card>
           </ModuleGate>
         </TabsContent>
+
+        {canSeeWhatsapp && (
+          <TabsContent value="whatsapp">
+            {/* Not a plain ModuleGate: a shop whose plan lost the add-on may
+                still have a phone linked, and must be able to switch it off
+                or unlink it. The locked panel shows the upgrade card and
+                offers only those two, reading the status once instead of
+                polling. */}
+            {isModuleEnabled("whatsappConnect") ? (
+              <WhatsAppSettings />
+            ) : (
+              <WhatsAppSettings locked />
+            )}
+          </TabsContent>
+        )}
 
         <Dialog open={openCouponDialog} onOpenChange={setOpenCouponDialog}>
           <DialogContent className="max-w-lg">

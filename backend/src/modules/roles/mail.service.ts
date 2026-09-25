@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import * as nodemailer from "nodemailer";
+import { orderStatusCopy } from "../orders/order-status-copy";
 
 @Injectable()
 export class MailService {
@@ -455,46 +456,23 @@ export class MailService {
   }
 
   /**
-   * Send status update email for orders
+   * Send status update email for orders. The wording comes from
+   * orderStatusCopy, shared with the status WhatsApp: it used to know only
+   * "confirmed" or "rejected", so a shipped or completed order was announced
+   * as a payment just confirmed.
    */
-  // Add the text property to your sendMail options in the sendOrderStatusEmail function
   async sendOrderStatusEmail(
     name: string,
     email: string,
     orderId: string,
-    accepted: boolean,
     status: string,
     amount: number,
     shopkeeperName: string,
   ) {
-    const statusColor = accepted ? "#22c55e" : "#ef4444";
-    const subject = accepted
-      ? `Order ${orderId} Confirmed`
-      : `Order ${orderId} Update`;
-
-    // Plain text version for better deliverability
-    const text = `
-    Hello ${name},
-
-    Your order status has been updated.
-
-    Order Information:
-    - Order ID: ${orderId}
-    - Status: ${status}
-    - Amount: ₹${amount}
-    - Merchant: ${shopkeeperName}
-
-    ${
-      accepted
-        ? `Great news! Your payment has been confirmed by the merchant. Your order is now being processed.`
-        : `Order Rejected: Your payment was not accepted by the merchant.`
-    }
-    
-    Thank you for your order!
-
-    Regards,
-    KiosCart Team
-    `;
+    const copy = orderStatusCopy(status, shopkeeperName);
+    if (!copy) return;
+    const statusColor = copy.good ? "#22c55e" : "#ef4444";
+    const subject = `Order ${orderId} — ${copy.title}`;
 
     const html = `
       <!DOCTYPE html>
@@ -502,12 +480,12 @@ export class MailService {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Order ${accepted ? "Confirmed" : "Rejected"}</title>
+        <title>${copy.title}</title>
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;">
         <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: ${statusColor}; margin: 0;">Order ${accepted ? "Confirmed" : "Rejected"}</h1>
+            <h1 style="color: ${statusColor}; margin: 0;">${copy.title}</h1>
             <p style="color: #666; margin: 10px 0;">Your order status has been updated.</p>
           </div>
           <h2 style="color: #333;">Hello ${name},</h2>
@@ -521,12 +499,11 @@ export class MailService {
             </table>
           </div>
           <div style="margin: 30px 0;">
+            <p style="color: ${statusColor}; font-size: 16px;"><strong>${copy.title}.</strong> ${copy.sentence}</p>
             ${
-              accepted
-                ? `<p style="color: #22c55e; font-size: 16px;"><strong>Great news!</strong> Your payment has been confirmed by the merchant. Your order is now being processed.</p>
-                   <p>We'll keep you updated on the progress. Thank you for your order!</p>`
-                : `<p style="color: #ef4444; font-size: 16px;"><strong>Order Rejected</strong> Your payment was not accepted by the merchant.</p>
-                   <p>Please contact the merchant for more details or try placing a new order.</p>`
+              copy.good
+                ? `<p>We'll keep you updated on the progress. Thank you for your order!</p>`
+                : `<p>Please contact the merchant for more details or try placing a new order.</p>`
             }
           </div>
           <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">

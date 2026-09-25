@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Shopkeeper } from "../../modules/shopkeepers/schemas/shopkeeper.schema";
 import { Plan } from "../../modules/plans/entities/plan.entity";
+import { OPT_IN_FEATURES } from "./opt-in-features";
 
 type ModuleMap = Record<string, { enabled?: boolean; limit?: number }>;
 
@@ -95,9 +96,16 @@ export class SubscriptionAccessService {
    * these keys, so denying unknown keys would revoke features from paying
    * shopkeepers the moment this guard shipped. Only an explicit
    * `{ enabled: false }` blocks a request.
+   *
+   * OPT_IN_FEATURES are the exception: paid add-ons that are off unless the
+   * plan says `{ enabled: true }`. No plan at all resolves to `modules: {}`
+   * above, so an unsubscribed shop never gets one.
    */
   async isEnabled(shopkeeperId: string, feature: string): Promise<boolean> {
     const access = await this.load(shopkeeperId);
+    if (OPT_IN_FEATURES.has(feature)) {
+      return access.active && access.modules?.[feature]?.enabled === true;
+    }
     if (!access.active) return false;
     return access.modules?.[feature]?.enabled !== false;
   }

@@ -18,6 +18,7 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   DisconnectReason,
   WASocket,
+  proto,
 } from "baileys";
 import * as qrcode from "qrcode";
 import * as qrcodeTerminal from "qrcode-terminal";
@@ -26,6 +27,7 @@ import { OrganizersService } from "../organizers/organizers.service";
 import { AgentsService } from "../agents/agents.service";
 import { JwtService } from "@nestjs/jwt";
 import * as fs from "fs";
+import { ShopWhatsappService } from "../whatsapp/shop-whatsapp.service";
 
 @Injectable()
 export class OtpService implements OnModuleInit {
@@ -41,6 +43,17 @@ export class OtpService implements OnModuleInit {
   // WhatsApp socket
   private sock: WASocket | null = null;
   private reconnecting = false;
+  /** True only between the socket's `open` and its next `close`. `sock`
+   * existing is not enough: sending on a socket that is still waiting for a
+   * scan, or retrying, never settles. */
+  private platformOpen = false;
+  /**
+   * The last messages this number sent, by id. When a recipient's phone
+   * cannot decrypt one it asks for it again, and Baileys looks it up through
+   * `getMessage`; with nothing to return they are left on "Waiting for this
+   * message". Kept on the service, not the socket, so reconnects keep it.
+   */
+  private readonly recentSent = new Map<string, proto.IMessage>();
 
   constructor(
     @InjectModel(Otp.name) private otpModel: Model<Otp>,
@@ -49,9 +62,17 @@ export class OtpService implements OnModuleInit {
     private readonly organizerService: OrganizersService,
     private readonly agentsService: AgentsService,
     private readonly jwtService: JwtService,
+    private readonly shopWhatsapp: ShopWhatsappService,
   ) {}
 
   async onModuleInit() {
+    // The platform number rings a shop owner whose alerts would otherwise
+    // come from their own linked device and land silently in "Message
+    // yourself" — see ShopWhatsappService.notify().
+    this.shopWhatsapp.registerPlatformSender({
+      isConnected: () => this.platformOpen && !!this.sock,
+      send: (phone, text) => this.sendWhatsAppMessage(phone, text),
+    });
     await this.initWhatsApp();
   }
 
@@ -69,6 +90,8 @@ export class OtpService implements OnModuleInit {
         printQRInTerminal: true, // Baileys prints minimal QR
         browser: ["NestJS", "Chrome", "1.0"],
         syncFullHistory: false,
+        getMessage: async (key) =>
+          (key.id && this.recentSent.get(key.id)) || undefined,
       });
 
       this.sock.ev.on("creds.update", saveCreds);
@@ -103,9 +126,11 @@ export class OtpService implements OnModuleInit {
         if (connection === "open") {
           this.logger.log("WhatsApp connected.");
           this.reconnecting = false;
+          this.platformOpen = true;
         }
 
         if (connection === "close") {
+          this.platformOpen = false;
           const err: any = lastDisconnect?.error;
           const code = err?.output?.statusCode || err?.status || err?.code;
           this.logger.warn(
@@ -159,7 +184,16 @@ export class OtpService implements OnModuleInit {
   async sendWhatsAppMessage(whatsappNumber: string, text: string) {
     if (!this.sock) throw new Error("WhatsApp not connected");
     const jid = this.toJid(whatsappNumber);
-    await this.sock.sendMessage(jid, { text });
+    const sent = await this.sock.sendMessage(jid, { text });
+    const id = sent?.key?.id;
+    if (id && sent?.message) {
+      this.recentSent.set(id, sent.message);
+      // Bounded: the oldest goes once 200 are held.
+      if (this.recentSent.size > 200) {
+        const oldest = this.recentSent.keys().next().value;
+        if (oldest !== undefined) this.recentSent.delete(oldest);
+      }
+    }
   }
 
   // =========================

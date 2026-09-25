@@ -44,6 +44,18 @@ export interface PlanModuleItem {
   hasLimit?: boolean;
   /** Shown as a hint under the label in the admin editor. */
   note?: string;
+  /**
+   * A paid add-on: OFF unless a plan explicitly switches it on.
+   *
+   * Every other key reads "the plan does not mention it" as enabled, so plans
+   * written before a key existed do not lose features the day it ships. An
+   * add-on sold for extra money needs the opposite reading — a plan that
+   * predates it has not paid for it — and so does a shop with no plan at
+   * all. SubscriptionContext applies this through OPT_IN_MODULE_KEYS; the API
+   * keeps the same list in backend/src/common/subscription/opt-in-features.ts,
+   * and the two must be changed together.
+   */
+  optIn?: boolean;
 }
 
 export interface PlanModuleGroup {
@@ -227,7 +239,16 @@ export const MODULE_GROUPS: PlanModuleGroup[] = [
       { key: "razorpay", label: "Card Payments (Razorpay)" },
       { key: "settingsShipping", label: "Shipping Settings" },
       { key: "coupons", label: "Coupon Management" },
-      { key: "whatsappQR", label: "WhatsApp QR Pairing" },
+      // Relabelled from "WhatsApp QR Pairing": this key gates the wa.me contact
+      // QR printed on receipts, not linking a phone — that is whatsappConnect
+      // below. Labels are not stored in plans, so the rename is display-only.
+      { key: "whatsappQR", label: "WhatsApp Contact QR on Receipts" },
+      {
+        key: "whatsappConnect",
+        label: "WhatsApp Connection (shop's own number)",
+        note: "Paid add-on — off unless switched on here · Settings › WhatsApp tab",
+        optIn: true,
+      },
       { key: "settingsNotifications", label: "Notification Settings" },
     ],
   },
@@ -304,6 +325,13 @@ export const MODULE_GROUPS: PlanModuleGroup[] = [
 
 export const ALL_MODULE_KEYS = MODULE_GROUPS.flatMap((g) =>
   g.items.map((i) => i.key),
+);
+
+/** Keys that stay off unless a plan switches them on — see `optIn`. */
+export const OPT_IN_MODULE_KEYS: ReadonlySet<string> = new Set(
+  MODULE_GROUPS.flatMap((g) =>
+    g.items.filter((i) => i.optIn).map((i) => i.key),
+  ),
 );
 
 /** Groups relevant to a plan's `forModule`; "both" always applies. */

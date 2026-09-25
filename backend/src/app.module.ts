@@ -31,6 +31,8 @@ import { PaymentGatewaysModule } from "./modules/payment-gateways/payment-gatewa
 import { AppFeedbackModule } from "./modules/app-feedback/app-feedback.module";
 import { ExpensesModule } from "./modules/expenses/expenses.module";
 import { SuppliersModule } from "./modules/suppliers/suppliers.module";
+import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
+import { CampaignsModule } from "./modules/campaigns/campaigns.module";
 
 @Module({
   imports: [
@@ -68,6 +70,8 @@ import { SuppliersModule } from "./modules/suppliers/suppliers.module";
     AppFeedbackModule,
     ExpensesModule,
     SuppliersModule,
+    WhatsappModule,
+    CampaignsModule,
   ],
 })
 export class AppModule {}

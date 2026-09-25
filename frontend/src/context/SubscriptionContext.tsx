@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { jwtDecode } from "jwt-decode";
+import { OPT_IN_MODULE_KEYS } from "@/lib/planModules";
 
 const apiURL = __API_URL__;
 
@@ -34,10 +35,12 @@ interface SubscriptionContextValue {
 // `false`, `isModuleEnabled`'s no-plan answer (enabled) stands and gates show
 // their children, which is how they behaved before gating existed. Inside the
 // provider the real state drives everything and this value is never read.
+// Paid add-ons (OPT_IN_MODULE_KEYS) are the exception even out here: they did
+// not exist before gating, and with no plan in hand they are off.
 const SubscriptionContext = createContext<SubscriptionContextValue>({
   subscription: null,
   loading: false,
-  isModuleEnabled: () => true,
+  isModuleEnabled: (moduleKey: string) => !OPT_IN_MODULE_KEYS.has(moduleKey),
   refetch: () => {},
 });
 
@@ -96,6 +99,19 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const isModuleEnabled = useCallback(
     (moduleKey: string) => {
+      // Paid add-ons read the plan the other way round: OFF unless an active
+      // plan switches them on. The fallbacks below all answer "enabled" so a
+      // missing plan, or a key a plan predates, never takes away a feature
+      // the shop already had — but an add-on nobody paid for is not such a
+      // feature. Same rule as the API's SubscriptionAccessService.
+      if (OPT_IN_MODULE_KEYS.has(moduleKey)) {
+        return (
+          !!subscription?.subscribed &&
+          !(subscription.isExpired && !subscription.inGracePeriod) &&
+          subscription.modules?.[moduleKey]?.enabled === true
+        );
+      }
+
       if (!subscription || !subscription.subscribed) return true;
 
       // A lapsed plan disables everything, mirroring SubscriptionAccessService

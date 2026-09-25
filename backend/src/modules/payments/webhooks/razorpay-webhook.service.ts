@@ -19,6 +19,7 @@ import {
 import { Order } from "../../orders/entities/order.entity";
 import { CheckoutService } from "../checkout.service";
 import { OtpService } from "../../otp/otp.service";
+import { ShopWhatsappService } from "../../whatsapp/shop-whatsapp.service";
 import { Shopkeeper, ShopkeeperDocument } from "../../shopkeepers/schemas/shopkeeper.schema";
 
 /**
@@ -41,6 +42,7 @@ export class RazorpayWebhookService {
     @InjectModel(Order.name) private readonly orderModel: Model<Order>,
     @InjectModel(Shopkeeper.name)
     private readonly shopkeeperModel: Model<ShopkeeperDocument>,
+    private readonly shopWhatsapp: ShopWhatsappService,
   ) {}
 
   async handle(rawBody: string, signature: string, payload: any) {
@@ -263,6 +265,21 @@ export class RazorpayWebhookService {
       );
       return;
     }
+
+    // When the order was created, its new-order alert may already have rung
+    // the owner through the shop's linked WhatsApp (OrdersService records how
+    // — ShopWhatsappService.trackOwnerAlert). Sending this as well would give
+    // them two WhatsApps for one order, so it is skipped then — and ONLY
+    // then: if that alert was refused by a limit, failed, landed silently in
+    // "Message yourself", or its outcome is unknown (another process, a
+    // restart), this one still goes, exactly as before. The creation alert
+    // runs in the background and may still be in flight, so this waits for
+    // its answer (it is itself off the webhook's response path).
+    const creationAlert = await this.shopWhatsapp.ownerAlertOutcome(
+      `order:${String(order._id)}`,
+      4 * 60 * 1000,
+    );
+    if (creationAlert === "platform" || creationAlert === "shop") return;
 
     const items = Array.isArray(order.items) ? order.items : [];
     const itemLines = items

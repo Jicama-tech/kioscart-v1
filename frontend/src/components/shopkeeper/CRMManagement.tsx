@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -55,7 +54,6 @@ import {
   Clock,
   Filter,
   Download,
-  Send,
   UserPlus,
   Layers,
   Award,
@@ -65,8 +63,6 @@ import {
   FileText,
   Building,
   Upload,
-  ChevronRight,
-  ChevronDown,
   Edit2,
   ArrowLeft,
 } from "lucide-react";
@@ -88,6 +84,10 @@ import { COUNTRY_CODES } from "@/data/countryCodes";
 
 import { t as i18nT } from "@/i18n/t";
 import { FeatureGate } from "@/components/ui/FeatureGate";
+import {
+  MarketingMessagesSwitch,
+  WhatsAppCampaignScreen,
+} from "@/components/shopkeeper/WhatsAppCampaign";
 // Mock WhatsApp icon
 // const FaWhatsapp = ({ className = "" }) => (
 //   <div className={`${className} text-green-600`}>📱</div>
@@ -128,7 +128,7 @@ interface APICustomer {
 }
 
 interface Customer {
-  source: "created" | "order";
+  source: "created" | "order" | "both";
   id: string;
   name: string;
   email: string;
@@ -469,6 +469,11 @@ export function CustomerDetailModal({
                     <span className="text-sm">{customer.whatsapp}</span>
                   </a>
                 </div>
+                {/* Only campaigns read the opt-out, so the switch shows only
+                    on a plan that has them. */}
+                <FeatureGate feature="crmMarketingCampaign">
+                  <MarketingMessagesSwitch customerId={customer.id} />
+                </FeatureGate>
                 <div className="flex justify-between items-center">
                   <Label>{i18nT("Total Orders")}</Label>
                   <p className="text-sm font-medium">{customer.totalOrders}</p>
@@ -565,19 +570,6 @@ export function CustomerDetailModal({
   );
 }
 
-interface Variant {
-  id: string;
-  title: string;
-  price: number;
-  inventory: number;
-}
-
-interface Subcategory {
-  id: string;
-  name: string;
-  variants: Variant[];
-}
-
 interface Customer {
   id: string;
   name: string;
@@ -597,363 +589,6 @@ interface Country {
   dialCode: string;
   code: string;
   flag: string;
-}
-
-interface ProductMarketingDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  customers: Customer[];
-}
-
-export function ProductMarketingDialog({ isOpen, onClose, customers }) {
-  const { toast } = useToast();
-  const [shopkeeperId, setShopkeeperId] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [message, setMessage] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [expandedSubcategories, setExpandedSubcategories] = useState(new Set());
-  const [selectedVariants, setSelectedVariants] = useState(new Set());
-  const [selectedCustomers, setSelectedCustomers] = useState(new Set());
-  const [sending, setSending] = useState(false);
-  const [country, setCountry] = useState<"IN" | "SG">("IN");
-  const { formatPrice, getSymbol } = useCurrency(country);
-
-  useEffect(() => {
-    const token = sessionStorage.getItem("token");
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        setShopkeeperId(decoded.sub);
-      } catch {
-        toast({
-          duration: 5000,
-          title: i18nT("Error decoding token"),
-          variant: "destructive",
-        });
-      }
-    }
-    fetchShopkeeperInfo();
-  }, [toast]);
-
-  async function fetchShopkeeperInfo() {
-    try {
-      const token = sessionStorage.getItem("token");
-      if (!token) return;
-
-      const decoded: any = jwtDecode(token);
-      const shopkeeperId = decoded.sub;
-      setCountry(decoded.country);
-    } catch (error) {
-      console.error("Error fetching shopkeeper info:", error);
-    }
-  }
-
-  useEffect(() => {
-    if (!shopkeeperId) return;
-    async function fetchProducts() {
-      try {
-        const res = await fetch(
-          `${__API_URL__}/products/shopkeeper-products/${shopkeeperId}`,
-        );
-        if (!res.ok) throw new Error("Failed to fetch products");
-        const data = await res.json();
-        setProducts(data.data);
-      } catch (error) {
-        toast({
-          duration: 5000,
-          title: i18nT("Error fetching products"),
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    }
-    fetchProducts();
-  }, [shopkeeperId, toast]);
-
-  const getAllVariantIds = (product) =>
-    product
-      ? product.subcategories.flatMap((sc) => sc.variants.map((v) => v.id))
-      : [];
-
-  const handleProductSelect = (product) => {
-    setSelectedProduct(product);
-    setExpandedSubcategories(new Set(product.subcategories.map((sc) => sc.id)));
-    setSelectedVariants(new Set(getAllVariantIds(product)));
-  };
-
-  const toggleSubcategory = (subcatId) => {
-    setExpandedSubcategories((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(subcatId)) newSet.delete(subcatId);
-      else newSet.add(subcatId);
-      return newSet;
-    });
-  };
-
-  const toggleVariant = (variantId) => {
-    setSelectedVariants((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(variantId)) newSet.delete(variantId);
-      else newSet.add(variantId);
-      return newSet;
-    });
-  };
-
-  const toggleCustomer = (customerId) => {
-    setSelectedCustomers((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(customerId)) newSet.delete(customerId);
-      else newSet.add(customerId);
-      return newSet;
-    });
-  };
-
-  const handleSelectAllCustomers = () => {
-    if (selectedCustomers.size === customers.length && customers.length > 0) {
-      setSelectedCustomers(new Set());
-    } else {
-      setSelectedCustomers(new Set(customers.map((c) => c.id)));
-    }
-  };
-
-  const getProductDetailsString = () => {
-    if (!selectedProduct) return "";
-    let detail = `*${selectedProduct.name}*\n${
-      selectedProduct.description || ""
-    }`;
-    if (selectedProduct.image)
-      detail += `\n${window.location.origin}${selectedProduct.image}`;
-    detail += `\n\n🔹 *Available Variants:*`;
-    selectedProduct.subcategories.forEach((subcat) => {
-      detail += `\n  ◾️ *${subcat.name}*`;
-      subcat.variants.forEach((variant) => {
-        if (selectedVariants.has(variant.id)) {
-          detail += `\n    - ${variant.title}, ${formatPrice(
-            variant.price,
-          )} (Stock: ${variant.inventory})`;
-        }
-      });
-    });
-    return detail;
-  };
-
-  const handleCustomerWhatsApp = (customer) => {
-    if (!customer.whatsapp || !selectedProduct) {
-      toast({
-        duration: 5000,
-        title: i18nT("Cannot send message: Missing customer phone or product."),
-        variant: "destructive",
-      });
-      return;
-    }
-    const details = getProductDetailsString();
-    const text = `${details}\n\n${message}`;
-    const phone = customer.whatsapp.replace(/\D/g, "");
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
-  };
-
-  const handleSend = () => {
-    if (!selectedProduct) {
-      toast({
-        duration: 5000,
-        title: i18nT("Select a product"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (selectedVariants.size === 0) {
-      toast({
-        duration: 5000,
-        title: i18nT("Select at least one variant"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (selectedCustomers.size === 0) {
-      toast({
-        duration: 5000,
-        title: i18nT("Select at least one customer"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!message.trim()) {
-      toast({
-        duration: 5000,
-        title: i18nT("Message cannot be empty"),
-        variant: "destructive",
-      });
-      return;
-    }
-    setSending(true);
-    setTimeout(() => {
-      toast({
-        duration: 5000,
-        title: i18nT("Messages Sent"),
-        description: `Sent marketing message to ${selectedCustomers.size} customers.`,
-      });
-      setSending(false);
-      onClose();
-    }, 2000);
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        className="
-          w-full 
-          max-w-[95vw] sm:max-w-3xl lg:max-w-5xl 
-          max-h-[90vh] overflow-y-auto
-          p-4 sm:p-6 space-y-6
-        "
-      >
-        <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl md:text-2xl font-semibold">
-            {i18nT("Product Marketing Campaign")}
-          </DialogTitle>
-          <DialogDescription className="text-sm sm:text-base text-muted-foreground">
-            Select a product, choose variants, write your message, and send it
-            to your customers.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Products List */}
-          <div className="w-full lg:w-1/4">
-            <Label className="font-medium mb-2">{i18nT("Products")}</Label>
-            <ScrollArea className="border rounded-md max-h-[300px] sm:max-h-[400px]">
-              {products?.map((product) => (
-                <div
-                  key={product.id}
-                  className={`p-3 cursor-pointer border-b last:border-b-0 ${
-                    selectedProduct?.id === product.id
-                      ? "bg-blue-50 border-blue-400"
-                      : "border-border"
-                  }`}
-                  onClick={() => handleProductSelect(product)}
-                >
-                  {product.name}
-                </div>
-              ))}
-            </ScrollArea>
-          </div>
-
-          {/* Subcategories & Variants */}
-          <div className="w-full lg:w-1/3">
-            <Label className="font-medium mb-2">{i18nT("Subcategories & Variants")}</Label>
-            {!selectedProduct ? (
-              <p className="text-sm text-muted-foreground">
-                {i18nT("Select a product to see variants")}
-              </p>
-            ) : (
-              <ScrollArea className="border rounded-md max-h-[300px] sm:max-h-[400px] p-3">
-                {selectedProduct.subcategories.map((subcat) => (
-                  <div key={subcat.id} className="mb-4">
-                    <div
-                      className="flex items-center justify-between cursor-pointer font-semibold bg-muted p-2 rounded"
-                      onClick={() => toggleSubcategory(subcat.id)}
-                    >
-                      <span>{subcat.name}</span>
-                      {expandedSubcategories.has(subcat.id) ? (
-                        <ChevronDown />
-                      ) : (
-                        <ChevronRight />
-                      )}
-                    </div>
-                    {expandedSubcategories.has(subcat.id) && (
-                      <div className="mt-2 space-y-2 pl-4">
-                        {subcat.variants.map((variant) => (
-                          <div
-                            key={variant.id}
-                            className="flex items-center justify-between"
-                          >
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={selectedVariants.has(variant.id)}
-                                onChange={() => toggleVariant(variant.id)}
-                                className="h-5 w-5"
-                              />
-                              <span>{variant.title}</span>
-                            </label>
-                            <span>
-                              {formatPrice(variant.price)} • Stock:{" "}
-                              {variant.inventory}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </ScrollArea>
-            )}
-          </div>
-
-          {/* Message & Customers */}
-          <div className="w-full lg:w-2/5 flex flex-col gap-4">
-            <div>
-              <Label className="font-medium mb-2">{i18nT("Message")}</Label>
-              <Textarea
-                rows={4}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder={i18nT("Enter your marketing message...")}
-                className="resize-none mb-2"
-              />
-              {selectedProduct && (
-                <div className="mb-2 p-2 bg-blue-50 text-xs sm:text-sm rounded border max-h-32 overflow-auto">
-                  {getProductDetailsString()}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label className="font-medium">{i18nT("Customers List")}</Label>
-                {/* <button
-                  type="button"
-                  onClick={handleSelectAllCustomers}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  {selectedCustomers.size === customers.length &&
-                  customers.length > 0
-                    ? "Deselect All"
-                    : "Select All"}
-                </button> */}
-              </div>
-              <div className="border rounded-md max-h-[200px] sm:max-h-[270px] p-2 space-y-2 overflow-y-auto">
-                {customers.map((customer) => (
-                  <div
-                    key={customer.id}
-                    className="flex items-center gap-2 py-2"
-                  >
-                    <span className="flex-1 truncate">{customer.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCustomerWhatsApp(customer)}
-                      className="px-2 py-1 rounded bg-green-500 hover:bg-green-600 text-white text-xs"
-                    >
-                      {i18nT("WhatsApp")}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* <Button
-              onClick={handleSend}
-              disabled={sending}
-              className="mt-2 w-full sm:w-auto"
-            >
-              {sending ? "Sending..." : "Send Message"}
-            </Button> */}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 export function AddCustomerDialog({
@@ -1070,6 +705,17 @@ export function AddCustomerDialog({
     }
   };
 
+  // A customer who reached the CRM through an order (alone, or as well as
+  // being added here) is a shared, platform-wide record: other shops message
+  // that number, and the customer signs in with that e-mail. The API refuses
+  // to change either from here (UsersService.updateUserByShopkeeper), so the
+  // fields are shown but locked, and are neither validated nor sent — the
+  // prefill cannot always split a stored number back into country code and
+  // digits ("+1202…" reads as "+12"), and sending that back would be refused
+  // as a change even when only the name was edited.
+  const contactLocked =
+    mode === "edit" && !!customerToEdit && customerToEdit.source !== "created";
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -1092,7 +738,9 @@ export function AddCustomerDialog({
     }
 
     // Validate whatsAppNumber
-    if (!formData.whatsAppNumber.trim()) {
+    if (contactLocked) {
+      // Locked, not sent — nothing to validate.
+    } else if (!formData.whatsAppNumber.trim()) {
       newErrors.whatsAppNumber = "WhatsApp number is required";
     } else if (!/^\d{6,15}$/.test(formData.whatsAppNumber.trim())) {
       newErrors.whatsAppNumber =
@@ -1100,12 +748,12 @@ export function AddCustomerDialog({
     }
 
     // Validate country code
-    if (!selectedCountry) {
+    if (!contactLocked && !selectedCountry) {
       newErrors.countryCode = "Please select a country code";
     }
 
     // Validate email (optional, but if provided must be valid)
-    if (formData.email.trim()) {
+    if (!contactLocked && formData.email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email.trim())) {
         newErrors.email = "Please enter a valid email address";
@@ -1151,8 +799,10 @@ export function AddCustomerDialog({
         name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
-        whatsAppNumber: fullWhatsAppNumber,
-        ...(formData.email.trim() && { email: formData.email.trim() }),
+        // Left out entirely when locked: the server then keeps what it has.
+        ...(!contactLocked && { whatsAppNumber: fullWhatsAppNumber }),
+        ...(!contactLocked &&
+          formData.email.trim() && { email: formData.email.trim() }),
       };
 
       let url: string;
@@ -1168,19 +818,27 @@ export function AddCustomerDialog({
         url = `${__API_URL__}/users/create-user-by-shopkeeper/${currentShopkeeperId}`;
       }
 
+      // These routes now require the shop's own login (and check that the
+      // shop in the URL is the one in the token), so the token goes along.
       const res = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => null);
+        // The API's sentences are fixed English and double as i18n keys.
+        const raw = Array.isArray(errorData?.message)
+          ? errorData.message.join(" · ")
+          : errorData?.message;
         throw new Error(
-          errorData.message ||
-            `Failed to ${mode === "edit" ? "update" : "add"} customer`,
+          raw
+            ? i18nT(raw)
+            : `Failed to ${mode === "edit" ? "update" : "add"} customer`,
         );
       }
 
@@ -1322,7 +980,7 @@ export function AddCustomerDialog({
                     });
                   }
                 }}
-                disabled={submitting}
+                disabled={submitting || contactLocked}
               >
                 <SelectTrigger
                   className={`w-[110px] shrink-0 sm:w-[140px] ${
@@ -1395,7 +1053,7 @@ export function AddCustomerDialog({
                 className={`flex-1 ${
                   errors.whatsAppNumber ? "border-red-500" : ""
                 }`}
-                disabled={submitting}
+                disabled={submitting || contactLocked}
               />
             </div>
             {(errors.whatsAppNumber || errors.countryCode) && (
@@ -1426,10 +1084,17 @@ export function AddCustomerDialog({
               onChange={(e) => handleChange("email", e.target.value)}
               placeholder={i18nT("customer@example.com")}
               className={errors.email ? "border-red-500" : ""}
-              disabled={submitting}
+              disabled={submitting || contactLocked}
             />
             {errors.email && (
               <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+            )}
+            {contactLocked && (
+              <p className="text-muted-foreground text-xs mt-1">
+                {i18nT(
+                  "This customer ordered from your shop, so their WhatsApp number and e-mail belong to their own account. You can change the name only.",
+                )}
+              </p>
             )}
           </div>
           </div>
@@ -2351,6 +2016,10 @@ export function CRMManagement({
       setSelectedTab("users");
       setCustomerToEdit(null);
       setAddPrefill(pendingAction.prefill || null);
+      // Leaves the campaign screen too, if it is up, so "Back to
+      // Customers" from Add Customer lands on the list. A campaign that
+      // is sending carries on (it runs on the server).
+      setShowProductMarketing(false);
       setShowAddCustomer(true);
       onPendingActionConsumed?.();
     }
@@ -2716,6 +2385,20 @@ export function CRMManagement({
     );
   }
 
+  // Full-screen WhatsApp Campaign — the same convention: it replaces the CRM
+  // screen while active and Back returns to the list as it was (no refetch;
+  // nothing a campaign does changes the customer list). Mounted only while
+  // open, so leaving it stops every poll it runs — a campaign keeps sending
+  // on the server, and is under History when the screen is opened again.
+  if (showProductMarketing) {
+    return (
+      <WhatsAppCampaignScreen
+        onBack={() => setShowProductMarketing(false)}
+        customers={customers}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* CRM Stats Cards — same accent order as the dashboard tiles, so
@@ -2794,8 +2477,8 @@ export function CRMManagement({
                 onClick={() => setShowProductMarketing(true)}
                 className="w-full md:w-auto mr-2"
               >
-                <Send className="mr-2 h-4 w-4" />
-                {i18nT("Product Marketing")}
+                <FaWhatsapp className="mr-2 h-4 w-4" />
+                {i18nT("WhatsApp Campaign")}
               </Button>
             </FeatureGate>
             <Button
@@ -3069,15 +2752,6 @@ export function CRMManagement({
         <CustomerDetailModal
           customer={selectedCustomer}
           onClose={() => setSelectedCustomer(null)}
-        />
-      )}
-
-      {/* Product Marketing Dialog */}
-      {showProductMarketing && (
-        <ProductMarketingDialog
-          isOpen={showProductMarketing}
-          onClose={() => setShowProductMarketing(false)}
-          customers={customers}
         />
       )}
 
