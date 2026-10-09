@@ -3,6 +3,8 @@ import { FaWhatsapp } from "react-icons/fa";
 import { GmailPaymentSection } from "./GmailPaymentSection";
 import { RazorpayDirectSetup } from "./RazorpayDirectSetup";
 import { WhatsAppSettings } from "./WhatsAppSettings";
+import { ComboxConnector } from "./ComboxConnector";
+import { Plug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -1892,6 +1894,13 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               <FaWhatsapp className="w-4 h-4" />
               {i18nT("WhatsApp")}
               {!isModuleEnabled("whatsappConnect") && <Lock className="w-3 h-3 ml-1" />}
+            </TabsTrigger>
+          )}
+          {/* Owner-only: the API rejects operator tokens on these routes. */}
+          {!isOperator && (
+            <TabsTrigger value="combox" className="flex-1 flex items-center justify-center gap-2">
+              <Plug className="w-4 h-4" />
+              {i18nT("ComBox")}
             </TabsTrigger>
           )}
         </TabsList>
@@ -4529,6 +4538,12 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
             ) : (
               <WhatsAppSettings locked />
             )}
+          </TabsContent>
+        )}
+
+        {!isOperator && (
+          <TabsContent value="combox">
+            <ComboxConnector />
           </TabsContent>
         )}
 
