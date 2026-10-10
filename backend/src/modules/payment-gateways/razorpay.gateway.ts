@@ -405,6 +405,65 @@ export class RazorpayGateway implements PaymentGateway {
     };
   }
 
+  /**
+   * A hosted Razorpay payment page the customer opens from a chat message ("Payment Links").
+   * Created with the shop's own keys in Direct mode, so the money goes straight to the shop.
+   * Razorpay does not message the customer (notify off): the link is sent in the chat.
+   */
+  async createPaymentLink(
+    input: {
+      amount: number; // in rupees
+      currency: "INR" | "SGD";
+      referenceId: string;
+      description: string;
+      customer?: { name?: string; contact?: string; email?: string };
+      notes?: Record<string, string>;
+      expireBy?: number; // unix seconds
+    },
+    creds?: { keyId: string; keySecret: string },
+  ): Promise<{ id: string; shortUrl: string }> {
+    const payload = {
+      amount: Math.round(input.amount * 100),
+      currency: input.currency,
+      accept_partial: false,
+      reference_id: input.referenceId.slice(0, 40),
+      description: input.description.slice(0, 2000),
+      ...(input.customer ? { customer: input.customer } : {}),
+      notify: { sms: false, email: false },
+      reminder_enable: false,
+      ...(input.notes ? { notes: input.notes } : {}),
+      ...(input.expireBy ? { expire_by: input.expireBy } : {}),
+    };
+    const link = await this.request<any>(
+      "POST",
+      `${RAZORPAY_API_BASE_V1}/payment_links`,
+      payload,
+      undefined,
+      creds,
+    );
+    return { id: link.id, shortUrl: link.short_url };
+  }
+
+  /** Where a payment link stands: created | paid | partially_paid | expired | cancelled. */
+  async getPaymentLink(
+    id: string,
+    creds?: { keyId: string; keySecret: string },
+  ): Promise<{ status: string; paymentId?: string; amountPaid: number }> {
+    const link = await this.request<any>(
+      "GET",
+      `${RAZORPAY_API_BASE_V1}/payment_links/${encodeURIComponent(id)}`,
+      undefined,
+      undefined,
+      creds,
+    );
+    const paid = (link.payments || []).find((p: any) => p.status === "captured") || (link.payments || [])[0];
+    return {
+      status: String(link.status),
+      paymentId: paid?.payment_id,
+      amountPaid: Number(link.amount_paid || 0) / 100,
+    };
+  }
+
   verifyPaymentSignature(
     input: {
       gatewayOrderId: string;

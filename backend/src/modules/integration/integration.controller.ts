@@ -16,6 +16,8 @@ import { IsEnum, IsOptional, IsString } from "class-validator";
 import { OrderStatus } from "../orders/entities/order.entity";
 import { ApiKeyGuard } from "./api-key.guard";
 import { IntegrationService } from "./integration.service";
+import { IntegrationOrdersService } from "./integration-orders.service";
+import { IntegrationCreateOrderDto, IntegrationQuoteDto } from "./dto/integration-order.dto";
 
 class IntegrationStatusDto {
   @IsEnum(OrderStatus)
@@ -60,7 +62,10 @@ export class IntegrationKeyController {
 @Controller("integration/v1")
 @UseGuards(ApiKeyGuard)
 export class IntegrationController {
-  constructor(private readonly integration: IntegrationService) {}
+  constructor(
+    private readonly integration: IntegrationService,
+    private readonly integrationOrders: IntegrationOrdersService,
+  ) {}
 
   @Get("shop")
   shop(@Req() req: any) {
@@ -73,8 +78,28 @@ export class IntegrationController {
   }
 
   @Get("orders")
-  orders(@Req() req: any, @Query() q: any) {
-    return this.integration.listOrders(req.user.userId, q);
+  async orders(@Req() req: any, @Query() q: any) {
+    const result = await this.integration.listOrders(req.user.userId, q);
+    // Orders waiting on a payment link are checked with Razorpay so a paid one shows as paid
+    await this.integrationOrders.refreshPayments(req.user.userId, result.orders);
+    return result;
+  }
+
+  /** What would this basket cost (prices, delivery, tax, total) and which payment methods does the shop take? */
+  @Post("orders/quote")
+  quoteOrder(@Req() req: any, @Body() dto: IntegrationQuoteDto) {
+    return this.integrationOrders.quote(req.user.userId, dto);
+  }
+
+  /** Place an order for a customer. Prices are always computed here; the caller sends no amounts. */
+  @Post("orders")
+  createOrder(@Req() req: any, @Body() dto: IntegrationCreateOrderDto) {
+    return this.integrationOrders.create(req.user.userId, dto);
+  }
+
+  @Get("orders/:id")
+  getOrder(@Req() req: any, @Param("id") id: string) {
+    return this.integrationOrders.getOrder(req.user.userId, id);
   }
 
   @Patch("orders/:id/status")

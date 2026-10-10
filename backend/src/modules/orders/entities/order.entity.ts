@@ -121,6 +121,24 @@ export class Order extends Document {
   @Prop({ type: String })
   gatewayOrderId?: string;
 
+  // Orders placed through the integration API (ComBox / WhatsApp chat). "cod" = pay on delivery or pickup,
+  // "online" = pay through a Razorpay payment link sent to the customer.
+  @Prop({ type: String })
+  paymentMethod?: string;
+
+  @Prop({ type: String })
+  paymentLinkId?: string;
+
+  @Prop({ type: String })
+  paymentLinkUrl?: string;
+
+  // The caller's own reference (e.g. the chat message), so a retried request never creates a second order.
+  @Prop({ type: String })
+  integrationRef?: string;
+
+  @Prop({ type: String })
+  source?: string;
+
   @Prop({ default: false })
   isSoftDeleted: boolean;
 
@@ -133,6 +151,10 @@ export const OrderSchema = SchemaFactory.createForClass(Order);
 // Performance indexes
 OrderSchema.index({ userId: 1 });
 OrderSchema.index({ shopkeeperId: 1 });
+OrderSchema.index(
+  { shopkeeperId: 1, integrationRef: 1 },
+  { unique: true, partialFilterExpression: { integrationRef: { $type: "string" } } },
+);
 OrderSchema.index({ status: 1 });
 OrderSchema.index({ createdAt: -1 });
 OrderSchema.index({ shopkeeperId: 1, createdAt: -1 });
