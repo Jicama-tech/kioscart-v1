@@ -15,18 +15,21 @@ import {
   IntegrationController,
   IntegrationKeyController,
 } from "./integration.controller";
+import { User, UserSchema } from "../users/schemas/user.schema";
 import { IntegrationService } from "./integration.service";
+import { IntegrationOrdersService } from "./integration-orders.service";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: IntegrationApiKey.name, schema: IntegrationApiKeySchema },
       { name: Shopkeeper.name, schema: ShopkeeperSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     OrdersModule,
     ProductsModule,
   ],
   controllers: [IntegrationController, IntegrationKeyController],
-  providers: [IntegrationService, ApiKeyGuard],
+  providers: [IntegrationService, IntegrationOrdersService, ApiKeyGuard],
 })
 export class IntegrationModule {}

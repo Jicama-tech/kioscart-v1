@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Order placement for the ComBox connector** (`POST /integration/v1/orders`, API-key authenticated) so a customer chatting
+  on WhatsApp can order without opening the storefront.
+  - `POST /integration/v1/orders/quote` prices a basket (items, delivery fee, discount, tax) and reports which payment
+    methods the shop accepts. Nothing is created.
+  - `POST /integration/v1/orders` places the order. The caller never sends a price or total: everything is priced on the
+    server from the shop's own data using the same rules as the storefront cart, stock is checked first, and repeating a
+    request with the same `externalRef` returns the same order. Unknown fields are rejected.
+  - `paymentMethod: "cod"` creates the order to be paid on delivery or at pickup.
+  - `paymentMethod: "online"` (India, shops using their own Razorpay keys) creates a Razorpay payment link first, then the
+    order, and returns `paymentUrl` to send to the customer. The order shows `paymentStatus: "paid"` once Razorpay
+    reports the link paid (checked whenever the order is read or listed).
+  - `GET /integration/v1/orders/:id` returns one order with its current payment status.
+- Orders record `paymentMethod`, `paymentLinkId`, `paymentLinkUrl`, `integrationRef` and `source`.
+
+---
+
 ## [1.0.0] - 2026-03-26
 
 ### Added

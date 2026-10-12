@@ -6,6 +6,7 @@ import { IntegrationApiKey } from "./entities/integration-api-key.entity";
 import { Order, OrderStatus } from "../orders/entities/order.entity";
 import { Product } from "../products/entities/product.entity";
 import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
+import { User } from "../users/schemas/user.schema";
 import { OrdersService } from "../orders/orders.service";
 
 const MAX_PAGE_SIZE = 100;
@@ -22,6 +23,7 @@ export class IntegrationService {
     @InjectModel(Product.name) private readonly productModel: Model<Product>,
     @InjectModel(Shopkeeper.name)
     private readonly shopModel: Model<Shopkeeper>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly ordersService: OrdersService,
   ) {}
 
@@ -162,8 +164,34 @@ export class IntegrationService {
         .lean(),
       this.orderModel.countDocuments(filter),
     ]);
+    // Older orders carry no customer details of their own; the customer's account has them
+    const missing = [
+      ...new Set(
+        orders
+          .filter((o: any) => !o.customerName || !o.customerEmail || !o.customerWhatsApp)
+          .map((o: any) => String(o.userId || ""))
+          .filter((id) => Types.ObjectId.isValid(id)),
+      ),
+    ];
+    const users = missing.length
+      ? await this.userModel
+          .find({ _id: { $in: missing } })
+          .select("name firstName lastName email whatsAppNumber")
+          .lean()
+      : [];
+    const byId = new Map(users.map((u: any) => [String(u._id), u]));
     return {
-      orders: orders.map((o: any) => ({ ...o, id: String(o._id) })),
+      orders: orders.map((o: any) => {
+        const u: any = byId.get(String(o.userId || ""));
+        const fullName = u && (u.name || [u.firstName, u.lastName].filter(Boolean).join(" ")).trim();
+        return {
+          ...o,
+          id: String(o._id),
+          customerName: o.customerName || fullName || undefined,
+          customerEmail: o.customerEmail || u?.email || undefined,
+          customerWhatsApp: o.customerWhatsApp || u?.whatsAppNumber || undefined,
+        };
+      }),
       total,
       page,
       limit,
