@@ -28,15 +28,18 @@ class IntegrationStatusDto {
   notes?: string;
 }
 
-/** Shopkeeper dashboard: create / rotate / revoke the connector key. */
+/**
+ * Shopkeeper dashboard: create / rotate / revoke the connector key. Operators
+ * (staff) may read the key status (prefix and dates only, never the secret).
+ */
 @Controller("integration/api-key")
 @UseGuards(AuthGuard("jwt"))
 export class IntegrationKeyController {
   constructor(private readonly integration: IntegrationService) {}
 
   // Operators (staff) must not mint credentials for the whole shop.
-  private shopId(req: any): string {
-    if (req.user?.operatorId) {
+  private shopId(req: any, { ownerOnly = true } = {}): string {
+    if (ownerOnly && req.user?.operatorId) {
       throw new ForbiddenException("Only the shop owner can manage API keys");
     }
     return req.user.userId;
@@ -44,7 +47,7 @@ export class IntegrationKeyController {
 
   @Get()
   info(@Req() req: any) {
-    return this.integration.getKeyInfo(this.shopId(req));
+    return this.integration.getKeyInfo(this.shopId(req, { ownerOnly: false }));
   }
 
   @Post()

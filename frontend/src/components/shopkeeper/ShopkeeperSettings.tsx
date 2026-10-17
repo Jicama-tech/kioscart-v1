@@ -1896,13 +1896,11 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
               {!isModuleEnabled("whatsappConnect") && <Lock className="w-3 h-3 ml-1" />}
             </TabsTrigger>
           )}
-          {/* Owner-only: the API rejects operator tokens on these routes. */}
-          {!isOperator && (
-            <TabsTrigger value="combox" className="flex-1 flex items-center justify-center gap-2">
-              <Plug className="w-4 h-4" />
-              {i18nT("ComBox")}
-            </TabsTrigger>
-          )}
+          {/* Operators see status only; the API rejects their generate/revoke. */}
+          <TabsTrigger value="combox" className="flex-1 flex items-center justify-center gap-2">
+            <Plug className="w-4 h-4" />
+            {i18nT("ComBox")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -4543,7 +4541,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
 
         {!isOperator && (
           <TabsContent value="combox">
-            <ComboxConnector />
+            <ComboxConnector readOnly={isOperator} />
           </TabsContent>
         )}
 
