@@ -76,11 +76,10 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 /**
- * Settings › ComBox. Owner-only: the API answers 403 to operator tokens, so the
- * parent does not render this tab for them, and a 403 here still shows the
- * server's sentence.
+ * Settings › ComBox. Operators get a read-only view (status only): the API
+ * answers 403 to their tokens on generate/revoke, so the buttons are hidden.
  */
-export function ComboxConnector() {
+export function ComboxConnector({ readOnly = false }: { readOnly?: boolean }) {
   const { toast } = useToast();
   const [status, setStatus] = useState<KeyStatus | null>(null);
   const [unavailable, setUnavailable] = useState<string | null>(null);
@@ -335,6 +334,11 @@ export function ComboxConnector() {
             </div>
           )}
 
+          {readOnly ? (
+            <p className="text-xs text-muted-foreground">
+              {i18nT("Only the shop owner can generate or revoke the key.")}
+            </p>
+          ) : (
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="buttonOutline"
@@ -370,6 +374,7 @@ export function ComboxConnector() {
               </Button>
             )}
           </div>
+          )}
         </div>
       </CardContent>
 
