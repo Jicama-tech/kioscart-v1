@@ -147,7 +147,8 @@ export interface ShopkeeperStore {
 export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
   const apiURL = __API_URL__;
   const navigate = useNavigate();
-  const { shopName } = useParams();
+  const { shopName, "*": splat } = useParams();
+  const productSlugParam = splat?.startsWith("p/") ? splat.slice(2) : undefined;
 
   const [settings, setSettings] = useState<ShopkeeperStore | null>(null);
   const [products, setProducts] = useState<any[] | null>(null);
@@ -455,10 +456,42 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
   };
 
   // Product click handler
+  // The URL is the source of truth: /:shopName/p/<name>-<productId>
+  // opens the dialog, so every product has a shareable link.
+  const productPath = (product: any) =>
+    `/${shopName}/p/${slugify(product?.name || "product")}-${product._id}`;
+
   const handleProductClick = (productId: string) => {
-    setSelectedProductId(productId);
-    setShowProductDialog(true);
+    const product = products?.find((p: any) => p._id === productId);
+    if (!product) {
+      setSelectedProductId(productId);
+      setShowProductDialog(true);
+      return;
+    }
+    navigate({ pathname: productPath(product), search: window.location.search });
   };
+
+  const closeProductDialog = () => {
+    setShowProductDialog(false);
+    setSelectedProductId(null);
+    if (productSlugParam) {
+      navigate({ pathname: `/${shopName}`, search: window.location.search });
+    }
+  };
+
+  // Open/close the dialog when the URL changes (deep link, back/forward)
+  useEffect(() => {
+    if (!productSlugParam) {
+      setShowProductDialog(false);
+      setSelectedProductId(null);
+      return;
+    }
+    const id = productSlugParam.match(/[a-f0-9]{24}$/i)?.[0];
+    if (id) {
+      setSelectedProductId(id);
+      setShowProductDialog(true);
+    }
+  }, [productSlugParam]);
 
   // Memoize carousel products — only recalculate when products change
   const carouselProducts = useMemo(() => {
@@ -905,10 +938,7 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
           <ProductDetailsDialog
             productId={selectedProductId}
             isOpen={showProductDialog}
-            onClose={() => {
-              setShowProductDialog(false);
-              setSelectedProductId(null);
-            }}
+            onClose={closeProductDialog}
             primaryColor={design.primaryColor}
             secondaryColor={design.secondaryColor}
             fontFamily={design.fontFamily}

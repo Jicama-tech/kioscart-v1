@@ -362,7 +362,7 @@ function AppContent() {
           <Route path="/admin-login" element={<AdminLogs />} />
           <Route path="/agent-login" element={<AgentLogin />} />
           <Route
-            path="/:shopName"
+            path="/:shopName/*"
             element={<StorefrontTemplate onBack={() => navigate(-1)} />}
           />
           <Route path="/cart/:shopkeeperId" element={<CartPage />} />
@@ -409,7 +409,7 @@ function AppContent() {
                   <Route path="/cart/:shopkeeperId" element={<CartPage />} />
                   <Route path="/payment" element={<PaymentPage />} />
                   <Route
-                    path="/:shopName"
+                    path="/:shopName/*"
                     element={<StorefrontTemplate onBack={() => navigate(-1)} />}
                   />
                   <Route
@@ -435,7 +435,7 @@ function AppContent() {
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
                   <Route
-                    path="/:shopName"
+                    path="/:shopName/*"
                     element={<StorefrontTemplate onBack={() => navigate(-1)} />}
                   />
                   <Route path="/payment" element={<PaymentPage />} />
