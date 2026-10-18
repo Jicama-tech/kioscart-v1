@@ -16,7 +16,6 @@ import {
   IntegrationController,
   IntegrationKeyController,
 } from "./integration.controller";
-import { User, UserSchema } from "../users/schemas/user.schema";
 import { IntegrationService } from "./integration.service";
 import { IntegrationOrdersService } from "./integration-orders.service";
 
