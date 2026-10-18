@@ -17,6 +17,7 @@ import {
   IntegrationKeyController,
 } from "./integration.controller";
 import { IntegrationService } from "./integration.service";
+import { IntegrationOrdersService } from "./integration-orders.service";
 
 @Module({
   imports: [
@@ -29,6 +30,6 @@ import { IntegrationService } from "./integration.service";
     ProductsModule,
   ],
   controllers: [IntegrationController, IntegrationKeyController],
-  providers: [IntegrationService, ApiKeyGuard],
+  providers: [IntegrationService, IntegrationOrdersService, ApiKeyGuard],
 })
 export class IntegrationModule {}
