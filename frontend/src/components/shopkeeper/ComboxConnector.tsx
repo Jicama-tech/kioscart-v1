@@ -56,6 +56,7 @@ type KeyStatus =
   | {
       active: true;
       prefix: string;
+      maskedKey?: string;
       createdAt?: string | null;
       lastUsedAt?: string | null;
     };
@@ -302,12 +303,12 @@ export function ComboxConnector({ readOnly = false }: { readOnly?: boolean }) {
 
           {status.active && (
             <div className="space-y-1 text-sm text-muted-foreground">
-              <p>
-                {i18nT("Key starts with")}{" "}
-                <span className="font-mono text-foreground">
-                  {status.prefix}…
-                </span>
-              </p>
+              <Input
+                readOnly
+                aria-label={i18nT("API key")}
+                value={status.maskedKey ?? `${status.prefix}…`}
+                className="font-mono text-xs text-foreground"
+              />
               <p>
                 {lastUsed
                   ? i18nT("Last used {date}", { date: lastUsed })

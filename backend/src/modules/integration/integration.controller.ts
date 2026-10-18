@@ -80,6 +80,11 @@ export class IntegrationController {
     return this.integration.listProducts(req.user.userId, q);
   }
 
+  @Get("customers")
+  customers(@Req() req: any, @Query() q: any) {
+    return this.integration.listCustomers(req.user.userId, q);
+  }
+
   @Get("orders")
   async orders(@Req() req: any, @Query() q: any) {
     const result = await this.integration.listOrders(req.user.userId, q);

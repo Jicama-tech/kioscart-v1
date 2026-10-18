@@ -6,6 +6,7 @@ import {
   Shopkeeper,
   ShopkeeperSchema,
 } from "../shopkeepers/schemas/shopkeeper.schema";
+import { User, UserSchema } from "../users/schemas/user.schema";
 import { ApiKeyGuard } from "./api-key.guard";
 import {
   IntegrationApiKey,

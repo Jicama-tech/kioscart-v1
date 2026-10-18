@@ -8,8 +8,17 @@ import { Product } from "../products/entities/product.entity";
 import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
 import { User } from "../users/schemas/user.schema";
 import { OrdersService } from "../orders/orders.service";
+import { User } from "../users/schemas/user.schema";
 
 const MAX_PAGE_SIZE = 100;
+
+const KEY_LENGTH = "ksk_".length + 48;
+
+/** ksk_ + asterisks + last 2 characters. Keys made before lastChars existed show no tail. */
+const maskKey = (lastChars?: string | null) => {
+  const tail = lastChars ?? "";
+  return `ksk_${"*".repeat(KEY_LENGTH - 4 - tail.length)}${tail}`;
+};
 
 const sha256 = (value: string) =>
   createHash("sha256").update(value).digest("hex");
@@ -37,6 +46,7 @@ export class IntegrationService {
       ? {
           active: true,
           prefix: key.prefix,
+          maskedKey: maskKey(key.lastChars),
           createdAt: key.createdAt,
           lastUsedAt: key.lastUsedAt,
         }
@@ -54,8 +64,13 @@ export class IntegrationService {
       shopkeeperId: new Types.ObjectId(shopkeeperId),
       keyHash: sha256(apiKey),
       prefix: apiKey.slice(0, 8),
+      lastChars: apiKey.slice(-2),
     });
-    return { apiKey, prefix: apiKey.slice(0, 8) };
+    return {
+      apiKey,
+      prefix: apiKey.slice(0, 8),
+      maskedKey: maskKey(apiKey.slice(-2)),
+    };
   }
 
   async revokeKey(shopkeeperId: string) {
@@ -133,6 +148,42 @@ export class IntegrationService {
       images: (p.images || []).map((i: string) => this.absolute(i)),
     }));
     return { products, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  /**
+   * The people the shop added to its CRM (Customers page -> Add customer). People who only ordered are not
+   * listed here: they are already in /orders. Only contact details are returned, never the stored password.
+   */
+  async listCustomers(
+    shopkeeperId: string,
+    q: { page?: string; limit?: string; updatedSince?: string },
+  ) {
+    const { page, limit, skip } = this.pageArgs(q.page, q.limit);
+    const filter: any = { provider: "Shopkeeper", providerId: shopkeeperId };
+    if (q.updatedSince) {
+      const since = new Date(q.updatedSince);
+      if (!isNaN(since.getTime())) filter.updatedAt = { $gte: since };
+    }
+    const [rows, total] = await Promise.all([
+      this.userModel
+        .find(filter)
+        .select("name firstName lastName email whatsAppNumber createdAt updatedAt")
+        .sort({ _id: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.userModel.countDocuments(filter),
+    ]);
+    const customers = rows.map((u: any) => ({
+      id: String(u._id),
+      name: u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || null,
+      firstName: u.firstName || null,
+      lastName: u.lastName || null,
+      email: u.email || null,
+      whatsAppNumber: u.whatsAppNumber || null,
+      createdAt: u.createdAt || null,
+    }));
+    return { customers, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async listOrders(
