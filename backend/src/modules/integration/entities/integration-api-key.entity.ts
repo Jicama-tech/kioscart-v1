@@ -17,6 +17,11 @@ export class IntegrationApiKey extends Document {
   @Prop({ required: true })
   prefix: string;
 
+  // Last 2 characters, only so the dashboard can show a masked key
+  // (ksk_****…ab). Not enough to reconstruct or guess the key.
+  @Prop({ type: String, default: null })
+  lastChars: string | null;
+
   @Prop({ type: Date, default: null })
   lastUsedAt: Date | null;
 
