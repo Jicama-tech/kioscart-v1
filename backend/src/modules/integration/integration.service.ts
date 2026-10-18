@@ -8,7 +8,6 @@ import { Product } from "../products/entities/product.entity";
 import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
 import { User } from "../users/schemas/user.schema";
 import { OrdersService } from "../orders/orders.service";
-import { User } from "../users/schemas/user.schema";
 
 const MAX_PAGE_SIZE = 100;
 
