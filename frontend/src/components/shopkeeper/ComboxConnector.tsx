@@ -35,6 +35,22 @@ import { t as i18nT } from "@/i18n/t";
 
 const apiURL = __API_URL__;
 
+/**
+ * The URL ComBox should call. On a custom domain (thefoxsg.com) the owner is
+ * viewing the dashboard from that domain, whose nginx proxies /api to the same
+ * backend, so show `https://<domain>/api`. On kioscart.com and localhost keep
+ * the build-time API URL.
+ */
+function connectorBaseUrl(): string {
+  const host = window.location.hostname;
+  const isPlatformHost =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "kioscart.com" ||
+    host.endsWith(".kioscart.com");
+  return isPlatformHost ? apiURL : `${window.location.origin}/api`;
+}
+
 type KeyStatus =
   | { active: false }
   | {
@@ -88,6 +104,7 @@ export function ComboxConnector({ readOnly = false }: { readOnly?: boolean }) {
   /** The plaintext key, held only until the owner leaves or dismisses it. */
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState<"key" | "url" | null>(null);
+  const baseUrl = connectorBaseUrl();
   const mountedRef = useRef(false);
   const busyRef = useRef(false);
 
@@ -246,7 +263,7 @@ export function ComboxConnector({ readOnly = false }: { readOnly?: boolean }) {
             <Input
               id="combox-api-url"
               readOnly
-              value={apiURL}
+              value={baseUrl}
               className="font-mono text-xs"
               onFocus={(e) => e.currentTarget.select()}
             />
@@ -254,7 +271,7 @@ export function ComboxConnector({ readOnly = false }: { readOnly?: boolean }) {
               variant="outline"
               size="icon"
               aria-label={i18nT("Copy")}
-              onClick={() => void copy("url", apiURL)}
+              onClick={() => void copy("url", baseUrl)}
             >
               {copied === "url" ? (
                 <Check className="h-4 w-4" />
