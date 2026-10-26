@@ -8,6 +8,10 @@ import {
   CheckoutIntent,
   CheckoutIntentSchema,
 } from "./schemas/checkout-intent.schema";
+import {
+  AbandonedCart,
+  AbandonedCartSchema,
+} from "./schemas/abandoned-cart.schema";
 import { Order, OrderSchema } from "../orders/entities/order.entity";
 import {
   Shopkeeper,
@@ -27,6 +31,7 @@ import { WhatsappModule } from "../whatsapp/whatsapp.module";
       { name: Order.name, schema: OrderSchema },
       { name: Shopkeeper.name, schema: ShopkeeperSchema },
       { name: CheckoutIntent.name, schema: CheckoutIntentSchema },
+      { name: AbandonedCart.name, schema: AbandonedCartSchema },
     ]),
     forwardRef(() => ShopkeepersModule),
     forwardRef(() => OtpModule),

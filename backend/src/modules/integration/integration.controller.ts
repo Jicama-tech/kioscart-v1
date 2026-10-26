@@ -93,6 +93,12 @@ export class IntegrationController {
     return result;
   }
 
+  /** Online checkouts the customer started but did not pay (and the ones paid later, marked recovered). */
+  @Get("abandoned-carts")
+  abandonedCarts(@Req() req: any, @Query() q: any) {
+    return this.integration.listAbandonedCarts(req.user.userId, q);
+  }
+
   /** What would this basket cost (prices, delivery, tax, total) and which payment methods does the shop take? */
   @Post("orders/quote")
   quoteOrder(@Req() req: any, @Body() dto: IntegrationQuoteDto) {

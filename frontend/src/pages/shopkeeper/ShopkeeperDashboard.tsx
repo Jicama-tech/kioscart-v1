@@ -52,6 +52,7 @@ import {
   Mail,
   MessageCircle,
   HelpCircle,
+  ChevronLeft,
   ChevronRight,
   LifeBuoy,
   Receipt,
@@ -129,7 +130,6 @@ import { FeatureGate } from "@/components/ui/FeatureGate";
 import { ChatbotWidget } from "@/components/shopkeeper/ChatbotWidget";
 import { statAccent } from "@/lib/accents";
 import {
-  useDraggableTab,
   useIsLargeScreen,
   useResizableSidebar,
 } from "@/hooks/useResizableSidebar";
@@ -161,6 +161,9 @@ interface AnalyticsData {
   currency: string;
   currencySymbol: string;
 }
+
+// Width of the icon-only rail the sidebar collapses to on desktop.
+const SIDEBAR_RAIL_WIDTH = 64;
 
 const COLORS = [
   "#3B82F6", // Blue
@@ -346,8 +349,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   }, [activeTab, isOperator, accessTabs]);
   const [showStorefront, setShowStorefront] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Desktop-only collapse: hides the sidebar on lg+ so the main content
-  // area can take the full viewport width. Persisted across sessions.
+  // Desktop-only collapse: shrinks the sidebar on lg+ to an icon-only rail so
+  // the main content area gets more width. Persisted across sessions.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem("shopkeeperSidebarCollapsed") === "1";
@@ -374,15 +377,8 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
   } = useResizableSidebar("shopkeeperSidebarWidth", () =>
     setSidebarCollapsed(true),
   );
-  // Vertical position of the re-open tab shown while the sidebar is collapsed,
-  // so it can be parked clear of whichever heading the active tab renders.
-  const {
-    top: reopenTabTop,
-    dragging: reopenTabDragging,
-    consumeDragClick: consumeReopenTabDrag,
-    handleProps: reopenTabHandleProps,
-  } = useDraggableTab("shopkeeperReopenTabTop");
   const isDesktop = useIsLargeScreen();
+  const iconOnly = isDesktop && sidebarCollapsed;
   const [loading, setLoading] = useState(false);
   const [shopName, setShopName] = useState("KiosCart Store");
   const [slug, setSlug] = useState("");
@@ -1038,7 +1034,7 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
             // Only drive width from JS on desktop. Below lg the drawer is a
             // fixed-width slide-over, so leave the class to do the work.
             isDesktop
-              ? { width: sidebarCollapsed ? 0 : sidebarWidth }
+              ? { width: sidebarCollapsed ? SIDEBAR_RAIL_WIDTH : sidebarWidth }
               : undefined
           }
           className={`
@@ -1048,7 +1044,6 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
             flex-shrink-0 overflow-hidden
             w-64
             ${sidebarDragging ? "" : "transition-all duration-300"}
-            ${sidebarCollapsed ? "lg:border-r-0" : ""}
             ${sidebarWillCollapse ? "opacity-40" : ""}
             ${
               sidebarOpen
@@ -1058,7 +1053,24 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
           `}
         >
           <div className="h-full flex flex-col">
-            <nav className="p-3 sm:p-4 space-y-1 sm:space-y-2 flex-1 overflow-y-auto">
+            <nav
+              className={`space-y-1 sm:space-y-2 flex-1 overflow-y-auto ${iconOnly ? "p-2" : "p-3 sm:p-4"}`}
+            >
+              {/* Desktop collapse / expand toggle. */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`hidden lg:flex w-full text-muted-foreground ${iconOnly ? "justify-center px-0" : "justify-end"}`}
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                title={iconOnly ? i18nT("Expand sidebar") : i18nT("Collapse sidebar")}
+                aria-label={iconOnly ? i18nT("Expand sidebar") : i18nT("Collapse sidebar")}
+              >
+                {iconOnly ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </Button>
               {NAVIGATION_ITEMS.filter((item) => hasTabAccess(item.id)).map((item) => {
                 const navToModule: Record<string, string> = {
                   orders: "orders",
@@ -1082,7 +1094,9 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     variant={
                       activeTab === item.id ? "default" : "buttonOutline"
                     }
-                    className={`w-full justify-start text-sm ${locked ? "opacity-60" : ""}`}
+                    className={`w-full text-sm ${iconOnly ? "justify-center px-0" : "justify-start"} ${locked ? "opacity-60" : ""}`}
+                    title={iconOnly ? i18nT(item.labelKey) : undefined}
+                    aria-label={i18nT(item.labelKey)}
                     onClick={() => {
                       if (item.id === "storefront" && !locked) {
                         handleViewStorefront();
@@ -1092,13 +1106,17 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
                     }}
                     disabled={item.id === "storefront" && loading}
                   >
-                    <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span className="truncate flex-1 text-left">
-                      {item.id === "storefront" && loading
-                        ? i18nT("common.loading")
-                        : i18nT(item.labelKey)}
-                    </span>
-                    {locked && (
+                    <item.icon
+                      className={`h-4 w-4 flex-shrink-0 ${iconOnly ? "" : "mr-2"}`}
+                    />
+                    {!iconOnly && (
+                      <span className="truncate flex-1 text-left">
+                        {item.id === "storefront" && loading
+                          ? i18nT("common.loading")
+                          : i18nT(item.labelKey)}
+                      </span>
+                    )}
+                    {locked && !iconOnly && (
                       <Lock className="h-3 w-3 ml-auto text-muted-foreground" />
                     )}
                   </Button>
@@ -1133,34 +1151,6 @@ function ShopkeeperDashboardInner({ onLogout }: ShopkeeperDashboardProps) {
             {/* Widens the grab target to 9px without widening the seam. */}
             <span className="absolute inset-y-0 -left-1 -right-1" />
           </div>
-        )}
-
-        {/* Re-open tab. The sidebar is closed by dragging the handle past the
-            threshold, which leaves no edge to grab — so this is the only way
-            back in, pinned where the sidebar used to be. It also slides up and
-            down (drag, or arrow keys once focused) so it can be moved off
-            whatever heading the active tab starts with; the position sticks. */}
-        {sidebarCollapsed && (
-          <button
-            type="button"
-            {...reopenTabHandleProps}
-            style={{ top: reopenTabTop }}
-            onClick={() => {
-              // Swallow the click that ends a reposition, or every drag would
-              // also re-open the sidebar.
-              if (consumeReopenTabDrag()) return;
-              setSidebarCollapsed(false);
-            }}
-            title={i18nT("Show sidebar · drag to move up or down")}
-            aria-label={i18nT("Show sidebar")}
-            className={`hidden lg:flex absolute left-0 z-40 h-9 w-7 items-center justify-center
-              rounded-r-md border border-l-0 bg-card text-muted-foreground shadow-sm
-              hover:bg-primary/10 hover:text-primary hover:border-primary/40
-              focus:outline-none focus-visible:ring-2 focus-visible:ring-primary
-              ${reopenTabDragging ? "cursor-grabbing border-primary/40 text-primary" : "cursor-grab transition-colors"}`}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
         )}
 
         {/* Main Content - Now the only scrollable element */}
