@@ -8,8 +8,12 @@ import { Product } from "../products/entities/product.entity";
 import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
 import { User } from "../users/schemas/user.schema";
 import { OrdersService } from "../orders/orders.service";
+import { AbandonedCart } from "../payments/schemas/abandoned-cart.schema";
 
 const MAX_PAGE_SIZE = 100;
+
+// An unpaid online checkout counts as abandoned after this long
+const ABANDONED_AFTER_MINUTES = 30;
 
 const KEY_LENGTH = "ksk_".length + 48;
 
@@ -32,6 +36,8 @@ export class IntegrationService {
     @InjectModel(Shopkeeper.name)
     private readonly shopModel: Model<Shopkeeper>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(AbandonedCart.name)
+    private readonly abandonedCartModel: Model<AbandonedCart>,
     private readonly ordersService: OrdersService,
   ) {}
 
@@ -247,6 +253,56 @@ export class IntegrationService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  /**
+   * Online checkouts the customer did not pay. A checkout counts as abandoned once it has been unpaid for
+   * ABANDONED_AFTER_MINUTES (the customer may still be on the payment page before that); one paid later is
+   * listed as "recovered" so the caller can stop following up.
+   */
+  async listAbandonedCarts(
+    shopkeeperId: string,
+    q: { page?: string; limit?: string; updatedSince?: string },
+  ) {
+    const { page, limit, skip } = this.pageArgs(q.page, q.limit);
+    const cutoff = new Date(Date.now() - ABANDONED_AFTER_MINUTES * 60 * 1000);
+    const filter: any = {
+      shopkeeperId: new Types.ObjectId(shopkeeperId),
+      $or: [{ status: "recovered" }, { createdAt: { $lte: cutoff } }],
+    };
+    if (q.updatedSince) {
+      const since = new Date(q.updatedSince);
+      if (!isNaN(since.getTime())) filter.updatedAt = { $gte: since };
+    }
+    const [rows, total] = await Promise.all([
+      this.abandonedCartModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.abandonedCartModel.countDocuments(filter),
+    ]);
+    const abandonedCarts = rows.map((c: any) => ({
+      id: String(c._id),
+      orderId: c.orderId,
+      status: c.status === "recovered" ? "recovered" : "abandoned",
+      customerName: c.customerName || null,
+      customerEmail: c.customerEmail || null,
+      customerWhatsApp: c.customerWhatsApp || null,
+      items: (c.items || []).map((i: any) => ({
+        ...i,
+        image: this.absolute(i?.image),
+      })),
+      totalAmount: c.totalAmount,
+      currency: c.currency || null,
+      orderType: c.orderType || null,
+      recoveredAt: c.recoveredAt || null,
+      recoveredOrderId: c.recoveredOrderId ? String(c.recoveredOrderId) : null,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }));
+    return { abandonedCarts, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async updateOrderStatus(

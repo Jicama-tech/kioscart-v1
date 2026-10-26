@@ -18,6 +18,10 @@ import {
   CheckoutIntent,
   CheckoutIntentDocument,
 } from "./schemas/checkout-intent.schema";
+import {
+  AbandonedCart,
+  AbandonedCartDocument,
+} from "./schemas/abandoned-cart.schema";
 import { Order } from "../orders/entities/order.entity";
 import { OrdersService } from "../orders/orders.service";
 import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
@@ -49,6 +53,8 @@ export class CheckoutService {
     private readonly shopkeeperModel: Model<Shopkeeper>,
     @InjectModel(CheckoutIntent.name)
     private readonly checkoutIntentModel: Model<CheckoutIntentDocument>,
+    @InjectModel(AbandonedCart.name)
+    private readonly abandonedCartModel: Model<AbandonedCartDocument>,
     @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
   ) {}
@@ -476,6 +482,20 @@ export class CheckoutService {
       rawGatewayOrder: result.raw,
     });
 
+    // Remembered after the intent expires, so a checkout that is never paid shows up as an abandoned cart
+    await this.recordCart({
+      gatewayOrderId: result.gatewayOrderId,
+      shopkeeperId: new Types.ObjectId(dto.shopkeeperId),
+      orderId: dto.orderId,
+      customerWhatsApp: dto.customerWhatsApp,
+      customerName: dto.customerName || dto.fullName,
+      customerEmail: dto.customerEmail,
+      items: dto.items,
+      totalAmount: dto.totalAmount,
+      currency,
+      orderType: dto.orderType,
+    });
+
     return {
       gatewayOrderId: result.gatewayOrderId,
       amount,
@@ -652,6 +672,7 @@ export class CheckoutService {
 
     // ---- Intent's job is done ----
     await this.checkoutIntentModel.deleteOne({ _id: intent._id });
+    await this.markCartRecovered(gatewayOrderId, order._id);
 
     return {
       success: true,
@@ -766,8 +787,33 @@ export class CheckoutService {
     }
 
     await this.checkoutIntentModel.deleteOne({ _id: intent._id });
+    await this.markCartRecovered(gatewayOrderId, order._id);
 
     return { created: true, orderId: order._id, paymentId: payment._id };
+  }
+
+  /** Never blocks a checkout: losing one abandoned-cart record is better than failing a payment. */
+  private async recordCart(cart: Partial<AbandonedCart>) {
+    try {
+      await this.abandonedCartModel.updateOne(
+        { gatewayOrderId: cart.gatewayOrderId },
+        { $setOnInsert: { ...cart, status: "open" } },
+        { upsert: true },
+      );
+    } catch (err: any) {
+      this.logger.warn(`Could not record checkout ${cart.gatewayOrderId} for abandoned carts: ${err?.message}`);
+    }
+  }
+
+  private async markCartRecovered(gatewayOrderId: string, orderId: any) {
+    try {
+      await this.abandonedCartModel.updateOne(
+        { gatewayOrderId },
+        { status: "recovered", recoveredAt: new Date(), recoveredOrderId: orderId },
+      );
+    } catch (err: any) {
+      this.logger.warn(`Could not mark checkout ${gatewayOrderId} as paid in abandoned carts: ${err?.message}`);
+    }
   }
 
   /**

@@ -7,6 +7,10 @@ import {
   ShopkeeperSchema,
 } from "../shopkeepers/schemas/shopkeeper.schema";
 import { User, UserSchema } from "../users/schemas/user.schema";
+import {
+  AbandonedCart,
+  AbandonedCartSchema,
+} from "../payments/schemas/abandoned-cart.schema";
 import { ApiKeyGuard } from "./api-key.guard";
 import {
   IntegrationApiKey,
@@ -25,6 +29,7 @@ import { IntegrationOrdersService } from "./integration-orders.service";
       { name: IntegrationApiKey.name, schema: IntegrationApiKeySchema },
       { name: Shopkeeper.name, schema: ShopkeeperSchema },
       { name: User.name, schema: UserSchema },
+      { name: AbandonedCart.name, schema: AbandonedCartSchema },
     ]),
     OrdersModule,
     ProductsModule,
