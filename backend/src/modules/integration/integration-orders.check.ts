@@ -132,7 +132,7 @@ const validate = (type: any, body: any) =>
     assert.equal(q.totals.subtotal, 1150);
     assert.equal(q.totals.deliveryFee, 40);
     assert.equal(q.totals.total, 1190);
-    assert.deepEqual(q.paymentMethods, { cod: true, online: true });
+    assert.deepEqual(q.paymentMethods, { cod: true, online: true, cash: true });
     assert.equal(q.lines[0].unitPrice, 500);
   });
 
@@ -140,7 +140,7 @@ const validate = (type: any, body: any) =>
     const { svc } = build({ shop: { shopName: "S", country: "IN", deliveryEnabled: true, deliveryRules: [{ minSubtotal: 0, fee: 40 }] } });
     const q: any = await svc.quote(SHOP_ID, { items: base().items, orderType: "pickup" } as any);
     assert.equal(q.totals.total, 1150);
-    assert.deepEqual(q.paymentMethods, { cod: true, online: false });
+    assert.deepEqual(q.paymentMethods, { cod: true, online: false, cash: true });
   });
 
   await check("a shop outside India cannot take online payment", async () => {
@@ -191,6 +191,16 @@ const validate = (type: any, body: any) =>
     assert.equal(o.source, "integration");
     assert.match(o.orderId, /^kiosshop-order-[a-z0-9]{12}$/);
     assert.equal(r.order.paymentUrl, null);
+  });
+
+  await check("a cash sale at the counter (ComBox kiosk) is paid when it is placed", async () => {
+    const { svc, orders } = build();
+    const r: any = await svc.create(SHOP_ID, { ...base(), paymentMethod: "cash", externalRef: "kiosk-1" } as any);
+    assert.equal(r.created, true);
+    assert.equal(orders[0].paymentMethod, "cash");
+    assert.equal(orders[0].paymentProvider, "manual");
+    assert.equal(orders[0].paymentStatus, "paid");
+    assert.equal(r.paymentUrl, null);
   });
 
   await check("the same externalRef returns the same order and creates nothing new", async () => {

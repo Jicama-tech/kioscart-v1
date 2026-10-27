@@ -114,9 +114,10 @@ export class IntegrationCreateOrderDto extends IntegrationQuoteDto {
   @Type(() => IntegrationAddressDto)
   deliveryAddress?: IntegrationAddressDto;
 
-  // cod = pay on delivery / at pickup; online = pay through a payment link sent in the chat
-  @IsIn(["cod", "online"])
-  paymentMethod: "cod" | "online";
+  // cod = pay on delivery / at pickup; online = pay through a payment link sent in the chat;
+  // cash = already paid in cash at the counter (ComBox self-kiosk mode)
+  @IsIn(["cod", "online", "cash"])
+  paymentMethod: "cod" | "online" | "cash";
 
   @IsOptional()
   @IsString()
