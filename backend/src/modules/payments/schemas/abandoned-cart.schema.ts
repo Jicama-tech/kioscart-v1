@@ -5,9 +5,10 @@ export type AbandonedCartDocument = AbandonedCart & Document;
 
 /**
  * A customer who left without finishing their order. Saved from two places:
- *  - the storefront, as soon as the customer's WhatsApp number is known (they
- *    typed it on the cart page, saved their cart from the "Save my cart" box,
- *    or are logged in): stage "cart", kept up to date while they shop;
+ *  - the storefront, as soon as we know how to reach the customer: their
+ *    WhatsApp number (typed on the cart page or in the "Save my cart" box) or
+ *    their email (signed in with Google): stage "cart", kept up to date while
+ *    they shop;
  *  - online checkout, when the Razorpay payment is started: stage "payment".
  * It is marked "recovered" when that customer places an order (or the payment
  * completes). The checkout intent itself still disappears after an hour; this
@@ -35,8 +36,8 @@ export class AbandonedCart {
   @Prop()
   orderId?: string;
 
-  @Prop({ required: true })
-  customerWhatsApp: string;
+  @Prop()
+  customerWhatsApp?: string;
 
   // Digits only, to match the customer's later order whatever format the number was typed in
   @Prop({ index: true })
@@ -47,6 +48,10 @@ export class AbandonedCart {
 
   @Prop()
   customerEmail?: string;
+
+  // Lower-cased email, to match the customer's later order (a Google sign-in may give no phone number)
+  @Prop({ index: true })
+  emailLower?: string;
 
   @Prop({ type: [Object], default: [] })
   items: any[];
@@ -87,17 +92,25 @@ export function whatsAppDigits(value?: string | null): string | null {
   return digits.length >= 8 && digits.length <= 15 ? digits : null;
 }
 
-/** The customer bought: their open carts at this shop are recovered (called for every new order). */
+/** "  Asha@Example.com " -> "asha@example.com"; null when it is not an email address. */
+export function emailLower(value?: string | null): string | null {
+  const email = String(value || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+/** The customer bought: their open carts at this shop (same WhatsApp number or email) are recovered. */
 export async function markCartsRecovered(
   model: Model<AbandonedCart>,
   shopkeeperId: string,
-  whatsApp: string | undefined,
+  customer: { whatsApp?: string | null; email?: string | null },
   orderId: unknown,
 ) {
-  const digits = whatsAppDigits(whatsApp);
-  if (!digits || !Types.ObjectId.isValid(String(shopkeeperId))) return;
+  const digits = whatsAppDigits(customer.whatsApp);
+  const email = emailLower(customer.email);
+  if ((!digits && !email) || !Types.ObjectId.isValid(String(shopkeeperId))) return;
+  const who = [...(digits ? [{ whatsAppDigits: digits }] : []), ...(email ? [{ emailLower: email }] : [])];
   await model.updateMany(
-    { shopkeeperId: new Types.ObjectId(String(shopkeeperId)), whatsAppDigits: digits, status: "open" },
+    { shopkeeperId: new Types.ObjectId(String(shopkeeperId)), status: "open", $or: who },
     { status: "recovered", recoveredAt: new Date(), recoveredOrderId: orderId },
   );
 }

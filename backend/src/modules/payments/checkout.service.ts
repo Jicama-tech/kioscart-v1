@@ -22,6 +22,7 @@ import {
   AbandonedCart,
   AbandonedCartDocument,
   whatsAppDigits,
+  emailLower,
 } from "./schemas/abandoned-cart.schema";
 import { Order } from "../orders/entities/order.entity";
 import { OrdersService } from "../orders/orders.service";
@@ -802,6 +803,7 @@ export class CheckoutService {
       ...cart,
       stage: "payment",
       whatsAppDigits: whatsAppDigits(cart.customerWhatsApp) ?? undefined,
+      emailLower: emailLower(cart.customerEmail) ?? undefined,
       lastActivityAt: new Date(),
     };
     try {

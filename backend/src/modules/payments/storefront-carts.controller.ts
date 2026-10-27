@@ -10,9 +10,10 @@ class SaveStorefrontCartDto {
   @IsNotEmpty()
   shopkeeperId: string;
 
+  @IsOptional()
   @IsString()
   @MaxLength(24)
-  customerWhatsApp: string;
+  customerWhatsApp?: string;
 
   @IsOptional()
   @IsString()
@@ -28,8 +29,8 @@ class SaveStorefrontCartDto {
 }
 
 /**
- * Public storefront endpoints (no login: guests shop too). A cart is only saved once the customer has given their
- * WhatsApp number, and is reached again only with its random cart key.
+ * Public storefront endpoints (no login: guests shop too). A cart is only saved once we can reach the customer
+ * (WhatsApp number or email), and is reached again only with its random cart key.
  */
 @Controller("storefront-carts")
 export class StorefrontCartsController {

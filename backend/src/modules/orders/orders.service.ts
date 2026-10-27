@@ -180,7 +180,12 @@ export class OrdersService {
       const savedOrder = await order.save();
 
       // Any cart this customer left at the shop is now recovered (never fails the order)
-      markCartsRecovered(this.abandonedCartModel, dto.shopkeeperId, dto.whatsAppNumber, savedOrder._id).catch(
+      markCartsRecovered(
+        this.abandonedCartModel,
+        dto.shopkeeperId,
+        { whatsApp: dto.whatsAppNumber, email: user.email },
+        savedOrder._id,
+      ).catch(
         (err) => console.error("Could not mark abandoned carts recovered:", err.message),
       );
 
