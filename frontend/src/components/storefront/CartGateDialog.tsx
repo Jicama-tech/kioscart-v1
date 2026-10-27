@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 import { isValidWhatsApp } from "@/lib/cartRecovery";
 import { t as i18nT } from "@/i18n/t";
@@ -7,6 +7,9 @@ import { t as i18nT } from "@/i18n/t";
 /**
  * Shown the first time a shopper adds to cart: continue with Google, or leave a WhatsApp number. Either way the shop
  * can save their cart, send order updates and remind them if they leave it.
+ *
+ * Built on the same Radix dialog as the product window it opens over: a plain overlay would be blocked by that modal
+ * (it turns off clicks and keeps keyboard focus outside itself), while a second Radix dialog stacks on top of it.
  */
 export function CartGateDialog({ productName, onWhatsApp, onGoogle, onClose }: {
   productName?: string;
@@ -30,24 +33,15 @@ export function CartGateDialog({ productName, onWhatsApp, onGoogle, onClose }: {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4"
-      >
-        <button type="button" onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-700" aria-label={i18nT("Close")}>
-          <X className="h-5 w-5" />
-        </button>
-
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl bg-white p-6">
         <div className="pr-6 space-y-1">
-          <h2 className="text-base font-semibold text-gray-900">{i18nT("Continue to add to cart")}</h2>
-          <p className="text-sm text-gray-500 leading-relaxed">
+          <DialogTitle className="text-base font-semibold text-gray-900">{i18nT("Continue to add to cart")}</DialogTitle>
+          <DialogDescription className="text-sm text-gray-500 leading-relaxed">
             {productName
               ? `${i18nT("So we can save")} ${productName} ${i18nT("in your cart and send you order updates.")}`
               : i18nT("So we can save your cart and send you order updates.")}
-          </p>
+          </DialogDescription>
         </div>
 
         <button
@@ -112,7 +106,7 @@ export function CartGateDialog({ productName, onWhatsApp, onGoogle, onClose }: {
             {i18nT("We'll only message you about your cart and orders.")}
           </p>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
