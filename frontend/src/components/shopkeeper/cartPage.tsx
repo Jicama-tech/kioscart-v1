@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { fetchSavedCart, setCartContact, setCartKey } from "@/lib/cartRecovery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +65,9 @@ export function CartPage() {
     cartTotal,
     cartCount,
     clearCart,
+    replaceCart,
   } = useCart();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
@@ -98,6 +101,57 @@ export function CartPage() {
   const [isShopkeeperVerified, setIsShopkeeperVerified] = useState(false);
   const [completeWhatsAppNumber, setCompleteWhatsAppNumber] = useState("");
   const [country, setCountry] = useState<"IN" | "SG">("IN");
+
+  // Once the WhatsApp number is complete the cart is kept on the server, so we can remind the customer if they leave
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (whatsapp.length >= 6) {
+        setCartContact({
+          whatsapp: countryCode + whatsapp,
+          name: [firstName, lastName].filter(Boolean).join(" "),
+          email,
+        });
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [countryCode, whatsapp, firstName, lastName, email]);
+
+  // Opened from a cart reminder ("?restoreCart=..."): put the saved cart back, with the customer's details
+  useEffect(() => {
+    const key = searchParams.get("restoreCart");
+    if (!key || !shopkeeperId) return;
+    fetchSavedCart(key)
+      .then((saved) => {
+        if (!saved || saved.shopkeeperId !== shopkeeperId) return;
+        if (saved.status === "open" && saved.items.length) {
+          replaceCart(shopkeeperId, saved.items);
+          setCartKey(shopkeeperId, key);
+          toast({ duration: 5000, title: i18nT("Your cart is back"), description: i18nT("We saved the items you left. Check out whenever you are ready.") });
+        }
+        if (saved.customerWhatsApp) {
+          setCartContact({ whatsapp: saved.customerWhatsApp, name: saved.customerName || "", email: saved.customerEmail || "" });
+          const match = COUNTRY_CODES.slice()
+            .sort((a, b) => b.dial_code.length - a.dial_code.length)
+            .find((c) => saved.customerWhatsApp!.startsWith(c.dial_code));
+          if (match) {
+            setCountryCode(match.dial_code);
+            setWhatsapp(saved.customerWhatsApp.slice(match.dial_code.length).replace(/\D/g, ""));
+          }
+          if (saved.customerName && !firstName) {
+            const [first, ...rest] = saved.customerName.split(" ");
+            setFirstName(first);
+            setLastName(rest.join(" "));
+          }
+          if (saved.customerEmail && !email) setEmail(saved.customerEmail);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        searchParams.delete("restoreCart");
+        setSearchParams(searchParams, { replace: true });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopkeeperId]);
   const { formatPrice, getSymbol } = useCurrency(country);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);

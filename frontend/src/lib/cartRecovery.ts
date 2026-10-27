@@ -1,0 +1,116 @@
+/**
+ * Saving a shopper's cart on the server once we know how to reach them (their WhatsApp number), so a cart they
+ * leave behind can be followed up and opened again from the reminder ("restore my cart" link).
+ *
+ *  - the contact comes from the cart page's WhatsApp field, the "Save my cart" box, or a logged-in customer;
+ *  - each shop's cart in this browser has its own random key, which is also the secret in the restore link;
+ *  - CartProvider sends the cart whenever it changes (see cartContext.tsx).
+ */
+import type { CartItem } from "@/hooks/cartContext";
+
+const apiURL = __API_URL__;
+
+const CONTACT_KEY = "kc_cart_contact";
+const CART_KEY_PREFIX = "kc_cart_key_";
+export const CONTACT_EVENT = "kc-cart-contact";
+
+export interface CartContact {
+  whatsapp: string; // with country code, e.g. "+6590037950"
+  name?: string;
+  email?: string;
+}
+
+export const isValidWhatsApp = (value?: string | null) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+};
+
+const read = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const write = (key: string, value: string | null) => {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    // private browsing: the cart just is not saved
+  }
+};
+
+export function getCartContact(): CartContact | null {
+  try {
+    const c = JSON.parse(read(CONTACT_KEY) || "null");
+    return c && isValidWhatsApp(c.whatsapp) ? c : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Remembers how to reach the shopper; an incomplete number is ignored. */
+export function setCartContact(contact: CartContact) {
+  if (!isValidWhatsApp(contact.whatsapp)) return;
+  const clean: CartContact = {
+    whatsapp: contact.whatsapp.trim(),
+    ...(contact.name?.trim() ? { name: contact.name.trim() } : {}),
+    ...(contact.email?.trim() ? { email: contact.email.trim() } : {}),
+  };
+  if (JSON.stringify(clean) === read(CONTACT_KEY)) return;
+  write(CONTACT_KEY, JSON.stringify(clean));
+  window.dispatchEvent(new Event(CONTACT_EVENT));
+}
+
+const newKey = () => {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+};
+
+/** This browser's key for the shop's cart (made on first use unless create is false). */
+export function cartKeyFor(shopkeeperId: string, create = true): string | null {
+  let key = read(CART_KEY_PREFIX + shopkeeperId);
+  if (!key && create) {
+    key = newKey();
+    write(CART_KEY_PREFIX + shopkeeperId, key);
+  }
+  return key;
+}
+
+export function setCartKey(shopkeeperId: string, key: string | null) {
+  write(CART_KEY_PREFIX + shopkeeperId, key);
+}
+
+/** Sends the shop's cart (an empty list removes a cart that was never checked out). */
+export async function saveCart(shopkeeperId: string, cartKey: string, items: unknown[], contact: CartContact) {
+  await fetch(`${apiURL}/storefront-carts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      cartKey,
+      shopkeeperId,
+      customerWhatsApp: contact.whatsapp,
+      ...(contact.name ? { customerName: contact.name } : {}),
+      ...(contact.email ? { customerEmail: contact.email } : {}),
+      items,
+    }),
+    keepalive: true,
+  });
+}
+
+export interface SavedCart {
+  shopkeeperId: string;
+  status: "open" | "recovered";
+  items: CartItem[];
+  customerWhatsApp: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+}
+
+export async function fetchSavedCart(cartKey: string): Promise<SavedCart | null> {
+  const res = await fetch(`${apiURL}/storefront-carts/${encodeURIComponent(cartKey)}`);
+  return res.ok ? res.json() : null;
+}

@@ -266,10 +266,16 @@ export class IntegrationService {
   ) {
     const { page, limit, skip } = this.pageArgs(q.page, q.limit);
     const cutoff = new Date(Date.now() - ABANDONED_AFTER_MINUTES * 60 * 1000);
+    // abandoned = untouched for the cutoff (a customer still adding to the cart is not abandoning it)
     const filter: any = {
       shopkeeperId: new Types.ObjectId(shopkeeperId),
-      $or: [{ status: "recovered" }, { createdAt: { $lte: cutoff } }],
+      $or: [
+        { status: "recovered" },
+        { lastActivityAt: { $lte: cutoff } },
+        { lastActivityAt: { $exists: false }, createdAt: { $lte: cutoff } },
+      ],
     };
+    const storefront = (process.env.FRONTEND_URL || "https://kioscart.com").replace(/\/+$/, "");
     if (q.updatedSince) {
       const since = new Date(q.updatedSince);
       if (!isNaN(since.getTime())) filter.updatedAt = { $gte: since };
@@ -287,6 +293,12 @@ export class IntegrationService {
       id: String(c._id),
       orderId: c.orderId,
       status: c.status === "recovered" ? "recovered" : "abandoned",
+      // how far the customer got: the cart page or the payment window
+      stage: c.stage || "payment",
+      // opens the shop's cart with the same items, for the reminder message
+      restoreUrl: c.cartKey
+        ? `${storefront}/cart/${String(c.shopkeeperId)}?restoreCart=${encodeURIComponent(c.cartKey)}`
+        : null,
       customerName: c.customerName || null,
       customerEmail: c.customerEmail || null,
       customerWhatsApp: c.customerWhatsApp || null,
@@ -299,6 +311,7 @@ export class IntegrationService {
       orderType: c.orderType || null,
       recoveredAt: c.recoveredAt || null,
       recoveredOrderId: c.recoveredOrderId ? String(c.recoveredOrderId) : null,
+      lastActivityAt: c.lastActivityAt || c.createdAt,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
     }));

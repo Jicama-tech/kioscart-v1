@@ -45,6 +45,7 @@ interface OpenCheckoutArgs extends CreateOrderArgs {
 interface InitiateLazyArgs {
   orderId: string; // pre-generated shopslug-order-xxx
   shopkeeperId: string;
+  cartKey?: string; // the storefront's saved cart (abandoned-cart follow-up)
   items: any[];
   totalAmount: number;
   orderType: string;
@@ -176,6 +177,7 @@ export function useRazorpayCheckout() {
       fullName: args.fullName,
       firstName: args.firstName,
       lastName: args.lastName,
+      cartKey: args.cartKey,
     };
     // Drop undefined keys — class-validator complains about `pickupDate: undefined`
     Object.keys(body).forEach(

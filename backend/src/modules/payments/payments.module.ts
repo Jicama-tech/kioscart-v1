@@ -21,6 +21,8 @@ import { ShopkeepersModule } from "../shopkeepers/shopkeepers.module";
 import { OtpModule } from "../otp/otp.module";
 import { OrdersModule } from "../orders/orders.module";
 import { RazorpayWebhookController } from "./webhooks/razorpay-webhook.controller";
+import { StorefrontCartsController } from "./storefront-carts.controller";
+import { StorefrontCartsService } from "./storefront-carts.service";
 import { RazorpayWebhookService } from "./webhooks/razorpay-webhook.service";
 import { WhatsappModule } from "../whatsapp/whatsapp.module";
 
@@ -40,8 +42,8 @@ import { WhatsappModule } from "../whatsapp/whatsapp.module";
     // sent one. A leaf module, so no forwardRef is needed.
     WhatsappModule,
   ],
-  controllers: [PaymentsController, RazorpayWebhookController],
-  providers: [PaymentsService, CheckoutService, RazorpayWebhookService],
+  controllers: [PaymentsController, RazorpayWebhookController, StorefrontCartsController],
+  providers: [PaymentsService, CheckoutService, RazorpayWebhookService, StorefrontCartsService],
   exports: [
     PaymentsService,
     CheckoutService,

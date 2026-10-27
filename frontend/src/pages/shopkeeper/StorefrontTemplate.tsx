@@ -59,6 +59,7 @@ import { BannerCarousel } from "@/components/ui/BannerCarousel";
 import { InstagramCarousel } from "@/components/ui/InstagramCarousel";
 import { VideoSection } from "@/components/ui/VideoSection";
 import { FeedbackBar } from "@/components/ui/FeedbackBar";
+import { SaveCartPrompt } from "@/components/storefront/SaveCartPrompt";
 
 export interface ShopkeeperStore {
   _id: string;
@@ -3474,6 +3475,14 @@ export function StorefrontTemplate({ onBack }: { onBack: () => void }) {
           </Button>
         )}
       </div>
+      {/* asks guests with a cart for their WhatsApp number, so a cart they leave can be saved and followed up */}
+      {settings?.shopkeeperId && (
+        <SaveCartPrompt
+          shopkeeperId={settings.shopkeeperId}
+          country={shopkeeperInfo?.country}
+          accentColor={design.primaryColor}
+        />
+      )}
     </div>
   );
 }

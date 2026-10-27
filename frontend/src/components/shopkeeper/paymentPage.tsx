@@ -41,6 +41,7 @@ import { useRazorpayCheckout } from "@/hooks/useRazorpayCheckout";
 import { CreditCard } from "lucide-react";
 
 import { t as i18nT } from "@/i18n/t";
+import { cartKeyFor } from "@/lib/cartRecovery";
 // Type definition for UPI Apps
 interface UpiApp {
   name: string;
@@ -632,6 +633,7 @@ Thank you!`,
       await openCheckoutLazy({
         orderId: state.orderId,
         shopkeeperId: state.shopkeeperId,
+        cartKey: cartKeyFor(state.shopkeeperId, false) || undefined,
         items: sanitizedItems,
         totalAmount: state.total || 0,
         orderType: state.orderType,
