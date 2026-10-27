@@ -102,16 +102,15 @@ export function CartPage() {
   const [completeWhatsAppNumber, setCompleteWhatsAppNumber] = useState("");
   const [country, setCountry] = useState<"IN" | "SG">("IN");
 
-  // Once the WhatsApp number is complete the cart is kept on the server, so we can remind the customer if they leave
+  // Once we can reach the customer (a complete WhatsApp number, or the email of a Google sign-in) the cart is kept on
+  // the server, so we can remind them if they leave
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (whatsapp.length >= 6) {
-        setCartContact({
-          whatsapp: countryCode + whatsapp,
-          name: [firstName, lastName].filter(Boolean).join(" "),
-          email,
-        });
-      }
+      setCartContact({
+        whatsapp: whatsapp.length >= 6 ? countryCode + whatsapp : undefined,
+        name: [firstName, lastName].filter(Boolean).join(" "),
+        email,
+      });
     }, 800);
     return () => clearTimeout(timer);
   }, [countryCode, whatsapp, firstName, lastName, email]);
@@ -128,8 +127,14 @@ export function CartPage() {
           setCartKey(shopkeeperId, key);
           toast({ duration: 5000, title: i18nT("Your cart is back"), description: i18nT("We saved the items you left. Check out whenever you are ready.") });
         }
+        setCartContact({ whatsapp: saved.customerWhatsApp || undefined, name: saved.customerName || "", email: saved.customerEmail || "" });
+        if (saved.customerEmail && !email) setEmail(saved.customerEmail);
+        if (saved.customerName && !firstName) {
+          const [first, ...rest] = saved.customerName.split(" ");
+          setFirstName(first);
+          setLastName(rest.join(" "));
+        }
         if (saved.customerWhatsApp) {
-          setCartContact({ whatsapp: saved.customerWhatsApp, name: saved.customerName || "", email: saved.customerEmail || "" });
           const match = COUNTRY_CODES.slice()
             .sort((a, b) => b.dial_code.length - a.dial_code.length)
             .find((c) => saved.customerWhatsApp!.startsWith(c.dial_code));
@@ -137,12 +142,6 @@ export function CartPage() {
             setCountryCode(match.dial_code);
             setWhatsapp(saved.customerWhatsApp.slice(match.dial_code.length).replace(/\D/g, ""));
           }
-          if (saved.customerName && !firstName) {
-            const [first, ...rest] = saved.customerName.split(" ");
-            setFirstName(first);
-            setLastName(rest.join(" "));
-          }
-          if (saved.customerEmail && !email) setEmail(saved.customerEmail);
         }
       })
       .catch(() => {})

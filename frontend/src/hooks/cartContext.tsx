@@ -132,14 +132,14 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setLoaded(true);
   }, []);
 
-  // A logged-in customer's number is already known, so their cart is saved without asking
+  // A logged-in customer (Google sign-in) can already be reached, by WhatsApp number or email, so their cart is saved
   useEffect(() => {
     try {
       const token = sessionStorage.getItem("userToken");
       if (token && !getCartContact()) {
         const d = jwtDecode<{ whatsAppNumber?: string; name?: string; firstName?: string; lastName?: string; email?: string }>(token);
         const name = d.name || [d.firstName, d.lastName].filter(Boolean).join(" ");
-        if (d.whatsAppNumber) setCartContact({ whatsapp: d.whatsAppNumber, name, email: d.email });
+        if (d.whatsAppNumber || d.email) setCartContact({ whatsapp: d.whatsAppNumber, name, email: d.email });
       }
     } catch {
       // not logged in, or an old token

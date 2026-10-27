@@ -1,8 +1,9 @@
 /**
- * Saving a shopper's cart on the server once we know how to reach them (their WhatsApp number), so a cart they
+ * Saving a shopper's cart on the server once we know how to reach them (WhatsApp number or email), so a cart they
  * leave behind can be followed up and opened again from the reminder ("restore my cart" link).
  *
- *  - the contact comes from the cart page's WhatsApp field, the "Save my cart" box, or a logged-in customer;
+ *  - the contact comes from the cart page (WhatsApp number, or the email of a Google sign-in), the "Save my cart"
+ *    box, or a logged-in customer;
  *  - each shop's cart in this browser has its own random key, which is also the secret in the restore link;
  *  - CartProvider sends the cart whenever it changes (see cartContext.tsx).
  */
@@ -15,7 +16,7 @@ const CART_KEY_PREFIX = "kc_cart_key_";
 export const CONTACT_EVENT = "kc-cart-contact";
 
 export interface CartContact {
-  whatsapp: string; // with country code, e.g. "+6590037950"
+  whatsapp?: string; // with country code, e.g. "+6590037950"
   name?: string;
   email?: string;
 }
@@ -24,6 +25,11 @@ export const isValidWhatsApp = (value?: string | null) => {
   const digits = String(value || "").replace(/\D/g, "");
   return digits.length >= 8 && digits.length <= 15;
 };
+
+export const isValidEmail = (value?: string | null) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+
+/** We can remind this shopper: a WhatsApp number or an email. */
+const isReachable = (c?: Partial<CartContact> | null) => !!c && (isValidWhatsApp(c.whatsapp) || isValidEmail(c.email));
 
 const read = (key: string): string | null => {
   try {
@@ -45,19 +51,19 @@ const write = (key: string, value: string | null) => {
 export function getCartContact(): CartContact | null {
   try {
     const c = JSON.parse(read(CONTACT_KEY) || "null");
-    return c && isValidWhatsApp(c.whatsapp) ? c : null;
+    return isReachable(c) ? c : null;
   } catch {
     return null;
   }
 }
 
-/** Remembers how to reach the shopper; an incomplete number is ignored. */
+/** Remembers how to reach the shopper; with neither a complete number nor an email it is ignored. */
 export function setCartContact(contact: CartContact) {
-  if (!isValidWhatsApp(contact.whatsapp)) return;
+  if (!isReachable(contact)) return;
   const clean: CartContact = {
-    whatsapp: contact.whatsapp.trim(),
+    ...(isValidWhatsApp(contact.whatsapp) ? { whatsapp: contact.whatsapp!.trim() } : {}),
     ...(contact.name?.trim() ? { name: contact.name.trim() } : {}),
-    ...(contact.email?.trim() ? { email: contact.email.trim() } : {}),
+    ...(isValidEmail(contact.email) ? { email: contact.email!.trim() } : {}),
   };
   if (JSON.stringify(clean) === read(CONTACT_KEY)) return;
   write(CONTACT_KEY, JSON.stringify(clean));
@@ -92,7 +98,7 @@ export async function saveCart(shopkeeperId: string, cartKey: string, items: unk
     body: JSON.stringify({
       cartKey,
       shopkeeperId,
-      customerWhatsApp: contact.whatsapp,
+      ...(contact.whatsapp ? { customerWhatsApp: contact.whatsapp } : {}),
       ...(contact.name ? { customerName: contact.name } : {}),
       ...(contact.email ? { customerEmail: contact.email } : {}),
       items,

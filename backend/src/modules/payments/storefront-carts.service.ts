@@ -5,6 +5,7 @@ import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
 import {
   AbandonedCart,
   AbandonedCartDocument,
+  emailLower,
   whatsAppDigits,
 } from "./schemas/abandoned-cart.schema";
 
@@ -21,7 +22,7 @@ const ITEM_FIELDS = [
 export interface SaveCartInput {
   cartKey: string;
   shopkeeperId: string;
-  customerWhatsApp: string;
+  customerWhatsApp?: string;
   customerName?: string;
   customerEmail?: string;
   items: any[];
@@ -64,8 +65,10 @@ export class StorefrontCartsService {
   async save(input: SaveCartInput) {
     if (!CART_KEY_PATTERN.test(input.cartKey || "")) throw new BadRequestException("Invalid cart key");
     if (!Types.ObjectId.isValid(input.shopkeeperId)) throw new BadRequestException("Invalid shop");
+    // reachable by WhatsApp (typed on the cart page / "Save my cart") or by email (signed in with Google)
     const digits = whatsAppDigits(input.customerWhatsApp);
-    if (!digits) throw new BadRequestException("A valid WhatsApp number is needed to save the cart");
+    const email = emailLower(input.customerEmail);
+    if (!digits && !email) throw new BadRequestException("A WhatsApp number or email is needed to save the cart");
 
     const items = this.cleanItems(input.items);
     if (!items.length) {
@@ -87,10 +90,9 @@ export class StorefrontCartsService {
         $set: {
           items,
           totalAmount: this.total(items),
-          customerWhatsApp: input.customerWhatsApp.trim(),
-          whatsAppDigits: digits,
+          ...(digits ? { customerWhatsApp: input.customerWhatsApp!.trim(), whatsAppDigits: digits } : {}),
+          ...(email ? { customerEmail: input.customerEmail!.trim().slice(0, 160), emailLower: email } : {}),
           ...(input.customerName?.trim() ? { customerName: input.customerName.trim().slice(0, 120) } : {}),
-          ...(input.customerEmail?.trim() ? { customerEmail: input.customerEmail.trim().slice(0, 160) } : {}),
           lastActivityAt: new Date(),
         },
         $setOnInsert: {
