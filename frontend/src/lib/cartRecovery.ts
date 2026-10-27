@@ -7,6 +7,7 @@
  *  - each shop's cart in this browser has its own random key, which is also the secret in the restore link;
  *  - CartProvider sends the cart whenever it changes (see cartContext.tsx).
  */
+import { jwtDecode } from "jwt-decode";
 import type { CartItem } from "@/hooks/cartContext";
 
 const apiURL = __API_URL__;
@@ -114,6 +115,48 @@ export interface SavedCart {
   customerWhatsApp: string | null;
   customerName: string | null;
   customerEmail: string | null;
+}
+
+/** A Google sign-in (buyer token) gives us the shopper's email, and their WhatsApp number if they gave one before. */
+export function rememberSignedInCustomer(token: string | null = sessionStorage.getItem("userToken")) {
+  if (!token) return;
+  try {
+    const d = jwtDecode<{ whatsAppNumber?: string; name?: string; firstName?: string; lastName?: string; email?: string }>(token);
+    const name = d.name || [d.firstName, d.lastName].filter(Boolean).join(" ");
+    if (d.whatsAppNumber || d.email) setCartContact({ whatsapp: d.whatsAppNumber, name, email: d.email });
+  } catch {
+    // an old or broken token: the shopper is just asked again
+  }
+}
+
+// The item a shopper was adding when they went off to sign in with Google; added when they come back
+const PENDING_ADD_KEY = "kc_pending_add";
+
+export interface PendingAdd {
+  shopkeeperId: string;
+  item: Omit<CartItem, "quantity">;
+  quantity: number;
+}
+
+export function takePendingAdd(): PendingAdd | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_ADD_KEY);
+    sessionStorage.removeItem(PENDING_ADD_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Off to Google; back on this same page afterwards, where the item being added is put in the cart. */
+export function startGoogleSignIn(pending?: PendingAdd) {
+  try {
+    if (pending) sessionStorage.setItem(PENDING_ADD_KEY, JSON.stringify(pending));
+    sessionStorage.setItem("cartReturnUrl", window.location.pathname + window.location.search);
+  } catch {
+    // ignore: they come back to the home page instead
+  }
+  window.location.href = `${apiURL}/auth/google-buyer?origin=${encodeURIComponent(window.location.origin)}`;
 }
 
 export async function fetchSavedCart(cartKey: string): Promise<SavedCart | null> {

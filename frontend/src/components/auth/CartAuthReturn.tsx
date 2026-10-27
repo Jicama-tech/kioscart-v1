@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { rememberSignedInCustomer } from "@/lib/cartRecovery";
 
 export function CartAuthReturn() {
   const [searchParams] = useSearchParams();
@@ -27,6 +28,8 @@ export function CartAuthReturn() {
     // Store token and return to cart
     sessionStorage.setItem("userToken", userToken);
     sessionStorage.removeItem("token"); // clear shopkeeper token if lingering
+    // their email (and WhatsApp number, if known) lets the shop save their cart and follow it up
+    rememberSignedInCustomer(userToken);
     navigate(returnTo, { replace: true });
   }, []);
 

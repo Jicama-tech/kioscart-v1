@@ -7,16 +7,20 @@ import React, {
   useRef,
   ReactNode,
 } from "react";
-import { jwtDecode } from "jwt-decode";
 import { useToast } from "@/components/ui/use-toast";
 import {
   CONTACT_EVENT,
+  type PendingAdd,
   cartKeyFor,
   getCartContact,
+  rememberSignedInCustomer,
   saveCart,
   setCartContact,
   setCartKey,
+  startGoogleSignIn,
+  takePendingAdd,
 } from "@/lib/cartRecovery";
+import { CartGateDialog } from "@/components/storefront/CartGateDialog";
 
 export interface CartItem {
   measurement?: string;
@@ -67,11 +71,15 @@ interface CartContextType {
   cartItems: { [shopkeeperId: string]: CartItem[] };
   cartCount: (shopkeeperId: string) => number;
   cartTotal: (shopkeeperId: string) => number;
+  /**
+   * Adds to the cart. A shopper we cannot reach yet is first asked to continue with Google or give a WhatsApp number
+   * (so the cart can be saved and followed up); returns false when the item waits for that.
+   */
   addToCart: (
     shopkeeperId: string,
     item: Omit<CartItem, "quantity">,
     quantity?: number,
-  ) => void;
+  ) => boolean;
   removeFromCart: (shopkeeperId: string, id: CartItemIdentifier) => void;
   updateQuantity: (
     shopkeeperId: string,
@@ -112,6 +120,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [contact, setContact] = useState(getCartContact);
   // What was last sent per shop, so an unchanged cart is not sent again
   const lastSent = useRef<Record<string, string>>({});
+  // The item waiting while the shopper is asked how to reach them
+  const [gate, setGate] = useState<PendingAdd | null>(null);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -134,16 +144,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   // A logged-in customer (Google sign-in) can already be reached, by WhatsApp number or email, so their cart is saved
   useEffect(() => {
-    try {
-      const token = sessionStorage.getItem("userToken");
-      if (token && !getCartContact()) {
-        const d = jwtDecode<{ whatsAppNumber?: string; name?: string; firstName?: string; lastName?: string; email?: string }>(token);
-        const name = d.name || [d.firstName, d.lastName].filter(Boolean).join(" ");
-        if (d.whatsAppNumber || d.email) setCartContact({ whatsapp: d.whatsAppNumber, name, email: d.email });
-      }
-    } catch {
-      // not logged in, or an old token
-    }
+    if (!getCartContact()) rememberSignedInCustomer();
     const refresh = () => setContact(getCartContact());
     window.addEventListener(CONTACT_EVENT, refresh);
     window.addEventListener("storage", refresh);
@@ -180,6 +181,14 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     return () => clearTimeout(timer);
   }, [cartItems, contact, loaded]);
 
+  // Back from Google sign-in: the item they were adding goes into the cart
+  useEffect(() => {
+    if (!loaded || !contact) return;
+    const pending = takePendingAdd();
+    if (pending) putInCart(pending.shopkeeperId, pending.item, pending.quantity);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, contact]);
+
   // Save cart to localStorage whenever cartItems changes
   useEffect(() => {
     try {
@@ -189,7 +198,29 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   }, [cartItems]);
 
+  // The shop's own staff (logged in to the dashboard) are not asked
+  const isShopStaff = () => {
+    try {
+      return !!sessionStorage.getItem("token");
+    } catch {
+      return false;
+    }
+  };
+
   const addToCart = (
+    shopkeeperId: string,
+    newItem: Omit<CartItem, "quantity">,
+    quantity: number = 1,
+  ): boolean => {
+    if (!getCartContact() && !isShopStaff()) {
+      setGate({ shopkeeperId, item: newItem, quantity });
+      return false;
+    }
+    putInCart(shopkeeperId, newItem, quantity);
+    return true;
+  };
+
+  const putInCart = (
     shopkeeperId: string,
     newItem: Omit<CartItem, "quantity">,
     quantity: number = 1,
@@ -349,6 +380,20 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   );
 
   return (
-    <CartContext.Provider value={contextValue}>{children}</CartContext.Provider>
+    <CartContext.Provider value={contextValue}>
+      {children}
+      {gate && (
+        <CartGateDialog
+          productName={gate.item.productName}
+          onClose={() => setGate(null)}
+          onGoogle={() => startGoogleSignIn(gate)}
+          onWhatsApp={(whatsapp, name) => {
+            setCartContact({ whatsapp, name });
+            putInCart(gate.shopkeeperId, gate.item, gate.quantity);
+            setGate(null);
+          }}
+        />
+      )}
+    </CartContext.Provider>
   );
 };

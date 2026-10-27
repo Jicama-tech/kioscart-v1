@@ -731,17 +731,20 @@ export function ProductDetailsDialog({
         };
       }
 
-      addToCart(
+      // false: the shopper is first asked to continue with Google or give a WhatsApp number; the item is added then
+      const added = addToCart(
         product.shopkeeperId?._id || product.shopkeeperId,
         cartItem,
         quantity,
       );
 
-      toast({
-        duration: 5000,
-        title: i18nT("Added to Cart"),
-        description: `${product.name} (${quantity}) added to your cart`,
-      });
+      if (added) {
+        toast({
+          duration: 5000,
+          title: i18nT("Added to Cart"),
+          description: `${product.name} (${quantity}) added to your cart`,
+        });
+      }
     } catch (error) {
       toast({
         duration: 5000,
