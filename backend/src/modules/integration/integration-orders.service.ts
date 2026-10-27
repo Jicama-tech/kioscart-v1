@@ -159,7 +159,7 @@ export class IntegrationOrdersService {
         variant: l.variantTitle || null,
       })),
       totals,
-      paymentMethods: { cod: true, online: this.canTakeOnline(shop) },
+      paymentMethods: { cod: true, online: this.canTakeOnline(shop), cash: true },
     };
   }
 
@@ -240,7 +240,8 @@ export class IntegrationOrdersService {
       // how this order was paid / will be paid, and where it came from
       paymentMethod: dto.paymentMethod,
       paymentProvider: online ? "razorpay" : "manual",
-      paymentStatus: "pending",
+      // a cash sale at the counter is paid the moment it is placed
+      paymentStatus: dto.paymentMethod === "cash" ? "paid" : "pending",
       ...(paymentLink ? { paymentLinkId: paymentLink.id, paymentLinkUrl: paymentLink.shortUrl } : {}),
       integrationRef: dto.externalRef,
       source: "integration",
