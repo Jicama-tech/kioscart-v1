@@ -10,6 +10,7 @@ import {
   ValidateIf,
   IsObject,
   IsBoolean,
+  IsIn,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -149,4 +150,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   transactionId?: string;
+
+  // Where the order was taken. Only the shop's own kiosk says so; other sources (e.g. "integration") are set by the server.
+  @IsOptional()
+  @IsIn(["kiosk"])
+  source?: "kiosk";
 }

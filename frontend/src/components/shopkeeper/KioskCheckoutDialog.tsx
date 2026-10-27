@@ -267,6 +267,7 @@ export function KioskCheckoutDialog({
         paymentConfirmed: true,
         whatsAppNumber:
           userWhatsApp || shopInfo.whatsappNumber || "kiosk-order",
+        source: "kiosk",
         fullName,
         firstName,
         lastName,
@@ -421,6 +422,7 @@ export function KioskCheckoutDialog({
         paymentConfirmed: false,
         whatsAppNumber:
           userWhatsApp || shopInfo?.whatsappNumber || "kiosk-order",
+        source: "kiosk",
         fullName,
         firstName,
         lastName,
