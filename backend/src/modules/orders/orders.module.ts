@@ -9,6 +9,10 @@ import {
   Shopkeeper,
   ShopkeeperSchema,
 } from "../shopkeepers/schemas/shopkeeper.schema";
+import {
+  AbandonedCart,
+  AbandonedCartSchema,
+} from "../payments/schemas/abandoned-cart.schema";
 import { MailModule } from "../roles/mail.module"; // Import MailModule providing MailService
 import { ProductsModule } from "../products/products.module";
 import { ShopkeepersModule } from "../shopkeepers/shopkeepers.module";
@@ -24,6 +28,7 @@ import { WhatsappModule } from "../whatsapp/whatsapp.module";
       { name: Product.name, schema: ProductSchema },
       { name: User.name, schema: UserSchema },
       { name: Shopkeeper.name, schema: ShopkeeperSchema },
+      { name: AbandonedCart.name, schema: AbandonedCartSchema },
     ]),
     MailModule, // Add MailModule here so MailService can be injected
     UsersModule,

@@ -6,6 +6,7 @@ import {
   IsArray,
   IsObject,
   Min,
+  MaxLength,
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -91,6 +92,12 @@ export class InitiateRazorpayPaymentDto {
   @IsOptional()
   @IsString()
   currency?: "INR" | "SGD";
+
+  // The storefront's cart key, so the cart it already saved moves to the payment stage
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  cartKey?: string;
 }
 
 export class CreatePaymentOrderDto {

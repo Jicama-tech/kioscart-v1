@@ -21,6 +21,7 @@ import {
 import {
   AbandonedCart,
   AbandonedCartDocument,
+  whatsAppDigits,
 } from "./schemas/abandoned-cart.schema";
 import { Order } from "../orders/entities/order.entity";
 import { OrdersService } from "../orders/orders.service";
@@ -494,7 +495,7 @@ export class CheckoutService {
       totalAmount: dto.totalAmount,
       currency,
       orderType: dto.orderType,
-    });
+    }, dto.cartKey);
 
     return {
       gatewayOrderId: result.gatewayOrderId,
@@ -792,12 +793,28 @@ export class CheckoutService {
     return { created: true, orderId: order._id, paymentId: payment._id };
   }
 
-  /** Never blocks a checkout: losing one abandoned-cart record is better than failing a payment. */
-  private async recordCart(cart: Partial<AbandonedCart>) {
+  /**
+   * Never blocks a checkout: losing one abandoned-cart record is better than failing a payment. A cart the
+   * storefront already saved (same cart key) moves on to the payment stage instead of being recorded twice.
+   */
+  private async recordCart(cart: Partial<AbandonedCart>, cartKey?: string) {
+    const details = {
+      ...cart,
+      stage: "payment",
+      whatsAppDigits: whatsAppDigits(cart.customerWhatsApp) ?? undefined,
+      lastActivityAt: new Date(),
+    };
     try {
+      if (cartKey) {
+        const moved = await this.abandonedCartModel.updateOne(
+          { cartKey, status: "open", shopkeeperId: cart.shopkeeperId },
+          { $set: details },
+        );
+        if (moved.matchedCount) return;
+      }
       await this.abandonedCartModel.updateOne(
         { gatewayOrderId: cart.gatewayOrderId },
-        { $setOnInsert: { ...cart, status: "open" } },
+        { $setOnInsert: { ...details, status: "open" } },
         { upsert: true },
       );
     } catch (err: any) {

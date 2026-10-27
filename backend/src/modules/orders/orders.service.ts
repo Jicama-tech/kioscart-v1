@@ -8,6 +8,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Order, OrderStatus } from "./entities/order.entity";
 import { CreateOrderDto } from "./dto/create-order.dto";
+import { AbandonedCart, markCartsRecovered } from "../payments/schemas/abandoned-cart.schema";
 import { Product } from "../products/entities/product.entity";
 import { User } from "../users/schemas/user.schema";
 import {
@@ -99,6 +100,8 @@ export class OrdersService {
     private readonly shopkeeperStoreService: ShopkeeperStoresService,
     private readonly subscriptionAccess: SubscriptionAccessService,
     private readonly shopWhatsapp: ShopWhatsappService,
+    @InjectModel(AbandonedCart.name)
+    private readonly abandonedCartModel: Model<AbandonedCart>,
   ) {}
 
   private formatPriceByCountry(amount: number, countryCode: string): string {
@@ -175,6 +178,11 @@ export class OrdersService {
       });
 
       const savedOrder = await order.save();
+
+      // Any cart this customer left at the shop is now recovered (never fails the order)
+      markCartsRecovered(this.abandonedCartModel, dto.shopkeeperId, dto.whatsAppNumber, savedOrder._id).catch(
+        (err) => console.error("Could not mark abandoned carts recovered:", err.message),
+      );
 
       // Send notifications (non-blocking — don't fail the order if notifications fail)
       const notifications = this.sendOrderCreationNotifications(

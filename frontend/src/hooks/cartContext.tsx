@@ -4,9 +4,19 @@ import React, {
   useState,
   useEffect,
   useMemo,
+  useRef,
   ReactNode,
 } from "react";
+import { jwtDecode } from "jwt-decode";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  CONTACT_EVENT,
+  cartKeyFor,
+  getCartContact,
+  saveCart,
+  setCartContact,
+  setCartKey,
+} from "@/lib/cartRecovery";
 
 export interface CartItem {
   measurement?: string;
@@ -69,6 +79,8 @@ interface CartContextType {
     quantity: number,
   ) => void;
   clearCart: (shopkeeperId: string) => void;
+  /** Puts back a cart saved on the server (the "restore my cart" link in a reminder). */
+  replaceCart: (shopkeeperId: string, items: CartItem[]) => void;
   isInCart: (shopkeeperId: string, id: CartItemIdentifier) => boolean;
   getCartItemQuantity: (
     shopkeeperId: string,
@@ -95,6 +107,11 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     [shopkeeperId: string]: CartItem[];
   }>({});
   const { toast } = useToast();
+  // The browser's saved cart has been read; until then the empty state must not be sent to the server
+  const [loaded, setLoaded] = useState(false);
+  const [contact, setContact] = useState(getCartContact);
+  // What was last sent per shop, so an unchanged cart is not sent again
+  const lastSent = useRef<Record<string, string>>({});
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -112,7 +129,56 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       console.error("Error loading cart from localStorage:", error);
       setCartItems({});
     }
+    setLoaded(true);
   }, []);
+
+  // A logged-in customer's number is already known, so their cart is saved without asking
+  useEffect(() => {
+    try {
+      const token = sessionStorage.getItem("userToken");
+      if (token && !getCartContact()) {
+        const d = jwtDecode<{ whatsAppNumber?: string; name?: string; firstName?: string; lastName?: string; email?: string }>(token);
+        const name = d.name || [d.firstName, d.lastName].filter(Boolean).join(" ");
+        if (d.whatsAppNumber) setCartContact({ whatsapp: d.whatsAppNumber, name, email: d.email });
+      }
+    } catch {
+      // not logged in, or an old token
+    }
+    const refresh = () => setContact(getCartContact());
+    window.addEventListener(CONTACT_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(CONTACT_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  // Once we know how to reach the shopper, each shop's cart is kept on the server, so a cart left behind can be
+  // followed up (abandoned carts) and opened again from the reminder. An emptied cart is removed and the next one
+  // gets a new key.
+  useEffect(() => {
+    if (!loaded || !contact) return;
+    const timer = setTimeout(() => {
+      const shops = new Set([...Object.keys(cartItems), ...Object.keys(lastSent.current)]);
+      shops.forEach((shopId) => {
+        const items = cartItems[shopId] || [];
+        const payload = JSON.stringify([items, contact]);
+        if (lastSent.current[shopId] === payload) return;
+        if (!items.length) {
+          const key = cartKeyFor(shopId, false);
+          if (key) saveCart(shopId, key, [], contact).catch(() => {});
+          setCartKey(shopId, null);
+          delete lastSent.current[shopId];
+          return;
+        }
+        lastSent.current[shopId] = payload;
+        saveCart(shopId, cartKeyFor(shopId)!, items, contact).catch(() => {
+          delete lastSent.current[shopId]; // try again on the next change
+        });
+      });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [cartItems, contact, loaded]);
 
   // Save cart to localStorage whenever cartItems changes
   useEffect(() => {
@@ -231,6 +297,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     });
   };
 
+  const replaceCart = (shopkeeperId: string, items: CartItem[]) => {
+    setCartItems((prev) => ({ ...prev, [shopkeeperId]: items }));
+  };
+
   const isInCart = (shopkeeperId: string, id: CartItemIdentifier): boolean => {
     const shopCart = cartItems[shopkeeperId] || [];
     return shopCart.some((item) => matchCartItem(item, id));
@@ -271,6 +341,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       removeFromCart,
       updateQuantity,
       clearCart,
+      replaceCart,
       isInCart,
       getCartItemQuantity,
     }),
