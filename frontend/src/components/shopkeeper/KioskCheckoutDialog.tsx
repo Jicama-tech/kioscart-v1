@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,14 +24,16 @@ import {
   QrCode,
   Loader2,
   CheckCircle,
-  ArrowLeft,
+  Clock,
+  Copy,
+  MessageCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { KioskCart } from "@/hooks/useKioskCarts";
 import { generateOrderId } from "@/lib/orderId";
 import { jwtDecode } from "jwt-decode";
-import QRCode from "react-qr-code";
-import jsQR from "jsqr";
+import { kioskPayments, type KioskPayment } from "@/lib/kioskPayments";
+import { KioskPaymentQr } from "./KioskPaymentQr";
 import { COUNTRY_CODES } from "@/data/countryCodes";
 
 import { t as i18nT } from "@/i18n/t";
@@ -79,17 +81,12 @@ export function KioskCheckoutDialog({
   const [instructions, setInstructions] = useState("");
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
 
-  // Inline QR payment state
+  // QR payment: the sale waits as "Payment pending" (with a payment link for the customer) until the payment is
+  // confirmed here ("Payment received") or by the customer on the link ("I have paid"); only then is the order placed
   const [showQRPayment, setShowQRPayment] = useState(false);
-  const [qrPaymentData, setQrPaymentData] = useState<any>(null);
-  const [dynamicUpiString, setDynamicUpiString] = useState("");
-  const [dynamicPayNowUrl, setDynamicPayNowUrl] = useState("");
+  const [qrPayment, setQrPayment] = useState<KioskPayment | null>(null);
   const [qrOrderCreated, setQrOrderCreated] = useState(false);
-  const [qrOrderId, setQrOrderId] = useState("");
   const [shopkeeperCountry, setShopkeeperCountry] = useState("");
-  const [shopkeeperPhone, setShopkeeperPhone] = useState("");
-  const [upiId, setUpiId] = useState("");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Customer details — same as cartPage self/kiosk mode
   const [countryCode, setCountryCode] = useState("+65");
@@ -130,7 +127,6 @@ export function KioskCheckoutDialog({
             discountPercentage: data.discountPercentage || 0,
           });
           setShopkeeperCountry(data.country || "IN");
-          setShopkeeperPhone(data.phone || "");
         }
       } catch {}
     }
@@ -302,57 +298,7 @@ export function KioskCheckoutDialog({
     }
   }
 
-  // Extract UPI ID from payment QR image
-  async function extractUpiFromImage(imageUrl: string): Promise<string> {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const canvas = canvasRef.current || document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve("");
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, canvas.width, canvas.height);
-        if (code?.data?.includes("upi://pay")) {
-          const match = code.data.match(/pa=([^&]+)/);
-          resolve(match?.[1] || "");
-        } else {
-          resolve("");
-        }
-      };
-      img.onerror = () => resolve("");
-      img.src = imageUrl;
-    });
-  }
-
-  // Generate dynamic UPI string
-  function generateDynamicUpi(extractedUpiId: string, orderId: string): string {
-    if (!extractedUpiId || !finalTotal) return "";
-    return `upi://pay?pa=${extractedUpiId}&pn=${encodeURIComponent(
-      shopInfo?.shopName || "Payment",
-    )}&am=${finalTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(
-      `Kiosk Order - ${orderId}`,
-    )}`;
-  }
-
-  // Generate PayNow QR URL for Singapore
-  function generateDynamicPayNowUrl(orderId: string): string {
-    if (!shopkeeperPhone || !finalTotal) return "";
-    const cleanedMobile = shopkeeperPhone.startsWith("+65")
-      ? shopkeeperPhone.substring(3)
-      : shopkeeperPhone;
-    const now = new Date();
-    const expiry = new Date(now.getTime() + 90 * 60 * 60 * 1000);
-    const formatted = `${expiry.getFullYear()}/${String(expiry.getMonth() + 1).padStart(2, "0")}/${String(expiry.getDate()).padStart(2, "0")} ${String(expiry.getHours()).padStart(2, "0")}:${String(expiry.getMinutes()).padStart(2, "0")}`;
-    return `https://www.sgqrcode.com/paynow?mobile=${cleanedMobile}&uen=&editable=0&amount=${finalTotal.toFixed(2)}&expiry=${encodeURIComponent(formatted)}&ref_id=${encodeURIComponent(orderId)}&company=`;
-  }
-
+  // QR payment: puts the sale on "Payment pending" with a payment link (backend kiosk-payments)
   async function handleQRPayment() {
     if (!firstName) {
       toast({
@@ -364,35 +310,39 @@ export function KioskCheckoutDialog({
     }
     setSubmitting(true);
     try {
+      const token = sessionStorage.getItem("token");
+      if (!token) throw new Error("Not authenticated");
+      const decoded: any = jwtDecode(token);
       if (!shopInfo) throw new Error("Shop info not loaded");
 
-      // Generate orderId upfront so it can be embedded in the QR code
+      const { date, time } = getNow();
       const orderId = generateOrderId(shopInfo?.shopName);
-      setQrOrderId(orderId);
-
-      // Generate QR data based on country
-      if (shopkeeperCountry === "SG") {
-        const payNowUrl = generateDynamicPayNowUrl(orderId);
-        setDynamicPayNowUrl(payNowUrl);
-      } else {
-        // India — extract UPI from payment image
-        if (shopInfo.paymentURL) {
-          const extracted = await extractUpiFromImage(
-            apiURL + shopInfo.paymentURL,
-          );
-          if (extracted) {
-            setUpiId(extracted);
-            setDynamicUpiString(generateDynamicUpi(extracted, orderId));
-          }
-        }
-      }
-
-      // Show inline QR payment view
+      const payment = await kioskPayments.create(
+        {
+          orderId,
+          userId: decoded.sub,
+          shopkeeperId,
+          items: getOrderItems(),
+          totalAmount: finalTotal,
+          orderType: "pickup",
+          pickupDate: date,
+          pickupTime: time,
+          whatsAppNumber:
+            userWhatsApp || shopInfo.whatsappNumber || "kiosk-order",
+          source: "kiosk",
+          fullName,
+          firstName,
+          lastName,
+          instructions: instructions || undefined,
+        },
+        `kc-${orderId}`,
+      );
+      setQrPayment(payment);
       setShowQRPayment(true);
     } catch (error: any) {
       toast({
         title: i18nT("Error"),
-        description: error.message || "Failed to generate QR",
+        description: error.message || "Failed to start the QR payment",
         variant: "destructive",
       });
     } finally {
@@ -400,65 +350,44 @@ export function KioskCheckoutDialog({
     }
   }
 
-  // Create order after customer confirms QR payment
+  // The staff saw the payment: the order is placed
   async function handleQRPaymentConfirm() {
+    if (!qrPayment) return;
     setSubmitting(true);
     try {
-      const token = sessionStorage.getItem("token");
-      if (!token) throw new Error("Not authenticated");
-      const decoded: any = jwtDecode(token);
-
-      const { date, time } = getNow();
-
-      const orderData = {
-        orderId: qrOrderId,
-        userId: decoded.sub,
-        shopkeeperId,
-        items: getOrderItems(),
-        totalAmount: finalTotal,
-        orderType: "pickup",
-        pickupDate: date,
-        pickupTime: time,
-        paymentConfirmed: false,
-        whatsAppNumber:
-          userWhatsApp || shopInfo?.whatsappNumber || "kiosk-order",
-        source: "kiosk",
-        fullName,
-        firstName,
-        lastName,
-        instructions: instructions || undefined,
-      };
-
-      const res = await fetch(`${apiURL}/orders/create-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to create order");
-      }
-
+      await kioskPayments.markPaid(qrPayment.id);
       setQrOrderCreated(true);
       toast({
         title: i18nT("Order Placed"),
-        description: `Order for ${fullName} created. Payment pending verification.`,
+        description: `Payment received from ${fullName}. The order is placed.`,
       });
-
-      // Auto-close after a brief delay
       setTimeout(() => {
         resetAndClose();
-      }, 2000);
+      }, 1500);
     } catch (error: any) {
       toast({
         title: i18nT("Error"),
-        description: error.message || "Failed to create order",
+        description: error.message || "Failed to place the order",
         variant: "destructive",
       });
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Not paid yet: the sale stays under "Payment pending" until the customer or the shop confirms the payment
+  function handleWaitForPayment() {
+    toast({
+      title: i18nT("Payment pending"),
+      description: `${fullName}'s order is placed once the payment is confirmed.`,
+    });
+    resetAndClose();
+  }
+
+  function copyPayLink() {
+    if (!qrPayment) return;
+    navigator.clipboard?.writeText(qrPayment.payUrl);
+    toast({ title: i18nT("Link copied"), duration: 2000 });
   }
 
   function resetAndClose() {
@@ -471,15 +400,14 @@ export function KioskCheckoutDialog({
     setCustomerEmail("");
     setShowQRPayment(false);
     setQrOrderCreated(false);
-    setQrOrderId("");
-    setDynamicUpiString("");
-    setDynamicPayNowUrl("");
-    setUpiId("");
+    setQrPayment(null);
     onOrderPlaced();
   }
 
-  // Hidden canvas for QR extraction
-  const hiddenCanvas = <canvas ref={canvasRef} style={{ display: "none" }} />;
+  const payLinkMessage = qrPayment
+    ? `${i18nT("Please pay for your order here:")} ${qrPayment.payUrl}`
+    : "";
+  const customerDigits = userWhatsApp.replace(/\D/g, "");
 
   return (
     <Dialog
@@ -489,19 +417,18 @@ export function KioskCheckoutDialog({
       }}
     >
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        {hiddenCanvas}
 
-        {/* === INLINE QR PAYMENT VIEW === */}
-        {showQRPayment ? (
+        {/* === QR PAYMENT: "Payment pending" until confirmed === */}
+        {showQRPayment && qrPayment ? (
           <>
             <DialogHeader>
               <DialogTitle>
-                {qrOrderCreated ? "Order Placed!" : "Scan & Pay"}
+                {qrOrderCreated ? i18nT("Order Placed!") : i18nT("Payment pending")}
               </DialogTitle>
               <DialogDescription>
                 {qrOrderCreated
-                  ? `Payment pending verification for ${fullName}`
-                  : `${fullName} — ${formatPrice(finalTotal)}`}
+                  ? `Payment received from ${fullName}`
+                  : `${fullName} — ${formatPrice(qrPayment.amount)}`}
               </DialogDescription>
             </DialogHeader>
 
@@ -511,38 +438,22 @@ export function KioskCheckoutDialog({
                 <p className="text-lg font-semibold text-green-700">
                   {i18nT("Order Created Successfully")}
                 </p>
-                <p className="text-sm text-muted-foreground text-center">
-                  {i18nT("Payment will be verified by the shopkeeper. Closing...")}
-                </p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4">
-                {/* QR Code Display */}
-                <div className="bg-card p-4 rounded-lg border-2 border-border">
-                  {shopkeeperCountry === "SG" && dynamicPayNowUrl ? (
-                    <img
-                      src={dynamicPayNowUrl}
-                      alt="PayNow QR"
-                      className="w-64 h-64 object-contain"
-                    />
-                  ) : dynamicUpiString ? (
-                    <QRCode value={dynamicUpiString} size={256} />
-                  ) : shopInfo?.paymentURL ? (
-                    <img
-                      src={apiURL + shopInfo.paymentURL}
-                      alt="Payment QR"
-                      className="w-64 h-64 object-contain"
-                    />
-                  ) : (
-                    <div className="w-64 h-64 flex items-center justify-center text-muted-foreground">
-                      {i18nT("No payment QR configured")}
-                    </div>
-                  )}
+                {/* Face to face: the customer scans this */}
+                <div className="bg-white p-4 rounded-lg border-2 border-border">
+                  <KioskPaymentQr
+                    qr={qrPayment.qr}
+                    amount={qrPayment.amount}
+                    payee={shopInfo?.shopName || "Payment"}
+                    reference={qrPayment.orderRef}
+                  />
                 </div>
 
                 <div className="text-center">
                   <p className="text-2xl font-bold">
-                    {formatPrice(finalTotal)}
+                    {formatPrice(qrPayment.amount)}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {shopkeeperCountry === "SG"
@@ -553,14 +464,47 @@ export function KioskCheckoutDialog({
 
                 <Separator className="w-full" />
 
+                {/* Not at the counter: send the payment link; they pay and press "I have paid" */}
+                <div className="w-full space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    {i18nT("Customer not here? Send them the payment link")}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={qrPayment.payUrl}
+                      className="text-xs"
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <Button variant="outline" size="icon" onClick={copyPayLink} title={i18nT("Copy link")}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {customerDigits && (
+                    <a
+                      href={`https://wa.me/${customerDigits}?text=${encodeURIComponent(payLinkMessage)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block"
+                    >
+                      <Button variant="outline" className="w-full h-10">
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        {i18nT("Send on WhatsApp")}
+                      </Button>
+                    </a>
+                  )}
+                </div>
+
+                <Separator className="w-full" />
+
                 <div className="flex gap-3 w-full">
                   <Button
                     variant="outline"
                     className="flex-1 h-10"
-                    onClick={() => setShowQRPayment(false)}
+                    onClick={handleWaitForPayment}
                   >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    {i18nT("Back")}
+                    <Clock className="h-4 w-4 mr-2" />
+                    {i18nT("Wait for payment")}
                   </Button>
                   <Button
                     className="flex-1 h-10"
@@ -572,7 +516,7 @@ export function KioskCheckoutDialog({
                     ) : (
                       <CheckCircle className="h-4 w-4 mr-2" />
                     )}
-                    Payment Done
+                    {i18nT("Payment received")}
                   </Button>
                 </div>
               </div>

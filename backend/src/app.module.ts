@@ -16,6 +16,7 @@ import { OtpModule } from "./modules/otp/otp.module";
 import { ShopkeeperStoresModule } from "./modules/shopkeeper-stores/shopkeeper-stores.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { IntegrationModule } from "./modules/integration/integration.module";
+import { KioskPaymentsModule } from "./modules/kiosk-payments/kiosk-payments.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
 import { StallsModule } from "./modules/stalls/stalls.module";
@@ -57,6 +58,7 @@ import { CampaignsModule } from "./modules/campaigns/campaigns.module";
     ProductsModule,
     OrdersModule,
     IntegrationModule,
+    KioskPaymentsModule,
     PaymentsModule,
     TicketsModule,
     StallsModule,

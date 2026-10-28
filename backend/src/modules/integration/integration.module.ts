@@ -11,6 +11,7 @@ import {
   AbandonedCart,
   AbandonedCartSchema,
 } from "../payments/schemas/abandoned-cart.schema";
+import { KioskPaymentsModule } from "../kiosk-payments/kiosk-payments.module";
 import { ApiKeyGuard } from "./api-key.guard";
 import {
   IntegrationApiKey,
@@ -33,6 +34,7 @@ import { IntegrationOrdersService } from "./integration-orders.service";
     ]),
     OrdersModule,
     ProductsModule,
+    KioskPaymentsModule,
   ],
   controllers: [IntegrationController, IntegrationKeyController],
   providers: [IntegrationService, IntegrationOrdersService, ApiKeyGuard],

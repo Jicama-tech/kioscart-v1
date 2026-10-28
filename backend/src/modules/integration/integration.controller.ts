@@ -17,7 +17,8 @@ import { OrderStatus } from "../orders/entities/order.entity";
 import { ApiKeyGuard } from "./api-key.guard";
 import { IntegrationService } from "./integration.service";
 import { IntegrationOrdersService } from "./integration-orders.service";
-import { IntegrationCreateOrderDto, IntegrationQuoteDto } from "./dto/integration-order.dto";
+import { IntegrationCreateOrderDto, IntegrationPaymentRequestDto, IntegrationQuoteDto } from "./dto/integration-order.dto";
+import { KioskPaymentsService } from "../kiosk-payments/kiosk-payments.service";
 
 class IntegrationStatusDto {
   @IsEnum(OrderStatus)
@@ -68,6 +69,7 @@ export class IntegrationController {
   constructor(
     private readonly integration: IntegrationService,
     private readonly integrationOrders: IntegrationOrdersService,
+    private readonly kioskPayments: KioskPaymentsService,
   ) {}
 
   @Get("shop")
@@ -109,6 +111,47 @@ export class IntegrationController {
   @Post("orders")
   createOrder(@Req() req: any, @Body() dto: IntegrationCreateOrderDto) {
     return this.integrationOrders.create(req.user.userId, dto);
+  }
+
+  /**
+   * A kiosk pickup sale paid by QR (PayNow / UPI): "Payment pending" with a payment link and QR, until the customer
+   * presses "I have paid" on the link or the kiosk confirms it; only then is the order placed.
+   */
+  @Post("payment-requests")
+  async createPaymentRequest(@Req() req: any, @Body() dto: IntegrationPaymentRequestDto) {
+    const shopId = req.user.userId;
+    const prepared = await this.integrationOrders.preparePickupOrder(shopId, dto);
+    return this.kioskPayments.create(shopId, {
+      source: "combox-kiosk",
+      externalRef: dto.externalRef,
+      amount: prepared.totals.total,
+      currency: prepared.currency,
+      customerName: dto.customer.name,
+      customerWhatsApp: prepared.order.whatsAppNumber,
+      lines: prepared.lines,
+      order: prepared.order,
+    });
+  }
+
+  @Get("payment-requests")
+  paymentRequests(@Req() req: any, @Query("status") status?: string) {
+    const valid = ["pending", "paid", "cancelled", "expired"].includes(String(status)) ? String(status) : undefined;
+    return this.kioskPayments.list(req.user.userId, { source: "combox-kiosk", status: valid });
+  }
+
+  @Get("payment-requests/:id")
+  paymentRequest(@Req() req: any, @Param("id") id: string) {
+    return this.kioskPayments.getForShop(req.user.userId, id);
+  }
+
+  @Post("payment-requests/:id/paid")
+  markPaymentRequestPaid(@Req() req: any, @Param("id") id: string) {
+    return this.kioskPayments.markPaidByStaff(req.user.userId, id);
+  }
+
+  @Post("payment-requests/:id/cancel")
+  cancelPaymentRequest(@Req() req: any, @Param("id") id: string) {
+    return this.kioskPayments.cancel(req.user.userId, id);
   }
 
   @Get("orders/:id")
