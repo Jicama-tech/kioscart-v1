@@ -101,6 +101,28 @@ export class IntegrationQuoteDto {
   orderType?: "delivery" | "pickup";
 }
 
+/**
+ * POST /integration/v1/payment-requests — a kiosk pickup sale paid by QR (PayNow / UPI): "Payment pending" until the
+ * customer (on the payment link) or the kiosk confirms the payment; only then is the order placed.
+ */
+export class IntegrationPaymentRequestDto extends IntegrationQuoteDto {
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => IntegrationCustomerDto)
+  customer: IntegrationCustomerDto;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
+
+  // The caller's own id for this sale. Repeating it returns the same payment; the order placed gets it as integrationRef.
+  @IsString()
+  @MinLength(4)
+  @MaxLength(80)
+  externalRef: string;
+}
+
 /** POST /integration/v1/orders — place the order. */
 export class IntegrationCreateOrderDto extends IntegrationQuoteDto {
   @IsDefined()

@@ -132,7 +132,7 @@ const validate = (type: any, body: any) =>
     assert.equal(q.totals.subtotal, 1150);
     assert.equal(q.totals.deliveryFee, 40);
     assert.equal(q.totals.total, 1190);
-    assert.deepEqual(q.paymentMethods, { cod: true, online: true, cash: true });
+    assert.deepEqual(q.paymentMethods, { cod: true, online: true, cash: true, qr: false });
     assert.equal(q.lines[0].unitPrice, 500);
   });
 
@@ -140,7 +140,7 @@ const validate = (type: any, body: any) =>
     const { svc } = build({ shop: { shopName: "S", country: "IN", deliveryEnabled: true, deliveryRules: [{ minSubtotal: 0, fee: 40 }] } });
     const q: any = await svc.quote(SHOP_ID, { items: base().items, orderType: "pickup" } as any);
     assert.equal(q.totals.total, 1150);
-    assert.deepEqual(q.paymentMethods, { cod: true, online: false, cash: true });
+    assert.deepEqual(q.paymentMethods, { cod: true, online: false, cash: true, qr: false });
   });
 
   await check("a shop outside India cannot take online payment", async () => {

@@ -16,6 +16,7 @@ import { KioskProductBrowser } from "./KioskProductBrowser";
 import { KioskCartPanel } from "./KioskCartPanel";
 import { KioskParkedCarts } from "./KioskParkedCarts";
 import { KioskCheckoutDialog } from "./KioskCheckoutDialog";
+import { KioskPendingPayments } from "./KioskPendingPayments";
 
 import { t as i18nT } from "@/i18n/t";
 import { FeatureGate } from "@/components/ui/FeatureGate";
@@ -45,6 +46,9 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
   const [customerName, setCustomerName] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [shopkeeperCountry, setShopkeeperCountry] = useState("IN");
+  const [shopName, setShopName] = useState("");
+  // bumped after a checkout, so a sale just put on "Payment pending" shows at once
+  const [pendingRefresh, setPendingRefresh] = useState(0);
 
   // Fetch shopkeeper info for currency
   useEffect(() => {
@@ -58,6 +62,7 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
         if (res.ok) {
           const { data } = await res.json();
           if (data?.country) setShopkeeperCountry(data.country);
+          if (data?.shopName) setShopName(data.shopName);
         }
       } catch {}
     }
@@ -85,6 +90,7 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
   function handleOrderPlaced() {
     const cartToDelete = activeCartId;
     setCheckoutOpen(false);
+    setPendingRefresh((n) => n + 1);
     // Delete cart after dialog closes to avoid unmounting mid-callback
     setTimeout(() => {
       if (cartToDelete) {
@@ -127,6 +133,9 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
         onDelete={deleteCart}
       />
       </FeatureGate>
+
+      {/* QR payments waiting for the customer: placed as orders once paid */}
+      <KioskPendingPayments formatPrice={formatPrice} refreshKey={pendingRefresh} shopName={shopName} />
 
       {/* Main Split Layout */}
       <div className="flex-1 flex gap-4 min-h-0">

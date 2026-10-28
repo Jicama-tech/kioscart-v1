@@ -15,8 +15,10 @@ import { RazorpayGateway } from "../payment-gateways/razorpay.gateway";
 import { decryptSecret } from "../../common/secrets.util";
 import {
   IntegrationCreateOrderDto,
+  IntegrationPaymentRequestDto,
   IntegrationQuoteDto,
 } from "./dto/integration-order.dto";
+import { qrKindFor, qrSetupHint } from "../kiosk-payments/kiosk-payment-qr";
 import {
   OrderPricingError,
   PricedLine,
@@ -55,7 +57,7 @@ export class IntegrationOrdersService {
     const shop: any = await this.shopModel
       .findById(shopkeeperId)
       .select(
-        "shopName country taxPercentage discountPercentage deliveryEnabled deliveryRules razorpay shopClosedFromDate shopClosedToDate",
+        "shopName country phone paymentURL taxPercentage discountPercentage deliveryEnabled deliveryRules razorpay shopClosedFromDate shopClosedToDate",
       )
       .lean();
     if (!shop) throw new NotFoundException("Shop not found");
@@ -159,8 +161,72 @@ export class IntegrationOrdersService {
         variant: l.variantTitle || null,
       })),
       totals,
-      paymentMethods: { cod: true, online: this.canTakeOnline(shop), cash: true },
+      // qr = PayNow / UPI QR, paid at the kiosk or through a payment link (KioskPaymentsService)
+      paymentMethods: { cod: true, online: this.canTakeOnline(shop), cash: true, qr: qrKindFor(shop) !== null },
+      qrKind: qrKindFor(shop),
+      qrSetup: qrKindFor(shop) ? null : qrSetupHint(shop),
     };
+  }
+
+  // ---- QR payment (kiosk) -------------------------------------------------
+
+  /**
+   * A pickup order priced from the shop's data, ready to be placed once its QR payment is confirmed; nothing is
+   * created here (see KioskPaymentsService). Stock is checked now and again when the order is placed.
+   */
+  async preparePickupOrder(shopkeeperId: string, dto: IntegrationPaymentRequestDto) {
+    const shop = await this.loadShop(shopkeeperId);
+    this.assertOpen(shop);
+    const { lines, totals } = await this.priceBasket(shopkeeperId, shop, { ...dto, orderType: "pickup" });
+    if (!(totals.total > 0)) throw new BadRequestException("The order total must be more than zero.");
+
+    const digits = dto.customer.whatsAppNumber.replace(/\D/g, "");
+    if (digits.length < 8 || digits.length > 15) {
+      throw new BadRequestException("whatsAppNumber must be a phone number with country code.");
+    }
+
+    return {
+      totals,
+      currency: CURRENCY_BY_COUNTRY[String(shop.country || "IN").toUpperCase()] || null,
+      lines: lines.map((l) => ({
+        name: l.productName,
+        quantity: l.quantity,
+        lineTotal: l.lineTotal,
+        option: [l.optionTitle, l.subcategoryName, l.variantTitle].filter(Boolean).join(" · ") || null,
+      })),
+      order: {
+        orderId: this.newOrderRef(shop),
+        shopkeeperId,
+        items: this.orderItems(lines),
+        totalAmount: totals.total,
+        orderType: OrderType.Pickup,
+        whatsAppNumber: `+${digits}`,
+        fullName: dto.customer.name,
+        notes: dto.notes,
+        integrationRef: dto.externalRef,
+        source: "integration",
+      },
+    };
+  }
+
+  private newOrderRef(shop: any): string {
+    const slug = String(shop.shopName || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "store";
+    return `${slug}-order-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6).padEnd(4, "0")}`;
+  }
+
+  private orderItems(lines: PricedLine[]) {
+    return lines.map((l) => ({
+      productId: l.productId,
+      productName: l.productName,
+      price: l.price,
+      quantity: l.quantity,
+      trackQuantity: l.trackQuantity,
+      image: l.image,
+      optionTitle: l.optionTitle,
+      optionPrice: l.optionPrice,
+      subcategoryName: l.subcategoryName,
+      variantTitle: l.variantTitle,
+    }));
   }
 
   // ---- create -----------------------------------------------------------
@@ -189,8 +255,7 @@ export class IntegrationOrdersService {
     }
     const whatsAppNumber = `+${digits}`;
 
-    const slug = String(shop.shopName || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "store";
-    const orderRef = `${slug}-order-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6).padEnd(4, "0")}`;
+    const orderRef = this.newOrderRef(shop);
 
     const online = dto.paymentMethod === "online";
 
@@ -219,18 +284,7 @@ export class IntegrationOrdersService {
     const orderDto: any = {
       orderId: orderRef,
       shopkeeperId,
-      items: lines.map((l) => ({
-        productId: l.productId,
-        productName: l.productName,
-        price: l.price,
-        quantity: l.quantity,
-        trackQuantity: l.trackQuantity,
-        image: l.image,
-        optionTitle: l.optionTitle,
-        optionPrice: l.optionPrice,
-        subcategoryName: l.subcategoryName,
-        variantTitle: l.variantTitle,
-      })),
+      items: this.orderItems(lines),
       totalAmount: totals.total,
       orderType: orderType === "pickup" ? OrderType.Pickup : OrderType.Delivery,
       ...(orderType === "delivery" ? { deliveryAddress: { zip: "", ...dto.deliveryAddress } } : {}),

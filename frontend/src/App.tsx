@@ -115,6 +115,7 @@ const ProductForm = lazy(() =>
     default: m.ProductForm,
   })),
 );
+const KioskPayPage = lazy(() => import('./pages/KioskPayPage'));
 const SupplierRequestForm = lazy(
   () => import('./pages/SupplierRequestForm'),
 );
@@ -331,6 +332,18 @@ function AppContent() {
             path="/business/:shopkeeperId/supplier"
             element={<SupplierRequestForm />}
           />
+        </Routes>
+      </Suspense>
+    );
+  }
+
+  // The kiosk's payment link: a customer pays a kiosk sale (PayNow / UPI QR) and presses "I have paid". It must open
+  // for anyone, signed in or not, and on a shop's custom domain too.
+  if (typeof window !== 'undefined' && /^\/kiosk-pay\/[^/]+\/?$/.test(window.location.pathname)) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          <Route path="/kiosk-pay/:token" element={<KioskPayPage />} />
         </Routes>
       </Suspense>
     );
