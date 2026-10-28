@@ -18,16 +18,31 @@ export function KioskPendingPayments({
   formatPrice,
   refreshKey,
   shopName,
+  parkedIds = [],
+  showId = null,
+  onShown,
+  onPaymentChange,
 }: {
   formatPrice: (amount: number) => string;
   refreshKey: number;
   shopName: string;
+  // payments of carts shown in the parked carts row: not listed again here
+  parkedIds?: string[];
+  // a parked cart's "Show QR": open that payment
+  showId?: string | null;
+  onShown?: () => void;
+  // a payment changed (paid, cancelled, expired): the parked cart follows it
+  onPaymentChange?: (payment: KioskPayment) => void;
 }) {
   const { toast } = useToast();
   const [payments, setPayments] = useState<KioskPayment[]>([]);
+  const [all, setAll] = useState<KioskPayment[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [showing, setShowing] = useState<KioskPayment | null>(null);
   const known = useRef<Map<string, KioskPayment["status"]>>(new Map());
+  // the poll runs from a timer: always call the latest callback (it knows the current carts)
+  const changed = useRef(onPaymentChange);
+  changed.current = onPaymentChange;
 
   const load = async () => {
     try {
@@ -39,7 +54,9 @@ export function KioskPendingPayments({
           toast({ title: i18nT("Payment confirmed"), description: `${p.customerName || i18nT("The customer")} paid ${formatPrice(p.amount)} — order placed.` });
         }
         known.current.set(p.id, p.status);
+        changed.current?.(p);
       }
+      setAll(list);
       setPayments(list.filter((p) => p.status === "pending" || p.status === "expired"));
     } catch {
       // the list just stays as it was; the next poll tries again
@@ -53,14 +70,26 @@ export function KioskPendingPayments({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
+  // a parked cart's "Show QR"
+  useEffect(() => {
+    if (!showId) return;
+    const p = all.find((x) => x.id === showId);
+    if (p) setShowing(p);
+    else load();
+    onShown?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showId, all]);
+
   const act = async (p: KioskPayment, action: "paid" | "cancel") => {
     setBusy(p.id + action);
     try {
       if (action === "paid") {
-        await kioskPayments.markPaid(p.id);
+        const updated = await kioskPayments.markPaid(p.id);
         toast({ title: i18nT("Order Placed"), description: `${p.customerName || ""} — ${formatPrice(p.amount)}` });
+        changed.current?.(updated);
       } else {
-        await kioskPayments.cancel(p.id);
+        const updated = await kioskPayments.cancel(p.id);
+        changed.current?.(updated);
       }
       setShowing(null);
       await load();
@@ -76,17 +105,19 @@ export function KioskPendingPayments({
     toast({ title: i18nT("Link copied"), duration: 2000 });
   };
 
-  if (payments.length === 0) return null;
+  const listed = payments.filter((p) => !parkedIds.includes(p.id));
 
   return (
+    <>
+    {listed.length > 0 && (
     <div className="mb-4 border rounded-lg p-3 bg-amber-50/60 border-amber-200">
       <div className="flex items-center gap-2 mb-2">
         <Clock className="h-4 w-4 text-amber-600" />
         <h3 className="text-sm font-semibold text-amber-900">{i18nT("Payment pending")}</h3>
-        <Badge variant="secondary">{payments.length}</Badge>
+        <Badge variant="secondary">{listed.length}</Badge>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {payments.map((p) => (
+        {listed.map((p) => (
           <div key={p.id} className="min-w-[230px] bg-card border rounded-md p-2.5 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -115,6 +146,8 @@ export function KioskPendingPayments({
           </div>
         ))}
       </div>
+    </div>
+    )}
 
       <Dialog open={!!showing} onOpenChange={(open) => !open && setShowing(null)}>
         <DialogContent className="sm:max-w-sm">
@@ -138,11 +171,14 @@ export function KioskPendingPayments({
                     <CheckCircle className="h-4 w-4 mr-2" />{i18nT("Payment received")}
                   </Button>
                 </div>
+                <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={!!busy} onClick={() => act(showing, "cancel")}>
+                  <X className="h-3.5 w-3.5 mr-1" />{i18nT("Cancel payment")}
+                </Button>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

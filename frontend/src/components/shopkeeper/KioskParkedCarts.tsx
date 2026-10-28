@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Trash2, Clock, ShoppingBag } from "lucide-react";
+import { Play, Trash2, Clock, ShoppingBag, QrCode } from "lucide-react";
 import { KioskCart } from "@/hooks/useKioskCarts";
 
 import { t as i18nT } from "@/i18n/t";
@@ -11,6 +11,8 @@ interface KioskParkedCartsProps {
   formatPrice: (amount: number) => string;
   onResume: (cartId: string) => void;
   onDelete: (cartId: string) => void;
+  // a cart waiting for its QR payment: show the QR / link (and Paid) instead of resuming it
+  onShowPayment?: (cartId: string) => void;
 }
 
 function timeAgo(timestamp: number): string {
@@ -30,6 +32,7 @@ export function KioskParkedCarts({
   formatPrice,
   onResume,
   onDelete,
+  onShowPayment,
 }: KioskParkedCartsProps) {
   if (carts.length === 0) return null;
 
@@ -46,7 +49,7 @@ export function KioskParkedCarts({
 
       <div className="flex gap-2 overflow-x-auto pb-2">
         {carts.map((cart) => {
-          const total = getCartTotal(cart.id);
+          const total = cart.payment ? cart.payment.amount : getCartTotal(cart.id);
           const count = getCartItemCount(cart.id);
 
           return (
@@ -59,10 +62,16 @@ export function KioskParkedCarts({
                   <p className="text-xs font-semibold text-foreground truncate">
                     {cart.customerName}
                   </p>
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-                    <Clock className="h-2.5 w-2.5" />
-                    {timeAgo(cart.updatedAt)}
-                  </div>
+                  {cart.payment ? (
+                    <Badge variant={cart.payment.status === "expired" ? "destructive" : "outline"} className="mt-1 h-4 text-[9px] px-1.5 border-amber-400 text-amber-800">
+                      {cart.payment.status === "expired" ? i18nT("Link expired") : i18nT("Payment pending")}
+                    </Badge>
+                  ) : (
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                      <Clock className="h-2.5 w-2.5" />
+                      {timeAgo(cart.updatedAt)}
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
@@ -84,14 +93,26 @@ export function KioskParkedCarts({
                 </span>
               </div>
 
-              <Button
-                size="sm"
-                className="w-full h-7 text-xs"
-                onClick={() => onResume(cart.id)}
-              >
-                <Play className="h-3 w-3 mr-1" />
-                {i18nT("Resume")}
-              </Button>
+              {cart.payment ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-xs border-amber-400"
+                  onClick={() => onShowPayment?.(cart.id)}
+                >
+                  <QrCode className="h-3 w-3 mr-1" />
+                  {i18nT("Show QR")}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  className="w-full h-7 text-xs"
+                  onClick={() => onResume(cart.id)}
+                >
+                  <Play className="h-3 w-3 mr-1" />
+                  {i18nT("Resume")}
+                </Button>
+              )}
             </div>
           );
         })}

@@ -20,6 +20,8 @@ import { KioskPendingPayments } from "./KioskPendingPayments";
 
 import { t as i18nT } from "@/i18n/t";
 import { FeatureGate } from "@/components/ui/FeatureGate";
+import { useFeature } from "@/hooks/useFeature";
+import { kioskPayments, type KioskPayment } from "@/lib/kioskPayments";
 const apiURL = __API_URL__;
 
 interface KioskModeProps {
@@ -28,6 +30,7 @@ interface KioskModeProps {
 
 export function KioskMode({ shopkeeperId }: KioskModeProps) {
   const {
+    carts,
     activeCart,
     activeCartId,
     parkedCarts,
@@ -35,6 +38,7 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
     parkCart,
     resumeCart,
     deleteCart,
+    setCartPayment,
     addItem,
     removeItem,
     updateItemQuantity,
@@ -49,6 +53,41 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
   const [shopName, setShopName] = useState("");
   // bumped after a checkout, so a sale just put on "Payment pending" shows at once
   const [pendingRefresh, setPendingRefresh] = useState(0);
+  const [showPaymentId, setShowPaymentId] = useState<string | null>(null);
+  // carts waiting for a QR payment stay in the parked carts row (when the plan has it; otherwise they are listed
+  // under "Payment pending")
+  const parkedEnabled = useFeature("kioskParkedCarts");
+  const parkedPaymentIds = parkedEnabled ? carts.filter((c) => c.payment).map((c) => c.payment!.id) : [];
+
+  // a parked cart follows its payment: paid (the order is placed) it goes, cancelled it is an ordinary parked cart
+  function handlePaymentChange(p: KioskPayment) {
+    const cart = carts.find((c) => c.payment?.id === p.id);
+    if (!cart) return;
+    if (p.status === "paid") deleteCart(cart.id);
+    else if (p.status === "cancelled") setCartPayment(cart.id, null);
+    else if (p.status !== cart.payment!.status) setCartPayment(cart.id, { ...cart.payment!, status: p.status });
+  }
+
+  // deleting a cart whose payment link is out cancels the link too
+  async function handleDeleteCart(cartId: string) {
+    const cart = carts.find((c) => c.id === cartId);
+    if (cart?.payment) {
+      try {
+        await kioskPayments.cancel(cart.payment.id);
+      } catch {
+        // the link just expires on its own
+      }
+    }
+    deleteCart(cartId);
+  }
+
+  function handlePaymentPending(payment: KioskPayment) {
+    if (activeCartId) {
+      setCartPayment(activeCartId, { id: payment.id, amount: payment.amount, payUrl: payment.payUrl, status: "pending" });
+    }
+    setCheckoutOpen(false);
+    setPendingRefresh((n) => n + 1);
+  }
 
   // Fetch shopkeeper info for currency
   useEffect(() => {
@@ -130,12 +169,24 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
           if (activeCartId) parkCart(activeCartId);
           resumeCart(id);
         }}
-        onDelete={deleteCart}
+        onDelete={handleDeleteCart}
+        onShowPayment={(id) => {
+          const cart = carts.find((c) => c.id === id);
+          if (cart?.payment) setShowPaymentId(cart.payment.id);
+        }}
       />
       </FeatureGate>
 
       {/* QR payments waiting for the customer: placed as orders once paid */}
-      <KioskPendingPayments formatPrice={formatPrice} refreshKey={pendingRefresh} shopName={shopName} />
+      <KioskPendingPayments
+        formatPrice={formatPrice}
+        refreshKey={pendingRefresh}
+        shopName={shopName}
+        parkedIds={parkedPaymentIds}
+        showId={showPaymentId}
+        onShown={() => setShowPaymentId(null)}
+        onPaymentChange={handlePaymentChange}
+      />
 
       {/* Main Split Layout */}
       <div className="flex-1 flex gap-4 min-h-0">
@@ -226,6 +277,7 @@ export function KioskMode({ shopkeeperId }: KioskModeProps) {
           shopkeeperId={shopkeeperId}
           formatPrice={formatPrice}
           onOrderPlaced={handleOrderPlaced}
+          onPaymentPending={handlePaymentPending}
         />
       )}
       </FeatureGate>
