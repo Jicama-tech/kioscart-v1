@@ -34,7 +34,7 @@ const matches = (doc: any, q: any): boolean =>
     if (k === "$or") return cond.some((sub: any) => matches(doc, sub));
     const v = doc[k];
     const cmp = (x: any) => (x instanceof Date ? x.getTime() : x);
-    if (cond && typeof cond === "object" && !(cond instanceof Date) && !Array.isArray(cond)) {
+    if (cond && typeof cond === "object" && !(cond instanceof Date) && !Array.isArray(cond) && cond.constructor?.name !== "ObjectId") {
       return Object.entries(cond).every(([op, arg]: [string, any]) => {
         if (op === "$in") return arg.map(String).includes(String(v));
         if (op === "$gt") return cmp(v) > cmp(arg);

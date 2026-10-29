@@ -38,6 +38,15 @@ export class KioskPaymentsService {
     private readonly ordersService: OrdersService,
   ) {}
 
+  /**
+   * The shop id as the ObjectId payments are stored with. Queries must use it: a plain string is not cast on this
+   * path, so `{ shopkeeperId: "<hex>" }` matches nothing and a payment just created is "not found" (and, with the
+   * unique shop + externalRef index, a repeated externalRef fails instead of returning the same payment).
+   */
+  private shopOid(shopkeeperId: string | Types.ObjectId): Types.ObjectId {
+    return new Types.ObjectId(String(shopkeeperId));
+  }
+
   private async loadShop(shopkeeperId: string | Types.ObjectId): Promise<any> {
     const shop: any = await this.shopModel.findById(shopkeeperId).select("shopName country phone paymentURL").lean();
     if (!shop) throw new NotFoundException("Shop not found");
@@ -58,7 +67,7 @@ export class KioskPaymentsService {
     if (!(input.amount > 0)) throw new BadRequestException("The amount must be more than zero.");
 
     if (input.externalRef) {
-      const existing = await this.paymentModel.findOne({ shopkeeperId, externalRef: input.externalRef }).lean();
+      const existing = await this.paymentModel.findOne({ shopkeeperId: this.shopOid(shopkeeperId), externalRef: input.externalRef }).lean();
       if (existing) return this.present(existing, shop);
     }
 
@@ -67,7 +76,7 @@ export class KioskPaymentsService {
 
     try {
       const payment = await this.paymentModel.create({
-        shopkeeperId: new Types.ObjectId(String(shopkeeperId)),
+        shopkeeperId: this.shopOid(shopkeeperId),
         token: randomBytes(18).toString("base64url"),
         status: "pending",
         source: input.source,
@@ -85,7 +94,7 @@ export class KioskPaymentsService {
     } catch (e: any) {
       // two identical requests at once: the unique index let one through
       if (input.externalRef && /E11000/.test(String(e?.message))) {
-        const existing = await this.paymentModel.findOne({ shopkeeperId, externalRef: input.externalRef }).lean();
+        const existing = await this.paymentModel.findOne({ shopkeeperId: this.shopOid(shopkeeperId), externalRef: input.externalRef }).lean();
         if (existing) return this.present(existing, shop);
       }
       throw e;
@@ -95,7 +104,7 @@ export class KioskPaymentsService {
   /** The shop's payments, newest first: by default the ones still waiting and those settled in the last day. */
   async list(shopkeeperId: string, opts: { source?: string; status?: string } = {}) {
     await this.expireStale(shopkeeperId);
-    const filter: any = { shopkeeperId };
+    const filter: any = { shopkeeperId: this.shopOid(shopkeeperId) };
     if (opts.source) filter.source = opts.source;
     if (opts.status) {
       filter.status = opts.status;
@@ -161,7 +170,7 @@ export class KioskPaymentsService {
 
   private async findForShop(shopkeeperId: string, id: string) {
     if (!Types.ObjectId.isValid(id)) throw new NotFoundException("Payment not found");
-    const payment = await this.paymentModel.findOne({ _id: id, shopkeeperId }).lean();
+    const payment = await this.paymentModel.findOne({ _id: new Types.ObjectId(id), shopkeeperId: this.shopOid(shopkeeperId) }).lean();
     if (!payment) throw new NotFoundException("Payment not found");
     return payment;
   }
@@ -177,7 +186,7 @@ export class KioskPaymentsService {
   }
 
   private async expireStale(shopkeeperId: string) {
-    await this.paymentModel.updateMany({ shopkeeperId, status: "pending", expiresAt: { $lt: new Date() } }, { $set: { status: "expired" } });
+    await this.paymentModel.updateMany({ shopkeeperId: this.shopOid(shopkeeperId), status: "pending", expiresAt: { $lt: new Date() } }, { $set: { status: "expired" } });
   }
 
   /**
