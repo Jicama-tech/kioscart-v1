@@ -62,6 +62,8 @@ interface KioskCheckoutDialogProps {
   shopkeeperId: string;
   formatPrice: (amount: number) => string;
   onOrderPlaced: () => void;
+  // the QR payment is not confirmed yet: the cart is parked as "Payment pending"
+  onPaymentPending: (payment: KioskPayment) => void;
 }
 
 export function KioskCheckoutDialog({
@@ -72,6 +74,7 @@ export function KioskCheckoutDialog({
   shopkeeperId,
   formatPrice,
   onOrderPlaced,
+  onPaymentPending,
 }: KioskCheckoutDialogProps) {
   const { toast } = useToast();
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "qr" | null>(
@@ -375,19 +378,35 @@ export function KioskCheckoutDialog({
     }
   }
 
-  // Not paid yet: the sale stays under "Payment pending" until the customer or the shop confirms the payment
+  // Not paid yet: the cart is parked as "Payment pending" until the customer or the shop confirms the payment
   function handleWaitForPayment() {
+    if (!qrPayment) return;
     toast({
       title: i18nT("Payment pending"),
-      description: `${fullName}'s order is placed once the payment is confirmed.`,
+      description: `${fullName}'s cart is parked. The order is placed once the payment is confirmed.`,
     });
-    resetAndClose();
+    const payment = qrPayment;
+    resetForm();
+    onPaymentPending(payment);
   }
 
   function copyPayLink() {
     if (!qrPayment) return;
     navigator.clipboard?.writeText(qrPayment.payUrl);
     toast({ title: i18nT("Link copied"), duration: 2000 });
+  }
+
+  function resetForm() {
+    setPaymentMethod(null);
+    setInstructions("");
+    setWhatsapp("");
+    setWhatsappVerified(false);
+    setFirstName("");
+    setLastName("");
+    setCustomerEmail("");
+    setShowQRPayment(false);
+    setQrOrderCreated(false);
+    setQrPayment(null);
   }
 
   function resetAndClose() {

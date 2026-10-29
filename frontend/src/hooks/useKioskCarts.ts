@@ -24,6 +24,9 @@ export interface KioskCart {
   status: "active" | "parked";
   createdAt: number;
   updatedAt: number;
+  // checked out with a QR payment that is not confirmed yet ("Payment pending"): parked, and not resumable, until it
+  // is paid (the order is placed and the cart goes) or the payment is cancelled (an ordinary parked cart again)
+  payment?: { id: string; amount: number; payUrl: string; status: "pending" | "expired" };
 }
 
 interface KioskState {
@@ -123,6 +126,23 @@ export function useKioskCarts(shopkeeperId: string) {
       activeCartId: prev.activeCartId === cartId ? null : prev.activeCartId,
     }));
   }, []);
+
+  const setCartPayment = useCallback(
+    (cartId: string, payment: KioskCart["payment"] | null) => {
+      setState((prev) => ({
+        carts: prev.carts.map((c) => {
+          if (c.id !== cartId) return c;
+          if (!payment) {
+            const { payment: _done, ...rest } = c;
+            return { ...rest, updatedAt: Date.now() };
+          }
+          return { ...c, payment, status: "parked" as const, updatedAt: Date.now() };
+        }),
+        activeCartId: payment && prev.activeCartId === cartId ? null : prev.activeCartId,
+      }));
+    },
+    [],
+  );
 
   const addItem = useCallback(
     (item: Omit<CartItem, "quantity">, quantity: number = 1) => {
@@ -246,6 +266,7 @@ export function useKioskCarts(shopkeeperId: string) {
     parkCart,
     resumeCart,
     deleteCart,
+    setCartPayment,
     addItem,
     removeItem,
     updateItemQuantity,
