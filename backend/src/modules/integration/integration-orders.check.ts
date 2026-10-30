@@ -174,6 +174,107 @@ const validate = (type: any, body: any) =>
     await svc.quote(SHOP_ID, { items: base().items, orderType: "pickup" } as any);
   });
 
+  // ---- custom (one-off) lines ---------------------------------------------------------------------------------------
+  const CUSTOM = { quantity: 2, custom: { name: "Gift hamper", subcategoryName: "Large", variantTitle: "Red", unitPrice: 450.5 } };
+
+  await check("custom lines: validation accepts the contract shape and rejects bad ones", async () => {
+    const ok: any = await validate(IntegrationQuoteDto, { items: [CUSTOM, { productId: P1, quantity: 1 }] });
+    assert.equal(ok.items[0].custom.unitPrice, 450.5);
+    const c = (custom: any, extra: any = {}) => ({ items: [{ quantity: 1, custom, ...extra }] });
+    const bad = [
+      { items: [{ quantity: 1 }] }, // neither
+      c({ name: "A", unitPrice: 5 }, { productId: P1 }), // both
+      c({ name: "", unitPrice: 5 }),
+      c({ name: "x".repeat(121), unitPrice: 5 }),
+      c({ name: "A", unitPrice: 0 }),
+      c({ name: "A", unitPrice: -1 }),
+      c({ name: "A", unitPrice: 1.234 }),
+      c({ name: "A", unitPrice: 10000000 }),
+      c({ name: "A", unitPrice: "5" }),
+      c({ name: "A" }),
+      c({ name: "A", unitPrice: 5, price: 1 }), // unknown field inside custom
+      c({ name: "A", unitPrice: 5, variantTitle: "v".repeat(121) }),
+      { items: [{ quantity: 0, custom: { name: "A", unitPrice: 5 } }] },
+      { items: [{ quantity: 1000, custom: { name: "A", unitPrice: 5 } }] },
+      { items: [{ quantity: 1, price: 5, custom: { name: "A", unitPrice: 5 } }] }, // price outside custom
+    ];
+    for (const b of bad) await assert.rejects(() => validate(IntegrationQuoteDto, b), BadRequestException);
+  });
+
+  await check("custom lines: a catalog product still needs a valid productId and takes no price", async () => {
+    await assert.rejects(() => validate(IntegrationQuoteDto, { items: [{ productId: "nope", quantity: 1 }] }), BadRequestException);
+    await assert.rejects(() => validate(IntegrationQuoteDto, { items: [{ productId: P1, quantity: 1, unitPrice: 1 }] }), BadRequestException);
+  });
+
+  await check("custom lines: quote prices them without any product lookup, with shop discount and tax", async () => {
+    const shop = { shopName: "S", country: "IN", discountPercentage: 10, taxPercentage: 5, deliveryEnabled: true, deliveryRules: [] };
+    const b = build({ shop });
+    let finds = 0;
+    const svc: any = b.svc;
+    const origFind = svc.productModel.find;
+    svc.productModel.find = (q: any) => { finds++; return origFind(q); };
+    const q: any = await svc.quote(SHOP_ID, (await validate(IntegrationQuoteDto, { items: [CUSTOM], orderType: "pickup" })) as any);
+    assert.equal(finds, 0);
+    assert.deepEqual(q.lines, [{
+      productId: null, custom: true, name: "Gift hamper", quantity: 2, unitPrice: 450.5, lineTotal: 901,
+      option: null, type: "Large", variant: "Red",
+    }]);
+    assert.equal(q.totals.subtotal, 901);
+    assert.equal(q.totals.discount, 90.1);
+    assert.equal(q.totals.tax, 40.55);
+    // mixed basket: only the catalog product is looked up, "custom" is never sent to the database
+    let seen: any = null;
+    svc.productModel.find = (q2: any) => { seen = q2; return origFind(q2); };
+    const mixed: any = await svc.quote(SHOP_ID, { items: [CUSTOM, { productId: P2, quantity: 1 }], orderType: "pickup" } as any);
+    assert.deepEqual(seen._id.$in, [P2]);
+    assert.equal(mixed.lines.length, 2);
+    assert.equal(mixed.lines[1].productId, P2);
+  });
+
+  await check("custom lines: the same custom line twice merges, different ones stay separate", async () => {
+    const { svc } = build();
+    const other = { quantity: 1, custom: { name: "Gift hamper", subcategoryName: "Large", variantTitle: "Red", unitPrice: 400 } };
+    const q: any = await svc.quote(SHOP_ID, { items: [CUSTOM, CUSTOM, other, { quantity: 1, custom: { name: "Gift hamper", unitPrice: 450.5 } }], orderType: "pickup" } as any);
+    assert.equal(q.lines.length, 3);
+    assert.equal(q.lines[0].quantity, 4);
+  });
+
+  await check("custom lines: a product and custom on one line is refused by the service too", async () => {
+    const { svc } = build();
+    await assert.rejects(() => svc.quote(SHOP_ID, { items: [{ productId: P1, quantity: 1, custom: CUSTOM.custom }] } as any), BadRequestException);
+  });
+
+  await check("custom lines: the service refuses a bad custom price or quantity as a 400", async () => {
+    const { svc } = build();
+    await assert.rejects(() => svc.quote(SHOP_ID, { items: [{ quantity: 1, custom: { name: "A", unitPrice: 0 } }] } as any), BadRequestException);
+    await assert.rejects(() => svc.quote(SHOP_ID, { items: [{ quantity: 1000, custom: { name: "A", unitPrice: 5 } }] } as any), BadRequestException);
+  });
+
+  await check("custom lines: the placed order stores productId custom, custom:true and no stock tracking", async () => {
+    const { svc, orders } = build();
+    const { deliveryAddress, ...rest } = base();
+    await svc.create(SHOP_ID, { ...rest, orderType: "pickup", items: [CUSTOM, { productId: P2, quantity: 1 }] } as any);
+    const item = orders[0].items[0];
+    assert.equal(item.productId, "custom");
+    assert.equal(item.custom, true);
+    assert.equal(item.productName, "Gift hamper");
+    assert.equal(item.subcategoryName, "Large");
+    assert.equal(item.variantTitle, "Red");
+    assert.equal(item.price, 450.5);
+    assert.equal(item.quantity, 2);
+    assert.equal(item.trackQuantity, false);
+    assert.equal(orders[0].items[1].custom, undefined);
+    assert.equal(orders[0].totalAmount, 1051);
+  });
+
+  await check("custom lines: a QR payment request keeps them on the order to place", async () => {
+    const { svc } = build();
+    const prep: any = await svc.preparePickupOrder(SHOP_ID, { items: [CUSTOM], customer: { name: "A", whatsAppNumber: "+919876543210" }, externalRef: "kiosk-ref-1" } as any);
+    assert.equal(prep.order.items[0].productId, "custom");
+    assert.equal(prep.order.items[0].custom, true);
+    assert.equal(prep.totals.total, 901);
+  });
+
   // ---- create: pay on delivery ----------------------------------------------------------------------------------------
   await check("cod: the order is created with server prices and no payment link", async () => {
     const { svc, orders, calls } = build();

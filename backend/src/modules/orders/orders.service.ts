@@ -178,7 +178,7 @@ export class OrdersService {
         user = await this.usersService.create(createUserDto);
       }
 
-      if (dto.items[0].trackQuantity) {
+      if (dto.items.some((item) => !item.custom && item.trackQuantity)) {
         await this.updateProductInventory(dto.items, "deduct");
       }
 
@@ -1436,6 +1436,9 @@ export class OrdersService {
     items: any[],
     action: "deduct" | "restore",
   ) {
+    // Custom (one-off) lines are not in the catalog, so they have no stock to change
+    items = items.filter((item) => !item?.custom);
+    if (items.length === 0) return;
     // Collect all unique product IDs and fetch them in a single query
     const uniqueProductIds = [
       ...new Set(items.map((item) => item.productId.toString())),
