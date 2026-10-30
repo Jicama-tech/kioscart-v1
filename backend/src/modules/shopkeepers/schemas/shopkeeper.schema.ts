@@ -306,6 +306,11 @@ export class Shopkeeper {
 
   @Prop({ default: false })
   voiceAccessEnabled: boolean;
+
+  // When false the public storefront cannot place orders; product pages show
+  // "Contact Shopkeeper" (wa.me link) instead of "Add to Cart".
+  @Prop({ default: true })
+  takeOrdersFromSite: boolean;
 }
 
 export const RazorpayLinkedAccountSchema = SchemaFactory.createForClass(

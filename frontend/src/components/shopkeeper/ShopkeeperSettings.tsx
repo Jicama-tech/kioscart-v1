@@ -424,6 +424,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
     pickupMinDays: 2,
     pickupMessage: "",
     voiceAccessEnabled: false,
+    takeOrdersFromSite: true,
     businessHours: {
       monday: { open: "09:00", close: "18:00", closed: false },
       tuesday: { open: "09:00", close: "18:00", closed: false },
@@ -1485,6 +1486,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
       fd.append("pickupMinDays", String(shopProfile.pickupMinDays));
       fd.append("pickupMessage", shopProfile.pickupMessage || "");
       fd.append("voiceAccessEnabled", String(shopProfile.voiceAccessEnabled));
+      fd.append("takeOrdersFromSite", String(shopProfile.takeOrdersFromSite));
       fd.append("whatsappNumber", getFullWhatsappNumber() || "");
       fd.append("taxPercentage", shopProfile.taxPercentage.toString() || "");
       fd.append("deliveryEnabled", String(shopProfile.deliveryEnabled));
@@ -1572,6 +1574,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
         pickupMinDays: d?.pickupMinDays ?? p.pickupMinDays,
         pickupMessage: d?.pickupMessage ?? p.pickupMessage,
         voiceAccessEnabled: d?.voiceAccessEnabled ?? p.voiceAccessEnabled,
+        takeOrdersFromSite: d?.takeOrdersFromSite ?? p.takeOrdersFromSite,
       }));
 
       if (paymentQrPreview) {
@@ -1755,6 +1758,7 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
           pickupMinDays: d?.pickupMinDays ?? 2,
           pickupMessage: d?.pickupMessage ?? "",
           voiceAccessEnabled: d?.voiceAccessEnabled ?? false,
+          takeOrdersFromSite: d?.takeOrdersFromSite ?? true,
           shopClosedFromDate: d?.shopClosedFromDate,
           shopClosedToDate: d?.shopClosedToDate,
           paymentURL: d?.paymentURL ?? "",
@@ -2607,6 +2611,22 @@ export function ShopkeeperSettings({ onSave }: ShopkeeperSettingsProps) {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* TAKE ORDERS FROM SITE */}
+              <div className="md:col-span-2 flex items-center justify-between p-4 border rounded-lg bg-muted/20">
+                <div>
+                  <Label className="font-medium">{i18nT("Take Orders from Site")}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {i18nT("When off, customers can't order online and will see \"Contact Shopkeeper\" (WhatsApp) instead of \"Add to Cart\"")}
+                  </p>
+                </div>
+                <Switch
+                  checked={shopProfile.takeOrdersFromSite}
+                  onCheckedChange={(checked) =>
+                    setShopProfile((p) => ({ ...p, takeOrdersFromSite: checked }))
+                  }
+                />
               </div>
 
               {/* VOICE ACCESS */}

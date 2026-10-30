@@ -1051,6 +1051,7 @@ export class ShopkeepersService {
       pickupMinDays?: number | string;
       pickupMessage?: string;
       voiceAccessEnabled?: boolean | string;
+      takeOrdersFromSite?: boolean | string;
     },
     paymentQrPublicUrl?: string | null,
   ) {
@@ -1191,6 +1192,12 @@ export class ShopkeepersService {
         typeof body.voiceAccessEnabled === "boolean"
           ? body.voiceAccessEnabled
           : body.voiceAccessEnabled === "true";
+    }
+    if (body.takeOrdersFromSite !== undefined) {
+      update.takeOrdersFromSite =
+        typeof body.takeOrdersFromSite === "boolean"
+          ? body.takeOrdersFromSite
+          : body.takeOrdersFromSite === "true";
     }
 
     if (body.receiptType !== undefined) {

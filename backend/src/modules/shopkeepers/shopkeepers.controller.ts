@@ -120,6 +120,7 @@ export class ShopkeepersController {
       pickupDateRequired: s.pickupDateRequired,
       pickupMinDays: s.pickupMinDays,
       pickupMessage: s.pickupMessage,
+      takeOrdersFromSite: s.takeOrdersFromSite,
       shopClosedFromDate: s.shopClosedFromDate,
       shopClosedToDate: s.shopClosedToDate,
       // Only the flags checkout needs to decide whether to offer Razorpay.
