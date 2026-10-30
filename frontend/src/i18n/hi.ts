@@ -1534,4 +1534,10 @@ export const hi: Record<string, string> = {
     "इस ग्राहक ने आपकी दुकान से ऑर्डर किया है, इसलिए उनका WhatsApp नंबर और ई-मेल उनके अपने अकाउंट के हैं। आप सिर्फ़ नाम बदल सकते हैं।",
   "This customer's e-mail and WhatsApp number are managed by the customer. You can change the name only.":
     "इस ग्राहक का ई-मेल और WhatsApp नंबर ग्राहक ख़ुद संभालते हैं। आप सिर्फ़ नाम बदल सकते हैं।",
+  "Customize": "कस्टमाइज़",
+  "A one-off item for this order only. It is not added to your products.": "सिर्फ़ इस ऑर्डर के लिए एक बार का आइटम। यह आपके प्रोडक्ट में नहीं जुड़ेगा।",
+  "Product name": "प्रोडक्ट का नाम",
+  "Enter a product name": "प्रोडक्ट का नाम लिखें",
+  "Enter a price above 0 (up to 2 decimals)": "0 से ज़्यादा क़ीमत लिखें (दशमलव के बाद अधिकतम 2 अंक)",
+  "Quantity must be a whole number from 1 to 999": "मात्रा 1 से 999 के बीच पूर्ण संख्या होनी चाहिए",
 };

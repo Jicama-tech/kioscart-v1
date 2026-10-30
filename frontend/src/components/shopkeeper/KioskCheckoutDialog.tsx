@@ -210,21 +210,37 @@ export function KioskCheckoutDialog({
   const userWhatsApp = whatsapp ? `${countryCode}${whatsapp}` : "";
 
   function getOrderItems() {
-    return cart.items.map((item) => ({
-      productId: item.productId,
-      productName: item.productName,
-      price:
-        item.isDiscounted && item.discountedPrice
-          ? item.discountedPrice
-          : item.price,
-      quantity: item.quantity,
-      variantTitle: item.variantTitle,
-      subcategoryName: item.subcategoryName,
-      image: item.image,
-      trackQuantity: item.trackQuantity,
-      optionTitle: item.optionTitle,
-      optionPrice: item.optionPrice,
-    }));
+    return cart.items.map((item) =>
+      item.custom
+        ? {
+            // a one-off line: not in the catalog, so no product id and no stock
+            productId: "custom",
+            custom: true,
+            productName: item.productName,
+            price: item.price,
+            quantity: item.quantity,
+            variantTitle:
+              item.variantTitle && item.variantTitle !== "Default" ? item.variantTitle : undefined,
+            subcategoryName:
+              item.subcategoryName && item.subcategoryName !== "Default" ? item.subcategoryName : undefined,
+            trackQuantity: false,
+          }
+        : {
+        productId: item.productId,
+        productName: item.productName,
+        price:
+          item.isDiscounted && item.discountedPrice
+            ? item.discountedPrice
+            : item.price,
+        quantity: item.quantity,
+        variantTitle: item.variantTitle,
+        subcategoryName: item.subcategoryName,
+        image: item.image,
+        trackQuantity: item.trackQuantity,
+        optionTitle: item.optionTitle,
+        optionPrice: item.optionPrice,
+        }
+    );
   }
 
   function getNow() {

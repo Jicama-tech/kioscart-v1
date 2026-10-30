@@ -1533,4 +1533,10 @@ export const gu: Record<string, string> = {
     "આ ગ્રાહકે તમારી દુકાનમાંથી ઑર્ડર કર્યો છે, એટલે તેમનો WhatsApp નંબર અને ઈ-મેલ તેમના પોતાના એકાઉન્ટના છે. તમે ફક્ત નામ બદલી શકો છો.",
   "This customer's e-mail and WhatsApp number are managed by the customer. You can change the name only.":
     "આ ગ્રાહકનો ઈ-મેલ અને WhatsApp નંબર ગ્રાહક પોતે સંભાળે છે. તમે ફક્ત નામ બદલી શકો છો.",
+  "Customize": "કસ્ટમાઇઝ",
+  "A one-off item for this order only. It is not added to your products.": "ફક્ત આ ઑર્ડર માટે એક વખતનો આઇટમ. તે તમારા પ્રોડક્ટમાં ઉમેરાશે નહીં.",
+  "Product name": "પ્રોડક્ટનું નામ",
+  "Enter a product name": "પ્રોડક્ટનું નામ લખો",
+  "Enter a price above 0 (up to 2 decimals)": "0 થી વધુ કિંમત લખો (દશાંશ પછી વધુમાં વધુ 2 અંક)",
+  "Quantity must be a whole number from 1 to 999": "જથ્થો 1 થી 999 વચ્ચેની પૂર્ણ સંખ્યા હોવો જોઈએ",
 };
