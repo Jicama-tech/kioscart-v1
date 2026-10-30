@@ -77,6 +77,11 @@ class OrderItemDto {
   @IsOptional()
   @IsNumber()
   optionPrice?: number;
+
+  // a one-off line that is not in the catalog (no product to look up, no stock to deduct)
+  @IsOptional()
+  @IsBoolean()
+  custom?: boolean;
 }
 
 export class CreateOrderDto {

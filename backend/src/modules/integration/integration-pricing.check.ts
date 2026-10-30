@@ -3,7 +3,7 @@
  * (the project has no test runner configured, so this is a plain script that exits non-zero on a failure).
  */
 import * as assert from "node:assert/strict";
-import { OrderPricingError, deliveryFeeFor, priceLine, totalsFor } from "./integration-pricing";
+import { OrderPricingError, deliveryFeeFor, priceCustomLine, priceLine, totalsFor } from "./integration-pricing";
 
 let passed = 0;
 const check = (name: string, fn: () => void) => {
@@ -183,6 +183,47 @@ check("amounts are rounded to 2 decimals", () => {
   assert.equal(t.subtotal, 99.99);
   assert.equal(t.tax, 18);
   assert.equal(t.total, 117.99);
+});
+
+check("a custom line is priced from the caller's unit price, with no product, stock or option", () => {
+  const l = priceCustomLine({ name: "Gift hamper", subcategoryName: "Large", variantTitle: "Red", unitPrice: 450.5 }, 2);
+  assert.equal(l.productId, "custom");
+  assert.equal(l.custom, true);
+  assert.equal(l.productName, "Gift hamper");
+  assert.equal(l.price, 450.5);
+  assert.equal(l.lineTotal, 901);
+  assert.equal(l.subcategoryName, "Large");
+  assert.equal(l.variantTitle, "Red");
+  assert.equal(l.trackQuantity, false);
+  assert.equal(l.available, null);
+  assert.equal(l.optionTitle, undefined);
+  const bare = priceCustomLine({ name: "Repair", unitPrice: 10 }, 1);
+  assert.equal(bare.subcategoryName, undefined);
+  assert.equal(bare.variantTitle, undefined);
+  // a variant without a subcategory is fine
+  const v = priceCustomLine({ name: "Cake", variantTitle: "1kg", unitPrice: 10 }, 1);
+  assert.equal(v.variantTitle, "1kg");
+  assert.equal(v.subcategoryName, undefined);
+});
+
+check("a custom line: shop discount and tax apply like any other line", () => {
+  const lines = [priceCustomLine({ name: "Hamper", unitPrice: 500 }, 2), priceLine(simple(), { productId: "p1", quantity: 1 })]; // 1000 + 500
+  const t = totalsFor({ discountPercentage: 10, taxPercentage: 5 }, lines, "pickup");
+  assert.deepEqual(t, { subtotal: 1500, discount: 150, tax: 67.5, deliveryFee: 0, total: 1417.5 });
+});
+
+check("a custom line: name, price and quantity are validated", () => {
+  throwsPricing(() => priceCustomLine({ name: "  ", unitPrice: 5 }, 1), /name/i);
+  throwsPricing(() => priceCustomLine({ name: "x".repeat(121), unitPrice: 5 }, 1), /name/i);
+  throwsPricing(() => priceCustomLine({ name: "A", unitPrice: 0 }, 1), /price/i);
+  throwsPricing(() => priceCustomLine({ name: "A", unitPrice: -3 }, 1), /price/i);
+  throwsPricing(() => priceCustomLine({ name: "A", unitPrice: NaN }, 1), /price/i);
+  throwsPricing(() => priceCustomLine({ name: "A", unitPrice: 0.001 }, 1), /price/i);
+  throwsPricing(() => priceCustomLine({ name: "A", unitPrice: 10000000 }, 1), /price/i);
+  throwsPricing(() => priceCustomLine({ name: "A", unitPrice: 5 }, 0), /quantity/i);
+  throwsPricing(() => priceCustomLine({ name: "A", unitPrice: 5 }, 1000), /quantity/i);
+  throwsPricing(() => priceCustomLine({ name: "A", unitPrice: 5 }, 1.5), /quantity/i);
+  assert.equal(priceCustomLine({ name: "A", unitPrice: 5 }, 999).lineTotal, 4995);
 });
 
 if (process.exitCode) {

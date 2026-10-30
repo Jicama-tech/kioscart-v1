@@ -11,11 +11,20 @@
 export class OrderPricingError extends Error {}
 
 export interface LineSelection {
-  productId: string;
+  productId?: string;
+  /** a one-off line that is not in the catalog (then there is no productId) */
+  custom?: CustomLine;
   quantity: number;
   optionTitle?: string;
   subcategoryName?: string;
   variantTitle?: string;
+}
+
+export interface CustomLine {
+  name: string;
+  subcategoryName?: string;
+  variantTitle?: string;
+  unitPrice: number;
 }
 
 /** An item in the shape OrdersService.createOrder() stores, plus the line total. */
@@ -33,6 +42,8 @@ export interface PricedLine {
   variantTitle?: string;
   /** units in stock for this exact choice when stock is tracked, else null */
   available: number | null;
+  /** a one-off line that is not in the catalog: no product to look up, no stock to deduct */
+  custom?: boolean;
 }
 
 export interface Totals {
@@ -172,6 +183,39 @@ export function priceLine(product: any, sel: LineSelection): PricedLine {
     trackQuantity: Boolean(product.trackQuantity),
     available: product.trackQuantity ? num(product.inventory) : null,
   });
+}
+
+/** A one-off line for something that is not in the catalog. Same arithmetic as any line; no stock, no product. */
+export function priceCustomLine(custom: CustomLine, quantity: number): PricedLine {
+  const name = String(custom?.name ?? "").trim();
+  if (!name || name.length > 120) throw new OrderPricingError("A custom item needs a name of up to 120 characters.");
+  const sub = String(custom?.subcategoryName ?? "").trim();
+  const variant = String(custom?.variantTitle ?? "").trim();
+  if (sub.length > 120 || variant.length > 120) {
+    throw new OrderPricingError(`The type and variant of ${name} can be up to 120 characters each.`);
+  }
+  const qty = Number(quantity);
+  if (!Number.isInteger(qty) || qty < 1 || qty > 999) {
+    throw new OrderPricingError(`Choose a quantity between 1 and 999 for ${name}.`);
+  }
+  const raw = Number(custom?.unitPrice);
+  const price = round2(raw);
+  if (!Number.isFinite(raw) || !(price > 0) || price > 9999999) {
+    throw new OrderPricingError(`${name} needs a price above 0 (up to 9,999,999).`);
+  }
+  return {
+    productId: "custom",
+    productName: name,
+    price,
+    quantity: qty,
+    lineTotal: round2(price * qty),
+    trackQuantity: false,
+    optionTitle: undefined,
+    ...(sub ? { subcategoryName: sub } : {}),
+    ...(variant ? { variantTitle: variant } : {}),
+    available: null,
+    custom: true,
+  };
 }
 
 /** Delivery charge for a basket: the rule with the highest minimum the subtotal reaches; none when delivery is off. */

@@ -23,6 +23,7 @@ import {
   OrderPricingError,
   PricedLine,
   Totals,
+  priceCustomLine,
   priceLine,
   totalsFor,
 } from "./integration-pricing";
@@ -95,17 +96,24 @@ export class IntegrationOrdersService {
       throw new BadRequestException("This shop does not deliver. Choose pickup instead.");
     }
 
-    const ids = [...new Set(dto.items.map((i) => i.productId))];
+    // Custom (one-off) lines are not in the catalog, so they are never looked up
+    const ids = [...new Set(dto.items.filter((i) => !i.custom).map((i) => i.productId))];
     // products.shopkeeperId is stored as a string; the shop comes from the API key, never from the request
-    const products = await this.productModel
-      .find({ _id: { $in: ids }, shopkeeperId: String(shopkeeperId), isSoftDeleted: { $ne: true } })
-      .lean();
+    const products = ids.length
+      ? await this.productModel
+          .find({ _id: { $in: ids }, shopkeeperId: String(shopkeeperId), isSoftDeleted: { $ne: true } })
+          .lean()
+      : [];
     const byId = new Map(products.map((p: any) => [String(p._id), p]));
 
     // The same product and choice twice is one line, so stock is checked against the combined quantity
     const merged = new Map<string, any>();
     for (const item of dto.items) {
-      const key = [item.productId, item.optionTitle || "", item.subcategoryName || "", item.variantTitle || ""].join("|");
+      if (item.custom && item.productId) throw new BadRequestException("A line is either a product or a custom item, not both.");
+      const c = item.custom;
+      const key = c
+        ? ["custom", c.name, c.subcategoryName || "", c.variantTitle || "", String(c.unitPrice)].join("|")
+        : [item.productId, item.optionTitle || "", item.subcategoryName || "", item.variantTitle || ""].join("|");
       const seen = merged.get(key);
       merged.set(key, seen ? { ...seen, quantity: seen.quantity + item.quantity } : { ...item });
     }
@@ -113,6 +121,7 @@ export class IntegrationOrdersService {
     let lines: PricedLine[];
     try {
       lines = [...merged.values()].map((item) => {
+        if (item.custom) return priceCustomLine(item.custom, item.quantity);
         const product = byId.get(item.productId);
         if (!product) throw new OrderPricingError("One of the products was not found in this shop.");
         return priceLine(product, item);
@@ -151,7 +160,8 @@ export class IntegrationOrdersService {
       currency: CURRENCY_BY_COUNTRY[String(shop.country || "IN").toUpperCase()] || null,
       orderType,
       lines: lines.map((l) => ({
-        productId: l.productId,
+        productId: l.custom ? null : l.productId,
+        ...(l.custom ? { custom: true } : {}),
         name: l.productName,
         quantity: l.quantity,
         unitPrice: l.price,
@@ -226,6 +236,7 @@ export class IntegrationOrdersService {
       optionPrice: l.optionPrice,
       subcategoryName: l.subcategoryName,
       variantTitle: l.variantTitle,
+      ...(l.custom ? { custom: true } : {}),
     }));
   }
 

@@ -331,7 +331,10 @@ export class ShopkeeperAnalyticsService {
       (order.items || []).forEach((item, itemIndex) => {
         totalItemsProcessed++;
 
-        const productId = item.productId?.toString();
+        // A custom (one-off) line has no catalog product: group it under its own name, not all under "custom"
+        const productId = item.custom
+          ? `custom:${item.productName || "Custom item"}`
+          : item.productId?.toString();
         const itemQty = item.quantity || 0;
         const itemRevenue = (item.price || 0) * itemQty;
         totalRevenueFromItems += itemRevenue;

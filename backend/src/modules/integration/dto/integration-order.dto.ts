@@ -7,6 +7,8 @@ import {
   IsIn,
   IsInt,
   IsMongoId,
+  IsNumber,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
@@ -14,7 +16,10 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Validate,
   ValidateIf,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -24,9 +29,53 @@ import { Type } from "class-transformer";
  * delivery fee or discount field: the server prices everything from the shop's own data (integration-pricing.ts), and
  * the global ValidationPipe rejects any unknown field, so a price sent by a caller is an error, not a suggestion.
  */
+/** A line is either a catalog product (productId) or a custom line, never both. */
+@ValidatorConstraint({ name: "noProductWithCustom", async: false })
+export class NoProductWithCustom implements ValidatorConstraintInterface {
+  validate(_value: unknown, args: { object: any }) {
+    return args.object.productId === undefined || args.object.productId === null;
+  }
+  defaultMessage() {
+    return "a line is either a product (productId) or a custom line (custom), not both";
+  }
+}
+
+/** A one-off line for something that is not in the catalog; only this carries a price from the caller. */
+export class IntegrationCustomLineDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  subcategoryName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  variantTitle?: string;
+
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 2 })
+  @Min(0.01)
+  @Max(9999999)
+  unitPrice: number;
+}
+
 export class IntegrationOrderItemDto {
+  // required for a catalog product; a custom line has no productId
+  @ValidateIf((o) => o.custom === undefined || o.custom === null || o.productId !== undefined)
   @IsMongoId()
-  productId: string;
+  productId?: string;
+
+  // set instead of productId for a one-off line that is not in the catalog
+  @ValidateIf((o) => o.custom !== undefined && o.custom !== null)
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => IntegrationCustomLineDto)
+  @Validate(NoProductWithCustom)
+  custom?: IntegrationCustomLineDto;
 
   @IsInt()
   @Min(1)
