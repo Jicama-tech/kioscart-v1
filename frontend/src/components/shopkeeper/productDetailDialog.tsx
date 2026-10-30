@@ -73,8 +73,8 @@ export function ProductDetailsDialog({
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [whatsAppNumber, setWhatsAppNumber] = useState("");
-  const ordersEnabled = shopkeeper?.takeOrdersFromSite !== false;
   const [shopkeeper, setShopkeeper] = useState<any>(null);
+  const ordersEnabled = shopkeeper?.takeOrdersFromSite !== false;
   const [country, setCountry] = useState<"IN" | "SG">("IN");
   const { formatPrice, getSymbol } = useCurrency(country);
 
