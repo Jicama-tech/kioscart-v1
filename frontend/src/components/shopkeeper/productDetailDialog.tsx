@@ -73,6 +73,7 @@ export function ProductDetailsDialog({
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [whatsAppNumber, setWhatsAppNumber] = useState("");
+  const ordersEnabled = shopkeeper?.takeOrdersFromSite !== false;
   const [shopkeeper, setShopkeeper] = useState<any>(null);
   const [country, setCountry] = useState<"IN" | "SG">("IN");
   const { formatPrice, getSymbol } = useCurrency(country);
@@ -1299,6 +1300,29 @@ export function ProductDetailsDialog({
                   {/* Quantity and Add to Cart */}
                   {isInStock && (
                     <div className="space-y-4 pt-4">
+                      {!ordersEnabled && (
+                        <Button
+                          onClick={() => {
+                            const message = `Hi! I'm interested in ${product.name}${
+                              priceData
+                                ? `. Price: ${formatPrice(priceData.effectivePrice)} / ${displayMeasurement}`
+                                : ""
+                            }`;
+                            window.open(
+                              `https://wa.me/${String(whatsAppNumber).replace(/\D/g, "")}?text=${encodeURIComponent(message)}`,
+                              "_blank",
+                            );
+                          }}
+                          disabled={!whatsAppNumber}
+                          className="w-full text-sm md:text-base py-2 md:py-3"
+                          style={brandBtnStyle}
+                        >
+                          <FaWhatsapp className="mr-2 h-4 w-4" />
+                          {i18nT("Contact Shopkeeper")}
+                        </Button>
+                      )}
+                      {ordersEnabled && (
+                      <>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium">{i18nT("Quantity:")}</span>
                         <div className="flex items-center border rounded-md">
@@ -1386,7 +1410,9 @@ export function ProductDetailsDialog({
                           </Button>
                         )}
                       </div>
-                      {whatsAppNumber && (
+                      </>
+                      )}
+                      {ordersEnabled && whatsAppNumber && (
                         <Button
                           variant="buttonOutline"
                           onClick={() => {

@@ -56,6 +56,7 @@ export class OrdersController {
   // Locking it (or gating it on a plan key) would take the shop offline.
   @Post("create-order")
   async create(@Body() dto: CreateOrderDto) {
+    await this.ordersService.assertSiteOrdersAllowed(dto.shopkeeperId, dto.source);
     try {
       return await this.ordersService.createOrder(dto);
     } catch (err) {

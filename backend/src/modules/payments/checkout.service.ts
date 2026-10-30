@@ -3,6 +3,7 @@ import {
   Logger,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
   Inject,
   forwardRef,
 } from "@nestjs/common";
@@ -79,6 +80,11 @@ export class CheckoutService {
 
     const shop = await this.shopkeeperModel.findById(dto.shopkeeperId);
     if (!shop) throw new NotFoundException("Shopkeeper not found");
+    if (shop.takeOrdersFromSite === false && (dto.order as any).source !== "kiosk") {
+      throw new ForbiddenException(
+        "This shop is not taking orders from the site. Please contact the shopkeeper.",
+      );
+    }
 
     // Direct is now the default. Only legacy shops with mode explicitly set
     // to "standard" or "route" (and an accountId from the old soft-onboarding)
@@ -365,6 +371,11 @@ export class CheckoutService {
   ) {
     const shop = await this.shopkeeperModel.findById(dto.shopkeeperId);
     if (!shop) throw new NotFoundException("Shopkeeper not found");
+    if (shop.takeOrdersFromSite === false && (dto as any).order?.source !== "kiosk") {
+      throw new ForbiddenException(
+        "This shop is not taking orders from the site. Please contact the shopkeeper.",
+      );
+    }
 
     // Three flavors of Razorpay checkout, decided by shop.razorpay.mode:
     //   "platform" — use KiosCart's keys (from env); money pools in our

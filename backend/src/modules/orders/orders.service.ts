@@ -3,6 +3,7 @@ import {
   NotFoundException,
   InternalServerErrorException,
   BadRequestException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
@@ -134,6 +135,26 @@ export class OrdersService {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+  }
+
+  /**
+   * Public entry points call this: a shop that switched "Take Orders from
+   * Site" off only accepts orders taken at its own kiosk (source "kiosk").
+   * Internal callers (kiosk payments, integration, payment finalisation) go
+   * straight to createOrder and are not affected.
+   */
+  async assertSiteOrdersAllowed(shopkeeperId: string, source?: string) {
+    if (source === "kiosk" || !Types.ObjectId.isValid(shopkeeperId)) return;
+    const shop = await this.shopkeeperModel
+      .findById(shopkeeperId)
+      .select("takeOrdersFromSite")
+      .lean()
+      .exec();
+    if (shop && shop.takeOrdersFromSite === false) {
+      throw new ForbiddenException(
+        "This shop is not taking orders from the site. Please contact the shopkeeper.",
+      );
+    }
   }
 
   async createOrder(dto: CreateOrderDto): Promise<Order> {
