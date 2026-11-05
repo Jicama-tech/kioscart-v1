@@ -9,8 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Plus, Package, ChevronDown, ChevronUp, PencilLine } from "lucide-react";
 import { CartItem } from "@/hooks/cartContext";
+import { KioskCustomItemDialog } from "./KioskCustomItemDialog";
 
 import { t as i18nT } from "@/i18n/t";
 const apiURL = __API_URL__;
@@ -93,6 +94,7 @@ export function KioskProductBrowser({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [customOpen, setCustomOpen] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -319,7 +321,19 @@ export function KioskProductBrowser({
             ))}
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 shrink-0 border-primary text-primary"
+          onClick={() => setCustomOpen(true)}
+          disabled={!activeCartId}
+          title={i18nT("Add a one-off item that is not in your products")}
+        >
+          <PencilLine className="h-4 w-4 mr-1.5" />
+          {i18nT("Customize")}
+        </Button>
       </div>
+      <KioskCustomItemDialog open={customOpen} onOpenChange={setCustomOpen} onAddItem={onAddItem} />
 
       {/* Product Grid */}
       <div className="flex-1 overflow-y-auto">

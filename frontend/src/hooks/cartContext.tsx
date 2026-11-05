@@ -42,6 +42,8 @@ export interface CartItem {
   category?: string;
   optionTitle?: string;
   optionPrice?: number;
+  /** a one-off line that is not in the catalog (kiosk Customize); its productId is unique per line */
+  custom?: boolean;
 }
 
 function cartItemKey(item: {
