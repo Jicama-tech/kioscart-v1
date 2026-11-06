@@ -735,7 +735,7 @@ Thank you for shopping with us.
 
     printData.push({
       type: 0,
-      content: `Customer: ${order.userId.name}`,
+      content: `${order.isCompanyOrder ? "Company" : "Customer"}: ${order.customerName || order.userId.name}`,
       bold: 1,
       align: 0,
       format: 0,
@@ -2110,8 +2110,12 @@ Thank you for shopping with us.
                     {/* Customer Info */}
                     <div className="space-y-1">
                       <div className="font-bold">{i18nT("Customer:")}</div>
-                      <div>Name: {printOrder.userId.name}</div>
-                      {printOrder.userId.whatsAppNumber && (
+                      <div>
+                        {printOrder.isCompanyOrder ? "Company" : "Name"}:{" "}
+                        {printOrder.customerName || printOrder.userId.name}
+                      </div>
+                      {printOrder.userId.whatsAppNumber &&
+                        printOrder.userId.whatsAppNumber !== "kiosk-order" && (
                         <div>Phone: {printOrder.userId.whatsAppNumber}</div>
                       )}
                       {printOrder.userId.email && (
