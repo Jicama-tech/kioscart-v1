@@ -159,6 +159,11 @@ export class IntegrationController {
     return this.integrationOrders.getOrder(req.user.userId, id);
   }
 
+  @Delete("orders/:id")
+  deleteOrder(@Req() req: any, @Param("id") id: string) {
+    return this.integration.deleteOrder(req.user.userId, id);
+  }
+
   @Patch("orders/:id/status")
   updateStatus(
     @Req() req: any,

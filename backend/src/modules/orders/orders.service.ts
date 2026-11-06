@@ -1958,13 +1958,20 @@ export class OrdersService {
 
   async deleteOrder(orderId: string) {
     try {
-      const order = await this.orderModel.findOne({ orderId: orderId }).lean();
+      // Accepts the Mongo _id (dashboard, ComBox) or the readable orderId.
+      const filter: any = {
+        isSoftDeleted: { $ne: true },
+        ...(Types.ObjectId.isValid(orderId)
+          ? { $or: [{ _id: orderId }, { orderId }] }
+          : { orderId }),
+      };
+      const order = await this.orderModel.findOne(filter).lean();
       if (!order) {
         throw new NotFoundException("Order Not Found");
       }
 
       await this.orderModel.updateOne(
-        { orderId: orderId },
+        { _id: order._id },
         { isSoftDeleted: true, softDeletedAt: new Date() },
       );
       return { message: "Order Deleted Successfully" };
