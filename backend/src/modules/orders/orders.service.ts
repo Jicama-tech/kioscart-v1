@@ -191,7 +191,9 @@ export class OrdersService {
         ...dto,
         userId: user._id.toString(),
         status: OrderStatus.Pending,
-        customerName: dto.fullName || dto.firstName
+        customerName: dto.isCompanyOrder && dto.fullName
+          ? dto.fullName
+          : dto.fullName || dto.firstName
           ? [dto.firstName, dto.lastName].filter(Boolean).join(" ") || dto.fullName
           : user.name || undefined,
         customerEmail: user.email || undefined,

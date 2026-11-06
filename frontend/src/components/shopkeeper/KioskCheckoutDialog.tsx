@@ -172,8 +172,13 @@ export function KioskCheckoutDialog({
       const data = await res.json();
       if (data.data) {
         setCustomerEmail(data.data.email || "");
-        setFirstName(data.data.name?.split(" ")[0] || "");
-        setLastName(data.data.name?.split(" ").slice(1).join(" ") || "");
+        if (isCompanyOrder) {
+          setFirstName(data.data.name || "");
+          setLastName("");
+        } else {
+          setFirstName(data.data.name?.split(" ")[0] || "");
+          setLastName(data.data.name?.split(" ").slice(1).join(" ") || "");
+        }
         setWhatsappVerified(true);
         toast({
           duration: 3000,
@@ -653,7 +658,15 @@ export function KioskCheckoutDialog({
                   type="checkbox"
                   className="h-4 w-4"
                   checked={isCompanyOrder}
-                  onChange={(e) => setIsCompanyOrder(e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsCompanyOrder(checked);
+                    if (checked) {
+                      // the name box holds the whole company name, not just the first word
+                      setFirstName(`${firstName} ${lastName}`.trim());
+                      setLastName("");
+                    }
+                  }}
                 />
                 {i18nT("Company order")}
               </label>
