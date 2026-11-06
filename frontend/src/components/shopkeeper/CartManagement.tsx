@@ -125,6 +125,7 @@ interface Order {
     changedAt: string;
   }[];
   customerName?: string;
+  isCompanyOrder?: boolean;
   customerEmail?: string;
   customerWhatsApp?: string;
   transactionId?: string;
@@ -734,7 +735,7 @@ Thank you for shopping with us.
 
     printData.push({
       type: 0,
-      content: `Customer: ${order.userId.name}`,
+      content: `${order.isCompanyOrder ? "Company" : "Customer"}: ${order.customerName || order.userId.name}`,
       bold: 1,
       align: 0,
       format: 0,
@@ -1638,6 +1639,11 @@ Thank you for shopping with us.
                           <div className="flex items-center gap-1">
                             <User className="h-3 w-3" />
                             {order.customerName || order.userId?.name || "Customer"}
+                            {order.isCompanyOrder && (
+                              <span className="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                                {i18nT("Company")}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -1837,7 +1843,7 @@ Thank you for shopping with us.
                   <div>
                     <h3 className="font-semibold">{i18nT("Customer")}</h3>
                     <p>
-                      Name:{" "}
+                      {selectedOrder.isCompanyOrder ? "Company" : "Name"}:{" "}
                       {selectedOrder.customerName ||
                         selectedOrder.userId?.name ||
                         "N/A"}
@@ -2104,8 +2110,12 @@ Thank you for shopping with us.
                     {/* Customer Info */}
                     <div className="space-y-1">
                       <div className="font-bold">{i18nT("Customer:")}</div>
-                      <div>Name: {printOrder.userId.name}</div>
-                      {printOrder.userId.whatsAppNumber && (
+                      <div>
+                        {printOrder.isCompanyOrder ? "Company" : "Name"}:{" "}
+                        {printOrder.customerName || printOrder.userId.name}
+                      </div>
+                      {printOrder.userId.whatsAppNumber &&
+                        printOrder.userId.whatsAppNumber !== "kiosk-order" && (
                         <div>Phone: {printOrder.userId.whatsAppNumber}</div>
                       )}
                       {printOrder.userId.email && (
@@ -2391,7 +2401,7 @@ Thank you for shopping with us.
             <div className="space-y-4">
               <div>
                 <h3 className="font-semibold">{i18nT("Customer")}</h3>
-                <p>Name: {selectedOrder.customerName || selectedOrder.userId?.name || "N/A"}</p>
+                <p>{selectedOrder.isCompanyOrder ? "Company" : "Name"}: {selectedOrder.customerName || selectedOrder.userId?.name || "N/A"}</p>
                 <p>Email: {selectedOrder.customerEmail || selectedOrder.userId?.email || "N/A"}</p>
                 <p>WhatsApp: {selectedOrder.customerWhatsApp || selectedOrder.userId?.whatsAppNumber || "N/A"}</p>
               </div>

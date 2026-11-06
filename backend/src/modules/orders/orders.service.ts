@@ -137,6 +137,18 @@ export class OrdersService {
     });
   }
 
+  /** Who a receipt is made out to: the name on the order (company name for company orders), no "kiosk-order" placeholder phone. */
+  private receiptCustomer(order: any, user: any) {
+    const isCompany = !!order?.isCompanyOrder;
+    const phone = user?.whatsAppNumber;
+    return {
+      isCompany,
+      label: isCompany ? "Company" : "Customer",
+      name: order?.customerName || user?.name || "Customer",
+      phone: phone && phone !== "kiosk-order" ? phone : undefined,
+    };
+  }
+
   /**
    * Public entry points call this: a shop that switched "Take Orders from
    * Site" off only accepts orders taken at its own kiosk (source "kiosk").
@@ -191,7 +203,9 @@ export class OrdersService {
         ...dto,
         userId: user._id.toString(),
         status: OrderStatus.Pending,
-        customerName: dto.fullName || dto.firstName
+        customerName: dto.isCompanyOrder && dto.fullName
+          ? dto.fullName
+          : dto.fullName || dto.firstName
           ? [dto.firstName, dto.lastName].filter(Boolean).join(" ") || dto.fullName
           : user.name || undefined,
         customerEmail: user.email || undefined,
@@ -494,7 +508,7 @@ export class OrdersService {
 
           // Customer info height
           contentHeight += 12 + 12; // "Customer:" + name
-          if (customerDetail.whatsAppNumber) contentHeight += 12 + 2;
+          if (this.receiptCustomer(order, customerDetail).phone) contentHeight += 12 + 2;
           if (customerDetail.email) contentHeight += 12 + 2;
           if (order.orderType === "pickup") {
             contentHeight += 12 + 2;
@@ -597,11 +611,12 @@ export class OrdersService {
 
           // ========== CUSTOMER INFO ==========
           doc.moveDown(0.15);
+          const rc = this.receiptCustomer(order, customerDetail);
           doc.font("Helvetica-Bold").fontSize(10).text("Customer:");
           doc.font("Helvetica").fontSize(10);
-          doc.text(`Name: ${customerDetail.name}`);
-          if (customerDetail.whatsAppNumber) {
-            doc.text(`Phone: ${customerDetail.whatsAppNumber}`);
+          doc.text(`${rc.isCompany ? "Company" : "Name"}: ${rc.name}`);
+          if (rc.phone) {
+            doc.text(`Phone: ${rc.phone}`);
           }
           if (customerDetail.email) {
             doc.text(`Email: ${customerDetail.email}`);
@@ -1009,9 +1024,14 @@ export class OrdersService {
             .font("Helvetica-Bold")
             .fontSize(9)
             .fillColor(secondaryColor)
-            .text(customerDetail.name, 220, gridTop + 15, { width: colWidth })
+            .text(
+              this.receiptCustomer(order, customerDetail).name,
+              220,
+              gridTop + 15,
+              { width: colWidth },
+            )
             .font("Helvetica")
-            .text(`WhatsApp: ${customerDetail.whatsAppNumber || "-"}`, {
+            .text(`WhatsApp: ${this.receiptCustomer(order, customerDetail).phone || "-"}`, {
               width: colWidth,
             })
             .text(`Email: ${customerDetail.email || "-"}`, { width: colWidth });
@@ -2025,7 +2045,7 @@ export class OrdersService {
 
     printData.push({
       type: 0,
-      content: `Customer: ${user.name}`,
+      content: `${this.receiptCustomer(order, user).label}: ${this.receiptCustomer(order, user).name}`,
       bold: 0,
       align: 0,
       format: 0,
@@ -2041,7 +2061,7 @@ export class OrdersService {
       });
     }
 
-    if (user.whatsAppNumber) {
+    if (this.receiptCustomer(order, user).phone) {
       printData.push({
         type: 0,
         content: `WhatsApp: ${user.whatsAppNumber}`,
@@ -2375,7 +2395,7 @@ export class OrdersService {
 
       printData.push({
         type: 0,
-        content: `Customer: ${user.name}`,
+        content: `${this.receiptCustomer(order, user).label}: ${this.receiptCustomer(order, user).name}`,
         bold: 1,
         align: 0,
         format: 0,
@@ -2389,7 +2409,7 @@ export class OrdersService {
         format: 4,
       });
 
-      if (user.whatsAppNumber) {
+      if (this.receiptCustomer(order, user).phone) {
         printData.push({
           type: 0,
           content: `Phone: ${user.whatsAppNumber}`,
