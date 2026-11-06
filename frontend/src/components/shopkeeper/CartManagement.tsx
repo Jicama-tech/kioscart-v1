@@ -1141,10 +1141,12 @@ Thank you for shopping with us.
     setDeleting(true);
 
     try {
+      const token = sessionStorage.getItem("token");
       const res = await fetch(
         `${API_URL}/orders/delete-order/${deletingOrderId}`,
         {
           method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
         },
       );
 
@@ -1773,7 +1775,7 @@ Thank you for shopping with us.
                             <Button
                               variant="buttonOutline"
                               size="sm"
-                              onClick={() => promptDeleteOrder(order.orderId)}
+                              onClick={() => promptDeleteOrder(order._id)}
                               className="flex items-center gap-1"
                             >
                               <Trash2 className="h-3 w-3" />

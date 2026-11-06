@@ -318,6 +318,20 @@ export class IntegrationService {
     return { abandonedCarts, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  /** ComBox deleted an order: same soft delete the dashboard uses, so both sides stay in sync. */
+  async deleteOrder(shopkeeperId: string, orderId: string) {
+    if (!Types.ObjectId.isValid(orderId)) {
+      throw new NotFoundException("Order not found");
+    }
+    const owned = await this.orderModel.exists({
+      _id: orderId,
+      shopkeeperId,
+      isSoftDeleted: { $ne: true },
+    });
+    if (!owned) throw new NotFoundException("Order not found");
+    return this.ordersService.deleteOrder(orderId);
+  }
+
   async updateOrderStatus(
     shopkeeperId: string,
     orderId: string,
