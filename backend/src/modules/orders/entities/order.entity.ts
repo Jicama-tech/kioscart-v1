@@ -96,6 +96,9 @@ export class Order extends Document {
   @Prop({ type: String, required: false })
   customerName?: string;
 
+  @Prop({ default: false })
+  isCompanyOrder: boolean;
+
   @Prop({ type: String, required: false })
   customerEmail?: string;
 

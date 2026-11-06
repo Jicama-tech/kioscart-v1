@@ -148,6 +148,11 @@ export class CreateOrderDto {
   @IsString()
   lastName?: string;
 
+  // Kiosk order placed for a company: the customer name is the company name and WhatsApp is optional.
+  @IsOptional()
+  @IsBoolean()
+  isCompanyOrder?: boolean;
+
   @IsOptional()
   @IsBoolean()
   paymentConfirmed?: boolean;

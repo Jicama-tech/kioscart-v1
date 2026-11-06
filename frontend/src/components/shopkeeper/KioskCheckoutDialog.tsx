@@ -100,6 +100,8 @@ export function KioskCheckoutDialog({
   const [customerEmail, setCustomerEmail] = useState("");
   const [countries, setCountries] = useState<Country[]>([]);
   const [validating, setValidating] = useState(false);
+  // Company order: the name is the company's and WhatsApp becomes optional
+  const [isCompanyOrder, setIsCompanyOrder] = useState(false);
 
   useEffect(() => {
     setCountries(
@@ -206,8 +208,15 @@ export function KioskCheckoutDialog({
   const tax = (grandTotal * taxPercentage) / 100;
   const finalTotal = grandTotal + tax;
 
-  const fullName = `${firstName} ${lastName}`.trim() || cart.customerName;
+  const fullName = isCompanyOrder
+    ? firstName.trim()
+    : `${firstName} ${lastName}`.trim() || cart.customerName;
   const userWhatsApp = whatsapp ? `${countryCode}${whatsapp}` : "";
+  // A company order without a number is stored as "kiosk-order" (no customer messages are sent)
+  const orderWhatsApp = isCompanyOrder
+    ? userWhatsApp || "kiosk-order"
+    : userWhatsApp || shopInfo?.whatsappNumber || "kiosk-order";
+  const companyFields = isCompanyOrder ? { isCompanyOrder: true } : {};
 
   function getOrderItems() {
     return cart.items.map((item) =>
@@ -280,13 +289,13 @@ export function KioskCheckoutDialog({
         pickupDate: date,
         pickupTime: time,
         paymentConfirmed: true,
-        whatsAppNumber:
-          userWhatsApp || shopInfo.whatsappNumber || "kiosk-order",
+        whatsAppNumber: orderWhatsApp,
         source: "kiosk",
         fullName,
         firstName,
-        lastName,
+        lastName: isCompanyOrder ? "" : lastName,
         instructions: instructions || undefined,
+        ...companyFields,
       };
 
       const res = await fetch(`${apiURL}/orders/create-order`, {
@@ -346,13 +355,13 @@ export function KioskCheckoutDialog({
           orderType: "pickup",
           pickupDate: date,
           pickupTime: time,
-          whatsAppNumber:
-            userWhatsApp || shopInfo.whatsappNumber || "kiosk-order",
+          whatsAppNumber: orderWhatsApp,
           source: "kiosk",
           fullName,
           firstName,
-          lastName,
+          lastName: isCompanyOrder ? "" : lastName,
           instructions: instructions || undefined,
+          ...companyFields,
         },
         `kc-${orderId}`,
       );
@@ -413,6 +422,7 @@ export function KioskCheckoutDialog({
   }
 
   function resetForm() {
+    setIsCompanyOrder(false);
     setPaymentMethod(null);
     setInstructions("");
     setWhatsapp("");
@@ -426,6 +436,7 @@ export function KioskCheckoutDialog({
   }
 
   function resetAndClose() {
+    setIsCompanyOrder(false);
     setPaymentMethod(null);
     setInstructions("");
     setWhatsapp("");
@@ -636,10 +647,25 @@ export function KioskCheckoutDialog({
                 {i18nT("Customer Details")}
               </Label>
 
+              {/* Company order */}
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={isCompanyOrder}
+                  onChange={(e) => setIsCompanyOrder(e.target.checked)}
+                />
+                {i18nT("Company order")}
+              </label>
+
               {/* WhatsApp Number with Validate */}
               <div>
                 <Label className="text-xs text-muted-foreground flex items-center justify-between mb-1">
-                  <span>{i18nT("WhatsApp Number *")}</span>
+                  <span>
+                    {isCompanyOrder
+                      ? `${i18nT("WhatsApp Number")} (${i18nT("optional")})`
+                      : i18nT("WhatsApp Number *")}
+                  </span>
                   {whatsappVerified && (
                     <Badge variant="default" className="text-[10px]">
                       {i18nT("Verified")}
@@ -668,6 +694,8 @@ export function KioskCheckoutDialog({
                     onChange={(e) => {
                       setWhatsapp(e.target.value.replace(/\D/g, ""));
                       setWhatsappVerified(false);
+                      // keep the typed company name; the reset below is for a person
+                      if (isCompanyOrder) return;
                       setFirstName(
                         cart.customerName.startsWith("Walk-in")
                           ? ""
@@ -701,16 +729,19 @@ export function KioskCheckoutDialog({
               </div>
 
               {/* First Name & Last Name */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className={isCompanyOrder ? "" : "grid grid-cols-2 gap-3"}>
                 <div>
-                  <Label className="text-xs text-muted-foreground">{i18nT("First Name *")}</Label>
+                  <Label className="text-xs text-muted-foreground">
+                    {isCompanyOrder ? i18nT("Company Name *") : i18nT("First Name *")}
+                  </Label>
                   <Input
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    placeholder={i18nT("John")}
+                    placeholder={isCompanyOrder ? i18nT("Company name") : i18nT("John")}
                     className="h-9 mt-1"
                   />
                 </div>
+                {!isCompanyOrder && (
                 <div>
                   <Label className="text-xs text-muted-foreground">{i18nT("Last Name *")}</Label>
                   <Input
@@ -720,6 +751,7 @@ export function KioskCheckoutDialog({
                     className="h-9 mt-1"
                   />
                 </div>
+                )}
               </div>
 
               {/* Customer Email */}
@@ -784,7 +816,12 @@ export function KioskCheckoutDialog({
             {paymentMethod && (
               <Button
                 className="w-full h-10"
-                disabled={submitting || !shopInfo || !firstName || !whatsapp}
+                disabled={
+                  submitting ||
+                  !shopInfo ||
+                  !firstName ||
+                  (!whatsapp && !isCompanyOrder)
+                }
                 onClick={
                   paymentMethod === "cash" ? handleCashPayment : handleQRPayment
                 }
