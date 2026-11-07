@@ -10,6 +10,7 @@ import {
   ValidateIf,
   IsObject,
   IsBoolean,
+  Matches,
   IsIn,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -112,6 +113,12 @@ export class CreateOrderDto {
 
   @IsOptional()
   pickupDate?: string;
+
+  // The day the order was really made, when it is entered afterwards (a kiosk sale written up later): YYYY-MM-DD, not in the
+  // future. Left out, the order is dated now.
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: "orderDate must be a date as YYYY-MM-DD" })
+  orderDate?: string;
 
   @IsOptional()
   pickupTime?: string;
