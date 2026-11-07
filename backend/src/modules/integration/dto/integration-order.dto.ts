@@ -170,6 +170,11 @@ export class IntegrationPaymentRequestDto extends IntegrationQuoteDto {
   @MinLength(4)
   @MaxLength(80)
   externalRef: string;
+
+  // The day the order was really made (YYYY-MM-DD, not in the future); left out, it is dated when it is placed
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: "orderDate must be a date as YYYY-MM-DD" })
+  orderDate?: string;
 }
 
 /** POST /integration/v1/orders — place the order. */
@@ -201,4 +206,9 @@ export class IntegrationCreateOrderDto extends IntegrationQuoteDto {
   @MinLength(4)
   @MaxLength(80)
   externalRef?: string;
+
+  // The day the order was really made (YYYY-MM-DD, not in the future); left out, it is dated now
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: "orderDate must be a date as YYYY-MM-DD" })
+  orderDate?: string;
 }

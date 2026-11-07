@@ -82,6 +82,9 @@ export function KioskCheckoutDialog({
   );
   const [submitting, setSubmitting] = useState(false);
   const [instructions, setInstructions] = useState("");
+  // The day of the order: today, unless the sale was made earlier and is being written up now
+  const todayLocal = () => new Date().toLocaleDateString("en-CA");
+  const [orderDate, setOrderDate] = useState(todayLocal());
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
 
   // QR payment: the sale waits as "Payment pending" (with a payment link for the customer) until the payment is
@@ -284,6 +287,7 @@ export function KioskCheckoutDialog({
       const { date, time } = getNow();
       const orderId = generateOrderId(shopInfo?.shopName);
 
+      const earlier = orderDate && orderDate !== todayLocal();
       const orderData = {
         orderId,
         userId: decoded.sub,
@@ -291,7 +295,8 @@ export function KioskCheckoutDialog({
         items: getOrderItems(),
         totalAmount: finalTotal,
         orderType: "pickup",
-        pickupDate: date,
+        ...(earlier ? { orderDate } : {}),
+        pickupDate: earlier ? orderDate : date,
         pickupTime: time,
         paymentConfirmed: true,
         whatsAppNumber: orderWhatsApp,
@@ -358,7 +363,8 @@ export function KioskCheckoutDialog({
           items: getOrderItems(),
           totalAmount: finalTotal,
           orderType: "pickup",
-          pickupDate: date,
+          ...(orderDate && orderDate !== todayLocal() ? { orderDate } : {}),
+          pickupDate: orderDate && orderDate !== todayLocal() ? orderDate : date,
           pickupTime: time,
           whatsAppNumber: orderWhatsApp,
           source: "kiosk",
@@ -430,6 +436,7 @@ export function KioskCheckoutDialog({
     setIsCompanyOrder(false);
     setPaymentMethod(null);
     setInstructions("");
+    setOrderDate(todayLocal());
     setWhatsapp("");
     setWhatsappVerified(false);
     setFirstName("");
@@ -444,6 +451,7 @@ export function KioskCheckoutDialog({
     setIsCompanyOrder(false);
     setPaymentMethod(null);
     setInstructions("");
+    setOrderDate(todayLocal());
     setWhatsapp("");
     setWhatsappVerified(false);
     setFirstName("");
@@ -645,6 +653,25 @@ export function KioskCheckoutDialog({
             </div>
 
             <Separator />
+
+            {/* Order date: today unless the sale was made earlier */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {i18nT("Order Date")}
+              </Label>
+              <Input
+                type="date"
+                value={orderDate}
+                max={todayLocal()}
+                onChange={(e) => setOrderDate(e.target.value || todayLocal())}
+                className="w-full sm:w-56"
+              />
+              {orderDate !== todayLocal() && (
+                <p className="text-xs text-muted-foreground">
+                  {i18nT("This order will be recorded on the date you chose.")}
+                </p>
+              )}
+            </div>
 
             {/* Customer Details — same as cartPage self/kiosk mode */}
             <div className="space-y-3">

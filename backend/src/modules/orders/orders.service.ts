@@ -169,7 +169,22 @@ export class OrdersService {
     }
   }
 
+  /**
+   * The moment an order dated by hand is stored at (null for today, which is simply now). The day is kept at midday UTC so
+   * that it reads as the same day in every time zone. A day in the future, or years back, is refused.
+   */
+  checkOrderDate(orderDate?: string | null): Date | null {
+    if (!orderDate) return null;
+    const day = new Date(`${orderDate}T12:00:00.000Z`);
+    if (isNaN(day.getTime())) throw new BadRequestException("The order date is not a valid date.");
+    if (orderDate === new Date().toISOString().slice(0, 10)) return null;
+    if (day.getTime() > Date.now() + 14 * 60 * 60 * 1000) throw new BadRequestException("The order date cannot be in the future.");
+    if (day.getTime() < Date.now() - 5 * 366 * 24 * 60 * 60 * 1000) throw new BadRequestException("The order date is too far back.");
+    return day;
+  }
+
   async createOrder(dto: CreateOrderDto): Promise<Order> {
+    const backdated = this.checkOrderDate(dto.orderDate);
     try {
       // Step 1. Find or create user by WhatsApp number
       let user = await this.userModel
@@ -201,6 +216,7 @@ export class OrdersService {
       // Step 3. Create order associated with the user
       const order = new this.orderModel({
         ...dto,
+        ...(backdated ? { createdAt: backdated } : {}),
         userId: user._id.toString(),
         status: OrderStatus.Pending,
         customerName: dto.isCompanyOrder && dto.fullName
@@ -225,11 +241,10 @@ export class OrdersService {
       );
 
       // Send notifications (non-blocking — don't fail the order if notifications fail)
-      const notifications = this.sendOrderCreationNotifications(
-        savedOrder,
-        user,
-        dto,
-      );
+      // (an order written up afterwards for an earlier day tells nobody: the customer was served then)
+      const notifications = backdated
+        ? Promise.resolve(null)
+        : this.sendOrderCreationNotifications(savedOrder, user, dto);
       // Recorded now, synchronously, so the Razorpay webhook — which can
       // arrive while these are still running — waits for how the owner was
       // alerted instead of guessing (RazorpayWebhookService).

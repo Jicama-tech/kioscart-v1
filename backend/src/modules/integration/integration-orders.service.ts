@@ -185,6 +185,7 @@ export class IntegrationOrdersService {
    * created here (see KioskPaymentsService). Stock is checked now and again when the order is placed.
    */
   async preparePickupOrder(shopkeeperId: string, dto: IntegrationPaymentRequestDto) {
+    this.ordersService.checkOrderDate(dto.orderDate);   // refused now, not when the payment is confirmed
     const shop = await this.loadShop(shopkeeperId);
     this.assertOpen(shop);
     const { lines, totals } = await this.priceBasket(shopkeeperId, shop, { ...dto, orderType: "pickup" });
@@ -215,6 +216,7 @@ export class IntegrationOrdersService {
         notes: dto.notes,
         integrationRef: dto.externalRef,
         source: "integration",
+        ...(dto.orderDate ? { orderDate: dto.orderDate } : {}),
       },
     };
   }
@@ -310,6 +312,7 @@ export class IntegrationOrdersService {
       ...(paymentLink ? { paymentLinkId: paymentLink.id, paymentLinkUrl: paymentLink.shortUrl } : {}),
       integrationRef: dto.externalRef,
       source: "integration",
+      ...(dto.orderDate ? { orderDate: dto.orderDate } : {}),
     };
 
     let order: any;
